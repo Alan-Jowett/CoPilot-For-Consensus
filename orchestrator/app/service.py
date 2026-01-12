@@ -36,10 +36,6 @@ class OrchestrationService:
         subscriber: EventSubscriber,
         top_k: int = 12,
         context_window_tokens: int = 3000,
-        llm_backend: str = "ollama",
-        llm_model: str = "mistral",
-        llm_temperature: float = 0.2,
-        llm_max_tokens: int = 2048,
         system_prompt_path: str = "/app/prompts/system.txt",
         user_prompt_path: str = "/app/prompts/user.txt",
         metrics_collector: MetricsCollector | None = None,
@@ -53,10 +49,6 @@ class OrchestrationService:
             subscriber: Event subscriber for consuming events
             top_k: Number of top chunks to retrieve per thread
             context_window_tokens: Token budget for prompt context
-            llm_backend: LLM backend (ollama, azure, openai)
-            llm_model: Model identifier
-            llm_temperature: Sampling temperature
-            llm_max_tokens: Maximum tokens for response
             system_prompt_path: Path to system prompt file
             user_prompt_path: Path to user prompt template file
             metrics_collector: Metrics collector (optional)
@@ -67,10 +59,6 @@ class OrchestrationService:
         self.subscriber = subscriber
         self.top_k = top_k
         self.context_window_tokens = context_window_tokens
-        self.llm_backend = llm_backend
-        self.llm_model = llm_model
-        self.llm_temperature = llm_temperature
-        self.llm_max_tokens = llm_max_tokens
         self.metrics_collector = metrics_collector
         self.error_reporter = error_reporter
         self.system_prompt_path = system_prompt_path
@@ -566,8 +554,6 @@ class OrchestrationService:
             event_data = {
                 "thread_ids": thread_ids,
                 "top_k": self.top_k,
-                "llm_backend": self.llm_backend,
-                "llm_model": self.llm_model,
                 "context_window_tokens": self.context_window_tokens,
                 "prompt_template": f"{self.system_prompt.rstrip()}\n\n{self.user_prompt.lstrip()}",
             }
@@ -654,8 +640,6 @@ class OrchestrationService:
             "config": {
                 "top_k": self.top_k,
                 "context_window_tokens": self.context_window_tokens,
-                "llm_backend": self.llm_backend,
-                "llm_model": self.llm_model,
             }
         }
 

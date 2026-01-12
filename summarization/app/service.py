@@ -201,14 +201,13 @@ class SummarizationService:
             raise TypeError(error_msg)
 
         top_k = event_data.get("top_k", self.top_k)
-        context_window_tokens = event_data.get("context_window_tokens", 3000)
-        prompt_template = event_data.get("prompt_template", "Summarize the following discussion thread:")
+        prompt_template = event_data.get("prompt_template", self.prompt_template)
 
         for thread_id in thread_ids:
             self._process_thread(
                 thread_id=thread_id,
                 top_k=top_k,
-                context_window_tokens=context_window_tokens,
+                context_window_tokens=self.context_window_tokens,
                 prompt_template=prompt_template,
             )
 
