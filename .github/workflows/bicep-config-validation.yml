@@ -3,6 +3,9 @@
 
 name: Bicep Configuration Validation
 
+permissions:
+  contents: read
+
 on:
   pull_request:
     paths:
