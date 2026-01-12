@@ -194,37 +194,50 @@ def create_valid_chunk(
 
 def create_valid_thread(
     thread_id: str | None = None,
-    root_message_id: str = "<root@example.com>",
+    archive_id: str | None = None,
     subject: str = "Test Thread Subject",
+    has_consensus: bool = False,
     **kwargs: Any
 ) -> dict[str, Any]:
     """Create a schema-compliant thread document for testing.
     
     Args:
         thread_id: 16-char hex thread ID (auto-generated if None)
-        root_message_id: Message-ID of the thread's root message
+        archive_id: 16-char hex archive ID (auto-generated if None)
         subject: Thread subject line
+        has_consensus: Whether the thread has reached consensus
         **kwargs: Additional fields to include in the thread
         
     Returns:
         Dictionary containing a valid thread document
     """
     if thread_id is None:
-        thread_id = generate_doc_id(f"thread-{root_message_id}")
+        thread_id = generate_doc_id(f"thread-{subject}")
+    if archive_id is None:
+        archive_id = generate_doc_id(f"archive-for-thread-{thread_id}")
     
     created_at = datetime.now(timezone.utc).isoformat()
     
     thread = {
         "_id": thread_id,
-        "root_message_id": root_message_id,
+        "archive_id": archive_id,
         "subject": subject,
-        "message_ids": [root_message_id],
-        "participant_emails": ["sender@example.com"],
-        "created_at": created_at,
-        "updated_at": created_at,
+        "participants": [
+            {"email": "sender@example.com", "name": "Test Sender"}
+        ],
         "message_count": 1,
-        "status": "active",
+        "first_message_date": created_at,
+        "last_message_date": created_at,
+        "draft_mentions": [],
+        "has_consensus": has_consensus,
+        "consensus_type": None,
+        "summary_id": None,
+        "created_at": created_at,
+        "status": "pending",
+        "attemptCount": 0,
+        "lastAttemptTime": None,
         "lastUpdated": created_at,
+        "workerId": None,
     }
     
     thread.update(kwargs)
@@ -233,41 +246,51 @@ def create_valid_thread(
 
 def create_valid_archive(
     archive_id: str | None = None,
-    source_name: str = "test-source",
+    source: str = "test-source",
+    source_url: str = "http://example.com/test.mbox",
     file_path: str = "/test/path/test.mbox",
+    file_size_bytes: int = 1024,
     **kwargs: Any
 ) -> dict[str, Any]:
     """Create a schema-compliant archive document for testing.
     
     Args:
         archive_id: 16-char hex archive ID (auto-generated if None)
-        source_name: Name of the archive source
+        source: Name of the archive source
+        source_url: URL of the archive source
         file_path: Path to the archive file
+        file_size_bytes: Size of the archive file in bytes
         **kwargs: Additional fields to include in the archive
         
     Returns:
         Dictionary containing a valid archive document
     """
     if archive_id is None:
-        archive_id = generate_doc_id(f"archive-{source_name}-{file_path}")
+        archive_id = generate_doc_id(f"archive-{source}-{file_path}")
+    
+    # Generate full 64-character SHA256 hash for file_hash
+    file_hash = hashlib.sha256(file_path.encode()).hexdigest()
     
     created_at = datetime.now(timezone.utc).isoformat()
     
-    # NOTE: archives documents have both _id and archive_id fields.
-    # _id is the MongoDB primary key, archive_id is the domain identifier.
-    # Both use the same value for consistency with the schema requirement
-    # that archive_id matches the document's _id.
+    # NOTE: archives schema only has _id, not archive_id
+    # _id is the MongoDB primary key (16-char hex)
+    # file_hash is the full 64-char SHA256 hash
     archive = {
         "_id": archive_id,
-        "archive_id": archive_id,
-        "source_name": source_name,
-        "file_path": file_path,
-        "file_size_bytes": 1024,
-        "file_hash_sha256": hashlib.sha256(file_path.encode()).hexdigest(),
+        "file_hash": file_hash,
+        "file_size_bytes": file_size_bytes,
+        "source": source,
+        "source_url": source_url,
+        "format": "mbox",
+        "ingestion_date": created_at,
         "message_count": 0,
-        "created_at": created_at,
+        "file_path": file_path,
         "status": "completed",
+        "attemptCount": 0,
+        "lastAttemptTime": None,
         "lastUpdated": created_at,
+        "workerId": None,
     }
     
     archive.update(kwargs)
