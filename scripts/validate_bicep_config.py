@@ -143,9 +143,6 @@ def validate_config(env_vars: dict, schema: dict) -> list:
     # Get service settings from schema
     service_settings = schema.get("service_settings", {})
     
-    # Track which fields we've validated
-    validated_fields = set()
-    
     # Validate each adapter configuration
     for adapter_name, adapter_config in service_settings.items():
         if not isinstance(adapter_config, dict):
@@ -183,7 +180,6 @@ def validate_config(env_vars: dict, schema: dict) -> list:
             env_var = prop.get("env_var")
             
             if env_var:
-                validated_fields.add(env_var)
                 if env_var not in env_vars:
                     issues.append(f"Missing required field: {env_var} (required by adapter '{adapter_name}', field '{field_name}')")
                 elif env_vars[env_var] is None:
@@ -195,8 +191,6 @@ def validate_config(env_vars: dict, schema: dict) -> list:
                 continue
             
             env_var = prop.get("env_var")
-            if env_var:
-                validated_fields.add(env_var)
     
     # Check for env vars that don't map to any schema field (might be obsolete or typos)
     # This is a warning, not an error
