@@ -249,7 +249,7 @@ def main(output_path_arg=None):
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(config_content)
 
-    print(f"\n✅ Successfully generated {output_path}")
+    print(f"\n[OK] Successfully generated {output_path}")
     print(f"   Total update entries: {len(packages) + 3} ({len(packages)} pip + 1 npm + 1 docker + 1 github-actions)")
     print(f"   Python directories monitored: {len(packages)}")
     print(f"   Docker directories monitored: {len(dockerfile_dirs)}")
