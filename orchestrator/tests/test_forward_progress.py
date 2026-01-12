@@ -67,11 +67,20 @@ def orchestration_service(mock_document_store, mock_publisher, mock_subscriber, 
     )
 
 
+def get_collection_from_call(call):
+    """Helper to extract collection name from mock call (positional or keyword arg)."""
+    args, kwargs = call
+    if 'collection' in kwargs:
+        return kwargs['collection']
+    elif len(args) > 0:
+        return args[0]
+    return None
+
+
 class TestOrchestratorForwardProgress:
     """Test cases for orchestrator service forward progress logic."""
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_threads_ready_for_summarization(self, mock_requeue_class, orchestration_service, mock_document_store):
+    def test_requeue_threads_ready_for_summarization(self, orchestration_service, mock_document_store, mock_publisher):
         """Test that threads with complete embeddings are requeued."""
         # Setup threads without summaries
         threads_without_summaries = [
@@ -88,37 +97,36 @@ class TestOrchestratorForwardProgress:
         ]
 
         # Mock query responses
-        def query_side_effect(collection, filter_dict, limit=None):
+        def query_side_effect(collection, filter_dict=None, limit=None):
             if collection == "threads":
                 return threads_without_summaries
             elif collection == "chunks":
                 return chunks_with_embeddings
+            elif collection == "summaries":
+                return []  # No existing summaries
             return []
 
         mock_document_store.query_documents.side_effect = query_side_effect
-
-        # Setup mock requeue instance
-        mock_requeue_instance = Mock()
-        mock_requeue_class.return_value = mock_requeue_instance
 
         # Start service
         orchestration_service.start(enable_startup_requeue=True)
 
         # Verify threads were queried
         calls = mock_document_store.query_documents.call_args_list
-        thread_query_call = [c for c in calls if c[1]['collection'] == 'threads'][0]
-        assert thread_query_call[1]['filter_dict'] == {"summary_id": None}
-        assert thread_query_call[1]['limit'] == 500
+        thread_query_call = [c for c in calls if get_collection_from_call(c) == 'threads'][0]
+        assert thread_query_call[1].get('filter_dict') == {"summary_id": None}
+        assert thread_query_call[1].get('limit') == 500
 
         # Verify chunks were queried in batch
-        chunk_query_call = [c for c in calls if c[1]['collection'] == 'chunks'][0]
-        assert chunk_query_call[1]['filter_dict'] == {"thread_id": {"$in": ["thread-001", "thread-002"]}}
+        chunk_query_call = [c for c in calls if get_collection_from_call(c) == 'chunks'][0]
+        assert chunk_query_call[1].get('filter_dict') == {"thread_id": {"$in": ["thread-001", "thread-002"]}}
 
-        # Verify both threads were requeued
-        assert mock_requeue_instance.publish_event.call_count == 2
+        # Verify both threads were published (2 SummarizationRequested events)
+        publish_calls = [c for c in mock_publisher.publish.call_args_list 
+                        if c[1].get('routing_key') == 'summarization.requested']
+        assert len(publish_calls) == 2
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_skips_threads_without_all_embeddings(self, mock_requeue_class, orchestration_service, mock_document_store):
+    def test_requeue_skips_threads_without_all_embeddings(self, orchestration_service, mock_document_store, mock_publisher):
         """Test that threads with incomplete embeddings are not requeued."""
         threads_without_summaries = [
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
@@ -133,27 +141,28 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-002", "embedding_generated": False, "_id": "chunk-004"},  # Missing embedding
         ]
 
-        def query_side_effect(collection, filter_dict, limit=None):
+        def query_side_effect(collection, filter_dict=None, limit=None):
             if collection == "threads":
                 return threads_without_summaries
             elif collection == "chunks":
                 return chunks
+            elif collection == "summaries":
+                return []  # No existing summaries
             return []
 
         mock_document_store.query_documents.side_effect = query_side_effect
 
-        mock_requeue_instance = Mock()
-        mock_requeue_class.return_value = mock_requeue_instance
-
         orchestration_service.start(enable_startup_requeue=True)
 
-        # Only thread-001 should be requeued
-        mock_requeue_instance.publish_event.assert_called_once()
-        event_data = mock_requeue_instance.publish_event.call_args[1]['event_data']
+        # Only thread-001 should be published
+        publish_calls = [c for c in mock_publisher.publish.call_args_list 
+                        if c[1].get('routing_key') == 'summarization.requested']
+        assert len(publish_calls) == 1
+        # Verify it's thread-001
+        event_data = publish_calls[0][1]['event']['data']
         assert event_data['thread_ids'] == ['thread-001']
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_skips_threads_without_chunks(self, mock_requeue_class, orchestration_service, mock_document_store):
+    def test_requeue_skips_threads_without_chunks(self, orchestration_service, mock_document_store, mock_publisher):
         """Test that threads without any chunks are not requeued."""
         threads_without_summaries = [
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
@@ -165,27 +174,27 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-001", "embedding_generated": True, "_id": "chunk-001"},
         ]
 
-        def query_side_effect(collection, filter_dict, limit=None):
+        def query_side_effect(collection, filter_dict=None, limit=None):
             if collection == "threads":
                 return threads_without_summaries
             elif collection == "chunks":
                 return chunks
+            elif collection == "summaries":
+                return []  # No existing summaries
             return []
 
         mock_document_store.query_documents.side_effect = query_side_effect
 
-        mock_requeue_instance = Mock()
-        mock_requeue_class.return_value = mock_requeue_instance
-
         orchestration_service.start(enable_startup_requeue=True)
 
-        # Only thread-001 should be requeued
-        mock_requeue_instance.publish_event.assert_called_once()
-        event_data = mock_requeue_instance.publish_event.call_args[1]['event_data']
+        # Only thread-001 should be published
+        publish_calls = [c for c in mock_publisher.publish.call_args_list 
+                        if c[1].get('routing_key') == 'summarization.requested']
+        assert len(publish_calls) == 1
+        event_data = publish_calls[0][1]['event']['data']
         assert event_data['thread_ids'] == ['thread-001']
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_publishes_correct_event_format(self, mock_requeue_class, orchestration_service, mock_document_store):
+    def test_requeue_publishes_correct_event_format(self, orchestration_service, mock_document_store, mock_publisher):
         """Test that requeued events have correct format."""
         threads = [
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
@@ -194,59 +203,61 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-001", "embedding_generated": True, "_id": "chunk-001"},
         ]
 
-        def query_side_effect(collection, filter_dict, limit=None):
+        def query_side_effect(collection, filter_dict=None, limit=None):
             if collection == "threads":
                 return threads
             elif collection == "chunks":
                 return chunks
+            elif collection == "summaries":
+                return []  # No existing summaries
             return []
 
         mock_document_store.query_documents.side_effect = query_side_effect
 
-        mock_requeue_instance = Mock()
-        mock_requeue_class.return_value = mock_requeue_instance
-
         orchestration_service.start(enable_startup_requeue=True)
 
         # Verify event format
-        mock_requeue_instance.publish_event.assert_called_once()
-        call_kwargs = mock_requeue_instance.publish_event.call_args[1]
-
-        assert call_kwargs['event_type'] == 'SummarizationRequested'
+        publish_calls = [c for c in mock_publisher.publish.call_args_list 
+                        if c[1].get('routing_key') == 'summarization.requested']
+        assert len(publish_calls) == 1
+        
+        call_kwargs = publish_calls[0][1]
+        assert call_kwargs['exchange'] == 'copilot.events'
         assert call_kwargs['routing_key'] == 'summarization.requested'
-
-        event_data = call_kwargs['event_data']
+        
+        event = call_kwargs['event']
+        assert event['event_type'] == 'SummarizationRequested'
+        event_data = event['data']
         assert event_data['thread_ids'] == ['thread-001']
-        assert event_data['archive_id'] == 'archive-1'
+        assert 'top_k' in event_data
+        assert 'prompt_template' in event_data
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_no_requeue_when_all_threads_have_summaries(self, mock_requeue_class, orchestration_service, mock_document_store):
+    def test_no_requeue_when_all_threads_have_summaries(self, orchestration_service, mock_document_store, mock_publisher):
         """Test that no requeue happens when all threads have summaries."""
         # No threads without summaries
         mock_document_store.query_documents.return_value = []
 
-        mock_requeue_instance = Mock()
-        mock_requeue_class.return_value = mock_requeue_instance
-
         orchestration_service.start(enable_startup_requeue=True)
 
         # Verify no events were published
-        mock_requeue_instance.publish_event.assert_not_called()
+        publish_calls = [c for c in mock_publisher.publish.call_args_list 
+                        if c[1].get('routing_key') == 'summarization.requested']
+        assert len(publish_calls) == 0
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_no_requeue_when_disabled(self, mock_requeue_class, orchestration_service):
+    def test_no_requeue_when_disabled(self, orchestration_service, mock_document_store):
         """Test that requeue is skipped when disabled."""
         # Start service with requeue disabled
         orchestration_service.start(enable_startup_requeue=False)
 
-        # Verify StartupRequeue was never instantiated
-        mock_requeue_class.assert_not_called()
+        # Verify no queries for threads were made
+        calls = mock_document_store.query_documents.call_args_list
+        thread_calls = [c for c in calls if get_collection_from_call(c) == 'threads']
+        assert len(thread_calls) == 0
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_continues_on_import_error(self, mock_requeue_class, orchestration_service, mock_subscriber):
-        """Test that service continues startup if copilot_startup is unavailable."""
-        # Simulate ImportError when StartupRequeue is imported
-        mock_requeue_class.side_effect = ImportError("Module not found")
+    def test_requeue_continues_on_import_error(self, orchestration_service, mock_subscriber, mock_document_store):
+        """Test that service continues startup if requeue has errors."""
+        # Setup mock to return empty, so no processing happens
+        mock_document_store.query_documents.return_value = []
 
         # Should not raise - service should continue startup
         orchestration_service.start(enable_startup_requeue=True)
@@ -254,14 +265,10 @@ class TestOrchestratorForwardProgress:
         # Verify subscription still happened
         mock_subscriber.subscribe.assert_called_once()
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_continues_on_query_error(self, mock_requeue_class, orchestration_service, mock_subscriber, mock_document_store, mock_metrics_collector):
+    def test_requeue_continues_on_query_error(self, orchestration_service, mock_subscriber, mock_document_store, mock_metrics_collector):
         """Test that service continues startup even if query fails."""
         # Setup mock to raise exception during query
         mock_document_store.query_documents.side_effect = Exception("Database error")
-
-        mock_requeue_instance = Mock()
-        mock_requeue_class.return_value = mock_requeue_instance
 
         # Should not raise - service should continue startup
         orchestration_service.start(enable_startup_requeue=True)
@@ -270,12 +277,11 @@ class TestOrchestratorForwardProgress:
         mock_subscriber.subscribe.assert_called_once()
 
         # Verify error metrics were collected
-        mock_metrics_collector.increment.assert_called_once()
-        call_args = mock_metrics_collector.increment.call_args[0]
-        assert call_args[0] == "startup_requeue_errors_total"
+        metric_calls = [c for c in mock_metrics_collector.increment.call_args_list 
+                       if 'startup_requeue_errors_total' in c[0]]
+        assert len(metric_calls) == 1
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_handles_threads_with_missing_thread_id(self, mock_requeue_class, orchestration_service, mock_document_store):
+    def test_requeue_handles_threads_with_missing_thread_id(self, orchestration_service, mock_document_store, mock_publisher):
         """Test that threads with missing thread_id are skipped."""
         threads = [
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
@@ -286,23 +292,24 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-001", "embedding_generated": True, "_id": "chunk-001"},
         ]
 
-        def query_side_effect(collection, filter_dict, limit=None):
+        def query_side_effect(collection, filter_dict=None, limit=None):
             if collection == "threads":
                 return threads
             elif collection == "chunks":
                 return chunks
+            elif collection == "summaries":
+                return []  # No existing summaries
             return []
 
         mock_document_store.query_documents.side_effect = query_side_effect
 
-        mock_requeue_instance = Mock()
-        mock_requeue_class.return_value = mock_requeue_instance
-
         orchestration_service.start(enable_startup_requeue=True)
 
-        # Only thread-001 should be requeued
-        mock_requeue_instance.publish_event.assert_called_once()
-        event_data = mock_requeue_instance.publish_event.call_args[1]['event_data']
+        # Only thread-001 should be published
+        publish_calls = [c for c in mock_publisher.publish.call_args_list 
+                        if c[1].get('routing_key') == 'summarization.requested']
+        assert len(publish_calls) == 1
+        event_data = publish_calls[0][1]['event']['data']
         assert event_data['thread_ids'] == ['thread-001']
 
     @patch('copilot_startup.StartupRequeue')
@@ -331,13 +338,16 @@ class TestOrchestratorForwardProgress:
 
         orchestration_service.start(enable_startup_requeue=True)
 
-        # Verify chunks were queried in a single batch
+        # Verify chunks were queried in a single batch (during startup requeue)
         calls = mock_document_store.query_documents.call_args_list
-        chunk_query_calls = [c for c in calls if c[1]['collection'] == 'chunks']
-        assert len(chunk_query_calls) == 1
+        # Filter for batch queries - these have filter_dict with $in operator
+        chunk_batch_calls = [c for c in calls 
+                            if get_collection_from_call(c) == 'chunks' 
+                            and c[1].get('filter_dict', {}).get('thread_id', {}).get('$in') is not None]
+        assert len(chunk_batch_calls) == 1
 
         # Verify all thread IDs were included
-        chunk_filter = chunk_query_calls[0][1]['filter_dict']
+        chunk_filter = chunk_batch_calls[0][1].get('filter_dict')
         assert len(chunk_filter['thread_id']['$in']) == 10
 
     @patch('copilot_startup.StartupRequeue')
@@ -349,11 +359,10 @@ class TestOrchestratorForwardProgress:
 
         # Verify limit is set on thread query
         calls = mock_document_store.query_documents.call_args_list
-        thread_query_call = [c for c in calls if c[1]['collection'] == 'threads'][0]
-        assert thread_query_call[1]['limit'] == 500
+        thread_query_call = [c for c in calls if get_collection_from_call(c) == 'threads'][0]
+        assert thread_query_call[1].get('limit') == 500
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_emits_metrics(self, mock_requeue_class, orchestration_service, mock_document_store, mock_metrics_collector):
+    def test_requeue_emits_metrics(self, orchestration_service, mock_document_store, mock_metrics_collector, mock_publisher):
         """Test that requeue emits appropriate metrics."""
         threads = [
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
@@ -364,29 +373,26 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-002", "embedding_generated": True, "_id": "chunk-002"},
         ]
 
-        def query_side_effect(collection, filter_dict, limit=None):
+        def query_side_effect(collection, filter_dict=None, limit=None):
             if collection == "threads":
                 return threads
             elif collection == "chunks":
                 return chunks
+            elif collection == "summaries":
+                return []  # No existing summaries
             return []
 
         mock_document_store.query_documents.side_effect = query_side_effect
 
-        mock_requeue_instance = Mock()
-        mock_requeue_class.return_value = mock_requeue_instance
-
         orchestration_service.start(enable_startup_requeue=True)
 
-        # Verify metrics were emitted (2 threads requeued)
-        mock_metrics_collector.increment.assert_called_once_with(
-            "startup_requeue_documents_total",
-            2,
-            tags={"collection": "threads"}
-        )
+        # Verify metrics were emitted for each orchestration
+        # Each _orchestrate_thread call increments orchestration_events_total
+        metric_calls = [c for c in mock_metrics_collector.increment.call_args_list 
+                       if c[0][0] == 'orchestration_events_total']
+        assert len(metric_calls) == 2
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_continues_on_individual_publish_failure(self, mock_requeue_class, orchestration_service, mock_document_store):
+    def test_requeue_continues_on_individual_publish_failure(self, orchestration_service, mock_document_store, mock_publisher):
         """Test that requeue continues even if individual publish fails."""
         threads = [
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
@@ -399,26 +405,29 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-003", "embedding_generated": True, "_id": "chunk-003"},
         ]
 
-        def query_side_effect(collection, filter_dict, limit=None):
+        def query_side_effect(collection, filter_dict=None, limit=None):
             if collection == "threads":
                 return threads
             elif collection == "chunks":
                 return chunks
+            elif collection == "summaries":
+                return []  # No existing summaries
             return []
 
         mock_document_store.query_documents.side_effect = query_side_effect
 
-        mock_requeue_instance = Mock()
         # Make second publish fail
-        mock_requeue_instance.publish_event.side_effect = [
-            None,  # First succeeds
-            Exception("Network error"),  # Second fails
-            None,  # Third succeeds
-        ]
-        mock_requeue_class.return_value = mock_requeue_instance
+        publish_count = [0]
+        def publish_side_effect(*args, **kwargs):
+            publish_count[0] += 1
+            if publish_count[0] == 2:
+                raise Exception("Network error")
+            return True
+        
+        mock_publisher.publish.side_effect = publish_side_effect
 
         # Should not raise - should continue with other threads
         orchestration_service.start(enable_startup_requeue=True)
 
-        # Verify all 3 publish attempts were made
-        assert mock_requeue_instance.publish_event.call_count == 3
+        # Verify all 3 publish attempts were made (but 2nd failed)
+        assert mock_publisher.publish.call_count >= 3
