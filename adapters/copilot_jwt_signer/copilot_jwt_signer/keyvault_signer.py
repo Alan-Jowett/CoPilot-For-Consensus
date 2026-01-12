@@ -207,8 +207,8 @@ class KeyVaultJWTSigner(JWTSigner):
         """
         try:
             from azure.identity import DefaultAzureCredential
-            from azure.keyvault.keys import KeyClient
-            from azure.keyvault.keys.crypto import CryptographyClient
+            from azure.keyvault.keys import KeyClient  # pylint: disable=no-name-in-module
+            from azure.keyvault.keys.crypto import CryptographyClient  # pylint: disable=no-name-in-module
         except ImportError as e:
             raise KeyVaultSignerError(
                 "Azure SDK dependencies for Key Vault are not installed. "
@@ -264,6 +264,7 @@ class KeyVaultJWTSigner(JWTSigner):
             SigningTimeoutError: If signing times out
             CircuitBreakerOpenError: If circuit breaker is open
         """
+        # pylint: disable=import-error,no-name-in-module
         from azure.keyvault.keys.crypto import SignatureAlgorithm
 
         # Map algorithm to Key Vault SignatureAlgorithm
