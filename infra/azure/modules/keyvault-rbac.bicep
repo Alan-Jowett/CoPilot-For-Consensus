@@ -66,12 +66,12 @@ resource authJwtPublicKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04
 
 resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
   parent: keyVault
-  name: 'azure_monitor_instrumentation_key'
+  name: 'azure-monitor-instrumentation-key'
 }
 
 resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
   parent: keyVault
-  name: 'azure_connection_string'
+  name: 'azure-connection-string'
 }
 
 // Grant all services access to App Insights secrets for telemetry
