@@ -40,7 +40,7 @@
             "properties": {
                 "stdout": { "$ref": "./drivers/logger/logger_stdout.json" },
                 "silent": { "$ref": "./drivers/logger/logger_silent.json" },
-                "azure_monitor": { "$ref": "./drivers/logger/logger_azuremonitor.json" }
+                "azure_monitor": { "$ref": "./drivers/logger/logger_azure_monitor.json" }
             },
             "additionalProperties": false
         }

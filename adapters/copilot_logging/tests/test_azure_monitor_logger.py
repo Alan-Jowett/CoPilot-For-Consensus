@@ -41,10 +41,10 @@ class TestAzureMonitorLoggerFactory:
         assert logger.name == "test-service"
 
     def test_factory_rejects_unknown_logger_type(self):
-        """Test that factory rejects unknown logger types including azure_monitor (must be azuremonitor)."""
+        """Test that factory rejects unknown logger types."""
         config = load_driver_config(None, "logger", "azure_monitor", fields={})
         with pytest.raises(ValueError, match="Unknown logger driver"):
-            create_logger("azure_monitor", config)
+            create_logger("unknown_logger", config)
 
 
 class TestAzureMonitorLoggerInitialization:
