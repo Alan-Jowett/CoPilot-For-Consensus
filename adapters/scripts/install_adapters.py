@@ -133,6 +133,20 @@ def resolve_dependencies(requested_adapters):
 AZURE_EXTRA_ORDER = ("azure", "azuremonitor")
 
 
+def _is_setup_call(node: ast.expr) -> bool:
+    """Check if node is a call to setup() (handles both simple and qualified names).
+    
+    Returns True for:
+    - setup(...) - simple name
+    - setuptools.setup(...) - qualified name
+    """
+    if isinstance(node, ast.Name) and node.id == "setup":
+        return True
+    if isinstance(node, ast.Attribute) and node.attr == "setup":
+        return True
+    return False
+
+
 def _extras_from_setup(setup_path: Path) -> set[str]:
     """Extract extras keys from setup.py (best-effort).
     
@@ -148,15 +162,7 @@ def _extras_from_setup(setup_path: Path) -> set[str]:
     try:
         tree = ast.parse(setup_path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
-            # Check for setup() calls - handle both simple names and qualified names
-            is_setup_call = False
-            if isinstance(node, ast.Call):
-                if isinstance(node.func, ast.Name) and node.func.id == "setup":
-                    is_setup_call = True
-                elif isinstance(node.func, ast.Attribute) and node.func.attr == "setup":
-                    is_setup_call = True
-            
-            if is_setup_call:
+            if isinstance(node, ast.Call) and _is_setup_call(node.func):
                 for kw in node.keywords:
                     if kw.arg == "extras_require":
                         extras = ast.literal_eval(kw.value)
