@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+    Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Dependency Management Strategy
 
 This document explains how dependencies are managed across Docker containers, CI environments, and local development to ensure all driver implementations have their required packages available.

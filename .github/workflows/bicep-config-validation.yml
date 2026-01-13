@@ -34,7 +34,7 @@ jobs:
         run: |
           set -e
           echo "Validating Bicep configuration for all microservices..."
-          python scripts/validate_bicep_all_services.py infra/azure/modules/containerapps.bicep
+          python scripts/validate_bicep_all_services.py infra/azure/modules/containerapps.bicep --verbose
           echo "✓ All microservices passed Bicep configuration validation"
 
       - name: Report validation results
