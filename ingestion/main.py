@@ -212,15 +212,7 @@ def main():
                 )
             else:
                 metrics = create_metrics_collector(driver_name="noop")
-        except Exception as e:  # graceful fallback for missing optional deps
-            from copilot_metrics import NoOpMetricsCollector
 
-            service_logger.warning(
-                "Metrics backend unavailable; falling back to NoOp",
-                backend=metrics_adapter.driver_name if metrics_adapter else "noop",
-                error=str(e),
-            )
-            metrics = NoOpMetricsCollector()
 
         log = service_logger
 
