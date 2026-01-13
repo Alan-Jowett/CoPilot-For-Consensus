@@ -40,7 +40,7 @@ def get_required_fields(driver_schema):
     return required
 
 
-def get_minimal_config(driver_schema):
+def get_minimal_config(driver_schema, driver_name=None):
     """Build minimal config with required fields from driver schema."""
     config_dict = {}
     required_fields = get_required_fields(driver_schema)
@@ -54,6 +54,10 @@ def get_minimal_config(driver_schema):
         "connection_string": "Endpoint=sb://test.servicebus.windows.net/;",
         "enable_validation": True,
     }
+    
+    # For RabbitMQ, username and password are required by the driver even though schema marks them optional
+    if driver_name == "rabbitmq":
+        required_fields.update(["rabbitmq_username", "rabbitmq_password"])
     
     for field in required_fields:
         if field in defaults:
@@ -80,7 +84,7 @@ class TestMessageBusAllDrivers:
             assert driver_schema_path.exists(), f"Driver schema missing: {driver_schema_path}"
             
             driver_schema = load_json(driver_schema_path)
-            config_dict = get_minimal_config(driver_schema)
+            config_dict = get_minimal_config(driver_schema, driver_name=driver)
             
             # Get all allowed keys from schema
             allowed_keys = set(driver_schema.get("properties", {}).keys())
