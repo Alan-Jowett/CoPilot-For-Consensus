@@ -20,6 +20,6 @@
             "description": "Logger name (optional)"
         }
     },
-    "required": ["level"],
+    "required": [],
     "additionalProperties": false
 }
