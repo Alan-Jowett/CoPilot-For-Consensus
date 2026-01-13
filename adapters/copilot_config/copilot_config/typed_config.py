@@ -105,7 +105,7 @@ def load_service_config(
                     except Exception as e:
                         import logging
                         logger = logging.getLogger("copilot_config")
-                        logger.debug(f"Failed to load secret '{candidate}' for property '{prop_name}': {e}")
+                        logger.debug(f"Failed to load secret")
                         continue
             else:
                 # Field has no source (not env or secret) - apply default if present
