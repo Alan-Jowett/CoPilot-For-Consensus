@@ -7,14 +7,14 @@
         "connection_string": {
             "type": "string",
             "source": "secret",
-            "secret_name": "azure-connection-string",
+            "secret_name": "azure_connection_string",
             "required": false,
             "description": "Azure Monitor connection string (e.g., InstrumentationKey=... or Connection string)"
         },
         "azure_monitor_instrumentation_key": {
             "type": "string",
             "source": "secret",
-            "secret_name": "azure-monitor-instrumentation-key",
+            "secret_name": "azure_monitor_instrumentation_key",
             "required": false,
             "description": "Application Insights instrumentation key"
         },
