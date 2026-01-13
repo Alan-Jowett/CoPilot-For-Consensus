@@ -130,10 +130,15 @@ def resolve_dependencies(requested_adapters):
     return priority_sorted
 
 def install_adapter(adapter_path):
-    """Install a single adapter in editable mode."""
+    """Install a single adapter in editable mode with azure extras for cloud deployments."""
     print(f"Installing adapter: {adapter_path.name}")
+    
+    # Install with [azure] extras to ensure Azure Monitor and cloud dependencies are available
+    # This is needed for Azure deployments to succeed at runtime
+    adapter_with_extras = f"{str(adapter_path)}[azure]"
+    
     result = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-e", str(adapter_path)],
+        [sys.executable, "-m", "pip", "install", "-e", adapter_with_extras],
         capture_output=False
     )
     if result.returncode != 0:
