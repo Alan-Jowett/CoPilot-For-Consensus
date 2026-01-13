@@ -88,7 +88,7 @@ def create_document_store(
             )
         return backend
 
-    if driver_lower == "azure_cosmos":
+    if driver_lower == "azure_cosmosdb":
         backend = AzureCosmosDocumentStore.from_config(driver_config)
         if enable_validation:
             return ValidatingDocumentStore(
