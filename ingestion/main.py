@@ -194,33 +194,24 @@ def main():
         from app import service as ingestion_service_module
         ingestion_service_module.logger = get_logger(ingestion_service_module.__name__)
 
-        # Build metrics collector, fall back to NoOp if backend unavailable
-        try:
-            metrics_adapter = config.get_adapter("metrics")
-            if metrics_adapter is not None:
-                # Create new DriverConfig with modified config dict
-                metrics_config = dict(metrics_adapter.driver_config.config)
-                metrics_config.setdefault("job", "ingestion")
-                metrics_driver_config = DriverConfig(
-                    driver_name=metrics_adapter.driver_config.driver_name,
-                    config=metrics_config,
-                    allowed_keys=metrics_adapter.driver_config.allowed_keys,
-                )
-                metrics = create_metrics_collector(
-                    driver_name=metrics_adapter.driver_name,
-                    driver_config=metrics_driver_config,
-                )
-            else:
-                metrics = create_metrics_collector(driver_name="noop")
-        except Exception as e:  # graceful fallback for missing optional deps
-            from copilot_metrics import NoOpMetricsCollector
-
-            service_logger.warning(
-                "Metrics backend unavailable; falling back to NoOp",
-                backend=config.metrics_type,
-                error=str(e),
+        # Create metrics collector - fail fast on errors
+        metrics_adapter = config.get_adapter("metrics")
+        if metrics_adapter is not None:
+            # Create new DriverConfig with modified config dict
+            metrics_config = dict(metrics_adapter.driver_config.config)
+            metrics_config.setdefault("job", "ingestion")
+            metrics_driver_config = DriverConfig(
+                driver_name=metrics_adapter.driver_config.driver_name,
+                config=metrics_config,
+                allowed_keys=metrics_adapter.driver_config.allowed_keys,
             )
-            metrics = NoOpMetricsCollector()
+            metrics = create_metrics_collector(
+                driver_name=metrics_adapter.driver_name,
+                driver_config=metrics_driver_config,
+            )
+        else:
+            metrics = create_metrics_collector(driver_name="noop")
+
 
         log = service_logger
 

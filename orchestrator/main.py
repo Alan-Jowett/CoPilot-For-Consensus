@@ -193,37 +193,25 @@ def main():
 
         # Create metrics collector - fail fast on errors
         log.info("Creating metrics collector...")
-        try:
-            metrics_adapter = config.get_adapter("metrics")
-            if metrics_adapter is not None:
-                from copilot_config import DriverConfig
-                metrics_driver_config = DriverConfig(
-                    driver_name=metrics_adapter.driver_name,
-                    config={**metrics_adapter.driver_config.config, "job": "orchestrator"},
-                    allowed_keys=metrics_adapter.driver_config.allowed_keys
-                )
-                metrics_collector = create_metrics_collector(
-                    driver_name=metrics_adapter.driver_name,
-                    driver_config=metrics_driver_config,
-                )
-            else:
-                from copilot_config import DriverConfig
-                metrics_collector = create_metrics_collector(
-                    driver_name="noop",
-                    driver_config=DriverConfig(driver_name="noop")
-                )
-        except Exception as e:
+        metrics_adapter = config.get_adapter("metrics")
+        if metrics_adapter is not None:
             from copilot_config import DriverConfig
-
-            log.warning(
-                "Metrics backend unavailable; falling back to NoOp",
-                backend=config.metrics_type,
-                error=str(e),
+            metrics_driver_config = DriverConfig(
+                driver_name=metrics_adapter.driver_name,
+                config={**metrics_adapter.driver_config.config, "job": "orchestrator"},
+                allowed_keys=metrics_adapter.driver_config.allowed_keys
             )
+            metrics_collector = create_metrics_collector(
+                driver_name=metrics_adapter.driver_name,
+                driver_config=metrics_driver_config,
+            )
+        else:
+            from copilot_config import DriverConfig
             metrics_collector = create_metrics_collector(
                 driver_name="noop",
                 driver_config=DriverConfig(driver_name="noop")
             )
+
 
         # Create error reporter using adapter configuration (optional)
         log.info("Creating error reporter...")
