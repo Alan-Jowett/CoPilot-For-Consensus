@@ -5,9 +5,18 @@
 
 import os
 import shutil
+import sys
 import tempfile
+import types
+from unittest.mock import MagicMock
 
 import pytest
+
+from copilot_config.generated.adapters.jwt_signer import (
+    AdapterConfig_JwtSigner,
+    DriverConfig_JwtSigner_Keyvault,
+    DriverConfig_JwtSigner_Local,
+)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -53,3 +62,53 @@ def set_test_environment():
         shutil.rmtree(secrets_base_path, ignore_errors=True)
     os.environ.pop("OIDC_PROVIDERS_TYPE", None)
     os.environ.pop("JWT_SIGNER_TYPE", None)
+
+
+@pytest.fixture(autouse=True)
+def stub_copilot_jwt_signer(request, monkeypatch):
+    """Stub `copilot_jwt_signer` for unit tests.
+
+    AuthService imports `copilot_jwt_signer` at runtime to create signers.
+    Most unit tests patch `JWTManager` and don't need real crypto.
+
+    Avoid impacting integration tests by skipping when the `integration`
+    marker is present.
+    """
+    if request.node.get_closest_marker("integration") is not None:
+        yield
+        return
+
+    module = types.ModuleType("copilot_jwt_signer")
+    module.create_jwt_signer = lambda *_args, **_kwargs: MagicMock()
+    module.KeyVaultJWTSigner = MagicMock
+    monkeypatch.setitem(sys.modules, "copilot_jwt_signer", module)
+    yield
+
+
+@pytest.fixture
+def mock_jwt_signer_adapter():
+    """Create a JWT signer adapter configuration for local signing."""
+    return AdapterConfig_JwtSigner(
+        signer_type="local",
+        driver=DriverConfig_JwtSigner_Local(
+            algorithm="RS256",
+            key_id="default",
+            private_key="-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n",
+            public_key="-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----\n",
+            secret_key=None,
+        ),
+    )
+
+
+@pytest.fixture
+def mock_keyvault_jwt_signer_adapter():
+    """Create a JWT signer adapter configuration for Key Vault signing."""
+    return AdapterConfig_JwtSigner(
+        signer_type="keyvault",
+        driver=DriverConfig_JwtSigner_Keyvault(
+            key_vault_url="https://test.vault.azure.net/",
+            key_name="test-key",
+            algorithm="RS256",
+            key_id="test-key",
+        ),
+    )
