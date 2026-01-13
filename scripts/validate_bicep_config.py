@@ -250,6 +250,17 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
             if selected_driver is None:
                 # Conditional or computed; skip deep validation for this adapter
                 continue
+            
+            # Check if value contains ternary operator (Bicep conditional expression)
+            # These can't be evaluated at validation time, so skip deep validation
+            if '?' in str(selected_driver):
+                # Still validate it's a valid Bicep ternary pattern (has ? and :)
+                if ':' not in str(selected_driver):
+                    issues.append(
+                        f"Invalid ternary expression for {discriminant_env_var}: missing ':' (adapter '{adapter_name}')"
+                    )
+                # Skip deep validation since we can't determine which driver will be selected at runtime
+                continue
 
             if enum_values and selected_driver not in enum_values:
                 issues.append(

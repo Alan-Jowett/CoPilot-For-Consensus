@@ -497,10 +497,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AZURE_OPENAI_DEPLOYMENT'
               value: azureOpenAIEmbeddingDeploymentName
             }
-            {
-              name: 'AZURE_OPENAI_API_KEY'
-              value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
-            }
+            // Removed AZURE_OPENAI_API_KEY - loaded via secret_provider from Key Vault
             // Metrics adapter (Azure Monitor)
             {
               name: 'METRICS_TYPE'
@@ -1181,10 +1178,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AZURE_OPENAI_DEPLOYMENT'
               value: azureOpenAIEmbeddingDeploymentName
             }
-            {
-              name: 'AZURE_OPENAI_API_KEY'
-              value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
-            }
+            // Removed AZURE_OPENAI_API_KEY - loaded via secret_provider from Key Vault
             // Metrics adapter (Azure Monitor)
             {
               name: 'METRICS_TYPE'
@@ -1397,10 +1391,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AZURE_OPENAI_DEPLOYMENT'
               value: azureOpenAIGpt4DeploymentName
             }
-            {
-              name: 'AZURE_OPENAI_API_KEY'
-              value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
-            }
+            // Removed AZURE_OPENAI_API_KEY - loaded via secret_provider from Key Vault
             // Orchestrator service settings
             {
               name: 'ORCHESTRATOR_HTTP_PORT'
@@ -1622,10 +1613,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AZURE_OPENAI_API_VERSION'
               value: '2024-02-15-preview'
             }
-            {
-              name: 'AZURE_OPENAI_API_KEY'
-              value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
-            }
+            // Removed AZURE_OPENAI_API_KEY - loaded via secret_provider from Key Vault
             // Metrics adapter (Azure Monitor)
             {
               name: 'METRICS_TYPE'
