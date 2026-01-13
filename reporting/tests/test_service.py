@@ -367,12 +367,13 @@ def test_get_reports_queries_document_store(reporting_service, mock_document_sto
     reports = reporting_service.get_reports()
 
     assert len(reports) == 2
-    # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
-    mock_document_store.query_documents.assert_called_once_with(
-        "summaries",
-        filter_dict={},
-        limit=110,
-    )
+    # First call should fetch summaries with limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
+    first_call = mock_document_store.query_documents.call_args_list[0]
+    assert first_call[0][0] == "summaries"
+    assert first_call[1]["filter_dict"] == {}
+    assert first_call[1]["limit"] == 110
+    
+    # Subsequent enrichment calls for threads/archives are expected
 
 
 def test_get_reports_with_thread_filter(reporting_service, mock_document_store):
@@ -384,12 +385,13 @@ def test_get_reports_with_thread_filter(reporting_service, mock_document_store):
     reports = reporting_service.get_reports(thread_id="thread1")
 
     assert len(reports) == 1
-    # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
-    mock_document_store.query_documents.assert_called_once_with(
-        "summaries",
-        filter_dict={"thread_id": "thread1"},
-        limit=110,
-    )
+    # First call should fetch summaries with limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
+    first_call = mock_document_store.query_documents.call_args_list[0]
+    assert first_call[0][0] == "summaries"
+    assert first_call[1]["filter_dict"] == {"thread_id": "thread1"}
+    assert first_call[1]["limit"] == 110
+    
+    # Subsequent enrichment calls for threads/archives are expected
 
 
 def test_get_report_by_id(reporting_service, mock_document_store):

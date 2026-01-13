@@ -154,10 +154,10 @@ def test_get_reports_with_thread_filter(client, test_service, mock_document_stor
     assert data["count"] == 1
     assert data["reports"][0]["thread_id"] == "thread1"
 
-    # Verify the service was called with correct filter
-    mock_document_store.query_documents.assert_called_once()
-    call_args = mock_document_store.query_documents.call_args
-    assert call_args[1]["filter_dict"]["thread_id"] == "thread1"
+    # Verify the first call used the correct summaries filter
+    first_call = mock_document_store.query_documents.call_args_list[0]
+    assert first_call[0][0] == "summaries"
+    assert first_call[1]["filter_dict"]["thread_id"] == "thread1"
 
 
 @pytest.mark.integration
@@ -173,10 +173,9 @@ def test_get_reports_with_pagination(client, test_service, mock_document_store):
     assert data["limit"] == 5
     assert data["skip"] == 10
 
-    # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
-    mock_document_store.query_documents.assert_called_once()
-    call_args = mock_document_store.query_documents.call_args
-    assert call_args[1]["limit"] == 115
+    # First call fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
+    first_call = mock_document_store.query_documents.call_args_list[0]
+    assert first_call[1]["limit"] == 115
 
 
 @pytest.mark.integration
