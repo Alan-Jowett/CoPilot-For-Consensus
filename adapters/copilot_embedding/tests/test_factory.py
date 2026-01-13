@@ -181,7 +181,7 @@ class TestCreateEmbeddingProvider:
 
         with patch.dict('sys.modules', {'openai': mock_openai_module}):
             provider = create_embedding_provider(
-                driver_name="azure",
+                driver_name="azure_openai",
                 driver_config=load_driver_config(
                     "embedding",
                     "embedding_backend",
@@ -229,7 +229,7 @@ class TestCreateEmbeddingProvider:
             allowed_keys={"api_key", "api_base", "api_version", "deployment_name", "model"},
         )
         with pytest.raises(ValueError, match="api_key parameter is required"):
-            create_embedding_provider(driver_name="azure", driver_config=config)
+            create_embedding_provider(driver_name="azure_openai", driver_config=config)
 
     def test_create_azure_without_endpoint_raises(self):
         """Test that creating Azure provider without endpoint raises error."""
@@ -239,7 +239,7 @@ class TestCreateEmbeddingProvider:
             allowed_keys={"api_key", "api_base", "api_version", "deployment_name", "model"},
         )
         with pytest.raises(ValueError, match="api_base parameter is required"):
-            create_embedding_provider(driver_name="azure", driver_config=config)
+            create_embedding_provider(driver_name="azure_openai", driver_config=config)
 
     def test_create_azure_without_model_or_deployment_raises(self):
         """Test that creating Azure provider without model or deployment raises error."""
@@ -252,7 +252,7 @@ class TestCreateEmbeddingProvider:
             allowed_keys={"api_key", "api_base", "api_version", "deployment_name", "model"},
         )
         with pytest.raises(ValueError, match="Either model or deployment_name parameter is required"):
-            create_embedding_provider(driver_name="azure", driver_config=config)
+            create_embedding_provider(driver_name="azure_openai", driver_config=config)
 
     def test_create_huggingface_provider(self):
         """Test creating HuggingFace provider."""
