@@ -53,5 +53,21 @@ setup(
             "azure-search-documents>=11.4.0",  # Azure AI Search for vector search
             "azure-identity>=1.16.1",  # For managed identity authentication
         ],
+        # All optional backends
+        "all": [
+            "faiss-cpu>=1.7.0",
+            "qdrant-client>=1.9.0",
+            "azure-search-documents>=11.4.0",
+            "azure-identity>=1.16.1",
+        ],
+        # Test extra includes all drivers for factory tests
+        "test": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+            "faiss-cpu>=1.7.0",
+            "qdrant-client>=1.9.0",
+            "azure-search-documents>=11.4.0",
+            "azure-identity>=1.16.1",
+        ],
     },
 )

@@ -165,7 +165,7 @@ class TestAzureOpenAISummarizer:
 
         with patch.dict('sys.modules', {'openai': mock_module}):
             config = llm_driver_config(
-                "azure",
+                "azure_openai_gpt",
                 fields={
                     "azure_openai_api_key": "test-key",
                     "azure_openai_model": "gpt-4",

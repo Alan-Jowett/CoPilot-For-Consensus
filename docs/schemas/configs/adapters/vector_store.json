@@ -9,8 +9,8 @@
             "type": "string",
             "source": "env",
             "env_var": "VECTOR_STORE_TYPE",
-            "enum": ["qdrant", "azure_ai_search", "aisearch", "faiss", "inmemory"],
-            "description": "Vector store type (qdrant, azure_ai_search/aisearch, faiss, inmemory)"
+            "enum": ["qdrant", "azure_ai_search", "faiss", "inmemory"],
+            "description": "Vector store type (qdrant, azure_ai_search, faiss, inmemory)"
         },
         "drivers": {
             "type": "object",

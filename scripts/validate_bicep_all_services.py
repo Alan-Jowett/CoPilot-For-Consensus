@@ -43,7 +43,7 @@ FRONTEND_SERVICES = [
 ALL_SERVICES = VALIDATED_SERVICES + FRONTEND_SERVICES
 
 
-def validate_all_services(bicep_file: str) -> int:
+def validate_all_services(bicep_file: str, verbose: bool = False) -> int:
     """
     Validate all services in the Bicep file.
     Returns 0 if all pass, 1 if any fail.
@@ -53,6 +53,8 @@ def validate_all_services(bicep_file: str) -> int:
     print("=" * 70)
     print(f"Validating Bicep Container Apps Configuration")
     print(f"File: {bicep_file}")
+    if verbose:
+        print(f"Mode: VERBOSE")
     print("=" * 70)
     print()
     
@@ -68,8 +70,12 @@ def validate_all_services(bicep_file: str) -> int:
             
         print(f"Validating '{service}'...", end=" ", flush=True)
         
+        args = [sys.executable, str(script_path), bicep_file, service]
+        if verbose:
+            args.append("--verbose")
+        
         result = subprocess.run(
-            [sys.executable, str(script_path), bicep_file, service],
+            args,
             capture_output=True,
             text=True,
             encoding='utf-8',
@@ -86,6 +92,10 @@ def validate_all_services(bicep_file: str) -> int:
             if result.stderr:
                 for line in result.stderr.split("\n"):
                     if line.strip():
+                        print(f"  {line}")
+            if result.stdout:
+                for line in result.stdout.split("\n"):
+                    if line.strip() and ("❌" in line or "Invalid" in line or "Missing" in line or "Context" in line or "📊" in line):
                         print(f"  {line}")
     
     print()
@@ -111,9 +121,11 @@ def validate_all_services(bicep_file: str) -> int:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python validate_bicep_all_services.py <bicep_file>")
+        print("Usage: python validate_bicep_all_services.py <bicep_file> [--verbose]")
         print("Example: python validate_bicep_all_services.py infra/azure/modules/containerapps.bicep")
+        print("         python validate_bicep_all_services.py infra/azure/modules/containerapps.bicep --verbose")
         sys.exit(1)
     
     bicep_file = sys.argv[1]
-    sys.exit(validate_all_services(bicep_file))
+    verbose = "--verbose" in sys.argv or "-v" in sys.argv
+    sys.exit(validate_all_services(bicep_file, verbose))

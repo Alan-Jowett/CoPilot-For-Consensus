@@ -230,12 +230,14 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python validate_bicep_config.py <bicep_file> <service_name>")
+        print("Usage: python validate_bicep_config.py <bicep_file> <service_name> [--verbose]")
         print("Example: python validate_bicep_config.py infra/azure/modules/containerapps.bicep auth")
+        print("         python validate_bicep_config.py infra/azure/modules/containerapps.bicep auth --verbose")
         sys.exit(1)
     
     bicep_file = sys.argv[1]
     service_name = sys.argv[2]
+    verbose = "--verbose" in sys.argv or "-v" in sys.argv
     
     try:
         # Read bicep file
@@ -252,9 +254,23 @@ def main():
         env_vars = extract_env_vars(bicep_content, service_name)
         print(f"   Found {len(env_vars)} environment variables")
         
+        if verbose:
+            print("\n   Environment variables found:")
+            for name in sorted(env_vars.keys()):
+                value = env_vars[name]
+                if value is None:
+                    print(f"     {name} = <conditional/computed>")
+                else:
+                    # Truncate long values for display
+                    display_val = value if len(str(value)) <= 50 else str(value)[:50] + "..."
+                    print(f"     {name} = {display_val}")
+        
         # Load schema
         print(f"📖 Loading schema for '{service_name}'...")
         schema = load_schema(service_name)
+        
+        if verbose:
+            print(f"   Schema adapters required: {list(schema.get('adapters', {}).keys())}")
         
         # Validate
         print(f"✓ Validating configuration against schema...")
@@ -264,6 +280,19 @@ def main():
             print(f"\n❌ Configuration validation failed ({len(issues)} issues):\n")
             for i, issue in enumerate(issues, 1):
                 print(f"  {i}. {issue}")
+            
+            if verbose:
+                print("\n📊 Validation Context:")
+                print(f"   Service: {service_name}")
+                print(f"   Total env vars: {len(env_vars)}")
+                print(f"   Missing/invalid env vars:")
+                for issue in issues:
+                    if "Missing" in issue or "Invalid" in issue:
+                        # Extract env var name from issue
+                        parts = issue.split("'")
+                        if len(parts) >= 2:
+                            print(f"     - {parts[1]}")
+            
             sys.exit(1)
         else:
             print(f"\n✅ Configuration is valid for service '{service_name}'")

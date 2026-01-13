@@ -45,5 +45,11 @@ setup(
         "validation": [
             "copilot-schema-validation>=0.1.0",  # Optional: for ValidatingDocumentStore
         ],
+        # Test extra includes validation for factory tests
+        "test": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+            "copilot-schema-validation>=0.1.0",
+        ],
     },
 )

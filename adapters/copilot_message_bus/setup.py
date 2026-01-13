@@ -47,5 +47,10 @@ setup(
             "pylint>=3.0.0",
             "mypy>=1.0.0",
         ],
+        # Test extra for factory tests (all drivers in install_requires)
+        "test": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+        ],
     },
 )

@@ -124,7 +124,7 @@ class OpenAISummarizer(Summarizer):
         """
         driver_lower = driver_config.driver_name.lower()
 
-        if driver_lower == "azure":
+        if driver_lower == "azure_openai_gpt":
             return cls(
                 api_key=driver_config.azure_openai_api_key,
                 model=driver_config.azure_openai_model,

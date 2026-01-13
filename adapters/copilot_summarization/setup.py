@@ -45,5 +45,15 @@ setup(
         "openai": [
             "openai>=1.0.0",
         ],
+        # All optional backends
+        "all": [
+            "openai>=1.0.0",
+        ],
+        # Test extra includes all drivers for factory tests
+        "test": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+            "openai>=1.0.0",
+        ],
     },
 )

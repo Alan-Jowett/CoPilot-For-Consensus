@@ -4,6 +4,23 @@
     "title": "Azure Monitor logger driver settings",
     "type": "object",
     "properties": {
+        "level": {
+            "type": "string",
+            "source": "env",
+            "env_var": "LOG_LEVEL",
+            "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+            "default": "INFO",
+            "required": false,
+            "description": "Logging level"
+        },
+        "name": {
+            "type": "string",
+            "source": "env",
+            "env_var": "LOG_NAME",
+            "default": "copilot",
+            "required": false,
+            "description": "Logger name for identification"
+        },
         "instrumentation_key": {
             "type": "string",
             "source": "secret",

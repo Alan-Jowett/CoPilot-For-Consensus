@@ -9,9 +9,9 @@
             "type": "string",
             "source": "env",
             "env_var": "LOG_TYPE",
-            "enum": ["stdout", "silent", "azuremonitor"],
+            "enum": ["stdout", "silent", "azure_monitor"],
             "required": true,
-            "description": "Logger type (stdout, silent, azuremonitor)"
+            "description": "Logger type (stdout, silent, azure_monitor)"
         },
         "common": {
             "type": "object",
@@ -40,7 +40,7 @@
             "properties": {
                 "stdout": { "$ref": "./drivers/logger/logger_stdout.json" },
                 "silent": { "$ref": "./drivers/logger/logger_silent.json" },
-                "azuremonitor": { "$ref": "./drivers/logger/logger_azuremonitor.json" }
+                "azure_monitor": { "$ref": "./drivers/logger/logger_azure_monitor.json" }
             },
             "additionalProperties": false
         }

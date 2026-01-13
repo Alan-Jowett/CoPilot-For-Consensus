@@ -56,11 +56,11 @@ def create_secret_provider(
     if driver_lower == "local":
         return LocalFileSecretProvider.from_config(driver_config)
 
-    elif driver_lower in ("azure", "azurekeyvault"):
+    elif driver_lower == "azure_key_vault":
         return AzureKeyVaultProvider.from_config(driver_config)
 
     else:
         raise SecretProviderError(
             f"Unknown secret provider driver: {driver_name}. "
-            f"Supported drivers: local, azure, azurekeyvault"
+            f"Supported drivers: local, azure_key_vault"
         )

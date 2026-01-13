@@ -9,18 +9,16 @@
             "type": "string",
             "source": "env",
             "env_var": "METRICS_TYPE",
-            "enum": ["prometheus", "pushgateway", "prometheus_pushgateway", "azure_monitor", "noop"],
+            "enum": ["prometheus", "pushgateway", "azure_monitor", "noop"],
             "required": true,
-            "description": "Metrics backend type (prometheus, pushgateway, prometheus_pushgateway, azure_monitor, noop)"
+            "description": "Metrics backend type (prometheus, pushgateway, azure_monitor, noop)"
         },
         "drivers": {
             "type": "object",
             "properties": {
                 "prometheus": { "$ref": "./drivers/metrics/metrics_prometheus.json" },
                 "pushgateway": { "$ref": "./drivers/metrics/metrics_pushgateway.json" },
-                "prometheus_pushgateway": { "$ref": "./drivers/metrics/metrics_pushgateway.json" },
                 "azure_monitor": { "$ref": "./drivers/metrics/metrics_azure_monitor.json" },
-                "azuremonitor": { "$ref": "./drivers/metrics/metrics_azure_monitor.json" },
                 "noop": { "$ref": "./drivers/metrics/metrics_noop.json" }
             },
             "additionalProperties": false

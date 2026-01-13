@@ -46,7 +46,7 @@ def create_publisher(
         create_publisher(driver_name="rabbitmq", driver_config=driver_config)
 
     Args:
-        driver_name: Type of message bus ("rabbitmq", "azureservicebus", or "noop")
+        driver_name: Type of message bus ("rabbitmq", "azure_service_bus", or "noop")
         driver_config: DriverConfig instance with driver configuration.
         enable_validation: If True (default), wraps the publisher in ValidatingEventPublisher.
                           Set to False only for testing or if validation is not needed.
@@ -66,7 +66,7 @@ def create_publisher(
     if driver_name_lower == "rabbitmq":
         from .rabbitmq_publisher import RabbitMQPublisher
         base_publisher = RabbitMQPublisher.from_config(driver_config)
-    elif driver_name_lower in ("azureservicebus", "servicebus"):
+    elif driver_name_lower == "azure_service_bus":
         from .azureservicebuspublisher import AzureServiceBusPublisher
         base_publisher = AzureServiceBusPublisher.from_config(driver_config)
     elif driver_name_lower == "noop":
@@ -75,7 +75,7 @@ def create_publisher(
     else:
         raise ValueError(
             f"Unknown driver_name: {driver_name}. "
-            "Supported: 'rabbitmq', 'azureservicebus', 'noop'"
+            "Supported: 'rabbitmq', 'azure_service_bus', 'noop'"
         )
 
     # Wrap in validating publisher if enabled
@@ -106,7 +106,7 @@ def create_subscriber(
         create_subscriber(driver_name="rabbitmq", driver_config=driver_config)
 
     Args:
-        driver_name: Type of message bus ("rabbitmq", "azureservicebus", or "noop")
+        driver_name: Type of message bus ("rabbitmq", "azure_service_bus", or "noop")
         driver_config: DriverConfig instance with driver configuration.
         enable_validation: If True (default), wraps the subscriber in ValidatingEventSubscriber.
                           Set to False only for testing or if validation is not needed.
@@ -126,7 +126,7 @@ def create_subscriber(
     if driver_name_lower == "rabbitmq":
         from .rabbitmq_subscriber import RabbitMQSubscriber
         base_subscriber = RabbitMQSubscriber.from_config(driver_config)
-    elif driver_name_lower in ("azureservicebus", "servicebus"):
+    elif driver_name_lower == "azure_service_bus":
         from .azureservicebussubscriber import AzureServiceBusSubscriber
         base_subscriber = AzureServiceBusSubscriber.from_config(driver_config)
     elif driver_name_lower == "noop":
@@ -135,7 +135,7 @@ def create_subscriber(
     else:
         raise ValueError(
             f"Unknown driver_name: {driver_name}. "
-            "Supported: 'rabbitmq', 'azureservicebus', 'noop'"
+            "Supported: 'rabbitmq', 'azure_service_bus', 'noop'"
         )
 
     # Wrap in validating subscriber if enabled

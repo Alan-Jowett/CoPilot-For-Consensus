@@ -3,6 +3,23 @@
     "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
     "title": "Stdout logger driver settings",
     "type": "object",
-    "properties": {},
+    "properties": {
+        "level": {
+            "type": "string",
+            "source": "env",
+            "env_var": "LOG_LEVEL",
+            "default": "INFO",
+            "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+            "description": "Logging level for stdout logger"
+        },
+        "name": {
+            "type": "string",
+            "source": "env",
+            "env_var": "LOG_NAME",
+            "required": false,
+            "description": "Logger name (optional)"
+        }
+    },
+    "required": [],
     "additionalProperties": false
 }

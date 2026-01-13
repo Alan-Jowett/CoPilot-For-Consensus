@@ -85,14 +85,14 @@ class TestDocumentStoreFactory:
         config = load_driver_config(
             service=None,
             adapter="document_store",
-            driver="azurecosmos",
+            driver="azure_cosmosdb",
             fields={
                 "endpoint": "https://test.documents.azure.com:443/",
                 "key": "test_key",
             },
         )
         store = create_document_store(
-            driver_name="azurecosmos",
+            driver_name="azure_cosmosdb",
             driver_config=config,
         )
 

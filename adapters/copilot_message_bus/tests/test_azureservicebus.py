@@ -20,14 +20,14 @@ class TestAzureServiceBusPublisherFactory:
         driver_config = load_driver_config(
             None,
             "message_bus",
-            "azureservicebus",
+            "azure_service_bus",
             fields={
                 "connection_string": "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
                 "queue_name": "test-queue",
             },
         )
         publisher = create_publisher(
-            driver_name="azureservicebus",
+            driver_name="azure_service_bus",
             driver_config=driver_config,
             enable_validation=False,
         )
@@ -42,7 +42,7 @@ class TestAzureServiceBusPublisherFactory:
         driver_config = load_driver_config(
             None,
             "message_bus",
-            "azureservicebus",
+            "azure_service_bus",
             fields={
                 "servicebus_fully_qualified_namespace": "test.servicebus.windows.net",
                 "topic_name": "test-topic",
@@ -50,7 +50,7 @@ class TestAzureServiceBusPublisherFactory:
             },
         )
         publisher = create_publisher(
-            driver_name="azureservicebus",
+            driver_name="azure_service_bus",
             driver_config=driver_config,
             enable_validation=False,
         )
@@ -62,10 +62,10 @@ class TestAzureServiceBusPublisherFactory:
 
     def test_create_azureservicebus_publisher_missing_credentials(self):
         """Test error when creating publisher without credentials."""
-        driver_config = load_driver_config(None, "message_bus", "azureservicebus", fields={})
+        driver_config = load_driver_config(None, "message_bus", "azure_service_bus", fields={})
         with pytest.raises(ValueError, match="Either connection_string or fully_qualified_namespace"):
             create_publisher(
-                driver_name="azureservicebus",
+                driver_name="azure_service_bus",
                 driver_config=driver_config,
             )
 
@@ -74,12 +74,12 @@ class TestAzureServiceBusPublisherFactory:
         driver_config = load_driver_config(
             None,
             "message_bus",
-            "azureservicebus",
+            "azure_service_bus",
             fields={"servicebus_use_managed_identity": True},
         )
         with pytest.raises(ValueError, match="Either connection_string or fully_qualified_namespace"):
             create_publisher(
-                driver_name="azureservicebus",
+                driver_name="azure_service_bus",
                 driver_config=driver_config,
             )
 
@@ -92,14 +92,14 @@ class TestAzureServiceBusSubscriberFactory:
         driver_config = load_driver_config(
             None,
             "message_bus",
-            "azureservicebus",
+            "azure_service_bus",
             fields={
                 "connection_string": "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
                 "queue_name": "test-queue",
             },
         )
         subscriber = create_subscriber(
-            driver_name="azureservicebus",
+            driver_name="azure_service_bus",
             driver_config=driver_config,
             enable_validation=False,
         )
@@ -113,7 +113,7 @@ class TestAzureServiceBusSubscriberFactory:
         driver_config = load_driver_config(
             None,
             "message_bus",
-            "azureservicebus",
+            "azure_service_bus",
             fields={
                 "connection_string": "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
                 "topic_name": "test-topic",
@@ -121,7 +121,7 @@ class TestAzureServiceBusSubscriberFactory:
             },
         )
         subscriber = create_subscriber(
-            driver_name="azureservicebus",
+            driver_name="azure_service_bus",
             driver_config=driver_config,
             enable_validation=False,
         )
@@ -135,7 +135,7 @@ class TestAzureServiceBusSubscriberFactory:
         driver_config = load_driver_config(
             None,
             "message_bus",
-            "azureservicebus",
+            "azure_service_bus",
             fields={
                 "connection_string": "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
                 "topic_name": "test-topic",
@@ -143,7 +143,7 @@ class TestAzureServiceBusSubscriberFactory:
         )
         with pytest.raises(ValueError, match="subscription_name is required"):
             create_subscriber(
-                driver_name="azureservicebus",
+                driver_name="azure_service_bus",
                 driver_config=driver_config,
             )
 
@@ -152,14 +152,14 @@ class TestAzureServiceBusSubscriberFactory:
         driver_config = load_driver_config(
             None,
             "message_bus",
-            "azureservicebus",
+            "azure_service_bus",
             fields={
                 "connection_string": "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
             },
         )
         with pytest.raises(ValueError, match="Either queue_name or topic_name"):
             create_subscriber(
-                driver_name="azureservicebus",
+                driver_name="azure_service_bus",
                 driver_config=driver_config,
             )
 

@@ -75,9 +75,9 @@ class TestLLMBackendFactory:
 
         with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = create_llm_backend(
-                driver_name="azure",
+                driver_name="azure_openai_gpt",
                 driver_config=llm_driver_config(
-                    "azure",
+                    "azure_openai_gpt",
                     fields={
                         "azure_openai_api_key": "azure-key",
                         "azure_openai_endpoint": "https://test.openai.azure.com",
@@ -97,9 +97,9 @@ class TestLLMBackendFactory:
 
         with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = create_llm_backend(
-                driver_name="azure",
+                driver_name="azure_openai_gpt",
                 driver_config=llm_driver_config(
-                    "azure",
+                    "azure_openai_gpt",
                     fields={
                         "azure_openai_api_key": "azure-key",
                         "azure_openai_endpoint": "https://test.openai.azure.com",
@@ -128,7 +128,7 @@ class TestLLMBackendFactory:
             load_driver_config(
                 service=None,
                 adapter="llm_backend",
-                driver="azure",
+                driver="azure_openai_gpt",
                 fields={
                     "azure_openai_endpoint": "https://test.openai.azure.com",
                     "azure_openai_model": "gpt-4",
@@ -143,7 +143,7 @@ class TestLLMBackendFactory:
             load_driver_config(
                 service=None,
                 adapter="llm_backend",
-                driver="azure",
+                driver="azure_openai_gpt",
                 fields={
                     "azure_openai_api_key": "test-key",
                     "azure_openai_model": "gpt-4",
@@ -158,7 +158,7 @@ class TestLLMBackendFactory:
             load_driver_config(
                 service=None,
                 adapter="llm_backend",
-                driver="azure",
+                driver="azure_openai_gpt",
                 fields={
                     "azure_openai_api_key": "test-key",
                     "azure_openai_endpoint": "https://test.openai.azure.com",

@@ -253,7 +253,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB for user roles)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -287,7 +287,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: 'azurekeyvault'
+              value: 'azure_key_vault'
             }
             {
               name: 'AZURE_KEY_VAULT_NAME'
@@ -434,7 +434,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'azureservicebus'
+              value: 'azure_service_bus'
             }
             {
               name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
@@ -447,7 +447,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -528,7 +528,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: 'azurekeyvault'
+              value: 'azure_key_vault'
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -624,7 +624,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'azureservicebus'
+              value: 'azure_service_bus'
             }
             {
               name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
@@ -637,7 +637,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -694,7 +694,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: 'azurekeyvault'
+              value: 'azure_key_vault'
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -820,7 +820,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'azureservicebus'
+              value: 'azure_service_bus'
             }
             {
               name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
@@ -833,7 +833,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -885,7 +885,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: 'azurekeyvault'
+              value: 'azure_key_vault'
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -982,7 +982,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'azureservicebus'
+              value: 'azure_service_bus'
             }
             {
               name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
@@ -995,7 +995,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -1029,7 +1029,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: 'azurekeyvault'
+              value: 'azure_key_vault'
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -1130,7 +1130,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'azureservicebus'
+              value: 'azure_service_bus'
             }
             {
               name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
@@ -1143,7 +1143,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -1236,7 +1236,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: 'azurekeyvault'
+              value: 'azure_key_vault'
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -1341,7 +1341,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'azureservicebus'
+              value: 'azure_service_bus'
             }
             {
               name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
@@ -1354,7 +1354,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -1393,7 +1393,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: 'azurekeyvault'
+              value: 'azure_key_vault'
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -1407,7 +1407,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Embedding backend adapter
             {
               name: 'EMBEDDING_BACKEND_TYPE'
-              value: 'ollama'
+              value: 'sentencetransformers'
             }
             // Vector store adapter (Qdrant)
             {
@@ -1429,7 +1429,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             // LLM Backend adapter (Azure OpenAI)
             {
               name: 'LLM_BACKEND_TYPE'
-              value: 'azure'
+              value: 'azure_openai_gpt'
             }
             {
               name: 'AZURE_OPENAI_ENDPOINT'
@@ -1562,7 +1562,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'azureservicebus'
+              value: 'azure_service_bus'
             }
             {
               name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
@@ -1575,7 +1575,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -1646,7 +1646,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             // LLM Backend adapter (Azure OpenAI)
             {
               name: 'LLM_BACKEND_TYPE'
-              value: 'azure'
+              value: 'azure_openai_gpt'
             }
             {
               name: 'AZURE_OPENAI_ENDPOINT'
@@ -1689,7 +1689,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: 'azurekeyvault'
+              value: 'azure_key_vault'
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -1935,4 +1935,5 @@ output qdrantAppName string = vectorStoreBackend == 'qdrant' ? qdrantApp!.name :
 
 @description('Qdrant internal endpoint')
 output qdrantInternalEndpoint string = vectorStoreBackend == 'qdrant' ? 'http://${qdrantApp!.name}' : ''
+
 

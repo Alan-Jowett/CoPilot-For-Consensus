@@ -46,5 +46,19 @@ setup(
             "azure-monitor-opentelemetry-exporter>=1.0.0",  # Azure Monitor exporter for OpenTelemetry
             "opentelemetry-sdk>=1.20.0",  # OpenTelemetry SDK for metrics
         ],
+        # All optional backends
+        "all": [
+            "prometheus-client>=0.19.0",
+            "azure-monitor-opentelemetry-exporter>=1.0.0",
+            "opentelemetry-sdk>=1.20.0",
+        ],
+        # Test extra includes all drivers for factory tests
+        "test": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+            "prometheus-client>=0.19.0",
+            "azure-monitor-opentelemetry-exporter>=1.0.0",
+            "opentelemetry-sdk>=1.20.0",
+        ],
     },
 )
