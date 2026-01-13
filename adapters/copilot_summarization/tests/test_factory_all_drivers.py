@@ -43,11 +43,14 @@ def get_required_fields(driver_schema):
 
 
 def get_minimal_config(driver_schema):
-    """Build minimal config with required fields from driver schema."""
+    """Build minimal config with all fields from driver schema.
+    
+    Includes required fields and optional fields with schema defaults.
+    """
     config_dict = {}
     required_fields = get_required_fields(driver_schema)
     
-    # Map field names to reasonable defaults
+    # Map field names to reasonable defaults (for required fields without schema defaults)
     defaults = {
         "api_key": "test-key",
         "model_name": "gpt-3.5-turbo",
@@ -56,13 +59,26 @@ def get_minimal_config(driver_schema):
         "endpoint": "https://test.openai.azure.com/",
         "deployment_id": "test-gpt",
         "api_version": "2024-02-15-preview",
+        # Azure OpenAI specific fields
+        "azure_openai_api_key": "test-azure-key",
+        "azure_openai_endpoint": "https://test.openai.azure.com/",
+        "azure_openai_deployment": "test-deployment",
+        "azure_openai_model": "gpt-4",
     }
     
-    for field in required_fields:
-        if field in defaults:
-            config_dict[field] = defaults[field]
-        else:
-            config_dict[field] = ""
+    # Include all properties: required fields and optional fields with defaults
+    properties = driver_schema.get("properties", {})
+    for field, field_schema in properties.items():
+        if field in required_fields:
+            # Required field: use defaults or empty string
+            if field in defaults:
+                config_dict[field] = defaults[field]
+            else:
+                config_dict[field] = ""
+        elif "default" in field_schema:
+            # Optional field with default: use the schema default
+            config_dict[field] = field_schema["default"]
+        # Optional fields without defaults are skipped (will use None)
     
     return config_dict
 
