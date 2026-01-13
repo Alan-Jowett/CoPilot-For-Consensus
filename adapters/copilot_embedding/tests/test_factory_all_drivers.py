@@ -10,8 +10,6 @@ instantiated via the factory with its required parameters.
 import json
 from pathlib import Path
 
-import pytest
-
 from copilot_config import DriverConfig
 from copilot_embedding.factory import create_embedding_provider
 

@@ -59,6 +59,10 @@ def get_minimal_config(driver_schema, driver_name=None):
     if driver_name == "rabbitmq":
         required_fields.update(["rabbitmq_username", "rabbitmq_password"])
     
+    # For Azure Service Bus, connection_string is needed by the driver even though schema marks it optional
+    if driver_name == "azure_service_bus":
+        required_fields.add("connection_string")
+    
     for field in required_fields:
         if field in defaults:
             config_dict[field] = defaults[field]

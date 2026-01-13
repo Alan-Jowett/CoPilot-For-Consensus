@@ -8,6 +8,7 @@ instantiated via the factory with its required parameters.
 """
 
 import json
+import tempfile
 from pathlib import Path
 
 from copilot_config import DriverConfig
@@ -75,23 +76,29 @@ class TestSecretProviderAllDrivers:
         drivers_enum = schema["properties"]["discriminant"]["enum"]
         drivers_dir = schema_dir / "drivers" / "secret_provider"
         
-        for driver in drivers_enum:
-            # Load driver schema
-            driver_schema_path = drivers_dir / f"secret_{driver}.json"
-            assert driver_schema_path.exists(), f"Driver schema missing: {driver_schema_path}"
-            
-            driver_schema = load_json(driver_schema_path)
-            config_dict = get_minimal_config(driver_schema)
-            
-            # Get all allowed keys from schema
-            allowed_keys = set(driver_schema.get("properties", {}).keys())
-            
-            config = DriverConfig(
-                driver_name=driver,
-                config=config_dict,
-                allowed_keys=allowed_keys
-            )
-            
-            # Should not raise any exceptions
-            provider = create_secret_provider(driver_name=driver, driver_config=config)
-            assert provider is not None, f"Failed to create secret provider for driver: {driver}"
+        # Create a temporary directory for local provider testing
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for driver in drivers_enum:
+                # Load driver schema
+                driver_schema_path = drivers_dir / f"secret_{driver}.json"
+                assert driver_schema_path.exists(), f"Driver schema missing: {driver_schema_path}"
+                
+                driver_schema = load_json(driver_schema_path)
+                config_dict = get_minimal_config(driver_schema)
+                
+                # For local provider, use the temp directory instead of /tmp/secrets
+                if driver == "local":
+                    config_dict["base_path"] = tmpdir
+                
+                # Get all allowed keys from schema
+                allowed_keys = set(driver_schema.get("properties", {}).keys())
+                
+                config = DriverConfig(
+                    driver_name=driver,
+                    config=config_dict,
+                    allowed_keys=allowed_keys
+                )
+                
+                # Should not raise any exceptions
+                provider = create_secret_provider(driver_name=driver, driver_config=config)
+                assert provider is not None, f"Failed to create secret provider for driver: {driver}"
