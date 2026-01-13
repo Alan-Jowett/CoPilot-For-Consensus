@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Compose Configuration Validation
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - 'docker-compose*.yml'
+      - '.env'
+      - 'docs/schemas/configs/**/*.json'
+      - 'scripts/validate_compose_config.py'
+      - '.github/workflows/compose-config-validation.yml'
+
+jobs:
+  validate-compose-config:
+    name: Validate Compose Configuration
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Validate Docker Compose configuration
+        run: |
+          set -e
+          echo "Validating Docker Compose configuration against service schemas..."
+          python scripts/validate_compose_config.py \
+            --compose docker-compose.yml \
+            --compose docker-compose.services.yml \
+            --compose docker-compose.infra.yml \
+            --env .env \
+            --verbose
+          echo "✓ Docker Compose configuration validation passed"
+
+      - name: Report validation results
+        if: always()
+        run: |
+          echo "## Compose Configuration Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Validated compose files:" >> $GITHUB_STEP_SUMMARY
+          echo "- docker-compose.yml" >> $GITHUB_STEP_SUMMARY
+          echo "- docker-compose.services.yml" >> $GITHUB_STEP_SUMMARY
+          echo "- docker-compose.infra.yml" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Env overrides: .env" >> $GITHUB_STEP_SUMMARY
+          echo "Skipped services: ui, gateway (no schema)" >> $GITHUB_STEP_SUMMARY
