@@ -10,6 +10,7 @@ from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector, create_metrics_collector
 from copilot_metrics import azure_monitor_metrics as az_metrics
 
+# Mock Azure Monitor connection details used only for testing; these are not real credentials.
 VALID_CONNECTION_STRING = "InstrumentationKey=00000000-0000-4000-8000-000000000000"
 VALID_INSTRUMENTATION_KEY = "00000000-0000-4000-8000-000000000001"
 
