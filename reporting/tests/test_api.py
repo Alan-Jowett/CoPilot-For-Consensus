@@ -179,6 +179,147 @@ def test_get_reports_with_pagination(client, test_service, mock_document_store):
 
 
 @pytest.mark.integration
+def test_get_reports_sorting_by_thread_start_date(client, test_service, mock_document_store):
+    """Test sorting reports by thread_start_date in descending order."""
+    # Mock summaries with different thread start dates
+    mock_document_store.query_documents.side_effect = [
+        # First call: fetch summaries
+        [
+            {"_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T10:00:00Z"},
+            {"_id": "rpt2", "thread_id": "thread2", "generated_at": "2025-01-14T10:00:00Z"},
+            {"_id": "rpt3", "thread_id": "thread3", "generated_at": "2025-01-13T10:00:00Z"},
+        ],
+        # Second call: fetch threads
+        [
+            {"thread_id": "thread1", "first_message_date": "2025-01-10T00:00:00Z", "participants": [], "message_count": 5},
+            {"thread_id": "thread2", "first_message_date": "2025-01-12T00:00:00Z", "participants": [], "message_count": 3},
+            {"thread_id": "thread3", "first_message_date": "2025-01-08T00:00:00Z", "participants": [], "message_count": 7},
+        ],
+        # Third call: fetch archives (empty)
+        [],
+    ]
+    
+    response = client.get("/api/reports?sort_by=thread_start_date&sort_order=desc")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify reports are sorted by thread start date (newest first)
+    assert len(data["reports"]) == 3
+    assert data["reports"][0]["_id"] == "rpt2"  # thread2: 2025-01-12
+    assert data["reports"][1]["_id"] == "rpt1"  # thread1: 2025-01-10
+    assert data["reports"][2]["_id"] == "rpt3"  # thread3: 2025-01-08
+
+
+@pytest.mark.integration
+def test_get_reports_sorting_ascending(client, test_service, mock_document_store):
+    """Test sorting reports in ascending order."""
+    mock_document_store.query_documents.side_effect = [
+        # First call: fetch summaries
+        [
+            {"_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T10:00:00Z"},
+            {"_id": "rpt2", "thread_id": "thread2", "generated_at": "2025-01-14T10:00:00Z"},
+        ],
+        # Second call: fetch threads
+        [
+            {"thread_id": "thread1", "first_message_date": "2025-01-10T00:00:00Z", "participants": [], "message_count": 5},
+            {"thread_id": "thread2", "first_message_date": "2025-01-12T00:00:00Z", "participants": [], "message_count": 3},
+        ],
+        # Third call: fetch archives
+        [],
+    ]
+    
+    response = client.get("/api/reports?sort_by=thread_start_date&sort_order=asc")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify reports are sorted by thread start date (oldest first)
+    assert len(data["reports"]) == 2
+    assert data["reports"][0]["_id"] == "rpt1"  # thread1: 2025-01-10 (older)
+    assert data["reports"][1]["_id"] == "rpt2"  # thread2: 2025-01-12 (newer)
+
+
+@pytest.mark.integration
+def test_get_reports_sorting_by_generated_at(client, test_service, mock_document_store):
+    """Test sorting reports by generated_at date."""
+    mock_document_store.query_documents.side_effect = [
+        # First call: fetch summaries
+        [
+            {"_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T10:00:00Z"},
+            {"_id": "rpt2", "thread_id": "thread2", "generated_at": "2025-01-17T10:00:00Z"},
+            {"_id": "rpt3", "thread_id": "thread3", "generated_at": "2025-01-13T10:00:00Z"},
+        ],
+        # Second call: fetch threads
+        [
+            {"thread_id": "thread1", "first_message_date": "2025-01-10T00:00:00Z", "participants": [], "message_count": 5},
+            {"thread_id": "thread2", "first_message_date": "2025-01-12T00:00:00Z", "participants": [], "message_count": 3},
+            {"thread_id": "thread3", "first_message_date": "2025-01-08T00:00:00Z", "participants": [], "message_count": 7},
+        ],
+        # Third call: fetch archives
+        [],
+    ]
+    
+    response = client.get("/api/reports?sort_by=generated_at&sort_order=desc")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify reports are sorted by generated_at (newest first)
+    assert len(data["reports"]) == 3
+    assert data["reports"][0]["_id"] == "rpt2"  # 2025-01-17
+    assert data["reports"][1]["_id"] == "rpt1"  # 2025-01-15
+    assert data["reports"][2]["_id"] == "rpt3"  # 2025-01-13
+
+
+@pytest.mark.integration
+def test_get_reports_sorting_with_pagination(client, test_service, mock_document_store):
+    """Test that sorting works correctly across paginated results."""
+    mock_document_store.query_documents.side_effect = [
+        # First call: fetch summaries (limit includes buffer)
+        [
+            {"_id": f"rpt{i}", "thread_id": f"thread{i}", "generated_at": f"2025-01-{10+i:02d}T10:00:00Z"}
+            for i in range(5)
+        ],
+        # Second call: fetch threads
+        [
+            {"thread_id": f"thread{i}", "first_message_date": f"2025-01-{15-i:02d}T00:00:00Z", "participants": [], "message_count": 5}
+            for i in range(5)
+        ],
+        # Third call: fetch archives
+        [],
+    ]
+    
+    response = client.get("/api/reports?sort_by=thread_start_date&sort_order=desc&limit=2&skip=1")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify pagination applies after sorting
+    assert data["limit"] == 2
+    assert data["skip"] == 1
+    assert len(data["reports"]) == 2
+
+
+@pytest.mark.integration
+def test_get_reports_invalid_sort_by(client, test_service, mock_document_store):
+    """Test that invalid sort_by parameter is rejected."""
+    response = client.get("/api/reports?sort_by=invalid_field")
+    
+    # FastAPI should return 422 for regex validation failure
+    assert response.status_code == 422
+
+
+@pytest.mark.integration
+def test_get_reports_invalid_sort_order(client, test_service, mock_document_store):
+    """Test that invalid sort_order parameter is rejected."""
+    response = client.get("/api/reports?sort_order=invalid")
+    
+    # FastAPI should return 422 for regex validation failure
+    assert response.status_code == 422
+
+
+@pytest.mark.integration
 def test_get_report_by_id_endpoint(client, test_service, mock_document_store):
     """Test the GET /api/reports/{report_id} endpoint."""
     mock_document_store.query_documents.return_value = [

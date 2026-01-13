@@ -565,16 +565,35 @@ class ReportingService:
         # Apply sorting if requested
         if sort_by:
             reverse = (sort_order == "desc")
+            
+            # Helper to parse dates with proper handling of missing values
+            def sort_key_with_missing_last(summary: dict[str, Any], field_path: list[str]) -> str:
+                """Get sort key with missing values sorted to the end.
+                
+                For ascending order, missing values get a high sentinel (zzz...)
+                For descending order, missing values get a low sentinel (empty string)
+                This ensures missing values always appear at the end regardless of sort direction.
+                """
+                value = summary
+                for key in field_path:
+                    value = value.get(key, {}) if isinstance(value, dict) else {}
+                
+                # If value is missing or empty, return sentinel
+                if not value:
+                    return "~~~" if not reverse else ""  # High value for asc, low for desc
+                
+                return str(value)
+            
             if sort_by == "thread_start_date":
                 # Sort by first_message_date from thread_metadata
                 summaries.sort(
-                    key=lambda s: s.get("thread_metadata", {}).get("first_message_date") or "",
+                    key=lambda s: sort_key_with_missing_last(s, ["thread_metadata", "first_message_date"]),
                     reverse=reverse
                 )
             elif sort_by == "generated_at":
                 # Sort by report generation date
                 summaries.sort(
-                    key=lambda s: s.get("generated_at") or "",
+                    key=lambda s: sort_key_with_missing_last(s, ["generated_at"]),
                     reverse=reverse
                 )
 

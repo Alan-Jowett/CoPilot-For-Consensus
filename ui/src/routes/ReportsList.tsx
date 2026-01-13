@@ -97,7 +97,7 @@ export function ReportsList() {
       }
     })()
     return () => { cancelled = true }
-  }, [q.topic, q.thread_id, q.message_start_date, q.message_end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip, isTopicSearch])
+  }, [q.topic, q.thread_id, q.message_start_date, q.message_end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip, q.sort_by, q.sort_order, isTopicSearch])
 
   const [form, setForm] = useState({
     topic: q.topic ?? '',
@@ -312,7 +312,7 @@ export function ReportsList() {
         {!loading && !error && data.reports.length > 0 && (
           <div style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-              📅 Sorted by: Thread Start Date ({q.sort_order === 'desc' ? 'Newest First' : 'Oldest First'})
+              📅 Sorted by: {q.sort_by === 'generated_at' ? 'Report Generated Date' : 'Thread Start Date'} ({q.sort_order === 'desc' ? 'Newest First' : 'Oldest First'})
             </span>
             <button 
               className="quick-date-btn" 

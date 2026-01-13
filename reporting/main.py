@@ -85,8 +85,8 @@ def get_reports(
     max_participants: int = Query(None, ge=0, description="Maximum number of participants"),
     min_messages: int = Query(None, ge=0, description="Minimum number of messages in thread"),
     max_messages: int = Query(None, ge=0, description="Maximum number of messages in thread"),
-    sort_by: str = Query(None, description="Sort by field ('thread_start_date' or 'generated_at')"),
-    sort_order: str = Query("desc", description="Sort order ('asc' or 'desc')"),
+    sort_by: str = Query(None, regex="^(thread_start_date|generated_at)$", description="Sort by field ('thread_start_date' or 'generated_at')"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order ('asc' or 'desc')"),
 ):
     """Get list of reports with optional filters."""
     global reporting_service
