@@ -522,10 +522,9 @@ def main():
                 )
         except Exception as e:
             from copilot_config import DriverConfig
-            from copilot_config import DriverConfig
             logger.warning(
                 "Metrics backend unavailable; falling back to NoOp",
-                backend=config.metrics_type,
+                backend=metrics_adapter.driver_name if metrics_adapter else "noop",
             )
             metrics_collector = create_metrics_collector(
                 driver_name="noop",

@@ -217,7 +217,7 @@ def main():
 
             service_logger.warning(
                 "Metrics backend unavailable; falling back to NoOp",
-                backend=config.metrics_type,
+                backend=metrics_adapter.driver_name if metrics_adapter else "noop",
                 error=str(e),
             )
             metrics = NoOpMetricsCollector()

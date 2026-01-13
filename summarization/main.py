@@ -245,7 +245,7 @@ def main():
             from copilot_config import DriverConfig
             log.warning(
                 "Metrics backend unavailable; falling back to NoOp",
-                backend=config.metrics_type,
+                backend=metrics_adapter.driver_name if metrics_adapter else "noop",
                 error=str(e),
             )
             metrics_collector = create_metrics_collector(
