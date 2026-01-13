@@ -69,6 +69,9 @@ def get_minimal_config(driver_schema):
                 config_dict[field] = defaults[field]
             else:
                 config_dict[field] = ""
+        elif field == "connection_string" and "connection_string" in defaults:
+            # For Azure Monitor, include a valid connection string even though schema marks it optional
+            config_dict[field] = defaults["connection_string"]
         elif "default" in field_schema:
             # Optional field with default: use the schema default
             config_dict[field] = field_schema["default"]

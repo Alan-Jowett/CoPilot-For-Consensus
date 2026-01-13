@@ -438,7 +438,7 @@ class TestAzureMonitorMetricsCollector:
             namespace="test"
         )
 
-        assert collector.connection_string == "InstrumentationKey=test-key"
+        assert collector.connection_string == VALID_CONNECTION_STRING
         assert collector.namespace == "test"
 
     @pytest.mark.skipif(
@@ -454,7 +454,7 @@ class TestAzureMonitorMetricsCollector:
 
         collector = AzureMonitorMetricsCollector()
 
-        assert collector.connection_string == "InstrumentationKey=env-key"
+        assert collector.connection_string == VALID_CONNECTION_STRING
 
     @pytest.mark.skipif(
         sys.modules.get('azure.monitor.opentelemetry.exporter') is None
@@ -470,7 +470,7 @@ class TestAzureMonitorMetricsCollector:
 
         collector = AzureMonitorMetricsCollector()
 
-        assert collector.connection_string == "InstrumentationKey=legacy-key"
+        assert collector.connection_string == f"InstrumentationKey={VALID_INSTRUMENTATION_KEY}"
 
     @pytest.mark.skipif(
         sys.modules.get('azure.monitor.opentelemetry.exporter') is None
