@@ -55,8 +55,8 @@ def get_minimal_config(driver_schema):
         "namespace": "copilot",
         "raise_on_error": False,
         "pushgateway_url": "http://localhost:9091",
-        "instrumentation_key": "test-key",
-        "connection_string": "InstrumentationKey=test-key",
+        "instrumentation_key": "00000000-0000-4000-8000-000000000000",
+        "connection_string": "InstrumentationKey=00000000-0000-4000-8000-000000000000",
         "service_name": "copilot",
     }
     

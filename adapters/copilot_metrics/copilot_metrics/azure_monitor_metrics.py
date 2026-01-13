@@ -76,10 +76,19 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 "Install with: pip install azure-monitor-opentelemetry-exporter opentelemetry-sdk"
             )
 
+        # Fallback to environment variables when an explicit connection string is not provided
+        if not connection_string:
+            env_connection = os.getenv("AZURE_MONITOR_CONNECTION_STRING")
+            env_instrumentation_key = os.getenv("AZURE_MONITOR_INSTRUMENTATION_KEY")
+            if not env_connection and env_instrumentation_key:
+                env_connection = f"InstrumentationKey={env_instrumentation_key}"
+
+            connection_string = env_connection
+
         if not connection_string:
             raise ValueError(
-                "Azure Monitor connection_string is required for AzureMonitorMetricsCollector. "
-                "Pass connection_string parameter explicitly."
+                "Azure Monitor connection string is required for AzureMonitorMetricsCollector. "
+                "Provide it explicitly or via AZURE_MONITOR_CONNECTION_STRING / AZURE_MONITOR_INSTRUMENTATION_KEY."
             )
 
         self.connection_string = connection_string

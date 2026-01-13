@@ -9,6 +9,9 @@ import pytest
 from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector, create_metrics_collector
 from copilot_metrics import azure_monitor_metrics as az_metrics
+VALID_CONNECTION_STRING = "InstrumentationKey=00000000-0000-4000-8000-000000000000"
+VALID_INSTRUMENTATION_KEY = "00000000-0000-4000-8000-000000000001"
+
 
 # Import implementation classes from internal modules for testing
 from copilot_metrics.noop_metrics import NoOpMetricsCollector
@@ -418,7 +421,7 @@ class TestAzureMonitorMetricsCollector:
         """Test that initialization fails without connection string."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        with pytest.raises(ValueError, match="Azure Monitor connection string is required"):
+        with pytest.raises(ValueError, match="connection string is required"):
             AzureMonitorMetricsCollector()
 
     @pytest.mark.skipif(
@@ -431,7 +434,7 @@ class TestAzureMonitorMetricsCollector:
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
+            connection_string=VALID_CONNECTION_STRING,
             namespace="test"
         )
 
@@ -447,7 +450,7 @@ class TestAzureMonitorMetricsCollector:
         """Test initialization from AZURE_MONITOR_CONNECTION_STRING environment variable."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", "InstrumentationKey=env-key")
+        monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", VALID_CONNECTION_STRING)
 
         collector = AzureMonitorMetricsCollector()
 
@@ -462,7 +465,7 @@ class TestAzureMonitorMetricsCollector:
         """Test initialization from AZURE_MONITOR_INSTRUMENTATION_KEY (legacy)."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        monkeypatch.setenv("AZURE_MONITOR_INSTRUMENTATION_KEY", "legacy-key")
+        monkeypatch.setenv("AZURE_MONITOR_INSTRUMENTATION_KEY", VALID_INSTRUMENTATION_KEY)
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
 
         collector = AzureMonitorMetricsCollector()
@@ -479,7 +482,7 @@ class TestAzureMonitorMetricsCollector:
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
+            connection_string=VALID_CONNECTION_STRING,
             namespace="test"
         )
 
@@ -500,7 +503,7 @@ class TestAzureMonitorMetricsCollector:
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
+            connection_string=VALID_CONNECTION_STRING,
             namespace="test"
         )
 
@@ -520,7 +523,7 @@ class TestAzureMonitorMetricsCollector:
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
+            connection_string=VALID_CONNECTION_STRING,
             namespace="test"
         )
 
@@ -542,7 +545,7 @@ class TestAzureMonitorMetricsCollector:
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
+            connection_string=VALID_CONNECTION_STRING,
             namespace="test",
             raise_on_error=False
         )
