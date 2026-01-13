@@ -22,17 +22,17 @@ try:
     from tests.fixtures import create_valid_chunk  # noqa: E402
 except ModuleNotFoundError:
     import importlib.util as _ilu  # noqa: E402
-    import sys as _sys  # noqa: E402
     import types as _types  # noqa: E402
     _fixtures_path = _repo_root / "tests" / "fixtures" / "__init__.py"
     _pkg_name = "root_tests"
-    if _pkg_name not in _sys.modules:
+    if _pkg_name not in sys.modules:
         _pkg = _types.ModuleType(_pkg_name)
         _pkg.__path__ = [str(_repo_root / "tests")]  # type: ignore[attr-defined]
-        _sys.modules[_pkg_name] = _pkg
+        sys.modules[_pkg_name] = _pkg
     _spec = _ilu.spec_from_file_location(f"{_pkg_name}.fixtures", _fixtures_path)
+    if _spec is None or _spec.loader is None:
+        raise ImportError(f"Could not load fixtures module from {_fixtures_path}")
     _fixtures = _ilu.module_from_spec(_spec)
-    assert _spec.loader is not None
     _spec.loader.exec_module(_fixtures)
     create_valid_chunk = _fixtures.create_valid_chunk
 

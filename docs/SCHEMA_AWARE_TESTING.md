@@ -22,7 +22,7 @@ The `tests/fixtures` module provides helpers to generate schema-compliant test d
 Located in `tests/fixtures/document_fixtures.py`:
 
 ```python
-from tests.fixtures.document_fixtures import (
+from tests.fixtures import (
     create_valid_message,
     create_valid_chunk,
     create_valid_thread,

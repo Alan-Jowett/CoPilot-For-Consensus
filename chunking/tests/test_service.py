@@ -25,18 +25,18 @@ except ModuleNotFoundError:
     # Fallback for environments where a local 'tests' package (e.g., chunking/tests)
     # shadows the repo-root tests package. Load fixtures directly from file path.
     import importlib.util as _ilu  # noqa: E402
-    import sys as _sys  # noqa: E402
     import types as _types  # noqa: E402
     _fixtures_path = _repo_root / "tests" / "fixtures" / "__init__.py"
     # Ensure a synthetic parent package exists for relative imports inside fixtures
     _pkg_name = "root_tests"
-    if _pkg_name not in _sys.modules:
+    if _pkg_name not in sys.modules:
         _pkg = _types.ModuleType(_pkg_name)
         _pkg.__path__ = [str(_repo_root / "tests")]  # type: ignore[attr-defined]
-        _sys.modules[_pkg_name] = _pkg
+        sys.modules[_pkg_name] = _pkg
     _spec = _ilu.spec_from_file_location(f"{_pkg_name}.fixtures", _fixtures_path)
+    if _spec is None or _spec.loader is None:
+        raise ImportError(f"Cannot load fixtures module from {_fixtures_path!s}")
     _fixtures = _ilu.module_from_spec(_spec)
-    assert _spec.loader is not None
     _spec.loader.exec_module(_fixtures)
     create_valid_message = _fixtures.create_valid_message
 
