@@ -9,6 +9,8 @@ instantiated via the factory with its required parameters.
 
 import json
 from pathlib import Path
+import pytest
+
 
 from copilot_config import DriverConfig
 from copilot_vectorstore.factory import create_vector_store
@@ -41,11 +43,14 @@ def get_required_fields(driver_schema):
 
 
 def get_minimal_config(driver_schema):
-    """Build minimal config with required fields from driver schema."""
+    """Build minimal config with all fields from driver schema.
+    
+    Includes required fields and optional fields with schema defaults.
+    """
     config_dict = {}
     required_fields = get_required_fields(driver_schema)
     
-    # Map field names to reasonable defaults
+    # Map field names to reasonable defaults (for required fields without schema defaults)
     defaults = {
         "dimension": 384,
         "vector_size": 384,
@@ -59,11 +64,19 @@ def get_minimal_config(driver_schema):
         "upsert_batch_size": 100,
     }
     
-    for field in required_fields:
-        if field in defaults:
-            config_dict[field] = defaults[field]
-        else:
-            config_dict[field] = ""
+    # Include all properties: required fields and optional fields with defaults
+    properties = driver_schema.get("properties", {})
+    for field, field_schema in properties.items():
+        if field in required_fields:
+            # Required field: use defaults or empty string
+            if field in defaults:
+                config_dict[field] = defaults[field]
+            else:
+                config_dict[field] = ""
+        elif "default" in field_schema:
+            # Optional field with default: use the schema default
+            config_dict[field] = field_schema["default"]
+        # Optional fields without defaults are skipped (will use None)
     
     return config_dict
 
@@ -95,6 +108,19 @@ class TestVectorStoreAllDrivers:
                 allowed_keys=allowed_keys
             )
             
-            # Should not raise any exceptions
-            store = create_vector_store(driver_name=driver, driver_config=config)
-            assert store is not None, f"Failed to create vector store for driver: {driver}"
+
+            # Should not raise any exceptions (skip if optional dependencies are missing)
+            try:
+                store = create_vector_store(driver_name=driver, driver_config=config)
+                assert store is not None, f"Failed to create vector store for driver: {driver}"
+            except ImportError as e:
+                pytest.skip(f"Optional dependencies for {driver} not installed: {str(e)}")
+
+
+            except Exception as e:
+                # Skip on connection errors or other runtime errors (e.g., service not running)
+                error_str = str(e).lower()
+                if any(x in error_str for x in ["connection", "refused", "connect", "timeout"]):
+                    pytest.skip(f"Cannot connect to {driver} service: {type(e).__name__}")
+                raise  # Re-raise other exceptions
+
