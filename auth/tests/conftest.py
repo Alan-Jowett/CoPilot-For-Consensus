@@ -21,6 +21,9 @@ def set_test_environment():
     os.environ["DOCUMENT_STORE_TYPE"] = "inmemory"
     os.environ["SECRET_PROVIDER_TYPE"] = "local"
 
+    os.environ["OIDC_PROVIDERS_TYPE"] = "multi"
+    os.environ["JWT_SIGNER_TYPE"] = "local"
+
     # Auth service required settings
     os.environ["AUTH_ISSUER"] = "http://localhost:8090"
 
@@ -48,3 +51,5 @@ def set_test_environment():
     secrets_base_path = os.environ.pop("SECRETS_BASE_PATH", None)
     if secrets_base_path:
         shutil.rmtree(secrets_base_path, ignore_errors=True)
+    os.environ.pop("OIDC_PROVIDERS_TYPE", None)
+    os.environ.pop("JWT_SIGNER_TYPE", None)

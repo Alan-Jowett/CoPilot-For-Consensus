@@ -10,6 +10,7 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 from dataclasses import dataclass
 
 from ..adapters.document_store import AdapterConfig_DocumentStore
+from ..adapters.jwt_signer import AdapterConfig_JwtSigner
 from ..adapters.logger import AdapterConfig_Logger
 from ..adapters.metrics import AdapterConfig_Metrics
 from ..adapters.oidc_providers import AdapterConfig_OidcProviders
@@ -28,12 +29,7 @@ class ServiceSettings_Auth:
     enable_dpop: bool | None = False
     first_user_auto_promotion_enabled: bool | None = False
     host: str | None = "0.0.0.0"
-    jwt_algorithm: str | None = "RS256"
     jwt_default_expiry: int | None = 1800
-    jwt_key_id: str | None = "default"
-    jwt_private_key: str | None = None
-    jwt_public_key: str | None = None
-    jwt_secret_key: str | None = None
     max_skew_seconds: int | None = 90
     port: int | None = 8090
     require_nonce: bool | None = True
@@ -52,3 +48,4 @@ class ServiceConfig_Auth:
     metrics: AdapterConfig_Metrics
     oidc_providers: AdapterConfig_OidcProviders
     secret_provider: AdapterConfig_SecretProvider
+    jwt_signer: AdapterConfig_JwtSigner | None = None
