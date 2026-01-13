@@ -43,14 +43,14 @@ setup(
             "prometheus-client>=0.19.0",  # Prometheus metrics client
         ],
         "azure": [
-            # Latest available releases are still beta; pin to the newest published beta.
-            "azure-monitor-opentelemetry-exporter>=1.0.0b21",
+            # Pin to the current beta until a stable 1.x release is available
+            "azure-monitor-opentelemetry-exporter==1.0.0b21",
             "opentelemetry-sdk>=1.20.0",
         ],
         # All optional backends
         "all": [
             "prometheus-client>=0.19.0",
-            "azure-monitor-opentelemetry-exporter>=1.0.0b21",
+            "azure-monitor-opentelemetry-exporter==1.0.0b21",
             "opentelemetry-sdk>=1.20.0",
         ],
         # Test extra includes all drivers for factory tests
@@ -58,7 +58,7 @@ setup(
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
             "prometheus-client>=0.19.0",
-            "azure-monitor-opentelemetry-exporter>=1.0.0b21",
+            "azure-monitor-opentelemetry-exporter==1.0.0b21",
             "opentelemetry-sdk>=1.20.0",
         ],
     },
