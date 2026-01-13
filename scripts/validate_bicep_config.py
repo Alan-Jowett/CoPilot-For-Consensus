@@ -95,28 +95,25 @@ def extract_env_vars(bicep_content: str, service_name: str) -> dict:
     env_content = bicep_content[env_start + 6:env_end]
     
     # Extract name-value pairs
-    # More robust pattern that handles various spacing and indentation
-    # Pattern: name: 'NAME', value: 'value'  or name: 'NAME' value: '...'
-    pattern = r"name:\s*['\"]([^'\"]+)['\"]\s*(?:,\s*)?value:\s*([^}\n]*)(?=\n\s*\})"
+    # More robust pattern that handles values on the same line or next line
+    # Pattern: name: 'NAME' followed by value: on same or next line
+    pattern = r"name:\s*['\"]([^'\"]+)['\"]\s*\n?\s*value:\s*(.+?)(?=\n\s*\})"
     
-    for match in re.finditer(pattern, env_content, re.MULTILINE):
+    for match in re.finditer(pattern, env_content, re.DOTALL | re.MULTILINE):
         name = match.group(1)
         value = match.group(2).strip()
         
         # Remove trailing comma if present
         value = value.rstrip(",").strip()
         
-        # Simplify value: remove quotes, handle ternary operators
+        # Remove surrounding quotes if present
         if value.startswith("'") and value.endswith("'"):
             value = value[1:-1]
         elif value.startswith('"') and value.endswith('"'):
             value = value[1:-1]
         
-        # For ternary or complex expressions, just mark as conditional
-        if "?" in value or "@" in value or "resourceId" in value or value.startswith("list") or value.startswith("parameters"):
-            env_vars[name] = None  # Mark as conditional/computed
-        else:
-            env_vars[name] = value
+        # Store the full value for validation (even if conditional)
+        env_vars[name] = value
     
     return env_vars
 
@@ -153,6 +150,25 @@ def resolve_ref(ref_path: str, base_path: Path) -> dict:
         return json.load(f)
 
 
+def _extract_keyvault_references_from_env(env_vars: dict) -> dict[str, str]:
+    """
+    Scan env var values for Key Vault secret references.
+    Returns dict mapping env var name to 'KEY_VAULT_REF' marker.
+    
+    These should NOT exist - secrets should be loaded via secret provider, not env vars.
+    """
+    keyvault_refs: dict[str, str] = {}
+
+    for env_name, value in env_vars.items():
+        if not value:
+            continue
+        # Look for @Microsoft.KeyVault( pattern (even with Bicep variable interpolation)
+        if "@Microsoft.KeyVault(" in str(value):
+            keyvault_refs[env_name] = "KEY_VAULT_REF"
+
+    return keyvault_refs
+
+
 def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
     """
     Validate environment variables against schema.
@@ -184,7 +200,16 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
                     if value not in enum_values:
                         issues.append(f"Invalid discriminant value for {discriminant_env_var}: '{value}' not in {enum_values}")
     
-    # Validate adapter discriminants by resolving $ref pointers
+    # Check for Key Vault references in env vars (these should NOT exist)
+    keyvault_refs = _extract_keyvault_references_from_env(env_vars)
+    if keyvault_refs:
+        issues.append(
+            f"INVALID: Environment variables contain Key Vault secret references. "
+            f"Secrets should be loaded via secret_provider, not injected as env vars. "
+            f"Remove these env vars: {list(keyvault_refs.keys())}"
+        )
+    
+    # Validate adapter discriminants and driver requirements (including secrets)
     adapters = schema.get("adapters", {})
     schema_base_path = Path(__file__).parent.parent / "docs" / "schemas" / "configs" / "services"
     
@@ -193,8 +218,13 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
             continue
         
         try:
-            # Resolve and load the adapter schema
-            adapter_schema = resolve_ref(adapter_ref["$ref"], schema_base_path)
+            # Resolve and load the adapter schema (keep its path to resolve driver refs)
+            adapter_schema_path = (schema_base_path / adapter_ref["$ref"]).resolve()
+            if not adapter_schema_path.exists():
+                raise FileNotFoundError(f"Referenced schema not found: {adapter_schema_path} (from {adapter_ref['$ref']})")
+            with open(adapter_schema_path, "r", encoding="utf-8") as f:
+                adapter_schema = json.load(f)
+            adapter_schema_dir = adapter_schema_path.parent
             
             # Check for discriminant in the adapter schema
             discriminant = adapter_schema.get("properties", {}).get("discriminant")
@@ -214,11 +244,70 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
                     issues.append(f"Missing REQUIRED adapter discriminant: {discriminant_env_var} (adapter '{adapter_name}')")
                 else:
                     issues.append(f"Missing adapter discriminant: {discriminant_env_var} (adapter '{adapter_name}')")
-            elif env_vars[discriminant_env_var] is not None and enum_values:
-                # Validate the value if it's not conditional
-                value = env_vars[discriminant_env_var]
-                if value not in enum_values:
-                    issues.append(f"Invalid discriminant value for {discriminant_env_var}: '{value}' not in {enum_values} (adapter '{adapter_name}')")
+                continue
+
+            selected_driver = env_vars[discriminant_env_var]
+            if selected_driver is None:
+                # Conditional or computed; skip deep validation for this adapter
+                continue
+
+            if enum_values and selected_driver not in enum_values:
+                issues.append(
+                    f"Invalid discriminant value for {discriminant_env_var}: '{selected_driver}' not in {enum_values} (adapter '{adapter_name}')"
+                )
+                continue
+
+            # Deep-validate the selected driver schema for required env/secret fields
+            drivers_data = adapter_schema.get("properties", {}).get("drivers", {}).get("properties", {})
+            driver_info = drivers_data.get(selected_driver)
+            if not driver_info:
+                issues.append(
+                    f"Driver '{selected_driver}' not defined in adapter schema for '{adapter_name}'"
+                )
+                continue
+
+            driver_ref = driver_info.get("$ref")
+            if not driver_ref:
+                continue
+
+            driver_schema_path = (adapter_schema_dir / driver_ref).resolve()
+            if not driver_schema_path.exists():
+                issues.append(
+                    f"Referenced driver schema not found: {driver_schema_path} (adapter '{adapter_name}', driver '{selected_driver}')"
+                )
+                continue
+
+            with open(driver_schema_path, "r", encoding="utf-8") as f:
+                driver_schema = json.load(f)
+
+            driver_props = driver_schema.get("properties", {})
+            for prop_name, prop_spec in driver_props.items():
+                if not isinstance(prop_spec, dict):
+                    continue
+
+                source = prop_spec.get("source")
+                required_prop = prop_spec.get("required", False)
+
+                if source == "env":
+                    env_var = prop_spec.get("env_var")
+                    if env_var and required_prop and env_var not in env_vars:
+                        issues.append(
+                            f"Missing REQUIRED env var '{env_var}' for adapter '{adapter_name}' driver '{selected_driver}' (property '{prop_name}')"
+                        )
+                elif source == "secret":
+                    # Secrets should be loaded via secret_provider, not via env vars
+                    # Check if any env var references this secret (which is wrong)
+                    secret_name = prop_spec.get("secret_name")
+                    if secret_name:
+                        secret_candidates = secret_name if isinstance(secret_name, list) else [secret_name]
+                        # Check if any env var has a KeyVault reference to this secret
+                        for env_var_name, referenced_secret in keyvault_refs.items():
+                            if referenced_secret in secret_candidates:
+                                issues.append(
+                                    f"INVALID: Env var '{env_var_name}' contains Key Vault reference to secret '{referenced_secret}' "
+                                    f"but adapter '{adapter_name}' driver '{selected_driver}' defines this as source='secret'. "
+                                    f"Remove the env var - secrets should be loaded via secret_provider, not injected as env vars."
+                                )
         
         except FileNotFoundError as e:
             issues.append(f"Could not resolve adapter schema for '{adapter_name}': {e}")

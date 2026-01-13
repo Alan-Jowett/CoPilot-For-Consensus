@@ -276,14 +276,8 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
-            {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
-            }
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
-            }
+            // Removed APPINSIGHTS_INSTRUMENTATIONKEY and APPLICATIONINSIGHTS_CONNECTION_STRING
+            // These secrets are loaded via secret_provider from Key Vault using schema secret_name
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
@@ -512,14 +506,8 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
-            {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
-            }
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
-            }
+            // Removed APPINSIGHTS_INSTRUMENTATIONKEY and APPLICATIONINSIGHTS_CONNECTION_STRING
+            // These secrets are loaded via secret_provider from Key Vault using schema secret_name
             // Error reporter adapter
             {
               name: 'ERROR_REPORTER_TYPE'
@@ -673,14 +661,8 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
-            {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
-            }
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
-            }
+            // Removed APPINSIGHTS_INSTRUMENTATIONKEY and APPLICATIONINSIGHTS_CONNECTION_STRING
+            // These secrets are loaded via secret_provider from Key Vault using schema secret_name
             // Error reporter adapter
             {
               name: 'ERROR_REPORTER_TYPE'
@@ -869,14 +851,8 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
-            {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
-            }
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
-            }
+            // Removed APPINSIGHTS_INSTRUMENTATIONKEY and APPLICATIONINSIGHTS_CONNECTION_STRING
+            // These secrets are loaded via secret_provider from Key Vault using schema secret_name
             // Error reporter adapter
             {
               name: 'ERROR_REPORTER_TYPE'
@@ -1018,14 +994,8 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
-            {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
-            }
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
-            }
+            // Removed APPINSIGHTS_INSTRUMENTATIONKEY and APPLICATIONINSIGHTS_CONNECTION_STRING
+            // These secrets are loaded via secret_provider from Key Vault using schema secret_name
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
@@ -1220,14 +1190,8 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
-            {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
-            }
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
-            }
+            // Removed APPINSIGHTS_INSTRUMENTATIONKEY and APPLICATIONINSIGHTS_CONNECTION_STRING
+            // These secrets are loaded via secret_provider from Key Vault using schema secret_name
             // Error reporter adapter
             {
               name: 'ERROR_REPORTER_TYPE'
@@ -1377,14 +1341,8 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
-            {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
-            }
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
-            }
+            // Removed APPINSIGHTS_INSTRUMENTATIONKEY and APPLICATIONINSIGHTS_CONNECTION_STRING
+            // These secrets are loaded via secret_provider from Key Vault using schema secret_name
             // Error reporter adapter
             {
               name: 'ERROR_REPORTER_TYPE'
@@ -1673,14 +1631,8 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
-            {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
-            }
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
-            }
+            // Removed APPINSIGHTS_INSTRUMENTATIONKEY and APPLICATIONINSIGHTS_CONNECTION_STRING
+            // These secrets are loaded via secret_provider from Key Vault using schema secret_name
             // Error reporter adapter
             {
               name: 'ERROR_REPORTER_TYPE'
