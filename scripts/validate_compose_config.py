@@ -9,7 +9,7 @@ Usage:
         --env .env [--verbose]
 
 This script resolves environment variables defined in Compose services, applies
-.substitutions from the provided .env file, and validates schema discriminants for
+substitutions from the provided .env file, and validates schema discriminants for
 services that have JSON schemas (adapter-based microservices). Frontend/proxy
 services (ui, gateway) are skipped.
 """
@@ -17,7 +17,6 @@ services (ui, gateway) are skipped.
 from __future__ import annotations
 
 import argparse
-import os
 import re
 import sys
 from pathlib import Path
