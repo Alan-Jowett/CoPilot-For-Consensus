@@ -23,7 +23,7 @@
                     "$ref": "./drivers/message_bus/rabbitmq.json"
                 },
                 "azure_service_bus": {
-                    "$ref": "./drivers/message_bus/servicebus.json"
+                    "$ref": "./drivers/message_bus/azure_service_bus.json"
                 },
                 "noop": {
                     "$ref": "./drivers/message_bus/noop.json"
