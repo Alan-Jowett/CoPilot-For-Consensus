@@ -306,7 +306,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AZURE_KEY_VAULT_URI'
-              value: '${keyVaultBaseUrl}'
+              value: 'https://${keyVaultName}.vault.azure.net/'
             }
             {
               name: 'JWT_KEY_NAME'
