@@ -102,7 +102,10 @@ def load_service_config(
                         if value is not None:
                             driver_config_dict[prop_name] = value
                             break
-                    except Exception:
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger("copilot_config")
+                        logger.debug(f"Failed to load secret '{candidate}' for property '{prop_name}': {e}")
                         continue
             else:
                 # Field has no source (not env or secret) - apply default if present
@@ -314,7 +317,10 @@ def load_service_config(
                     secret_adapter.driver_config,
                 )
                 secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
-        except Exception:
+        except Exception as e:
+            import logging
+            logger = logging.getLogger("copilot_config")
+            logger.warning(f"Failed to initialize secret_provider: {e}. Secrets will not be available.", exc_info=True)
             secret_provider = None
 
     # Phase 3: load full service settings and rebuild adapter configs with secrets resolved
