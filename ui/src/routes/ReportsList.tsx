@@ -20,6 +20,8 @@ function useQueryState() {
     max_messages: sp.get('max_messages') ?? undefined,
     limit: Number(sp.get('limit') ?? 20),
     skip: Number(sp.get('skip') ?? 0),
+    sort_by: sp.get('sort_by') ?? 'thread_start_date',
+    sort_order: sp.get('sort_order') ?? 'desc',
   }), [sp])
 
   const update = (patch: Partial<ReportsQuery>) => {
@@ -95,7 +97,7 @@ export function ReportsList() {
       }
     })()
     return () => { cancelled = true }
-  }, [q.topic, q.thread_id, q.message_start_date, q.message_end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip])
+  }, [q.topic, q.thread_id, q.message_start_date, q.message_end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip, q.sort_by, q.sort_order, isTopicSearch])
 
   const [form, setForm] = useState({
     topic: q.topic ?? '',
@@ -165,6 +167,11 @@ export function ReportsList() {
       btn.textContent = 'Copied!'
       setTimeout(() => { if (btn) btn.textContent = original || 'Copy' }, 1500)
     })
+  }
+
+  function toggleSortOrder() {
+    const newOrder = q.sort_order === 'desc' ? 'asc' : 'desc'
+    update({ sort_order: newOrder })
   }
 
   const prevDisabled = q.skip === 0
@@ -302,6 +309,20 @@ export function ReportsList() {
       )}
 
       <div className="reports-table">
+        {!loading && !error && data.reports.length > 0 && (
+          <div style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+              📅 Sorted by: {q.sort_by === 'generated_at' ? 'Report Generated Date' : 'Thread Start Date'} ({q.sort_order === 'desc' ? 'Newest First' : 'Oldest First'})
+            </span>
+            <button 
+              className="quick-date-btn" 
+              onClick={toggleSortOrder}
+              style={{ padding: '4px 12px', fontSize: '13px' }}
+            >
+              {q.sort_order === 'desc' ? '↓ Newest First' : '↑ Oldest First'}
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="no-reports">Loading…</div>
         ) : error ? (
@@ -319,6 +340,7 @@ export function ReportsList() {
               <tr>
                 <th>Report ID</th>
                 <th>Thread ID</th>
+                <th>Thread Started</th>
                 {isTopicSearch && <th>Relevance</th>}
                 <th>Generated</th>
                 <th>Source &amp; Metadata</th>
@@ -336,6 +358,19 @@ export function ReportsList() {
                   <td>
                     <div className="thread-id" title={r.thread_id}>{r.thread_id}</div>
                     <button className="copy-btn" onClick={(e) => copyToClipboard(r.thread_id, e)}>Copy</button>
+                  </td>
+                  <td className="timestamp">
+                    {(() => {
+                      if (!r.thread_metadata?.first_message_date) return 'N/A'
+                      try {
+                        const date = new Date(r.thread_metadata.first_message_date)
+                        // Check if date is valid
+                        if (isNaN(date.getTime())) return 'Invalid Date'
+                        return date.toLocaleDateString()
+                      } catch {
+                        return 'Invalid Date'
+                      }
+                    })()}
                   </td>
                   {isTopicSearch && (
                     <td>

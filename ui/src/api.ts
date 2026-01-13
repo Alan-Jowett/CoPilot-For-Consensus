@@ -67,6 +67,8 @@ export interface Report {
     participant_count?: number
     message_count?: number
     subject?: string
+    first_message_date?: string
+    last_message_date?: string
   } | null
   relevance_score?: number
   matching_chunks?: number
@@ -151,6 +153,8 @@ export interface ReportsQuery {
   max_messages?: string
   limit?: number
   skip?: number
+  sort_by?: string
+  sort_order?: string
 }
 
 function toQuery(params: Record<string, any>): string {
@@ -174,6 +178,8 @@ export async function fetchReports(q: ReportsQuery): Promise<ReportsListResponse
   if (q.max_participants) params.max_participants = q.max_participants
   if (q.min_messages) params.min_messages = q.min_messages
   if (q.max_messages) params.max_messages = q.max_messages
+  if (q.sort_by) params.sort_by = q.sort_by
+  if (q.sort_order) params.sort_order = q.sort_order
 
   const url = `${base}/api/reports?${toQuery(params)}`
   const r = await fetchWithAuth(url)
