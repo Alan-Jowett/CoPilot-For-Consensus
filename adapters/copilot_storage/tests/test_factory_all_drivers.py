@@ -53,7 +53,7 @@ def get_minimal_config(driver_schema):
         "password": "testpass",
         "database": "test_db",
         "connection_string": "mongodb://localhost:27017",
-        "endpoint_url": "https://test.documents.azure.com:443/",
+        "endpoint": "https://test.documents.azure.com:443/",
         "key": "test-key",
     }
     
