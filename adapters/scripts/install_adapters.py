@@ -134,7 +134,14 @@ AZURE_EXTRA_ORDER = ("azure", "azuremonitor")
 
 
 def _extras_from_setup(setup_path: Path) -> set[str]:
-    """Extract extras keys from setup.py (best-effort)."""
+    """Extract extras keys from setup.py (best-effort).
+    
+    Returns an empty set if:
+    - setup.py doesn't exist
+    - setup.py cannot be parsed
+    - setup.py has no setup() call
+    - setup.py setup() call has no extras_require
+    """
     if not setup_path.exists():
         return set()
 
@@ -158,8 +165,8 @@ def _extras_from_setup(setup_path: Path) -> set[str]:
     except Exception as e:
         # Log parse failures for debugging without breaking the install flow
         print(f"  -> Warning: Failed to parse {setup_path.name}: {e}", file=sys.stderr)
-        return set()
 
+    # Return empty set if no extras_require found or parsing failed
     return set()
 
 
