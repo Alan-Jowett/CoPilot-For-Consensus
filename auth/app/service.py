@@ -193,20 +193,28 @@ class AuthService:
 
         settings = self.config.service_settings
 
-        # Determine signer type.
-        # Prefer an explicit jwt_signer adapter config (added by this branch),
-        # but fall back to legacy local signing based on service_settings.
-        jwt_signer_config = getattr(self.config, "jwt_signer", None)
-        signer_type = (
-            getattr(jwt_signer_config, "signer_type", None)
-            if jwt_signer_config is not None
-            else getattr(self.config, "jwt_signer_type", "local")
-        )
-
-        if signer_type == "keyvault":
-            self._initialize_keyvault_jwt_manager()
+        jwt_signer_adapter = getattr(self.config, "jwt_signer", None)
+        if jwt_signer_adapter is None:
+            # Backward-compatible fallback for older schemas/configs.
+            self._initialize_local_jwt_manager(None)
         else:
-            self._initialize_local_jwt_manager()
+            signer_type = getattr(
+                jwt_signer_adapter,
+                "jwt_signer_type",
+                getattr(jwt_signer_adapter, "signer_type", "local"),
+            )
+            driver_config = getattr(jwt_signer_adapter, "driver", None)
+            if driver_config is None:
+                # Backward-compatible shapes (pre adapter/driver generator).
+                if signer_type == "keyvault":
+                    driver_config = getattr(jwt_signer_adapter, "keyvault", None)
+                else:
+                    driver_config = getattr(jwt_signer_adapter, "local", None)
+
+            if signer_type == "keyvault":
+                self._initialize_keyvault_jwt_manager(driver_config)
+            else:
+                self._initialize_local_jwt_manager(driver_config)
 
         # Initialize role store
         self.role_store = RoleStore(self.config)
@@ -224,21 +232,61 @@ class AuthService:
             issuer=settings.issuer,
         )
 
-    def _initialize_local_jwt_manager(self) -> None:
-        """Initialize JWT manager with local signing (service_settings-based)."""
+    def _initialize_local_jwt_manager(self, jwt_signer_driver_config: Any | None) -> None:
+        """Initialize JWT manager with local signing."""
         settings = self.config.service_settings
 
-        algorithm = settings.jwt_algorithm or "RS256"
+        algorithm = (
+            getattr(jwt_signer_driver_config, "algorithm", None)
+            if jwt_signer_driver_config is not None
+            else None
+        ) or (getattr(settings, "jwt_algorithm", None) or "RS256")
+        key_id = (
+            getattr(jwt_signer_driver_config, "key_id", None)
+            if jwt_signer_driver_config is not None
+            else None
+        ) or (getattr(settings, "jwt_key_id", None) or "default")
 
-        private_key_path: Path | None
-        public_key_path: Path | None
+        private_key_content = (
+            getattr(jwt_signer_driver_config, "private_key", None)
+            if jwt_signer_driver_config is not None
+            else getattr(settings, "jwt_private_key", None)
+        )
+        public_key_content = (
+            getattr(jwt_signer_driver_config, "public_key", None)
+            if jwt_signer_driver_config is not None
+            else getattr(settings, "jwt_public_key", None)
+        )
+        secret_key_content = (
+            getattr(jwt_signer_driver_config, "secret_key", None)
+            if jwt_signer_driver_config is not None
+            else getattr(settings, "jwt_secret_key", None)
+        )
 
-        if algorithm == "RS256":
-            private_key = settings.jwt_private_key
-            public_key = settings.jwt_public_key
+        default_expiry = settings.jwt_default_expiry if settings.jwt_default_expiry is not None else 1800
 
-            if private_key is None or public_key is None:
-                raise ValueError("RS256 requires jwt_private_key and jwt_public_key to be configured")
+        try:
+            from copilot_config import DriverConfig
+            from copilot_jwt_signer import create_jwt_signer
+        except ImportError as e:
+            raise ValueError(
+                "Local JWT signing requires the copilot_jwt_signer adapter. "
+                "Install with: pip install copilot-jwt-signer"
+            ) from e
+
+        driver_payload: dict[str, Any] = {
+            "algorithm": algorithm,
+            "key_id": key_id,
+            "private_key_path": None,
+            "public_key_path": None,
+            "secret_key": None,
+        }
+
+        if algorithm.startswith("RS") or algorithm.startswith("ES"):
+            if private_key_content is None or public_key_content is None:
+                raise ValueError(
+                    f"{algorithm} requires private_key and public_key to be configured"
+                )
 
             import tempfile
 
@@ -248,93 +296,96 @@ class AuthService:
             private_key_path = temp_dir / "jwt_private.pem"
             public_key_path = temp_dir / "jwt_public.pem"
 
-            private_key_path.write_text(private_key)
-            public_key_path.write_text(public_key)
+            private_key_path.write_text(private_key_content)
+            public_key_path.write_text(public_key_content)
+
+            driver_payload["private_key_path"] = str(private_key_path)
+            driver_payload["public_key_path"] = str(public_key_path)
 
         elif algorithm.startswith("HS"):
-            private_key_path = None
-            public_key_path = None
-            if settings.jwt_secret_key is None:
-                raise ValueError(f"{algorithm} requires jwt_secret_key to be configured")
+            if secret_key_content is None:
+                raise ValueError(f"{algorithm} requires secret_key to be configured")
+            driver_payload["secret_key"] = secret_key_content
 
         else:
-            private_key_path = None
-            public_key_path = None
+            raise ValueError(f"Unsupported local JWT signing algorithm: {algorithm}")
 
-        default_expiry = settings.jwt_default_expiry if settings.jwt_default_expiry is not None else 1800
+        driver_config = DriverConfig(
+            driver_name="local",
+            config=driver_payload,
+            allowed_keys=set(driver_payload.keys()),
+        )
 
+        signer = create_jwt_signer("local", driver_config)
         self.jwt_manager = JWTManager(
             issuer=settings.issuer,
             algorithm=algorithm,
-            private_key_path=private_key_path,
-            public_key_path=public_key_path,
-            secret_key=settings.jwt_secret_key,
-            key_id=settings.jwt_key_id,
+            key_id=key_id,
             default_expiry=default_expiry,
+            signer=signer,
         )
 
         logger.info(f"JWT manager initialized with local signer (algorithm={algorithm})")
 
-    def _initialize_keyvault_jwt_manager(self) -> None:
+    def _initialize_keyvault_jwt_manager(self, jwt_signer_driver_config: Any | None) -> None:
         """Initialize JWT manager with Key Vault signing."""
+        if jwt_signer_driver_config is None:
+            raise ValueError("JWT signer keyvault driver configuration not found")
+
+        settings = self.config.service_settings
+        default_expiry = settings.jwt_default_expiry if settings.jwt_default_expiry is not None else 1800
+
+        algorithm = getattr(jwt_signer_driver_config, "algorithm", None) or "RS256"
+        key_id = getattr(jwt_signer_driver_config, "key_id", None) or "default"
+
+        key_vault_url = getattr(jwt_signer_driver_config, "key_vault_url", None)
+        key_name = getattr(jwt_signer_driver_config, "key_name", None)
+
+        if not key_vault_url:
+            raise ValueError("key_vault_url is required in keyvault driver configuration")
+        if not key_name:
+            raise ValueError("key_name is required in keyvault driver configuration")
+
         try:
+            from copilot_config import DriverConfig
             from copilot_jwt_signer import create_jwt_signer
         except ImportError as e:
             raise ValueError(
-                "Key Vault signing requires copilot_jwt_signer adapter. "
+                "Key Vault signing requires the copilot_jwt_signer adapter with Azure extras. "
                 "Install with: pip install copilot-jwt-signer[azure]"
             ) from e
 
-        settings = self.config.service_settings
-        jwt_signer_config = getattr(self.config, "jwt_signer", None)
-        keyvault_config = getattr(jwt_signer_config, "keyvault", None) if jwt_signer_config else None
+        driver_payload: dict[str, Any] = {
+            "algorithm": algorithm,
+            "key_id": key_id,
+            "key_vault_url": key_vault_url,
+            "key_name": key_name,
+            "key_version": getattr(jwt_signer_driver_config, "key_version", None),
+            "tenant_id": getattr(jwt_signer_driver_config, "tenant_id", None),
+            "client_id": getattr(jwt_signer_driver_config, "client_id", None),
+            "client_secret": getattr(jwt_signer_driver_config, "client_secret", None),
+            "max_retries": getattr(jwt_signer_driver_config, "max_retries", None),
+            "retry_delay": getattr(jwt_signer_driver_config, "retry_delay", None),
+            "circuit_breaker_threshold": getattr(
+                jwt_signer_driver_config, "circuit_breaker_threshold", None
+            ),
+            "circuit_breaker_timeout": getattr(
+                jwt_signer_driver_config, "circuit_breaker_timeout", None
+            ),
+        }
 
-        algorithm = (
-            getattr(keyvault_config, "algorithm", None)
-            if keyvault_config is not None
-            else settings.jwt_algorithm
-        ) or "RS256"
-        key_id = (
-            getattr(keyvault_config, "key_id", None)
-            if keyvault_config is not None
-            else settings.jwt_key_id
-        ) or "default"
-
-        key_vault_url = (
-            getattr(keyvault_config, "key_vault_url", None)
-            if keyvault_config is not None
-            else getattr(self.config, "jwt_key_vault_url", None)
-        )
-        key_name = (
-            getattr(keyvault_config, "key_name", None)
-            if keyvault_config is not None
-            else getattr(self.config, "jwt_key_vault_key_name", None)
-        )
-        key_version = (
-            getattr(keyvault_config, "key_version", None)
-            if keyvault_config is not None
-            else getattr(self.config, "jwt_key_vault_key_version", None)
+        driver_config = DriverConfig(
+            driver_name="keyvault",
+            config=driver_payload,
+            allowed_keys=set(driver_payload.keys()),
         )
 
-        if not key_vault_url:
-            raise ValueError("key_vault_url is required when signer_type=keyvault")
-        if not key_name:
-            raise ValueError("key_name is required when signer_type=keyvault")
-
-        signer = create_jwt_signer(
-            signer_type="keyvault",
-            algorithm=algorithm,
-            key_vault_url=key_vault_url,
-            key_name=key_name,
-            key_version=key_version,
-            key_id=key_id,
-        )
-
+        signer = create_jwt_signer("keyvault", driver_config)
         self.jwt_manager = JWTManager(
             issuer=settings.issuer,
             algorithm=algorithm,
             key_id=key_id,
-            default_expiry=settings.jwt_default_expiry,
+            default_expiry=default_expiry,
             signer=signer,
         )
 
