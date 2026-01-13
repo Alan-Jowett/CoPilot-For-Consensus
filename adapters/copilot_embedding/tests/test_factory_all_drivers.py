@@ -10,6 +10,8 @@ instantiated via the factory with its required parameters.
 import json
 from pathlib import Path
 
+import pytest
+
 from copilot_config import DriverConfig
 from copilot_embedding.factory import create_embedding_provider
 
@@ -98,7 +100,10 @@ class TestEmbeddingBackendAllDrivers:
                 allowed_keys=allowed_keys
             )
             
-            # Should not raise any exceptions
-            provider = create_embedding_provider(driver_name=driver, driver_config=config)
-            assert provider is not None, f"Failed to create provider for driver: {driver}"
+            # Should not raise any exceptions (skip if optional dependencies are missing)
+            try:
+                provider = create_embedding_provider(driver_name=driver, driver_config=config)
+                assert provider is not None, f"Failed to create provider for driver: {driver}"
+            except ImportError as e:
+                pytest.skip(f"Optional dependencies for {driver} not installed: {str(e)}")
 
