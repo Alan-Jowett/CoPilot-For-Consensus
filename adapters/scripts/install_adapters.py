@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import ast
 import subprocess
 import sys
 from pathlib import Path
@@ -129,16 +130,52 @@ def resolve_dependencies(requested_adapters):
 
     return priority_sorted
 
+AZURE_EXTRA_ORDER = ("azure", "azuremonitor")
+
+
+def _extras_from_setup(setup_path: Path) -> set[str]:
+    """Extract extras keys from setup.py (best-effort)."""
+    if not setup_path.exists():
+        return set()
+
+    try:
+        tree = ast.parse(setup_path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "setup":
+                for kw in node.keywords:
+                    if kw.arg == "extras_require":
+                        extras = ast.literal_eval(kw.value)
+                        if isinstance(extras, dict):
+                            return set(extras.keys())
+    except Exception:
+        return set()
+
+    return set()
+
+
+def select_azure_extra(adapter_path: Path) -> str | None:
+    """Return the azure-related extra to use if defined for this adapter."""
+    extras = _extras_from_setup(adapter_path / "setup.py")
+    for candidate in AZURE_EXTRA_ORDER:
+        if candidate in extras:
+            return candidate
+    return None
+
+
 def install_adapter(adapter_path):
-    """Install a single adapter in editable mode with azure extras for cloud deployments."""
+    """Install a single adapter in editable mode, using azure extras only when defined."""
     print(f"Installing adapter: {adapter_path.name}")
-    
-    # Install with [azure] extras to ensure Azure Monitor and cloud dependencies are available
-    # This is needed for Azure deployments to succeed at runtime
-    adapter_with_extras = f"{str(adapter_path)}[azure]"
-    
+
+    azure_extra = select_azure_extra(adapter_path)
+    target = f"{str(adapter_path)}[{azure_extra}]" if azure_extra else str(adapter_path)
+
+    if not azure_extra:
+        print(f"  -> No azure extras declared; installing without extras")
+    else:
+        print(f"  -> Installing with [{azure_extra}] extras")
+
     result = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-e", adapter_with_extras],
+        [sys.executable, "-m", "pip", "install", "-e", target],
         capture_output=False
     )
     if result.returncode != 0:
