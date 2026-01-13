@@ -598,11 +598,11 @@ class TestAzureMonitorMetricsCollector:
             driver_config = load_driver_config(
                 None,
                 "metrics",
-                "azuremonitor",
+                "azure_monitor",
                 fields={"connection_string": "InstrumentationKey=test-key"}
             )
             collector = create_metrics_collector(
-                driver_name="azuremonitor",
+                driver_name="azure_monitor",
                 driver_config=driver_config
             )
             from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
