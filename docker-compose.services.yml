@@ -400,6 +400,8 @@ services:
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
       - JWT_SIGNER_TYPE=${JWT_SIGNER_TYPE:-local}
+      - AUTH_JWT_ALGORITHM=${AUTH_JWT_ALGORITHM:-RS256}
+      - AUTH_JWT_KEY_ID=${AUTH_JWT_KEY_ID:-default}
       - METRICS_TYPE=noop
       - AUTH_ROLE_STORE_TYPE=${AUTH_ROLE_STORE_TYPE:-mongodb}
       # Role store (MongoDB) connection for auth credentials
