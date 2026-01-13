@@ -141,13 +141,23 @@ def _extras_from_setup(setup_path: Path) -> set[str]:
     try:
         tree = ast.parse(setup_path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "setup":
+            # Check for setup() calls - handle both simple names and qualified names
+            is_setup_call = False
+            if isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id == "setup":
+                    is_setup_call = True
+                elif isinstance(node.func, ast.Attribute) and node.func.attr == "setup":
+                    is_setup_call = True
+            
+            if is_setup_call:
                 for kw in node.keywords:
                     if kw.arg == "extras_require":
                         extras = ast.literal_eval(kw.value)
                         if isinstance(extras, dict):
                             return set(extras.keys())
-    except Exception:
+    except Exception as e:
+        # Log parse failures for debugging without breaking the install flow
+        print(f"  -> Warning: Failed to parse {setup_path.name}: {e}", file=sys.stderr)
         return set()
 
     return set()
