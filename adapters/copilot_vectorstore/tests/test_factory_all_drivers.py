@@ -56,6 +56,7 @@ def get_minimal_config(driver_schema):
         "endpoint": "https://test.search.windows.net",
         "api_key": "test-key",
         "index_name": "test-index",
+        "upsert_batch_size": 100,
     }
     
     for field in required_fields:
