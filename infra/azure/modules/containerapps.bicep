@@ -253,7 +253,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB for user roles)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -447,7 +447,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -637,7 +637,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -833,7 +833,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -995,7 +995,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -1143,7 +1143,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -1354,7 +1354,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -1575,7 +1575,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azurecosmos'
+              value: 'azure_cosmosdb'
             }
             {
               name: 'COSMOS_ENDPOINT'
