@@ -55,7 +55,8 @@ def get_minimal_config(driver_schema):
         "namespace": "copilot",
         "raise_on_error": False,
         "pushgateway_url": "http://localhost:9091",
-        "instrumentation_key": "test-key",
+        "instrumentation_key": "00000000-0000-4000-8000-000000000000",
+        "connection_string": "InstrumentationKey=00000000-0000-4000-8000-000000000000",
         "service_name": "copilot",
     }
     
@@ -68,6 +69,9 @@ def get_minimal_config(driver_schema):
                 config_dict[field] = defaults[field]
             else:
                 config_dict[field] = ""
+        elif field == "connection_string" and "connection_string" in defaults:
+            # For Azure Monitor, include a valid connection string even though schema marks it optional
+            config_dict[field] = defaults["connection_string"]
         elif "default" in field_schema:
             # Optional field with default: use the schema default
             config_dict[field] = field_schema["default"]

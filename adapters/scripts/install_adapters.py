@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import ast
 import subprocess
 import sys
 from pathlib import Path
@@ -129,11 +130,75 @@ def resolve_dependencies(requested_adapters):
 
     return priority_sorted
 
+AZURE_EXTRA_ORDER = ("azure", "azuremonitor")
+
+
+def _is_setup_call(node: ast.expr) -> bool:
+    """Check if node is a call to setup() (handles both simple and qualified names).
+    
+    Returns True for:
+    - setup(...) - simple name
+    - setuptools.setup(...) - qualified name
+    """
+    if isinstance(node, ast.Name) and node.id == "setup":
+        return True
+    if isinstance(node, ast.Attribute) and node.attr == "setup":
+        return True
+    return False
+
+
+def _extras_from_setup(setup_path: Path) -> set[str]:
+    """Extract extras keys from setup.py (best-effort).
+    
+    Returns an empty set if:
+    - setup.py doesn't exist
+    - setup.py cannot be parsed
+    - setup.py has no setup() call
+    - setup.py setup() call has no extras_require
+    """
+    if not setup_path.exists():
+        return set()
+
+    try:
+        tree = ast.parse(setup_path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and _is_setup_call(node.func):
+                for kw in node.keywords:
+                    if kw.arg == "extras_require":
+                        extras = ast.literal_eval(kw.value)
+                        if isinstance(extras, dict):
+                            return set(extras.keys())
+    except Exception as e:
+        # Log parse failures for debugging without breaking the install flow
+        print(f"  -> Warning: Failed to parse {setup_path.name}: {e}", file=sys.stderr)
+
+    # Return empty set if no extras_require found or parsing failed
+    return set()
+
+
+def select_azure_extra(adapter_path: Path) -> str | None:
+    """Return the azure-related extra to use if defined for this adapter."""
+    extras = _extras_from_setup(adapter_path / "setup.py")
+    for candidate in AZURE_EXTRA_ORDER:
+        if candidate in extras:
+            return candidate
+    return None
+
+
 def install_adapter(adapter_path):
-    """Install a single adapter in editable mode."""
+    """Install a single adapter in editable mode, using azure extras only when defined."""
     print(f"Installing adapter: {adapter_path.name}")
+
+    azure_extra = select_azure_extra(adapter_path)
+    target = f"{str(adapter_path)}[{azure_extra}]" if azure_extra else str(adapter_path)
+
+    if not azure_extra:
+        print(f"  -> No azure extras declared; installing without extras")
+    else:
+        print(f"  -> Installing with [{azure_extra}] extras")
+
     result = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-e", str(adapter_path)],
+        [sys.executable, "-m", "pip", "install", "-e", target],
         capture_output=False
     )
     if result.returncode != 0:

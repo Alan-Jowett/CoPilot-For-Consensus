@@ -44,23 +44,25 @@ setup(
             "mypy>=1.0.0",
         ],
         "azuremonitor": [
-            "azure-monitor-opentelemetry-exporter>=1.0.0b21",  # Note: Currently in beta, no stable 1.0.0 release yet
-            "opentelemetry-api>=1.20.0",
-            "opentelemetry-sdk>=1.20.0",
+            # Pin to the current beta until a stable 1.x release is available
+            # azure-monitor-opentelemetry-exporter==1.0.0b21 requires opentelemetry ~=1.21
+            "azure-monitor-opentelemetry-exporter==1.0.0b21",
+            "opentelemetry-api~=1.21.0",
+            "opentelemetry-sdk~=1.21.0",
         ],
         # All optional backends
         "all": [
-            "azure-monitor-opentelemetry-exporter>=1.0.0b21",
-            "opentelemetry-api>=1.20.0",
-            "opentelemetry-sdk>=1.20.0",
+            "azure-monitor-opentelemetry-exporter==1.0.0b21",
+            "opentelemetry-api~=1.21.0",
+            "opentelemetry-sdk~=1.21.0",
         ],
         # Test extra includes all drivers for factory tests
         "test": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
-            "azure-monitor-opentelemetry-exporter>=1.0.0b21",
-            "opentelemetry-api>=1.20.0",
-            "opentelemetry-sdk>=1.20.0",
+            "azure-monitor-opentelemetry-exporter==1.0.0b21",
+            "opentelemetry-api~=1.21.0",
+            "opentelemetry-sdk~=1.21.0",
         ],
     },
 )

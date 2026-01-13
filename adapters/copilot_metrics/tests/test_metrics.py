@@ -8,6 +8,12 @@ import sys
 import pytest
 from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector, create_metrics_collector
+from copilot_metrics import azure_monitor_metrics as az_metrics
+
+# Mock Azure Monitor connection details used only for testing; these are not real credentials.
+VALID_CONNECTION_STRING = "InstrumentationKey=00000000-0000-4000-8000-000000000000"
+VALID_INSTRUMENTATION_KEY = "00000000-0000-4000-8000-000000000001"
+
 
 # Import implementation classes from internal modules for testing
 from copilot_metrics.noop_metrics import NoOpMetricsCollector
@@ -395,8 +401,7 @@ class TestAzureMonitorMetricsCollector:
     """Tests for AzureMonitorMetricsCollector."""
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is not None
-        and sys.modules.get('opentelemetry') is not None,
+        az_metrics.AZURE_MONITOR_AVAILABLE,
         reason="Azure Monitor packages are installed; test requires them to be missing"
     )
     def test_requires_azure_monitor_packages(self):
@@ -418,7 +423,7 @@ class TestAzureMonitorMetricsCollector:
         """Test that initialization fails without connection string."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        with pytest.raises(ValueError, match="Azure Monitor connection string is required"):
+        with pytest.raises(ValueError, match="connection string is required"):
             AzureMonitorMetricsCollector()
 
     @pytest.mark.skipif(
@@ -431,11 +436,11 @@ class TestAzureMonitorMetricsCollector:
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
+            connection_string=VALID_CONNECTION_STRING,
             namespace="test"
         )
 
-        assert collector.connection_string == "InstrumentationKey=test-key"
+        assert collector.connection_string == VALID_CONNECTION_STRING
         assert collector.namespace == "test"
 
     @pytest.mark.skipif(
@@ -447,11 +452,11 @@ class TestAzureMonitorMetricsCollector:
         """Test initialization from AZURE_MONITOR_CONNECTION_STRING environment variable."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", "InstrumentationKey=env-key")
+        monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", VALID_CONNECTION_STRING)
 
         collector = AzureMonitorMetricsCollector()
 
-        assert collector.connection_string == "InstrumentationKey=env-key"
+        assert collector.connection_string == VALID_CONNECTION_STRING
 
     @pytest.mark.skipif(
         sys.modules.get('azure.monitor.opentelemetry.exporter') is None
@@ -462,12 +467,12 @@ class TestAzureMonitorMetricsCollector:
         """Test initialization from AZURE_MONITOR_INSTRUMENTATION_KEY (legacy)."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        monkeypatch.setenv("AZURE_MONITOR_INSTRUMENTATION_KEY", "legacy-key")
+        monkeypatch.setenv("AZURE_MONITOR_INSTRUMENTATION_KEY", VALID_INSTRUMENTATION_KEY)
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
 
         collector = AzureMonitorMetricsCollector()
 
-        assert collector.connection_string == "InstrumentationKey=legacy-key"
+        assert collector.connection_string == f"InstrumentationKey={VALID_INSTRUMENTATION_KEY}"
 
     @pytest.mark.skipif(
         sys.modules.get('azure.monitor.opentelemetry.exporter') is None
@@ -479,7 +484,7 @@ class TestAzureMonitorMetricsCollector:
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
+            connection_string=VALID_CONNECTION_STRING,
             namespace="test"
         )
 
@@ -500,7 +505,7 @@ class TestAzureMonitorMetricsCollector:
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
+            connection_string=VALID_CONNECTION_STRING,
             namespace="test"
         )
 
@@ -520,7 +525,7 @@ class TestAzureMonitorMetricsCollector:
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
+            connection_string=VALID_CONNECTION_STRING,
             namespace="test"
         )
 
@@ -542,7 +547,7 @@ class TestAzureMonitorMetricsCollector:
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
+            connection_string=VALID_CONNECTION_STRING,
             namespace="test",
             raise_on_error=False
         )
