@@ -193,7 +193,6 @@ def main():
 
         # Create metrics collector - fail fast on errors
         log.info("Creating metrics collector...")
-        try:
             metrics_adapter = config.get_adapter("metrics")
             if metrics_adapter is not None:
                 from copilot_config import DriverConfig

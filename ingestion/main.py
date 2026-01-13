@@ -194,8 +194,7 @@ def main():
         from app import service as ingestion_service_module
         ingestion_service_module.logger = get_logger(ingestion_service_module.__name__)
 
-        # Build metrics collector, fall back to NoOp if backend unavailable
-        try:
+        # Create metrics collector - fail fast on errors
             metrics_adapter = config.get_adapter("metrics")
             if metrics_adapter is not None:
                 # Create new DriverConfig with modified config dict
