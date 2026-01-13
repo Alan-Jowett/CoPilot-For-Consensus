@@ -76,8 +76,8 @@ class TestLLMBackendAllDrivers:
         drivers_dir = schema_dir / "drivers" / "llm_backend"
         
         for driver in drivers_enum:
-            # Load driver schema
-            driver_schema_path = drivers_dir / f"{driver}.json"
+            # Load driver schema - llm drivers are named with llm_ prefix
+            driver_schema_path = drivers_dir / f"llm_{driver}.json"
             assert driver_schema_path.exists(), f"Driver schema missing: {driver_schema_path}"
             
             driver_schema = load_json(driver_schema_path)
