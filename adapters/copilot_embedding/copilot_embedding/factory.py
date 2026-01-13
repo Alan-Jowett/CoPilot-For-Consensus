@@ -23,7 +23,7 @@ def create_embedding_provider(
 
     Args:
         driver_name: Backend type (required).
-                Options: 'mock', 'sentencetransformers', 'openai', 'azure', 'huggingface'
+                Options: 'mock', 'sentencetransformers', 'openai', 'azure', 'azure_openai', 'huggingface'
         driver_config: Configuration object with attributes for the selected backend
 
     Returns:
@@ -35,7 +35,7 @@ def create_embedding_provider(
     if not driver_name:
         raise ValueError(
             "driver_name parameter is required. "
-            "Must be one of: mock, sentencetransformers, openai, azure, huggingface"
+            "Must be one of: mock, sentencetransformers, openai, azure, azure_openai, huggingface"
         )
 
     backend = str(driver_name).lower()
@@ -50,7 +50,7 @@ def create_embedding_provider(
     if backend == "openai":
         return OpenAIEmbeddingProvider.from_config(driver_config)
 
-    if backend == "azure_openai":
+    if backend in {"azure", "azure_openai"}:
         return OpenAIEmbeddingProvider.from_config(driver_config)
 
     if backend == "huggingface":
@@ -58,5 +58,5 @@ def create_embedding_provider(
 
     raise ValueError(
         f"Unknown embedding backend driver: {driver_name}. "
-        f"Supported backends: mock, sentencetransformers, openai, azure_openai, huggingface"
+        f"Supported backends: mock, sentencetransformers, openai, azure, azure_openai, huggingface"
     )
