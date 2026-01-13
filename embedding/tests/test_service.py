@@ -3,11 +3,40 @@
 
 """Unit tests for the embedding service."""
 
+import sys
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 from app.service import EmbeddingService
 from copilot_metrics import create_metrics_collector
+
+# Add project root to path to import test fixtures
+# NOTE: This is necessary because tests run from individual service directories
+# but fixtures are in the repo root tests/ directory
+_repo_root = Path(__file__).parent.parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
+try:
+    from tests.fixtures import create_valid_chunk  # noqa: E402
+except ModuleNotFoundError:
+    import importlib.util as _ilu  # noqa: E402
+    import types as _types  # noqa: E402
+    _fixtures_path = _repo_root / "tests" / "fixtures" / "__init__.py"
+    _pkg_name = "root_tests"
+    if _pkg_name not in sys.modules:
+        _pkg = _types.ModuleType(_pkg_name)
+        _pkg.__path__ = [str(_repo_root / "tests")]  # type: ignore[attr-defined]
+        sys.modules[_pkg_name] = _pkg
+    _spec = _ilu.spec_from_file_location(f"{_pkg_name}.fixtures", _fixtures_path)
+    if _spec is None or _spec.loader is None:
+        raise ImportError(f"Could not load fixtures module from {_fixtures_path}")
+    _fixtures = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_fixtures)
+    create_valid_chunk = _fixtures.create_valid_chunk
+
+from .test_helpers import assert_valid_document_schema
 
 
 @pytest.fixture
@@ -101,61 +130,49 @@ def test_service_start(embedding_service, mock_subscriber):
 
 def test_process_chunks_success(embedding_service, mock_document_store, mock_vector_store, mock_embedding_provider, mock_publisher):
     """Test processing chunks successfully."""
-    # Setup mock data
-    chunk_ids = ["chunk-1", "chunk-2", "chunk-3"]
+    # Use schema-compliant chunk data
+    chunk_ids = ["abc123def4567890", "fedcba9876543210", "1234567890abcdef"]
     chunks = [
-        {
-            "_id": "chunk-1",
-            "chunk_id": "chunk-1",
-            "message_id": "<msg1@example.com>",
-            "thread_id": "<thread@example.com>",
-            "archive_id": "archive-123",
-            "chunk_index": 0,
-            "text": "This is chunk 1 text.",
-            "token_count": 10,
-            "metadata": {
-                "sender": "user1@example.com",
-                "sender_name": "User One",
-                "date": "2023-10-15T12:00:00Z",
-                "subject": "Test Subject",
-                "draft_mentions": [],
-            }
-        },
-        {
-            "_id": "chunk-2",
-            "chunk_id": "chunk-2",
-            "message_id": "<msg1@example.com>",
-            "thread_id": "<thread@example.com>",
-            "archive_id": "archive-123",
-            "chunk_index": 1,
-            "text": "This is chunk 2 text.",
-            "token_count": 10,
-            "metadata": {
-                "sender": "user1@example.com",
-                "sender_name": "User One",
-                "date": "2023-10-15T12:00:00Z",
-                "subject": "Test Subject",
-                "draft_mentions": [],
-            }
-        },
-        {
-            "_id": "chunk-3",
-            "chunk_id": "chunk-3",
-            "message_id": "<msg2@example.com>",
-            "thread_id": "<thread@example.com>",
-            "archive_id": "archive-123",
-            "chunk_index": 0,
-            "text": "This is chunk 3 text.",
-            "token_count": 10,
-            "metadata": {
+        create_valid_chunk(
+            message_doc_id="abc123def4567890",
+            message_id="<msg1@example.com>",
+            thread_id="1111222233334444",
+            chunk_index=0,
+            text="This is chunk 1 text.",
+            token_count=10,
+            **{"_id": chunk_ids[0]}
+        ),
+        create_valid_chunk(
+            message_doc_id="abc123def4567890",
+            message_id="<msg1@example.com>",
+            thread_id="1111222233334444",
+            chunk_index=1,
+            text="This is chunk 2 text.",
+            token_count=10,
+            **{"_id": chunk_ids[1]}
+        ),
+        create_valid_chunk(
+            message_doc_id="fedcba9876543210",
+            message_id="<msg2@example.com>",
+            thread_id="1111222233334444",
+            chunk_index=0,
+            text="This is chunk 3 text.",
+            token_count=10,
+            # Use schema-defined metadata fields
+            # NOTE: chunks.schema.json defines sender, date, subject as standard fields
+            # and allows additionalProperties for extensibility
+            metadata={
                 "sender": "user2@example.com",
-                "sender_name": "User Two",
                 "date": "2023-10-15T13:00:00Z",
                 "subject": "Re: Test Subject",
-                "draft_mentions": ["draft-ietf-quic-transport-34"],
-            }
-        },
+            },
+            **{"_id": chunk_ids[2]}
+        ),
     ]
+
+    # Validate chunks against schema
+    for chunk in chunks:
+        assert_valid_document_schema(chunk, "chunks")
 
     mock_document_store.query_documents.return_value = chunks
 
@@ -192,7 +209,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     assert len(stored_metadata) == 3
 
     # Verify metadata structure
-    assert stored_metadata[0]["chunk_id"] == "chunk-1"
+    assert stored_metadata[0]["chunk_id"] == chunk_ids[0]
     assert stored_metadata[0]["message_id"] == "<msg1@example.com>"
     assert stored_metadata[0]["text"] == "This is chunk 1 text."
     assert stored_metadata[0]["embedding_model"] == "all-MiniLM-L6-v2"
@@ -203,8 +220,8 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     # Verify the update calls were made using MongoDB _id for each chunk
     update_calls = mock_document_store.update_document.call_args_list
     updated_doc_ids = [call[1]["doc_id"] for call in update_calls]
-    # Expected _id values from test chunks
-    expected_mongo_ids = ["chunk-1", "chunk-2", "chunk-3"]
+    # Expected _id values from test chunks (16-char hex strings from create_valid_chunk)
+    expected_mongo_ids = chunk_ids  # Use the same IDs we created the chunks with
     assert set(updated_doc_ids) == set(expected_mongo_ids)
 
     # Verify success event was published

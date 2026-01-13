@@ -3,6 +3,8 @@
 
 """Unit tests for the chunking service."""
 
+import sys
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -10,7 +12,35 @@ from app.service import ChunkingService
 from copilot_config import load_driver_config
 from copilot_chunking import create_chunker
 
-from .test_helpers import assert_valid_event_schema
+# Add project root to path to import test fixtures
+# NOTE: This is necessary because tests run from individual service directories
+# but fixtures are in the repo root tests/ directory
+_repo_root = Path(__file__).parent.parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
+try:
+    from tests.fixtures import create_valid_message  # noqa: E402
+except ModuleNotFoundError:
+    # Fallback for environments where a local 'tests' package (e.g., chunking/tests)
+    # shadows the repo-root tests package. Load fixtures directly from file path.
+    import importlib.util as _ilu  # noqa: E402
+    import types as _types  # noqa: E402
+    _fixtures_path = _repo_root / "tests" / "fixtures" / "__init__.py"
+    # Ensure a synthetic parent package exists for relative imports inside fixtures
+    _pkg_name = "root_tests"
+    if _pkg_name not in sys.modules:
+        _pkg = _types.ModuleType(_pkg_name)
+        _pkg.__path__ = [str(_repo_root / "tests")]  # type: ignore[attr-defined]
+        sys.modules[_pkg_name] = _pkg
+    _spec = _ilu.spec_from_file_location(f"{_pkg_name}.fixtures", _fixtures_path)
+    if _spec is None or _spec.loader is None:
+        raise ImportError(f"Cannot load fixtures module from {_fixtures_path!s}")
+    _fixtures = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_fixtures)
+    create_valid_message = _fixtures.create_valid_message
+
+from .test_helpers import assert_valid_document_schema, assert_valid_event_schema
 
 
 @pytest.fixture
@@ -86,46 +116,44 @@ def test_service_start(chunking_service, mock_subscriber):
 
 def test_chunk_message_success(chunking_service, mock_document_store):
     """Test chunking a message successfully."""
-    message = {
-        "_id": "abc123def4567890",
-        "message_id": "<test@example.com>",
-        "thread_id": "fedcba9876543210",
-        "archive_id": "a1b2c3d4e5f67890",
-        "body_normalized": "This is a test message with some content. " * 100,
-        "from": {"email": "user@example.com", "name": "Test User"},
-        "date": "2023-10-15T12:00:00Z",
-        "subject": "Test Subject",
-        "draft_mentions": [],
-    }
+    # Use schema-compliant message data
+    message = create_valid_message(
+        message_id="<test@example.com>",
+        subject="Test Subject",
+        body_normalized="This is a test message with some content. " * 100,
+        from_email="user@example.com",
+        from_name="Test User",
+    )
 
     chunks = chunking_service._chunk_message(message)
 
     # Verify chunks were created
     assert len(chunks) > 0
 
-    # Verify chunk structure
+    # Verify chunk structure and validate against schema
     chunk = chunks[0]
     assert "_id" in chunk
     assert chunk["message_id"] == "<test@example.com>"
-    assert chunk["thread_id"] == "fedcba9876543210"
-    assert chunk["archive_id"] == "a1b2c3d4e5f67890"
+    assert chunk["thread_id"] == message["thread_id"]
+    assert chunk["message_doc_id"] == message["_id"]
     assert chunk["chunk_index"] == 0
     assert "text" in chunk
     assert "token_count" in chunk
     assert chunk["embedding_generated"] is False
     assert "metadata" in chunk
     assert chunk["metadata"]["sender"] == "user@example.com"
+    
+    # Validate chunk against schema
+    assert_valid_document_schema(chunk, "chunks")
 
 
 def test_chunk_message_empty_body(chunking_service):
     """Test chunking a message with empty body."""
-    message = {
-        "message_id": "<test@example.com>",
-        "body_normalized": "",
-        "from": {"email": "user@example.com", "name": "Test User"},
-        "date": "2023-10-15T12:00:00Z",
-        "subject": "Test Subject",
-    }
+    # Use schema-compliant message data with empty body
+    message = create_valid_message(
+        message_id="<test@example.com>",
+        body_normalized="",
+    )
 
     chunks = chunking_service._chunk_message(message)
 
@@ -135,13 +163,11 @@ def test_chunk_message_empty_body(chunking_service):
 
 def test_chunk_message_whitespace_only(chunking_service):
     """Test chunking a message with only whitespace."""
-    message = {
-        "message_id": "<test@example.com>",
-        "body_normalized": "   \n\t  ",
-        "from": {"email": "user@example.com", "name": "Test User"},
-        "date": "2023-10-15T12:00:00Z",
-        "subject": "Test Subject",
-    }
+    # Use schema-compliant message data with whitespace body
+    message = create_valid_message(
+        message_id="<test@example.com>",
+        body_normalized="   \n\t  ",
+    )
 
     chunks = chunking_service._chunk_message(message)
 
@@ -974,3 +1000,29 @@ def test_requeue_skips_when_aggregation_not_supported():
     # Verify no events were published (requeue was skipped)
     assert mock_publisher.publish.call_count == 0
 
+
+
+def test_schema_validation_enforced_for_chunks(chunking_service):
+    """Test that chunks generated by the service are schema-compliant.
+    
+    This test verifies that schema validation is enforced in production by
+    ensuring that chunk documents created by the service conform to the
+    chunks.schema.json specification.
+    """
+    # Use schema-compliant message data
+    message = create_valid_message(
+        message_id="<validation-test@example.com>",
+        subject="Schema Validation Test",
+        body_normalized="This is a test message to verify schema validation. " * 50,
+        from_email="validator@example.com",
+        from_name="Validation Tester",
+    )
+
+    chunks = chunking_service._chunk_message(message)
+
+    # Verify chunks were created
+    assert len(chunks) > 0
+
+    # Validate each chunk against the schema
+    for chunk in chunks:
+        assert_valid_document_schema(chunk, "chunks")

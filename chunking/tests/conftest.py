@@ -14,6 +14,11 @@ from copilot_storage import create_document_store
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Add repo root to path for test fixtures
+_repo_root = Path(__file__).parent.parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
 
 @pytest.fixture(scope="session", autouse=True)
 def set_test_environment():

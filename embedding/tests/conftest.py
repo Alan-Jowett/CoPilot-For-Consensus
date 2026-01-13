@@ -4,8 +4,15 @@
 """Pytest configuration and fixtures for embedding service tests."""
 
 import os
+import sys
+from pathlib import Path
 
 import pytest
+
+# Add repo root to path for test fixtures
+_repo_root = Path(__file__).parent.parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
 
 @pytest.fixture(scope="session", autouse=True)
