@@ -48,6 +48,7 @@ def get_minimal_config(driver_schema):
     # Map field names to reasonable defaults
     defaults = {
         "dimension": 384,
+        "vector_size": 384,
         "index_type": "flat",
         "host": "localhost",
         "port": 6333,
