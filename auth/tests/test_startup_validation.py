@@ -28,6 +28,10 @@ from copilot_config.generated.adapters.secret_provider import (
     AdapterConfig_SecretProvider,
     DriverConfig_SecretProvider_Local,
 )
+from copilot_config.generated.adapters.jwt_signer import (
+    AdapterConfig_JwtSigner,
+    DriverConfig_JwtSigner_Local,
+)
 from copilot_config.generated.services.auth import ServiceConfig_Auth, ServiceSettings_Auth
 
 # Add parent directory to path
@@ -41,7 +45,6 @@ def test_main_imports_successfully():
 
     assert auth_main is not None
 
-
 @pytest.mark.anyio
 async def test_lifespan_starts_with_minimal_typed_config():
     """Ensure FastAPI lifespan starts with a minimal typed config."""
@@ -50,8 +53,6 @@ async def test_lifespan_starts_with_minimal_typed_config():
     minimal = ServiceConfig_Auth(
         service_settings=ServiceSettings_Auth(
             issuer="http://localhost:8090",
-            jwt_algorithm="HS256",
-            jwt_secret_key="test-secret-key",
         ),
         document_store=AdapterConfig_DocumentStore(
             doc_store_type="inmemory",
@@ -71,6 +72,13 @@ async def test_lifespan_starts_with_minimal_typed_config():
         secret_provider=AdapterConfig_SecretProvider(
             secret_provider_type="local",
             driver=DriverConfig_SecretProvider_Local(),
+        ),
+        jwt_signer=AdapterConfig_JwtSigner(
+            signer_type="local",
+            driver=DriverConfig_JwtSigner_Local(
+                algorithm="HS256",
+                secret_key="test-secret-key",
+            ),
         ),
     )
 

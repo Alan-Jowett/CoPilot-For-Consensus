@@ -29,6 +29,7 @@ from copilot_config.generated.adapters.secret_provider import (
     AdapterConfig_SecretProvider,
     DriverConfig_SecretProvider_Local,
 )
+from copilot_config.generated.adapters.jwt_signer import AdapterConfig_JwtSigner
 from copilot_config.generated.services.auth import ServiceConfig_Auth, ServiceSettings_Auth
 
 # Add parent directory to path for imports
@@ -41,19 +42,13 @@ class TestProviderErrors:
     """Test provider error messages and availability."""
 
     @pytest.fixture
-    def mock_config(self):
+    def mock_config(self, mock_jwt_signer_adapter: AdapterConfig_JwtSigner):
         """Create a typed configuration."""
         settings = ServiceSettings_Auth(
             issuer="http://localhost:8090",
             audiences="copilot-for-consensus",
-            jwt_algorithm="RS256",
-            jwt_key_id="default",
             jwt_default_expiry=1800,
             max_skew_seconds=90,
-            # Provide dummy keys so AuthService can initialize.
-            jwt_private_key="-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n",
-            jwt_public_key="-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----\n",
-            jwt_secret_key=None,
             role_store_schema_dir=None,
         )
 
@@ -76,6 +71,7 @@ class TestProviderErrors:
                 secret_provider_type="local",
                 driver=DriverConfig_SecretProvider_Local(),
             ),
+            jwt_signer=mock_jwt_signer_adapter,
         )
 
     @pytest.fixture
