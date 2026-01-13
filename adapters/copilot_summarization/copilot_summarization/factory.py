@@ -47,7 +47,7 @@ def create_llm_backend(
     if driver_lower == "openai":
         return OpenAISummarizer.from_config(driver_config)
 
-    if driver_lower == "azure":
+    if driver_lower == "azure_openai_gpt":
         return OpenAISummarizer.from_config(driver_config)
 
     if driver_lower == "local":
