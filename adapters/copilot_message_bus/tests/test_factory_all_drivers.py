@@ -47,10 +47,10 @@ def get_minimal_config(driver_schema):
     
     # Map field names to reasonable defaults
     defaults = {
-        "host": "localhost",
-        "port": 5672,
-        "username": "guest",
-        "password": "guest",
+        "rabbitmq_host": "localhost",
+        "rabbitmq_port": 5672,
+        "rabbitmq_username": "guest",
+        "rabbitmq_password": "guest",
         "connection_string": "Endpoint=sb://test.servicebus.windows.net/;",
         "enable_validation": True,
     }
