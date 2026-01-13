@@ -8,6 +8,7 @@ import sys
 import pytest
 from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector, create_metrics_collector
+from copilot_metrics import azure_monitor_metrics as az_metrics
 
 # Import implementation classes from internal modules for testing
 from copilot_metrics.noop_metrics import NoOpMetricsCollector
@@ -395,8 +396,7 @@ class TestAzureMonitorMetricsCollector:
     """Tests for AzureMonitorMetricsCollector."""
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is not None
-        and sys.modules.get('opentelemetry') is not None,
+        az_metrics.AZURE_MONITOR_AVAILABLE,
         reason="Azure Monitor packages are installed; test requires them to be missing"
     )
     def test_requires_azure_monitor_packages(self):
