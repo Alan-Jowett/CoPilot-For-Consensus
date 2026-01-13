@@ -345,8 +345,9 @@ module appInsightsModule 'modules/appinsights.bicep' = if (deployContainerApps) 
 
 // Store Application Insights secrets securely in Key Vault
 // These must NOT be passed as plaintext environment variables to Container Apps
+// Secret names match schema expectations: azure_monitor_instrumentation_key (via secret_provider)
 resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
-  name: '${keyVaultName}/appinsights-instrumentation-key'
+  name: '${keyVaultName}/azure_monitor_instrumentation_key'
   properties: {
     value: appInsightsModule!.outputs.instrumentationKey
     contentType: 'text/plain'
@@ -372,7 +373,7 @@ module jwtKeysModule 'modules/jwtkeys.bicep' = if (deployContainerApps) {
 }
 
 resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
-  name: '${keyVaultName}/appinsights-connection-string'
+  name: '${keyVaultName}/azure_connection_string'
   properties: {
     value: appInsightsModule!.outputs.connectionString
     contentType: 'text/plain'
