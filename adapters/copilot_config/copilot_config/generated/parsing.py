@@ -14,10 +14,10 @@ from typing import Any, Literal
 @dataclass
 class DriverConfig_ArchiveStore_Azureblob:
     """Configuration for archive_store adapter using azureblob driver."""
-    azureblob_account_key: str | None = None
-    """Azure Storage account key (alternative to managed identity)"""
     azureblob_account_name: str
-    # Azure Storage account name
+    """Azure Storage account name"""
+    azureblob_account_key: str | None = None
+    # Azure Storage account key (alternative to managed identity)
     azureblob_container_name: str | None = 'archives'
     # Azure Blob Storage container name for archives
 

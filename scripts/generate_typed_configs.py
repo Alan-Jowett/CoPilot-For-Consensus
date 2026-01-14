@@ -136,10 +136,27 @@ def generate_driver_dataclass(
     if not properties:
         lines.append("    pass")
     else:
-        # Sort properties for stable output
+        # Sort properties: required fields without defaults first, then all others
+        # Within each group, sort alphabetically for stable output
         sorted_props = sorted(properties.items())
         
+        # Separate into two groups
+        required_no_default = []
+        with_default_or_optional = []
+        
         for prop_name, prop_spec in sorted_props:
+            default = prop_spec.get("default")
+            required = prop_spec.get("required", False)
+            
+            if required and default is None:
+                required_no_default.append((prop_name, prop_spec))
+            else:
+                with_default_or_optional.append((prop_name, prop_spec))
+        
+        # Process all fields in correct order
+        all_fields = required_no_default + with_default_or_optional
+        
+        for prop_name, prop_spec in all_fields:
             prop_type = prop_spec.get("type", "string")
             default = prop_spec.get("default")
             required = prop_spec.get("required", False)
@@ -267,10 +284,26 @@ def generate_service_settings_dataclass(
     if not service_settings:
         lines.append("    pass")
     else:
-        # Sort settings for stable output
+        # Sort settings: required fields without defaults first, then all others
         sorted_settings = sorted(service_settings.items())
         
+        # Separate into two groups
+        required_no_default = []
+        with_default_or_optional = []
+        
         for setting_name, setting_spec in sorted_settings:
+            default = setting_spec.get("default")
+            required = setting_spec.get("required", False)
+            
+            if required and default is None:
+                required_no_default.append((setting_name, setting_spec))
+            else:
+                with_default_or_optional.append((setting_name, setting_spec))
+        
+        # Process all fields in correct order
+        all_settings = required_no_default + with_default_or_optional
+        
+        for setting_name, setting_spec in all_settings:
             setting_type = setting_spec.get("type", "string")
             default = setting_spec.get("default")
             required = setting_spec.get("required", False)

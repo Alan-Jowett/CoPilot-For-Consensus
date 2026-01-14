@@ -162,14 +162,14 @@ class DriverConfig_LlmBackend_AzureOpenaiGpt:
     """Configuration for llm_backend adapter using azure_openai_gpt driver."""
     azure_openai_api_key: str
     """Azure OpenAI API key"""
-    azure_openai_api_version: str | None = '2023-12-01'
-    # Azure OpenAI API version
-    azure_openai_deployment: str | None = None
-    # Azure OpenAI deployment name
     azure_openai_endpoint: str
     # Azure OpenAI endpoint URL (e.g., https://your-resource.openai.azure.com/)
     azure_openai_model: str
     # Model name (used when invoking Azure OpenAI deployment)
+    azure_openai_api_version: str | None = '2023-12-01'
+    # Azure OpenAI API version
+    azure_openai_deployment: str | None = None
+    # Azure OpenAI deployment name
 
 
 @dataclass
@@ -206,10 +206,10 @@ class DriverConfig_LlmBackend_Openai:
     """Configuration for llm_backend adapter using openai driver."""
     openai_api_key: str
     """OpenAI API key"""
-    openai_base_url: str | None = None
-    # Optional custom OpenAI-compatible base URL
     openai_model: str
     # OpenAI model name (e.g., gpt-4o, gpt-3.5-turbo)
+    openai_base_url: str | None = None
+    # Optional custom OpenAI-compatible base URL
 
 
 @dataclass
