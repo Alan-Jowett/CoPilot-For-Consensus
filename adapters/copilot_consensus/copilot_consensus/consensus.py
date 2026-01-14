@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, TypeAlias
 
 from copilot_config.generated.adapters.consensus_detector import (
     AdapterConfig_ConsensusDetector,
@@ -26,7 +26,7 @@ from copilot_config.generated.adapters.consensus_detector import (
 from .thread import Thread
 
 
-ConsensusDetectorDriverConfig = (
+ConsensusDetectorDriverConfig: TypeAlias = (
     DriverConfig_ConsensusDetector_Heuristic
     | DriverConfig_ConsensusDetector_Mock
     | DriverConfig_ConsensusDetector_Ml
@@ -142,7 +142,7 @@ class HeuristicConsensusDetector(ConsensusDetector):
     @classmethod
     def from_config(
         cls,
-        driver_config: DriverConfig_ConsensusDetector_Heuristic | Any,
+        driver_config: DriverConfig_ConsensusDetector_Heuristic,
     ) -> "HeuristicConsensusDetector":
         """Create detector from configuration.
 
@@ -158,10 +158,14 @@ class HeuristicConsensusDetector(ConsensusDetector):
         Returns:
             Configured HeuristicConsensusDetector
         """
+        agreement_threshold = driver_config.agreement_threshold
+        min_participants = driver_config.min_participants
+        stagnation_days = driver_config.stagnation_days
+
         return cls(
-            agreement_threshold=int(getattr(driver_config, "agreement_threshold", 3)),
-            min_participants=int(getattr(driver_config, "min_participants", 2)),
-            stagnation_days=int(getattr(driver_config, "stagnation_days", 7)),
+            agreement_threshold=int(agreement_threshold if agreement_threshold is not None else 3),
+            min_participants=int(min_participants if min_participants is not None else 2),
+            stagnation_days=int(stagnation_days if stagnation_days is not None else 7),
         )
 
     def detect(self, thread: Thread) -> ConsensusSignal:
@@ -310,7 +314,7 @@ class MockConsensusDetector(ConsensusDetector):
     @classmethod
     def from_config(
         cls,
-        driver_config: DriverConfig_ConsensusDetector_Mock | Any,
+        driver_config: DriverConfig_ConsensusDetector_Mock,
     ) -> "MockConsensusDetector":
         """Create mock detector from configuration.
 
@@ -325,7 +329,7 @@ class MockConsensusDetector(ConsensusDetector):
         Returns:
             Configured MockConsensusDetector
         """
-        level_val = getattr(driver_config, "level", "consensus")
+        level_val = driver_config.level if driver_config.level is not None else "consensus"
         if isinstance(level_val, ConsensusLevel):
             level = level_val
         else:
@@ -335,7 +339,8 @@ class MockConsensusDetector(ConsensusDetector):
             except KeyError:
                 raise ValueError(f"Invalid consensus level: {level_val}")
 
-        confidence = float(getattr(driver_config, "confidence", 0.8))
+        confidence_val = driver_config.confidence
+        confidence = float(confidence_val if confidence_val is not None else 0.8)
         return cls(level=level, confidence=confidence)
 
     def detect(self, thread: Thread) -> ConsensusSignal:
@@ -372,7 +377,7 @@ class MLConsensusDetector(ConsensusDetector):
     @classmethod
     def from_config(
         cls,
-        driver_config: DriverConfig_ConsensusDetector_Ml | Any,
+        driver_config: DriverConfig_ConsensusDetector_Ml,
     ) -> "MLConsensusDetector":
         """Create ML detector from configuration.
 
@@ -383,7 +388,7 @@ class MLConsensusDetector(ConsensusDetector):
         Returns:
             Configured MLConsensusDetector
         """
-        return cls(getattr(driver_config, "model_path", None))
+        return cls(driver_config.model_path)
 
     def detect(self, thread: Thread) -> ConsensusSignal:
         """Detect consensus using ML model.
@@ -399,16 +404,13 @@ class MLConsensusDetector(ConsensusDetector):
 
 def create_consensus_detector(
     driver_name: str | AdapterConfig_ConsensusDetector,
-    driver_config: ConsensusDetectorDriverConfig | Any | None = None,
+    driver_config: ConsensusDetectorDriverConfig | None = None,
 ) -> ConsensusDetector:
     """Create a consensus detector from typed configuration.
 
     Supports either:
     - `create_consensus_detector(config: AdapterConfig_ConsensusDetector)`
     - `create_consensus_detector(driver_name: str, driver_config: <typed driver config>)`
-
-    The factory is intentionally permissive about `driver_config` to ease
-    migration from legacy config objects that expose attribute-style access.
 
     Args:
         driver_name: Detector type ("heuristic", "mock", "ml")
@@ -421,9 +423,9 @@ def create_consensus_detector(
         ValueError: If driver_name is unknown
     """
     if isinstance(driver_name, AdapterConfig_ConsensusDetector):
-        config = driver_name
-        driver_name = config.consensus_detector_type
-        driver_config = config.driver
+        adapter_config = driver_name
+        driver_name = adapter_config.consensus_detector_type
+        driver_config = adapter_config.driver
 
     if not driver_name:
         raise ValueError(

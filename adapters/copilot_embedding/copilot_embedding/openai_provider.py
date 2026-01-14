@@ -5,7 +5,12 @@
 
 import logging
 
-from copilot_config import DriverConfig
+from typing import Literal
+
+from copilot_config.generated.adapters.embedding_backend import (
+    DriverConfig_EmbeddingBackend_AzureOpenai,
+    DriverConfig_EmbeddingBackend_Openai,
+)
 
 from .base import EmbeddingProvider
 
@@ -56,13 +61,18 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             self.client = OpenAI(api_key=api_key)
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig):
-        """Create provider from a DriverConfig.
+    def from_config(
+        cls,
+        driver_config: DriverConfig_EmbeddingBackend_Openai | DriverConfig_EmbeddingBackend_AzureOpenai,
+        *,
+        driver_name: Literal["openai", "azure_openai"],
+    ):
+        """Create provider from configuration.
 
         Supports both OpenAI and Azure OpenAI backends. Uses Azure mode if api_base is provided.
 
         Args:
-            driver_config: DriverConfig containing:
+            driver_config: Config object containing (attribute or dict-style):
                            - api_key: API key (required)
                            - model: Model name (required for OpenAI)
                            - api_base: API endpoint (required for Azure)
@@ -74,15 +84,9 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
         Raises:
             ValueError: If required attributes are missing
-            TypeError: If driver_config is not a DriverConfig instance
         """
-        driver_name = (driver_config.driver_name or "").lower()
-
         api_key = driver_config.api_key
         model = driver_config.model
-        api_base = driver_config.config.get("api_base")
-        api_version = driver_config.config.get("api_version")
-        deployment_name = driver_config.config.get("deployment_name")
 
         if not api_key:
             raise ValueError(
@@ -90,8 +94,14 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                 "Provide the API key explicitly"
             )
 
-        # Azure backend detection: if driver_name is azure_openai or api_base provided
-        if driver_name == "azure_openai" or api_base:
+        if driver_name == "azure_openai":
+            if not isinstance(driver_config, DriverConfig_EmbeddingBackend_AzureOpenai):
+                raise TypeError("driver_config must be DriverConfig_EmbeddingBackend_AzureOpenai")
+
+            api_base = driver_config.api_base
+            api_version = driver_config.api_version
+            deployment_name = driver_config.deployment_name
+
             if not api_base:
                 raise ValueError("api_base parameter is required for Azure OpenAI backend")
             if not model and not deployment_name:
@@ -108,8 +118,8 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                 deployment_name=deployment_name,
             )
 
-        if driver_name and driver_name != "openai":
-            raise ValueError(f"Unsupported driver_name for OpenAI provider: {driver_name}")
+        if not isinstance(driver_config, DriverConfig_EmbeddingBackend_Openai):
+            raise TypeError("driver_config must be DriverConfig_EmbeddingBackend_Openai")
 
         if not model:
             raise ValueError(

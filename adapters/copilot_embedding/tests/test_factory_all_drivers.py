@@ -12,7 +12,13 @@ from pathlib import Path
 
 import pytest
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.embedding_backend import (
+    DriverConfig_EmbeddingBackend_AzureOpenai,
+    DriverConfig_EmbeddingBackend_Huggingface,
+    DriverConfig_EmbeddingBackend_Mock,
+    DriverConfig_EmbeddingBackend_Openai,
+    DriverConfig_EmbeddingBackend_Sentencetransformers,
+)
 from copilot_embedding.factory import create_embedding_provider
 
 
@@ -90,15 +96,19 @@ class TestEmbeddingBackendAllDrivers:
             
             driver_schema = load_json(driver_schema_path)
             config_dict = get_minimal_config(driver_schema)
-            
-            # Get all allowed keys from schema
-            allowed_keys = set(driver_schema.get("properties", {}).keys())
-            
-            config = DriverConfig(
-                driver_name=driver,
-                config=config_dict,
-                allowed_keys=allowed_keys
-            )
+
+            if driver == "mock":
+                config = DriverConfig_EmbeddingBackend_Mock(**config_dict)
+            elif driver == "sentencetransformers":
+                config = DriverConfig_EmbeddingBackend_Sentencetransformers(**config_dict)
+            elif driver == "openai":
+                config = DriverConfig_EmbeddingBackend_Openai(**config_dict)
+            elif driver == "azure_openai":
+                config = DriverConfig_EmbeddingBackend_AzureOpenai(**config_dict)
+            elif driver == "huggingface":
+                config = DriverConfig_EmbeddingBackend_Huggingface(**config_dict)
+            else:
+                raise AssertionError(f"Unexpected driver in schema: {driver}")
             
             # Should not raise any exceptions (skip if optional dependencies are missing)
             try:

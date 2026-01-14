@@ -5,7 +5,9 @@
 
 import logging
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.embedding_backend import (
+    DriverConfig_EmbeddingBackend_Sentencetransformers,
+)
 
 from .base import EmbeddingProvider
 
@@ -49,7 +51,7 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
         logger.info("SentenceTransformer model loaded successfully")
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig):
+    def from_config(cls, driver_config: DriverConfig_EmbeddingBackend_Sentencetransformers):
         """Create provider from configuration.
 
         Configuration defaults are defined in schema:
