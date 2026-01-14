@@ -5,7 +5,6 @@
 
 from unittest.mock import MagicMock
 
-import pytest
 from copilot_config.secret_provider import SecretConfigProvider
 
 

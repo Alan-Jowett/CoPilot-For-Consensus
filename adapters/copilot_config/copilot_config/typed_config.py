@@ -102,10 +102,10 @@ def load_service_config(
                         if value is not None:
                             driver_config_dict[prop_name] = value
                             break
-                    except Exception as e:
+                    except Exception:
                         import logging
                         logger = logging.getLogger("copilot_config")
-                        logger.debug(f"Failed to load secret")
+                        logger.debug("Failed to load secret")
                         continue
             else:
                 # Field has no source (not env or secret) - apply default if present
@@ -304,6 +304,7 @@ def load_service_config(
     if secrets_available:
         try:
             from copilot_secrets import create_secret_provider as create_secrets_provider
+
             from .secret_provider import SecretConfigProvider
 
             secret_adapter = next(
