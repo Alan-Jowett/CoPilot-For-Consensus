@@ -6,7 +6,7 @@
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
 from copilot_config.generated.adapters.vector_store import DriverConfig_VectorStore_AzureAiSearch
 
@@ -63,28 +63,10 @@ class AzureAISearchVectorStore(VectorStore):
 
         Raises:
             ImportError: If azure-search-documents is not installed
-            ValueError: If endpoint is invalid or authentication is not provided
             RuntimeError: If cannot connect to Azure AI Search
         """
-        # Validate parameters before attempting imports
-        if not endpoint:
-            raise ValueError("endpoint parameter is required")
-
-        if not endpoint.startswith("https://"):
-            raise ValueError(
-                f"Invalid endpoint '{endpoint}'. Must start with 'https://'"
-            )
-
-        if not use_managed_identity and not api_key:
-            raise ValueError(
-                "Either api_key must be provided or use_managed_identity must be True"
-            )
-
-        if not index_name:
-            raise ValueError("index_name is required")
-
-        if vector_size <= 0:
-            raise ValueError(f"Vector size must be positive, got {vector_size}")
+        # Validation/defaults are handled by the schema-driven config system.
+        # This class assumes it is being constructed with validated parameters.
 
         # Import Azure SDK components after parameter validation
         try:
@@ -140,7 +122,8 @@ class AzureAISearchVectorStore(VectorStore):
                     "Install it with: pip install azure-identity"
                 ) from e
         else:
-            self._credential = AzureKeyCredential(api_key)
+            # api_key is schema-validated (required when not using managed identity).
+            self._credential = AzureKeyCredential(cast(str, api_key))
 
         # Initialize clients
         try:
