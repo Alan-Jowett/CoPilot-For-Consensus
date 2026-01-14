@@ -8,7 +8,7 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from copilot_config.models import DriverConfig
+from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_Noop
 
 from .base import EventSubscriber
 
@@ -31,7 +31,7 @@ class NoopSubscriber(EventSubscriber):
         self._stop_event = threading.Event()
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "NoopSubscriber":
+    def from_config(cls, driver_config: DriverConfig_MessageBus_Noop) -> "NoopSubscriber":
         """Create subscriber from DriverConfig.
 
         Args:

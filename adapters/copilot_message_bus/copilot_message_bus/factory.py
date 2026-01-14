@@ -6,7 +6,8 @@
 import logging
 from typing import Any
 
-from copilot_config.models import DriverConfig
+from copilot_config.adapter_factory import create_adapter
+from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus
 
 from .base import EventPublisher, EventSubscriber
 
@@ -31,9 +32,9 @@ def _get_schema_provider() -> Any:
             "Install with: pip install copilot-message-bus[validation]"
         ) from e
 
+
 def create_publisher(
-    driver_name: str,
-    driver_config: DriverConfig,
+    config: AdapterConfig_MessageBus,
     enable_validation: bool = True,
     strict_validation: bool = True,
 ) -> EventPublisher:
@@ -43,11 +44,10 @@ def create_publisher(
     This ensures all events are validated before being published.
 
     Usage:
-        create_publisher(driver_name="rabbitmq", driver_config=driver_config)
+        create_publisher(config)
 
     Args:
-        driver_name: Type of message bus ("rabbitmq", "azure_service_bus", or "noop")
-        driver_config: DriverConfig instance with driver configuration.
+        config: Typed AdapterConfig_MessageBus instance.
         enable_validation: If True (default), wraps the publisher in ValidatingEventPublisher.
                           Set to False only for testing or if validation is not needed.
         strict_validation: If True (default), validation errors raise exceptions.
@@ -57,26 +57,24 @@ def create_publisher(
         EventPublisher instance (ValidatingEventPublisher by default)
 
     Raises:
-        ValueError: If driver_name is not recognized
+        ValueError: If config is missing or driver type is unknown
         ValueError: If required parameters are missing for the specified driver
     """
-    driver_name_lower = driver_name.lower()
+    from .azureservicebuspublisher import AzureServiceBusPublisher
+    from .noop_publisher import NoopPublisher
+    from .rabbitmq_publisher import RabbitMQPublisher
 
-    # Create base publisher
-    if driver_name_lower == "rabbitmq":
-        from .rabbitmq_publisher import RabbitMQPublisher
-        base_publisher = RabbitMQPublisher.from_config(driver_config)
-    elif driver_name_lower == "azure_service_bus":
-        from .azureservicebuspublisher import AzureServiceBusPublisher
-        base_publisher = AzureServiceBusPublisher.from_config(driver_config)
-    elif driver_name_lower == "noop":
-        from .noop_publisher import NoopPublisher
-        base_publisher = NoopPublisher.from_config(driver_config)
-    else:
-        raise ValueError(
-            f"Unknown driver_name: {driver_name}. "
-            "Supported: 'rabbitmq', 'azure_service_bus', 'noop'"
-        )
+    base_publisher = create_adapter(
+        config,
+        adapter_name="message_bus",
+        get_driver_type=lambda c: c.message_bus_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "rabbitmq": RabbitMQPublisher.from_config,
+            "azure_service_bus": AzureServiceBusPublisher.from_config,
+            "noop": NoopPublisher.from_config,
+        },
+    )
 
     # Wrap in validating publisher if enabled
     if enable_validation:
@@ -92,8 +90,7 @@ def create_publisher(
 
 
 def create_subscriber(
-    driver_name: str,
-    driver_config: DriverConfig,
+    config: AdapterConfig_MessageBus,
     enable_validation: bool = True,
     strict_validation: bool = True,
 ) -> EventSubscriber:
@@ -103,11 +100,10 @@ def create_subscriber(
     This ensures all received events are validated before being passed to callbacks.
 
     Usage:
-        create_subscriber(driver_name="rabbitmq", driver_config=driver_config)
+        create_subscriber(config)
 
     Args:
-        driver_name: Type of message bus ("rabbitmq", "azure_service_bus", or "noop")
-        driver_config: DriverConfig instance with driver configuration.
+        config: Typed AdapterConfig_MessageBus instance.
         enable_validation: If True (default), wraps the subscriber in ValidatingEventSubscriber.
                           Set to False only for testing or if validation is not needed.
         strict_validation: If True (default), validation errors raise exceptions.
@@ -117,26 +113,24 @@ def create_subscriber(
         EventSubscriber instance (ValidatingEventSubscriber by default)
 
     Raises:
-        ValueError: If driver_name is not recognized
+        ValueError: If config is missing or driver type is unknown
         ValueError: If required parameters are missing for the specified driver
     """
-    driver_name_lower = driver_name.lower()
+    from .azureservicebussubscriber import AzureServiceBusSubscriber
+    from .noop_subscriber import NoopSubscriber
+    from .rabbitmq_subscriber import RabbitMQSubscriber
 
-    # Create base subscriber
-    if driver_name_lower == "rabbitmq":
-        from .rabbitmq_subscriber import RabbitMQSubscriber
-        base_subscriber = RabbitMQSubscriber.from_config(driver_config)
-    elif driver_name_lower == "azure_service_bus":
-        from .azureservicebussubscriber import AzureServiceBusSubscriber
-        base_subscriber = AzureServiceBusSubscriber.from_config(driver_config)
-    elif driver_name_lower == "noop":
-        from .noop_subscriber import NoopSubscriber
-        base_subscriber = NoopSubscriber.from_config(driver_config)
-    else:
-        raise ValueError(
-            f"Unknown driver_name: {driver_name}. "
-            "Supported: 'rabbitmq', 'azure_service_bus', 'noop'"
-        )
+    base_subscriber = create_adapter(
+        config,
+        adapter_name="message_bus",
+        get_driver_type=lambda c: c.message_bus_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "rabbitmq": RabbitMQSubscriber.from_config,
+            "azure_service_bus": AzureServiceBusSubscriber.from_config,
+            "noop": NoopSubscriber.from_config,
+        },
+    )
 
     # Wrap in validating subscriber if enabled
     if enable_validation:

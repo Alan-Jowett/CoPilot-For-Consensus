@@ -4,7 +4,11 @@
 """Tests for event subscribers."""
 
 import pytest
-from copilot_config import load_driver_config
+from copilot_config.generated.adapters.message_bus import (
+    AdapterConfig_MessageBus,
+    DriverConfig_MessageBus_Noop,
+    DriverConfig_MessageBus_Rabbitmq,
+)
 from copilot_message_bus import create_subscriber
 from copilot_message_bus.noop_subscriber import NoopSubscriber
 from copilot_message_bus.rabbitmq_subscriber import RabbitMQSubscriber
@@ -15,20 +19,17 @@ class TestSubscriberFactory:
 
     def test_create_rabbitmq_subscriber(self):
         """Test creating RabbitMQ subscriber."""
-        driver_config = load_driver_config(
-            None,
-            "message_bus",
-            "rabbitmq",
-            fields={
-                "rabbitmq_host": "localhost",
-                "rabbitmq_port": 5672,
-                "rabbitmq_username": "test",
-                "rabbitmq_password": "pass",
-            },
+        config = AdapterConfig_MessageBus(
+            message_bus_type="rabbitmq",
+            driver=DriverConfig_MessageBus_Rabbitmq(
+                rabbitmq_host="localhost",
+                rabbitmq_port=5672,
+                rabbitmq_username="test",
+                rabbitmq_password="pass",
+            ),
         )
         subscriber = create_subscriber(
-            driver_name="rabbitmq",
-            driver_config=driver_config,
+            config,
             enable_validation=False,
         )
 
@@ -40,20 +41,17 @@ class TestSubscriberFactory:
 
     def test_create_rabbitmq_subscriber_defaults(self):
         """Test RabbitMQ subscriber requires explicit connection details."""
-        driver_config = load_driver_config(
-            None,
-            "message_bus",
-            "rabbitmq",
-            fields={
-                "rabbitmq_host": "localhost",
-                "rabbitmq_port": 5672,
-                "rabbitmq_username": "guest",
-                "rabbitmq_password": "guest",
-            },
+        config = AdapterConfig_MessageBus(
+            message_bus_type="rabbitmq",
+            driver=DriverConfig_MessageBus_Rabbitmq(
+                rabbitmq_host="localhost",
+                rabbitmq_port=5672,
+                rabbitmq_username="guest",
+                rabbitmq_password="guest",
+            ),
         )
         subscriber = create_subscriber(
-            driver_name="rabbitmq",
-            driver_config=driver_config,
+            config,
             enable_validation=False,
         )
 
@@ -64,10 +62,12 @@ class TestSubscriberFactory:
 
     def test_create_noop_subscriber(self):
         """Test creating Noop subscriber."""
-        driver_config = load_driver_config(None, "message_bus", "noop")
+        config = AdapterConfig_MessageBus(
+            message_bus_type="noop",
+            driver=DriverConfig_MessageBus_Noop(),
+        )
         subscriber = create_subscriber(
-            driver_name="noop",
-            driver_config=driver_config,
+            config,
             enable_validation=False,
         )
 
@@ -75,25 +75,31 @@ class TestSubscriberFactory:
 
     def test_create_unknown_subscriber_type(self):
         """Test error when creating unknown subscriber type."""
-        with pytest.raises(ValueError, match="does not support driver"):
-            load_driver_config(None, "message_bus", "unknown")
+        config = AdapterConfig_MessageBus(
+            message_bus_type="unknown",  # type: ignore[arg-type]
+            driver=DriverConfig_MessageBus_Noop(),
+        )
+        with pytest.raises(ValueError, match=r"Unknown message_bus driver: unknown"):
+            create_subscriber(config, enable_validation=False)
+
+    def test_missing_config_raises(self):
+        """Test that missing config raises a standardized error."""
+        with pytest.raises(ValueError, match=r"message_bus config is required"):
+            create_subscriber(None, enable_validation=False)  # type: ignore[arg-type]
 
     def test_rabbitmq_requires_host(self):
         """Test that RabbitMQ subscriber uses schema defaults for host."""
         # Schema provides defaults for host and port, so test verifies behavior with no explicit values
-        driver_config = load_driver_config(
-            None,
-            "message_bus",
-            "rabbitmq",
-            fields={
-                "rabbitmq_username": "guest",
-                "rabbitmq_password": "guest",
-            },
+        config = AdapterConfig_MessageBus(
+            message_bus_type="rabbitmq",
+            driver=DriverConfig_MessageBus_Rabbitmq(
+                rabbitmq_username="guest",
+                rabbitmq_password="guest",
+            ),
         )
         # Subscriber should be created with schema defaults
         subscriber = create_subscriber(
-            driver_name="rabbitmq",
-            driver_config=driver_config,
+            config,
             enable_validation=False,
         )
         assert isinstance(subscriber, RabbitMQSubscriber)
@@ -102,8 +108,11 @@ class TestSubscriberFactory:
         """Test that subscribers are wrapped in ValidatingEventSubscriber by default."""
         from copilot_message_bus.validating_subscriber import ValidatingEventSubscriber
 
-        driver_config = load_driver_config(None, "message_bus", "noop")
-        subscriber = create_subscriber(driver_name="noop", driver_config=driver_config)
+        config = AdapterConfig_MessageBus(
+            message_bus_type="noop",
+            driver=DriverConfig_MessageBus_Noop(),
+        )
+        subscriber = create_subscriber(config)
 
         assert isinstance(subscriber, ValidatingEventSubscriber)
         # The underlying subscriber should be NoopSubscriber

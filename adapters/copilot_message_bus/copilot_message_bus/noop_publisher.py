@@ -6,7 +6,7 @@
 import logging
 from typing import Any
 
-from copilot_config.models import DriverConfig
+from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_Noop
 
 from .base import EventPublisher
 
@@ -22,7 +22,7 @@ class NoopPublisher(EventPublisher):
         self.connected = False
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "NoopPublisher":
+    def from_config(cls, driver_config: DriverConfig_MessageBus_Noop) -> "NoopPublisher":
         """Create publisher from DriverConfig.
 
         Args:

@@ -109,6 +109,129 @@ def _validate_uri(value: str) -> bool:
     return bool(parsed.scheme and parsed.netloc)
 
 
+def _human_join_or(items: list[str]) -> str:
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} or {items[1]}"
+    return ", ".join(items[:-1]) + f", or {items[-1]}"
+
+
+def _is_present(value: Any, prop_spec: dict[str, Any]) -> bool:
+    return not _is_missing_required_value(value, prop_spec)
+
+
+def _validate_required_one_of(
+    *,
+    schema: dict[str, Any],
+    properties: dict[str, Any],
+    config_map: dict[str, Any],
+) -> None:
+    groups = schema.get("x-required_one_of")
+    if not isinstance(groups, list):
+        return
+
+    for group in groups:
+        if not isinstance(group, list) or not group:
+            continue
+
+        field_names = [x for x in group if isinstance(x, str) and x]
+        if not field_names:
+            continue
+
+        if any(
+            _is_present(config_map.get(name), properties.get(name, {}) if isinstance(properties.get(name), dict) else {})
+            for name in field_names
+        ):
+            continue
+
+        joined = _human_join_or(field_names)
+        raise ValueError(f"Either {joined} parameter is required")
+
+
+def _validate_dependent_required(
+    *,
+    schema: dict[str, Any],
+    properties: dict[str, Any],
+    config_map: dict[str, Any],
+) -> None:
+    rules = schema.get("x-dependent_required")
+    if not isinstance(rules, list):
+        return
+
+    for rule in rules:
+        if not isinstance(rule, dict):
+            continue
+
+        if_present = rule.get("if_present")
+        then_required = rule.get("then_required")
+
+        if not isinstance(if_present, str) or not if_present:
+            continue
+        if not isinstance(then_required, list) or not then_required:
+            continue
+
+        if_spec = properties.get(if_present, {})
+        if not isinstance(if_spec, dict):
+            if_spec = {}
+
+        if not _is_present(config_map.get(if_present), if_spec):
+            continue
+
+        for required_field in [x for x in then_required if isinstance(x, str) and x]:
+            spec = properties.get(required_field, {})
+            if not isinstance(spec, dict):
+                spec = {}
+
+            if _is_missing_required_value(config_map.get(required_field), spec):
+                raise ValueError(f"{required_field} parameter is required")
+
+
+def _validate_conditional_required(
+    *,
+    schema: dict[str, Any],
+    properties: dict[str, Any],
+    config_map: dict[str, Any],
+) -> None:
+    rules = schema.get("x-conditional_required")
+    if not isinstance(rules, list):
+        return
+
+    for rule in rules:
+        if not isinstance(rule, dict):
+            continue
+
+        cond = rule.get("if")
+        if not isinstance(cond, dict):
+            continue
+
+        field = cond.get("field")
+        if not isinstance(field, str) or not field:
+            continue
+
+        equals = cond.get("equals", None)
+        actual = config_map.get(field)
+
+        then_required = rule.get("then_required", [])
+        else_required = rule.get("else_required", [])
+
+        required_list: list[str]
+        if actual == equals:
+            required_list = [x for x in then_required if isinstance(x, str) and x]
+        else:
+            required_list = [x for x in else_required if isinstance(x, str) and x]
+
+        for required_field in required_list:
+            spec = properties.get(required_field, {})
+            if not isinstance(spec, dict):
+                spec = {}
+
+            if _is_missing_required_value(config_map.get(required_field), spec):
+                raise ValueError(f"{required_field} parameter is required")
+
+
 def _select_oneof_variant(schema: dict[str, Any], config_map: dict[str, Any]) -> dict[str, Any]:
     if "oneOf" not in schema:
         return schema
@@ -148,27 +271,17 @@ def _select_oneof_variant(schema: dict[str, Any], config_map: dict[str, Any]) ->
     return schema
 
 
-def validate_driver_config_against_schema(
-    *,
-    adapter: str,
-    driver: str,
-    config: object,
-    schema_dir: str | None = None,
-) -> None:
-    """Validate a driver config instance against its JSON schema.
+def validate_config_against_schema_dict(*, schema: dict[str, Any], config: object) -> None:
+    """Validate a config instance against an in-memory schema dict.
+
+    This is primarily used by config loaders that already have the schema
+    loaded and want to enforce the same subset of JSON Schema keywords and
+    repository extensions (`x-*`) without re-loading files.
 
     Raises:
         ValueError: when required fields are missing or constraints fail.
-        FileNotFoundError: when schema files are missing.
     """
-    schema_root = _resolve_schema_directory(schema_dir)
-    driver_schema_path = _adapter_driver_schema_path(schema_dir=schema_root, adapter=adapter, driver=driver)
-    if not driver_schema_path.exists():
-        raise FileNotFoundError(f"Driver schema not found: {driver_schema_path}")
-
-    schema = _load_json(driver_schema_path)
     config_map = _as_mapping(config)
-
     schema = _select_oneof_variant(schema, config_map)
 
     properties = schema.get("properties", {})
@@ -204,6 +317,9 @@ def validate_driver_config_against_schema(
         if value is None:
             continue
 
+        if "const" in spec and value != spec.get("const"):
+            raise ValueError(f"{field_name} parameter is invalid")
+
         if isinstance(value, str):
             min_length = spec.get("minLength")
             if isinstance(min_length, int) and min_length >= 1 and len(value.strip()) < min_length:
@@ -230,3 +346,30 @@ def validate_driver_config_against_schema(
             maximum = spec.get("maximum")
             if isinstance(maximum, (int, float)) and value > maximum:
                 raise ValueError(f"{field_name} parameter is invalid")
+
+    # Custom schema extensions used by this repository.
+    _validate_conditional_required(schema=schema, properties=properties, config_map=config_map)
+    _validate_required_one_of(schema=schema, properties=properties, config_map=config_map)
+    _validate_dependent_required(schema=schema, properties=properties, config_map=config_map)
+
+
+def validate_driver_config_against_schema(
+    *,
+    adapter: str,
+    driver: str,
+    config: object,
+    schema_dir: str | None = None,
+) -> None:
+    """Validate a driver config instance against its JSON schema.
+
+    Raises:
+        ValueError: when required fields are missing or constraints fail.
+        FileNotFoundError: when schema files are missing.
+    """
+    schema_root = _resolve_schema_directory(schema_dir)
+    driver_schema_path = _adapter_driver_schema_path(schema_dir=schema_root, adapter=adapter, driver=driver)
+    if not driver_schema_path.exists():
+        raise FileNotFoundError(f"Driver schema not found: {driver_schema_path}")
+
+    schema = _load_json(driver_schema_path)
+    validate_config_against_schema_dict(schema=schema, config=config)

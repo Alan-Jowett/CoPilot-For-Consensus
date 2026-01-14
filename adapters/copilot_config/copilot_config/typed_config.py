@@ -9,6 +9,7 @@ from typing import Any
 
 from .load_driver_config import load_driver_config  # noqa: F401
 from .models import AdapterConfig, DriverConfig, ServiceConfig
+from .schema_validation import validate_config_against_schema_dict
 
 
 def load_service_config(
@@ -183,6 +184,7 @@ def load_service_config(
                 "Missing required driver configuration: " + ", ".join(details)
             )
 
+        validate_config_against_schema_dict(schema=driver_schema_data, config=driver_config_dict)
         return driver_config_dict
 
     def _append_adapter_configs_from_schema(

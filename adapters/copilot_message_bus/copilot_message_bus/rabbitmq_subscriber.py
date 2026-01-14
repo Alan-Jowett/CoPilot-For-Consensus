@@ -9,7 +9,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from copilot_config.models import DriverConfig
+from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_Rabbitmq
 
 from .base import EventSubscriber
 
@@ -49,17 +49,8 @@ class RabbitMQSubscriber(EventSubscriber):
             auto_ack: Whether to automatically acknowledge messages
 
         Raises:
-            ValueError: If host, port, username, or password is not provided
+            ValueError: For invalid initialization parameters
         """
-        if not host:
-            raise ValueError("host is required for RabbitMQ subscriber")
-        if port is None:
-            raise ValueError("port is required for RabbitMQ subscriber")
-        if not username:
-            raise ValueError("username is required for RabbitMQ subscriber")
-        if not password:
-            raise ValueError("password is required for RabbitMQ subscriber")
-
         self.host = host
         self.port = port
         self.username = username
@@ -76,7 +67,7 @@ class RabbitMQSubscriber(EventSubscriber):
         self._consuming = False
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "RabbitMQSubscriber":
+    def from_config(cls, driver_config: DriverConfig_MessageBus_Rabbitmq) -> "RabbitMQSubscriber":
         """Create subscriber from DriverConfig.
 
         Args:

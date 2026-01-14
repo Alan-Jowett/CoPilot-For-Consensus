@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Callable, Mapping, TypeVar
 
+from .schema_validation import validate_driver_config_against_schema
+
 
 TConfig = TypeVar("TConfig")
 TDriverConfig = TypeVar("TDriverConfig")
@@ -56,4 +58,10 @@ def create_adapter(
             f"Unknown {adapter_name} driver: {driver_type}. Supported drivers: {supported}"
         ) from exc
 
-    return factory(get_driver_config(config))
+    driver_config = get_driver_config(config)
+    validate_driver_config_against_schema(
+        adapter=adapter_name,
+        driver=driver_type,
+        config=driver_config,
+    )
+    return factory(driver_config)

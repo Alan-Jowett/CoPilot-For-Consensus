@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from .models import ServiceConfig
+from .schema_validation import validate_config_against_schema_dict
 
 T = TypeVar("T")
 
@@ -204,6 +205,7 @@ def _load_and_populate_driver_config(
             "Missing required driver configuration: " + ", ".join(details)
         )
 
+    validate_config_against_schema_dict(schema=driver_schema, config=config_dict)
     return config_dict
 
 
