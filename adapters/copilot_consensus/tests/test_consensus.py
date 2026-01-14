@@ -4,7 +4,11 @@
 """Tests for consensus detection."""
 from datetime import datetime, timedelta, timezone
 import pytest
-from copilot_config import DriverConfig, load_driver_config
+from copilot_config.generated.adapters.consensus_detector import (
+    DriverConfig_ConsensusDetector_Heuristic,
+    DriverConfig_ConsensusDetector_Ml,
+    DriverConfig_ConsensusDetector_Mock,
+)
 from copilot_consensus import (
     ConsensusDetector,
     ConsensusLevel,
@@ -20,13 +24,15 @@ from copilot_consensus.consensus import (
 )
 
 
-def _driver_config(driver: str, fields: dict[str, object] | None = None) -> DriverConfig:
-    return load_driver_config(
-        "orchestrator",
-        "consensus_detector",
-        driver,
-        fields=dict(fields or {}),
-    )
+def _driver_config(driver: str, fields: dict[str, object] | None = None):
+    fields = dict(fields or {})
+    if driver == "heuristic":
+        return DriverConfig_ConsensusDetector_Heuristic(**fields)
+    if driver == "mock":
+        return DriverConfig_ConsensusDetector_Mock(**fields)
+    if driver == "ml":
+        return DriverConfig_ConsensusDetector_Ml(**fields)
+    raise ValueError(f"Unknown driver: {driver}")
 
 
 class TestConsensusSignal:
