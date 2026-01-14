@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+    Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Generated Typed Configuration
 
 This directory contains auto-generated Python dataclasses that provide strongly-typed configuration objects for all services.
