@@ -140,7 +140,7 @@ class TestCreateEmbeddingProvider:
                 "OPENAI_API_KEY": "env-key",
                 "EMBEDDING_MODEL": "env-model"
             }):
-                config = DriverConfig_EmbeddingBackend_Openai()
+                config = DriverConfig_EmbeddingBackend_Openai(api_key="ignored", model="ignored")
                 with pytest.raises(ValueError, match="driver_name parameter is required"):
                     create_embedding_provider(driver_name=None, driver_config=config)
 
@@ -189,7 +189,11 @@ class TestCreateEmbeddingProvider:
                 "AZURE_OPENAI_ENDPOINT": "https://env.openai.azure.com/",
                 "AZURE_OPENAI_DEPLOYMENT": "env-deployment"
             }):
-                config = DriverConfig_EmbeddingBackend_AzureOpenai()
+                config = DriverConfig_EmbeddingBackend_AzureOpenai(
+                    api_base="ignored",
+                    api_key="ignored",
+                    deployment_name="ignored",
+                )
                 with pytest.raises(ValueError, match="driver_name parameter is required"):
                     create_embedding_provider(driver_name=None, driver_config=config)
 
@@ -205,7 +209,11 @@ class TestCreateEmbeddingProvider:
 
     def test_create_azure_without_endpoint_raises(self):
         """Test that creating Azure provider without endpoint raises error."""
-        config = DriverConfig_EmbeddingBackend_AzureOpenai(api_key="test-key", api_base=None)
+        config = DriverConfig_EmbeddingBackend_AzureOpenai(
+            api_key="test-key",
+            api_base=None,
+            deployment_name="test-deployment",
+        )
         with pytest.raises(ValueError, match="api_base parameter is required"):
             create_embedding_provider(driver_name="azure_openai", driver_config=config)
 
@@ -217,8 +225,9 @@ class TestCreateEmbeddingProvider:
             model=None,
             deployment_name=None,
         )
-        with pytest.raises(ValueError, match="Either model or deployment_name parameter is required"):
+        with pytest.raises(ValueError, match="deployment_name parameter is required"):
             create_embedding_provider(driver_name="azure_openai", driver_config=config)
+        
 
     def test_create_huggingface_provider(self):
         """Test creating HuggingFace provider."""
@@ -266,7 +275,7 @@ class TestCreateEmbeddingProvider:
                 "EMBEDDING_MODEL": "env-model",
                 "DEVICE": "cuda"
             }):
-                config = DriverConfig_EmbeddingBackend_Huggingface()
+                config = DriverConfig_EmbeddingBackend_Huggingface(model_name="ignored", device="cpu")
                 with pytest.raises(ValueError, match="driver_name parameter is required"):
                     create_embedding_provider(driver_name=None, driver_config=config)
 

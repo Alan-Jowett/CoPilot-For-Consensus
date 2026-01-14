@@ -54,12 +54,14 @@ def to_python_field_name(name: str) -> str:
     return name
 
 
-def schema_type_to_python_type(schema_type: str, default_value: Any = None) -> str:
-    """Convert schema type to Python type annotation.
-    
-    Uses MyPy-style type hints with typing module (Dict, List, Optional, Union)
-    for better compatibility and stricter type checking.
+def schema_type_to_python_type(schema_type: str | list[Any], default_value: Any = None) -> str:
+    """Convert schema type to a Python type annotation.
+
+    Notes:
+    - Supports a JSON Schema "type" being either a string or a list.
+    - If a list includes "null", returns Optional[T] for the non-null type.
     """
+
     type_mapping = {
         "string": "str",
         "int": "int",
@@ -70,13 +72,29 @@ def schema_type_to_python_type(schema_type: str, default_value: Any = None) -> s
         "number": "float",
         "object": "Dict[str, Any]",
         "array": "List[Any]",
+        "null": "None",
     }
 
-    py_type = type_mapping.get(schema_type, "Any")
-    if default_value is not None:
-        return py_type
+    if isinstance(schema_type, list):
+        # Common case: ["string", "null"]
+        non_null = [t for t in schema_type if t != "null"]
+        if len(non_null) == 1 and "null" in schema_type:
+            inner = type_mapping.get(non_null[0], "Any")
+            return f"Optional[{inner}]"
+        # Fallback for more complex unions.
+        mapped = [type_mapping.get(t, "Any") for t in non_null]
+        if not mapped:
+            return "Any"
+        if len(mapped) == 1:
+            return mapped[0]
+        return f"Union[{', '.join(mapped)}]"
 
-    return py_type
+    return type_mapping.get(schema_type, "Any")
+
+
+def _type_allows_null(prop_spec: dict[str, Any]) -> bool:
+    schema_type = prop_spec.get("type")
+    return isinstance(schema_type, list) and "null" in schema_type
 
 
 def _format_literal(value: Any) -> str:
@@ -95,8 +113,10 @@ def _generate_dataclass_code(
     class_name: str,
     doc: str,
     properties: dict[str, Any],
+    required_fields: set[str] | None = None,
 ) -> str:
     """Generate a dataclass body for a schema properties dict."""
+    required_fields = required_fields or set()
     lines = [
         "@dataclass",
         f"class {class_name}:",
@@ -122,7 +142,7 @@ def _generate_dataclass_code(
             continue
 
         default = prop_spec.get("default")
-        required = prop_spec.get("required", False)
+        required = prop_name in required_fields or prop_spec.get("required", False)
 
         if required and default is None:
             required_no_default.append((prop_name, prop_spec))
@@ -134,7 +154,7 @@ def _generate_dataclass_code(
     for prop_name, prop_spec in all_fields:
         prop_type = prop_spec.get("type", "string")
         default = prop_spec.get("default")
-        required = prop_spec.get("required", False)
+        required = prop_name in required_fields or prop_spec.get("required", False)
         description = prop_spec.get("description", "")
 
         field_name = to_python_field_name(prop_name)
@@ -146,10 +166,16 @@ def _generate_dataclass_code(
         else:
             py_type = schema_type_to_python_type(prop_type, default)
 
-            if required and default is None:
+            if required:
+                # Required fields should not be Optional unless schema explicitly allows null.
                 type_annotation = py_type
             else:
-                type_annotation = f"Optional[{py_type}]"
+                if default is not None and not _type_allows_null(prop_spec):
+                    # A non-null default implies the value is always present.
+                    type_annotation = py_type
+                else:
+                    # Truly optional field.
+                    type_annotation = py_type if _type_allows_null(prop_spec) else f"Optional[{py_type}]"
 
             if default is not None:
                 lines.append(f"    {field_name}: {type_annotation} = {_format_literal(default)}")
@@ -196,6 +222,9 @@ def generate_driver_dataclass(
             if not isinstance(properties, dict):
                 properties = {}
 
+            required_list = variant_schema.get("required", [])
+            required_fields = set(required_list) if isinstance(required_list, list) else set()
+
             if common_properties:
                 for key, value in common_properties.items():
                     if key not in properties:
@@ -222,6 +251,7 @@ def generate_driver_dataclass(
                     class_name=variant_class_name,
                     doc=f"Configuration variant for {adapter_name} adapter using {driver_name} driver.",
                     properties=properties,
+                    required_fields=required_fields,
                 )
             )
 
@@ -241,10 +271,14 @@ def generate_driver_dataclass(
             if key not in properties:
                 properties[key] = value
 
+    required_list = driver_schema.get("required", [])
+    required_fields = set(required_list) if isinstance(required_list, list) else set()
+
     return class_name, _generate_dataclass_code(
         class_name=class_name,
         doc=f"Configuration for {adapter_name} adapter using {driver_name} driver.",
         properties=properties,
+        required_fields=required_fields,
     )
 
 

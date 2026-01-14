@@ -6,6 +6,7 @@
     "properties": {
         "api_key": {
             "type": "string",
+            "minLength": 1,
             "source": "secret",
             "secret_name": "azure_openai_api_key",
             "env": "AZURE_OPENAI_KEY",
@@ -13,6 +14,8 @@
         },
         "api_base": {
             "type": "string",
+            "minLength": 1,
+            "format": "uri",
             "source": "env",
             "env_var": "AZURE_OPENAI_ENDPOINT",
             "description": "Azure OpenAI endpoint URL"
@@ -26,12 +29,14 @@
         },
         "deployment_name": {
             "type": "string",
+            "minLength": 1,
             "source": "env",
             "env_var": "AZURE_OPENAI_DEPLOYMENT",
             "description": "Azure OpenAI deployment name for embeddings"
         },
         "model": {
             "type": "string",
+            "minLength": 1,
             "source": "env",
             "env_var": "EMBEDDING_MODEL",
             "description": "Optional model name to map to deployment"

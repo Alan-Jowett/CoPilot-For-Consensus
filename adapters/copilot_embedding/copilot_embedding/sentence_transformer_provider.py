@@ -66,18 +66,12 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
         Returns:
             Configured SentenceTransformerEmbeddingProvider
 
-        Raises:
-            ValueError: If required attributes are missing
         """
-        model_name = driver_config.model_name
-        device = driver_config.device
-        cache_dir = driver_config.cache_dir
-        if not model_name:
-            raise ValueError("model_name parameter is required")
-        if not device:
-            raise ValueError("device parameter is required")
-
-        return cls(model_name=str(model_name), device=str(device), cache_dir=cache_dir)
+        return cls(
+            model_name=str(driver_config.model_name),
+            device=str(driver_config.device),
+            cache_dir=driver_config.cache_dir,
+        )
 
     def embed(self, text: str) -> list[float]:
         """Generate embeddings using SentenceTransformer.

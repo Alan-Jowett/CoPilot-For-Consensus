@@ -107,6 +107,8 @@ def load_service_config(
 
         driver_config_dict: dict[str, Any] = {}
         driver_properties = driver_schema_data.get("properties", {})
+        required_list = driver_schema_data.get("required", [])
+        required_fields = set(required_list) if isinstance(required_list, list) else set()
 
         for prop_name, prop_spec in driver_properties.items():
             if prop_spec.get("source") == "env":
@@ -154,6 +156,32 @@ def load_service_config(
                 # Field has no source (not env or secret) - apply default if present
                 if prop_spec.get("default") is not None:
                     driver_config_dict[prop_name] = prop_spec.get("default")
+
+        missing_required = [name for name in required_fields if name not in driver_config_dict]
+        if missing_required:
+            details: list[str] = []
+            for field_name in sorted(missing_required):
+                spec = driver_properties.get(field_name, {})
+                if not isinstance(spec, dict):
+                    details.append(field_name)
+                    continue
+
+                if spec.get("source") == "env":
+                    env_var = spec.get("env_var")
+                    if isinstance(env_var, list):
+                        env_var_str = " or ".join([str(v) for v in env_var if v])
+                    else:
+                        env_var_str = str(env_var) if env_var else "<unknown>"
+                    details.append(f"{field_name} (set {env_var_str})")
+                elif spec.get("source") == "secret":
+                    secret_name = spec.get("secret_name")
+                    details.append(f"{field_name} (secret {secret_name})")
+                else:
+                    details.append(field_name)
+
+            raise ValueError(
+                "Missing required driver configuration: " + ", ".join(details)
+            )
 
         return driver_config_dict
 

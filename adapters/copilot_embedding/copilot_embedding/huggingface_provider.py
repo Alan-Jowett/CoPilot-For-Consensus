@@ -74,16 +74,10 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
         Returns:
             Configured HuggingFaceEmbeddingProvider
         """
-        if not driver_config.model_name:
-            raise ValueError("model_name parameter is required")
-        if not driver_config.device:
-            raise ValueError("device parameter is required")
-
-        max_length = driver_config.max_length if driver_config.max_length is not None else 512
         return cls(
             model_name=driver_config.model_name,
             device=driver_config.device,
-            max_length=int(max_length),
+            max_length=int(driver_config.max_length),
             cache_dir=driver_config.cache_dir,
         )
 

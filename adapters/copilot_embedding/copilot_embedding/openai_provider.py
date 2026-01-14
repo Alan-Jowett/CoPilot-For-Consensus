@@ -82,51 +82,23 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         Returns:
             Configured OpenAIEmbeddingProvider
 
-        Raises:
-            ValueError: If required attributes are missing
         """
-        api_key = driver_config.api_key
-        model = driver_config.model
-
-        if not api_key:
-            raise ValueError(
-                "api_key parameter is required for OpenAI/Azure backend. "
-                "Provide the API key explicitly"
-            )
-
         if driver_name == "azure_openai":
             if not isinstance(driver_config, DriverConfig_EmbeddingBackend_AzureOpenai):
                 raise TypeError("driver_config must be DriverConfig_EmbeddingBackend_AzureOpenai")
 
-            api_base = driver_config.api_base
-            api_version = driver_config.api_version
-            deployment_name = driver_config.deployment_name
-
-            if not api_base:
-                raise ValueError("api_base parameter is required for Azure OpenAI backend")
-            if not model and not deployment_name:
-                raise ValueError(
-                    "Either model or deployment_name parameter is required for Azure backend. "
-                    "Specify the model or deployment name"
-                )
-            model = model or deployment_name
             return cls(
-                api_key=str(api_key),
-                model=str(model),
-                api_base=str(api_base),
-                api_version=api_version,
-                deployment_name=deployment_name,
+                api_key=str(driver_config.api_key),
+                model=str(driver_config.model) if driver_config.model else str(driver_config.deployment_name),
+                api_base=str(driver_config.api_base),
+                api_version=driver_config.api_version,
+                deployment_name=driver_config.deployment_name,
             )
 
         if not isinstance(driver_config, DriverConfig_EmbeddingBackend_Openai):
             raise TypeError("driver_config must be DriverConfig_EmbeddingBackend_Openai")
 
-        if not model:
-            raise ValueError(
-                "model parameter is required for OpenAI backend. "
-                "Specify a model name (e.g., 'text-embedding-ada-002')"
-            )
-        return cls(api_key=str(api_key), model=str(model))
+        return cls(api_key=str(driver_config.api_key), model=str(driver_config.model))
 
     def embed(self, text: str) -> list[float]:
         """Generate embeddings using OpenAI API.
