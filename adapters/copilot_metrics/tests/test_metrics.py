@@ -6,9 +6,14 @@
 import sys
 
 import pytest
-from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector, create_metrics_collector
 from copilot_metrics import azure_monitor_metrics as az_metrics
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_AzureMonitor,
+    DriverConfig_Metrics_Noop,
+    DriverConfig_Metrics_Prometheus,
+)
 
 # Mock Azure Monitor connection details used only for testing; these are not real credentials.
 VALID_CONNECTION_STRING = "InstrumentationKey=00000000-0000-4000-8000-000000000000"
@@ -43,8 +48,8 @@ class TestMetricsFactory:
 
     def test_create_noop_collector(self):
         """Test creating a no-op metrics collector."""
-        driver_config = load_driver_config(None, "metrics", "noop")
-        collector = create_metrics_collector(driver_name="noop", driver_config=driver_config)
+        config = AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        collector = create_metrics_collector(config)
 
         assert isinstance(collector, NoOpMetricsCollector)
         assert isinstance(collector, MetricsCollector)
@@ -55,26 +60,26 @@ class TestMetricsFactory:
     )
     def test_create_prometheus_collector_without_lib(self):
         """Test creating Prometheus collector when library is not available."""
-        driver_config = load_driver_config(None, "metrics", "prometheus")
+        config = AdapterConfig_Metrics(
+            metrics_type="prometheus",
+            driver=DriverConfig_Metrics_Prometheus(),
+        )
         with pytest.raises(ImportError, match="prometheus_client is required"):
-            create_metrics_collector(driver_name="prometheus", driver_config=driver_config)
+            create_metrics_collector(config)
 
     def test_create_unknown_driver_type(self):
         """Test that unknown driver type raises ValueError."""
-        with pytest.raises(ValueError, match="Unknown metrics driver"):
-            # load_driver_config will fail for invalid driver, so we create a minimal DriverConfig
-            from copilot_config import DriverConfig
-            driver_config = DriverConfig(
-                driver_name="invalid",
-                config={},
-                allowed_keys=set()
-            )
-            create_metrics_collector(driver_name="invalid", driver_config=driver_config)
+        config = AdapterConfig_Metrics(
+            metrics_type="invalid",  # type: ignore[arg-type]
+            driver=DriverConfig_Metrics_Noop(),
+        )
+        with pytest.raises(ValueError, match="Unknown metrics driver: invalid"):
+            create_metrics_collector(config)
 
-    def test_create_with_explicit_driver(self):
-        """Test factory requires explicit driver_name parameter."""
-        driver_config = load_driver_config(None, "metrics", "noop")
-        collector = create_metrics_collector(driver_name="noop", driver_config=driver_config)
+    def test_create_with_typed_config(self):
+        """Test factory creates collector from typed config."""
+        config = AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        collector = create_metrics_collector(config)
 
         assert isinstance(collector, NoOpMetricsCollector)
 
@@ -354,8 +359,8 @@ class TestMetricsIntegration:
 
     def test_counter_workflow(self):
         """Test complete counter workflow."""
-        driver_config = load_driver_config(None, "metrics", "noop")
-        collector = create_metrics_collector(driver_name="noop", driver_config=driver_config)
+        config = AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        collector = create_metrics_collector(config)
 
         # Simulate some events
         collector.increment("archives_ingested", tags={"source": "datatracker"})
@@ -371,8 +376,8 @@ class TestMetricsIntegration:
 
     def test_histogram_workflow(self):
         """Test complete histogram workflow."""
-        driver_config = load_driver_config(None, "metrics", "noop")
-        collector = create_metrics_collector(driver_name="noop", driver_config=driver_config)
+        config = AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        collector = create_metrics_collector(config)
 
         # Simulate some measurements
         durations = [0.1, 0.2, 0.15, 0.3, 0.25]
@@ -385,8 +390,8 @@ class TestMetricsIntegration:
 
     def test_gauge_workflow(self):
         """Test complete gauge workflow."""
-        driver_config = load_driver_config(None, "metrics", "noop")
-        collector = create_metrics_collector(driver_name="noop", driver_config=driver_config)
+        config = AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        collector = create_metrics_collector(config)
 
         # Simulate changing values
         collector.gauge("active_threads", 5.0)
@@ -423,8 +428,8 @@ class TestAzureMonitorMetricsCollector:
         """Test that initialization fails without connection string."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        with pytest.raises(ValueError, match="connection string is required"):
-            AzureMonitorMetricsCollector()
+        with pytest.raises(TypeError):
+            AzureMonitorMetricsCollector()  # type: ignore[call-arg]
 
     @pytest.mark.skipif(
         sys.modules.get('azure.monitor.opentelemetry.exporter') is None
@@ -448,32 +453,6 @@ class TestAzureMonitorMetricsCollector:
         or sys.modules.get('opentelemetry') is None,
         reason="Azure Monitor packages not installed"
     )
-    def test_initialization_from_env_connection_string(self, mock_azure_exporter, monkeypatch):
-        """Test initialization from AZURE_MONITOR_CONNECTION_STRING environment variable."""
-        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
-
-        monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", VALID_CONNECTION_STRING)
-
-        collector = AzureMonitorMetricsCollector()
-
-        assert collector.connection_string == VALID_CONNECTION_STRING
-
-    @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
-        or sys.modules.get('opentelemetry') is None,
-        reason="Azure Monitor packages not installed"
-    )
-    def test_initialization_from_instrumentation_key(self, mock_azure_exporter, monkeypatch):
-        """Test initialization from AZURE_MONITOR_INSTRUMENTATION_KEY (legacy)."""
-        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
-
-        monkeypatch.setenv("AZURE_MONITOR_INSTRUMENTATION_KEY", VALID_INSTRUMENTATION_KEY)
-        monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
-
-        collector = AzureMonitorMetricsCollector()
-
-        assert collector.connection_string == f"InstrumentationKey={VALID_INSTRUMENTATION_KEY}"
-
     @pytest.mark.skipif(
         sys.modules.get('azure.monitor.opentelemetry.exporter') is None
         or sys.modules.get('opentelemetry') is None,
@@ -578,40 +557,19 @@ class TestAzureMonitorMetricsCollector:
 
     def test_factory_creates_azure_monitor_collector(self, mock_azure_exporter, monkeypatch):
         """Test that factory can create Azure Monitor collector."""
-        # Test with driver_name parameter
         try:
-            driver_config = load_driver_config(
-                None,
-                "metrics",
-                "azure_monitor",
-                fields={"connection_string": "InstrumentationKey=test-key"}
-            )
             collector = create_metrics_collector(
-                driver_name="azure_monitor",
-                driver_config=driver_config
+                AdapterConfig_Metrics(
+                    metrics_type="azure_monitor",
+                    driver=DriverConfig_Metrics_AzureMonitor(
+                        connection_string="InstrumentationKey=test-key",
+                    ),
+                )
             )
             # If Azure packages are installed, verify it's the right type
             from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
             assert isinstance(collector, AzureMonitorMetricsCollector)
             assert collector.connection_string == "InstrumentationKey=test-key"
-        except ImportError:
-            # Expected if Azure packages not installed - test passes
-            pass
-
-        # Test with alternative driver name
-        try:
-            driver_config = load_driver_config(
-                None,
-                "metrics",
-                "azure_monitor",
-                fields={"connection_string": "InstrumentationKey=test-key"}
-            )
-            collector = create_metrics_collector(
-                driver_name="azure_monitor",
-                driver_config=driver_config
-            )
-            from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
-            assert isinstance(collector, AzureMonitorMetricsCollector)
         except ImportError:
             # Expected if Azure packages not installed - test passes
             pass

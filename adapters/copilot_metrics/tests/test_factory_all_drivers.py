@@ -10,8 +10,14 @@ instantiated via the factory with its required parameters.
 import json
 from pathlib import Path
 
-from copilot_config import DriverConfig
 from copilot_metrics.factory import create_metrics_collector
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_AzureMonitor,
+    DriverConfig_Metrics_Noop,
+    DriverConfig_Metrics_Prometheus,
+    DriverConfig_Metrics_Pushgateway,
+)
 
 
 def get_schema_dir():
@@ -25,59 +31,26 @@ def load_json(path):
         return json.load(f)
 
 
-def get_required_fields(driver_schema):
-    """Extract required fields from driver schema."""
-    required = set()
-    
-    if "required" in driver_schema:
-        required.update(driver_schema["required"])
-    
-    if "properties" in driver_schema:
-        for field, field_schema in driver_schema["properties"].items():
-            if isinstance(field_schema, dict) and field_schema.get("required") is True:
-                required.add(field)
-    
-    return required
+def get_minimal_typed_driver_config(driver: str):
+    """Build a minimal typed driver config for the requested metrics driver."""
+    if driver == "noop":
+        return DriverConfig_Metrics_Noop()
 
+    if driver == "prometheus":
+        return DriverConfig_Metrics_Prometheus()
 
-def get_minimal_config(driver_schema):
-    """Build minimal config with all fields from driver schema.
-    
-    Includes required fields and optional fields with schema defaults.
-    """
-    config_dict = {}
-    required_fields = get_required_fields(driver_schema)
-    
-    # Map field names to reasonable defaults (for required fields without schema defaults)
-    defaults = {
-        "host": "localhost",
-        "port": 9090,
-        "namespace": "copilot",
-        "raise_on_error": False,
-        "pushgateway_url": "http://localhost:9091",
-        "instrumentation_key": "00000000-0000-4000-8000-000000000000",
-        "connection_string": "InstrumentationKey=00000000-0000-4000-8000-000000000000",
-        "service_name": "copilot",
-    }
-    
-    # Include all properties: required fields and optional fields with defaults
-    properties = driver_schema.get("properties", {})
-    for field, field_schema in properties.items():
-        if field in required_fields:
-            # Required field: use defaults or empty string
-            if field in defaults:
-                config_dict[field] = defaults[field]
-            else:
-                config_dict[field] = ""
-        elif field == "connection_string" and "connection_string" in defaults:
-            # For Azure Monitor, include a valid connection string even though schema marks it optional
-            config_dict[field] = defaults["connection_string"]
-        elif "default" in field_schema:
-            # Optional field with default: use the schema default
-            config_dict[field] = field_schema["default"]
-        # Optional fields without defaults are skipped (will use None)
-    
-    return config_dict
+    if driver == "pushgateway":
+        return DriverConfig_Metrics_Pushgateway(
+            gateway="http://localhost:9091",
+            job="copilot",
+        )
+
+    if driver == "azure_monitor":
+        return DriverConfig_Metrics_AzureMonitor(
+            connection_string="InstrumentationKey=00000000-0000-4000-8000-000000000000",
+        )
+
+    raise AssertionError(f"Unhandled driver: {driver}")
 
 
 class TestMetricsAllDrivers:
@@ -88,28 +61,14 @@ class TestMetricsAllDrivers:
         schema_dir = get_schema_dir()
         schema = load_json(schema_dir / "metrics.json")
         drivers_enum = schema["properties"]["discriminant"]["enum"]
-        drivers_dir = schema_dir / "drivers" / "metrics"
         
         for driver in drivers_enum:
-            # Load driver schema
-            driver_schema_path = drivers_dir / f"metrics_{driver}.json"
-            assert driver_schema_path.exists(), f"Driver schema missing: {driver_schema_path}"
-            
-            driver_schema = load_json(driver_schema_path)
-            config_dict = get_minimal_config(driver_schema)
-            
-            # Get all allowed keys from schema
-            allowed_keys = set(driver_schema.get("properties", {}).keys())
-            
-            config = DriverConfig(
-                driver_name=driver,
-                config=config_dict,
-                allowed_keys=allowed_keys
-            )
+            driver_config = get_minimal_typed_driver_config(driver)
+            config = AdapterConfig_Metrics(metrics_type=driver, driver=driver_config)
             
             # Try to create driver; skip if optional dependencies are missing
             try:
-                collector = create_metrics_collector(driver_name=driver, driver_config=config)
+                collector = create_metrics_collector(config)
                 assert collector is not None, f"Failed to create metrics collector for driver: {driver}"
             except ImportError as e:
                 # Skip drivers with missing optional dependencies (e.g., prometheus_client)

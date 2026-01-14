@@ -4,10 +4,9 @@
 """Azure Monitor metrics collector implementation using OpenTelemetry."""
 
 import logging
-import os
 from typing import Any
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.metrics import DriverConfig_Metrics_AzureMonitor
 
 from .base import MetricsCollector
 
@@ -50,7 +49,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
     def __init__(
         self,
-        connection_string: str | None = None,
+        connection_string: str,
         namespace: str = "copilot",
         export_interval_millis: int = 60000,
         raise_on_error: bool = False,
@@ -60,8 +59,6 @@ class AzureMonitorMetricsCollector(MetricsCollector):
         Args:
             connection_string: Azure Monitor connection string (required).
                               Can be a full connection string or InstrumentationKey=<key> format.
-                              If not provided, falls back to AZURE_MONITOR_CONNECTION_STRING or
-                              AZURE_MONITOR_INSTRUMENTATION_KEY environment variables.
             namespace: Namespace prefix for all metrics (default: "copilot")
             export_interval_millis: Export interval in milliseconds (default: 60000)
             raise_on_error: If True, raise exceptions on metric errors (useful for testing).
@@ -69,7 +66,6 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
         Raises:
             ImportError: If required Azure Monitor packages are not installed
-            ValueError: If connection_string is not provided
         """
         if not AZURE_MONITOR_AVAILABLE:
             raise ImportError(
@@ -77,23 +73,8 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 "Install with: pip install azure-monitor-opentelemetry-exporter opentelemetry-sdk"
             )
 
-        # Fallback to environment variables when an explicit connection string is not provided
-        if not connection_string:
-            env_connection = os.getenv("AZURE_MONITOR_CONNECTION_STRING")
-            env_instrumentation_key = os.getenv("AZURE_MONITOR_INSTRUMENTATION_KEY")
-            if not env_connection and env_instrumentation_key:
-                env_connection = f"InstrumentationKey={env_instrumentation_key}"
-
-            connection_string = env_connection
-
-        if not connection_string:
-            raise ValueError(
-                "Azure Monitor connection string is required for AzureMonitorMetricsCollector. "
-                "Provide it explicitly or via AZURE_MONITOR_CONNECTION_STRING / AZURE_MONITOR_INSTRUMENTATION_KEY."
-            )
-
         self.connection_string = connection_string
-        self.namespace = namespace or "copilot"
+        self.namespace = namespace
         self.raise_on_error = raise_on_error
         self._metrics_errors_count = 0
 
@@ -336,23 +317,20 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             logger.error(f"Error during Azure Monitor metrics collector shutdown: {e}")
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "AzureMonitorMetricsCollector":
+    def from_config(
+        cls,
+        driver_config: DriverConfig_Metrics_AzureMonitor,
+    ) -> "AzureMonitorMetricsCollector":
         """Create an AzureMonitorMetricsCollector from configuration.
 
         Args:
-            driver_config: DriverConfig instance with required attributes:
-                - connection_string: Azure Monitor connection string
-                Optional attributes:
-                - namespace: Namespace prefix (default: "copilot")
-                - export_interval_millis: Export interval in ms (default: 60000)
-                - raise_on_error: Whether to raise on metric errors (default: False)
+            driver_config: Typed driver config.
 
         Returns:
             Configured AzureMonitorMetricsCollector instance
 
         Raises:
             ImportError: If Azure Monitor packages are not installed
-            ValueError: If connection_string is not provided
         """
         return cls(
             connection_string=driver_config.connection_string,

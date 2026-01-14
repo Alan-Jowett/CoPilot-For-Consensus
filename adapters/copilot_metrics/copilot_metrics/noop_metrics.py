@@ -5,7 +5,7 @@
 
 import logging
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.metrics import DriverConfig_Metrics_Noop
 
 from .base import MetricsCollector
 
@@ -121,11 +121,11 @@ class NoOpMetricsCollector(MetricsCollector):
         return matching_gauges[-1] if matching_gauges else None
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "NoOpMetricsCollector":
+    def from_config(cls, driver_config: DriverConfig_Metrics_Noop) -> "NoOpMetricsCollector":
         """Create a NoOpMetricsCollector from configuration.
 
         Args:
-            driver_config: DriverConfig instance (currently ignored, for consistency)
+            driver_config: Typed driver config (currently ignored, for consistency)
 
         Returns:
             Configured NoOpMetricsCollector instance

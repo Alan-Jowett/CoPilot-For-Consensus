@@ -5,7 +5,8 @@
 
 import logging
 
-from copilot_config import DriverConfig
+from copilot_config.adapter_factory import create_adapter
+from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics
 
 from .base import MetricsCollector
 
@@ -13,14 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 def create_metrics_collector(
-    driver_name: str,
-    driver_config: DriverConfig
+    config: AdapterConfig_Metrics,
 ) -> MetricsCollector:
     """Create a metrics collector based on driver type.
 
     Factory function that creates the appropriate metrics collector implementation
-    based on the driver name. Configuration is passed as a dictionary to support
-    different backends with varying requirements.
+    based on the discriminant in the typed adapter config.
 
     Supported drivers:
     - "prometheus": Prometheus metrics with registry-based collection
@@ -29,57 +28,38 @@ def create_metrics_collector(
     - "noop": No-op collector for testing
 
     Args:
-        driver_name: Name of the metrics driver ("prometheus", "pushgateway",
-                    "azure_monitor", "noop")
-        driver_config: DriverConfig instance with driver-specific configuration.
-                      See individual collector classes for supported options.
+        config: Typed AdapterConfig_Metrics instance.
 
     Returns:
         MetricsCollector instance configured for the specified driver
 
     Raises:
-        ValueError: If driver_name is unknown
+        ValueError: If config is missing or driver type is unknown
         ImportError: If required packages for the driver are not installed
 
     Examples:
-        >>> from copilot_config import load_driver_config
-        >>> # Create Prometheus collector
-        >>> driver_config = load_driver_config(
-        ...     None, "metrics", "prometheus",
-        ...     fields={"namespace": "myapp", "raise_on_error": False}
+        >>> from copilot_config.generated.adapters.metrics import (
+        ...     AdapterConfig_Metrics,
+        ...     DriverConfig_Metrics_Noop,
         ... )
         >>> collector = create_metrics_collector(
-        ...     driver_name="prometheus",
-        ...     driver_config=driver_config
-        ... )
-
-        >>> # Create no-op collector
-        >>> noop_config = load_driver_config(None, "metrics", "noop")
-        >>> collector = create_metrics_collector(
-        ...     driver_name="noop",
-        ...     driver_config=noop_config
+        ...     AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
         ... )
     """
-    driver_name_lower = driver_name.lower()
+    from .azure_monitor_metrics import AzureMonitorMetricsCollector
+    from .noop_metrics import NoOpMetricsCollector
+    from .prometheus_metrics import PrometheusMetricsCollector
+    from .pushgateway_metrics import PrometheusPushGatewayMetricsCollector
 
-    if driver_name_lower == "prometheus":
-        from .prometheus_metrics import PrometheusMetricsCollector
-        return PrometheusMetricsCollector.from_config(driver_config)
-
-    elif driver_name_lower in ("prometheus_pushgateway", "pushgateway"):
-        from .pushgateway_metrics import PrometheusPushGatewayMetricsCollector
-        return PrometheusPushGatewayMetricsCollector.from_config(driver_config)
-
-    elif driver_name_lower in ("azure_monitor", "azuremonitor"):
-        from .azure_monitor_metrics import AzureMonitorMetricsCollector
-        return AzureMonitorMetricsCollector.from_config(driver_config)
-
-    elif driver_name_lower == "noop":
-        from .noop_metrics import NoOpMetricsCollector
-        return NoOpMetricsCollector.from_config(driver_config)
-
-    else:
-        raise ValueError(
-            f"Unknown metrics driver: {driver_name}. "
-            f"Supported drivers: prometheus, pushgateway, azure_monitor, noop"
-        )
+    return create_adapter(
+        config,
+        adapter_name="metrics",
+        get_driver_type=lambda c: c.metrics_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "prometheus": PrometheusMetricsCollector.from_config,
+            "pushgateway": PrometheusPushGatewayMetricsCollector.from_config,
+            "azure_monitor": AzureMonitorMetricsCollector.from_config,
+            "noop": NoOpMetricsCollector.from_config,
+        },
+    )

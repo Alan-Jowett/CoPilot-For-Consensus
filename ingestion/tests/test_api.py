@@ -44,8 +44,10 @@ def service(document_store, tmp_path):
 
     logger_config = load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"})
     logger = create_logger(driver_name="silent", driver_config=logger_config)
-    metrics_config = load_driver_config(service=None, adapter="metrics", driver="noop", fields={})
-    metrics = create_metrics_collector(driver_name="noop", driver_config=metrics_config)
+    from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
+    metrics = create_metrics_collector(
+        AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+    )
     archive_store = make_archive_store(base_path=config.storage_path)
 
     service = IngestionService(
