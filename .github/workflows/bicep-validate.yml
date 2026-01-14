@@ -36,7 +36,7 @@ jobs:
     name: Bicep Lint & Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Azure CLI
         run: |
@@ -92,7 +92,7 @@ jobs:
     outputs:
       whatif-status: ${{ steps.whatif-step.outputs.status }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
