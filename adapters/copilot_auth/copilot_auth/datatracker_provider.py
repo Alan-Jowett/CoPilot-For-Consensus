@@ -7,8 +7,6 @@ This module provides authentication via IETF Datatracker, allowing users
 to authenticate using their Datatracker credentials.
 """
 
-from copilot_config import DriverConfig
-
 from .models import User
 from .provider import IdentityProvider
 
@@ -32,8 +30,8 @@ class DatatrackerIdentityProvider(IdentityProvider):
         self.api_base_url = api_base_url
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "DatatrackerIdentityProvider":
-        """Create DatatrackerIdentityProvider from DriverConfig.
+    def from_config(cls, driver_config: object) -> "DatatrackerIdentityProvider":
+        """Create DatatrackerIdentityProvider from config.
 
         Args:
             driver_config: DriverConfig object with Datatracker configuration
@@ -44,7 +42,7 @@ class DatatrackerIdentityProvider(IdentityProvider):
         Raises:
             ValueError: If required configuration is missing
         """
-        api_base_url = driver_config.api_base_url
+        api_base_url = getattr(driver_config, "api_base_url", None)
         if not api_base_url:
             raise ValueError("DatatrackerIdentityProvider requires 'api_base_url' in driver configuration")
 
