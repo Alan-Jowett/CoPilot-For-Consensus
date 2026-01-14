@@ -218,10 +218,6 @@ def generate_adapter_module(
 
     discriminant_info = adapter_schema.get("properties", {}).get("discriminant", {})
 
-    if not discriminant_info:
-        print(f"Skipping composite adapter: {adapter_name}", file=sys.stderr)
-        return ""
-
     imports = [
         "# SPDX-License-Identifier: MIT",
         "# Copyright (c) 2025 Copilot-for-Consensus contributors",
@@ -238,6 +234,86 @@ def generate_adapter_module(
     ]
 
     all_classes = []
+
+    # Composite adapters (no discriminant) are still generated so that service modules
+    # can import their AdapterConfig_* types and static analysis (e.g., pylint) doesn't fail.
+    if not discriminant_info:
+        adapter_class_name = f"AdapterConfig_{to_python_class_name(adapter_name)}"
+
+        properties = adapter_schema.get("properties", {})
+
+        # Best-effort typed composite support:
+        # - If the adapter schema is a single top-level object containing provider keys ($ref),
+        #   generate DriverConfig_* dataclasses and a nested container dataclass.
+        # - Otherwise, fall back to a generic Dict[str, Any] config field.
+        if len(properties) == 1:
+            composite_field_name, composite_spec = next(iter(properties.items()))
+            composite_properties = composite_spec.get("properties", {}) if isinstance(composite_spec, dict) else {}
+
+            driver_classes: dict[str, str] = {}
+            for driver_name, driver_info in sorted(composite_properties.items()):
+                if not isinstance(driver_info, dict) or "$ref" not in driver_info:
+                    continue
+
+                driver_schema_path = adapter_schema_path.parent / driver_info["$ref"].lstrip("./")
+                if not driver_schema_path.exists():
+                    print(f"Warning: Driver schema not found: {driver_schema_path}", file=sys.stderr)
+                    continue
+
+                with open(driver_schema_path) as f:
+                    driver_schema = json.load(f)
+
+                driver_class_name, driver_class_code = generate_driver_dataclass(
+                    adapter_name,
+                    driver_name,
+                    driver_schema,
+                    common_properties=None,
+                )
+                driver_classes[driver_name] = driver_class_name
+                all_classes.append(driver_class_code)
+
+            container_class_name = f"CompositeConfig_{to_python_class_name(adapter_name)}"
+            container_lines = [
+                "@dataclass",
+                f"class {container_class_name}:",
+                f'    """Composite configuration container for {adapter_name} adapter."""',
+            ]
+
+            if driver_classes:
+                for driver_name in sorted(driver_classes.keys()):
+                    field_name = to_python_field_name(driver_name)
+                    driver_class_name = driver_classes[driver_name]
+                    container_lines.append(f"    {field_name}: Optional[{driver_class_name}] = None")
+            else:
+                container_lines.append("    config: Dict[str, Any]")
+
+            all_classes.append("\n".join(container_lines))
+
+            adapter_lines = [
+                "@dataclass",
+                f"class {adapter_class_name}:",
+                f'    """Configuration for {adapter_name} adapter."""',
+                f"    {to_python_field_name(composite_field_name)}: Optional[{container_class_name}] = None",
+            ]
+            all_classes.append("\n".join(adapter_lines))
+        else:
+            adapter_lines = [
+                "@dataclass",
+                f"class {adapter_class_name}:",
+                f'    """Configuration for {adapter_name} adapter."""',
+                "    config: Dict[str, Any]",
+            ]
+            all_classes.append("\n".join(adapter_lines))
+
+        output = "\n".join(imports) + "\n\n" + "\n\n\n".join(all_classes) + "\n"
+
+        output_path = output_dir / "adapters" / f"{adapter_name}.py"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w") as f:
+            f.write(output)
+
+        print(f"Generated: {output_path}")
+        return adapter_class_name
 
     # Generate driver configs
     drivers_data = adapter_schema.get("properties", {}).get("drivers", {}).get("properties", {})
@@ -507,7 +583,7 @@ def main() -> int:
             adapters_to_generate = [
                 p.stem
                 for p in adapters_dir.glob("*.json")
-                if p.stem not in ["__pycache__", "oidc_providers"]  # Skip composite adapters
+                if p.stem not in ["__pycache__"]
             ]
         else:
             adapters_to_generate = [args.adapter]
