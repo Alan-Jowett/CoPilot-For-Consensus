@@ -10,7 +10,12 @@ instantiated via the factory with its required parameters.
 import json
 from pathlib import Path
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_AzureCosmosdb,
+    DriverConfig_DocumentStore_Inmemory,
+    DriverConfig_DocumentStore_Mongodb,
+)
 from copilot_storage.factory import create_document_store
 
 
@@ -94,21 +99,25 @@ class TestDocumentStoreAllDrivers:
             
             driver_schema = load_json(driver_schema_path)
             config_dict = get_minimal_config(driver_schema)
-            
-            # Get all allowed keys from schema
-            allowed_keys = set(driver_schema.get("properties", {}).keys())
-            
-            config = DriverConfig(
-                driver_name=driver,
-                config=config_dict,
-                allowed_keys=allowed_keys,
+
+            if driver == "mongodb":
+                driver_config = DriverConfig_DocumentStore_Mongodb(**config_dict)
+            elif driver == "azure_cosmosdb":
+                driver_config = DriverConfig_DocumentStore_AzureCosmosdb(**config_dict)
+            elif driver == "inmemory":
+                driver_config = DriverConfig_DocumentStore_Inmemory()
+            else:
+                raise AssertionError(f"Unexpected driver in schema enum: {driver}")
+
+            adapter_config = AdapterConfig_DocumentStore(
+                doc_store_type=driver,
+                driver=driver_config,
             )
             
             # Should not raise any exceptions
             # Use enable_validation=False to avoid schema provider requirements
             store = create_document_store(
-                driver_name=driver,
-                driver_config=config,
+                adapter_config,
                 enable_validation=False
             )
             assert store is not None, f"Failed to create document store for driver: {driver}"

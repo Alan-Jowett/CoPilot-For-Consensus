@@ -8,6 +8,10 @@ import os
 import time
 
 import pytest
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_AzureCosmosdb,
+)
 from copilot_storage import DocumentNotFoundError, DocumentStoreNotConnectedError, create_document_store
 from copilot_storage.azure_cosmos_document_store import AzureCosmosDocumentStore
 from copilot_storage.validating_document_store import ValidatingDocumentStore
@@ -17,13 +21,16 @@ logger = logging.getLogger(__name__)
 
 def get_azurecosmos_config():
     """Get Azure Cosmos DB configuration from environment variables."""
-    return {
-        "endpoint": os.getenv("COSMOS_ENDPOINT"),
-        "key": os.getenv("COSMOS_KEY"),
-        "database": os.getenv("COSMOS_DATABASE", "test_copilot"),
-        "container": os.getenv("COSMOS_CONTAINER", "test_documents"),
-        "partition_key": os.getenv("COSMOS_PARTITION_KEY", "/collection"),
-    }
+    return AdapterConfig_DocumentStore(
+        doc_store_type="azure_cosmosdb",
+        driver=DriverConfig_DocumentStore_AzureCosmosdb(
+            endpoint=os.getenv("COSMOS_ENDPOINT"),
+            key=os.getenv("COSMOS_KEY"),
+            database=os.getenv("COSMOS_DATABASE", "test_copilot"),
+            container=os.getenv("COSMOS_CONTAINER", "test_documents"),
+            partition_key=os.getenv("COSMOS_PARTITION_KEY", "/collection"),
+        ),
+    )
 
 
 @pytest.fixture(scope="module")
@@ -32,10 +39,10 @@ def azurecosmos_store():
     config = get_azurecosmos_config()
 
     # Skip tests if Cosmos DB is not configured
-    if not config["endpoint"] or not config["key"]:
+    if not config.driver.endpoint or not config.driver.key:
         pytest.skip("Azure Cosmos DB not configured - set COSMOS_ENDPOINT and COSMOS_KEY")
 
-    store = create_document_store(driver_name="azurecosmos", driver_config=config)
+    store = create_document_store(config)
     assert isinstance(store, ValidatingDocumentStore)
     assert isinstance(store._store, AzureCosmosDocumentStore)
 

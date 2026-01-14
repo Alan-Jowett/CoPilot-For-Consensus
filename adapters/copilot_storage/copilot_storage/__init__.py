@@ -19,6 +19,7 @@ from .document_store import (  # noqa: E402
 from .factory import create_document_store  # noqa: E402
 from .validating_document_store import (  # noqa: E402
     DocumentValidationError,
+    ValidatingDocumentStore,
 )
 
 __all__ = [
@@ -30,5 +31,6 @@ __all__ = [
     "DocumentStoreConnectionError",
     "DocumentNotFoundError",
     "DocumentValidationError",
+    "ValidatingDocumentStore",
 ]
 

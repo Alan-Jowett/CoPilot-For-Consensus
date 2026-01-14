@@ -4,7 +4,10 @@
 """Tests for validating document store."""
 
 import pytest
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
 from copilot_storage import DocumentNotFoundError, create_document_store
 from copilot_storage.validating_document_store import DocumentValidationError, ValidatingDocumentStore
 
@@ -34,13 +37,21 @@ class MockSchemaProvider:
         return self.schemas.get(schema_name)
 
 
+def _create_base_inmemory_store():
+    """Create an unwrapped, in-memory document store for tests."""
+    config = AdapterConfig_DocumentStore(
+        doc_store_type="inmemory",
+        driver=DriverConfig_DocumentStore_Inmemory(),
+    )
+    return create_document_store(config, enable_validation=False)
+
+
 class TestValidatingDocumentStore:
     """Tests for ValidatingDocumentStore."""
 
     def test_init(self):
         """Test initializing a validating document store."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         provider = MockSchemaProvider()
 
         store = ValidatingDocumentStore(
@@ -57,8 +68,7 @@ class TestValidatingDocumentStore:
 
     def test_collection_to_schema_name(self):
         """Test conversion of collection names to schema names."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         store = ValidatingDocumentStore(base)
 
         # Schema names match collection names (lowercase)
@@ -70,8 +80,7 @@ class TestValidatingDocumentStore:
     @requires_schema_validation
     def test_insert_valid_document_strict_mode(self):
         """Test inserting a valid document in strict mode."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         schema = {
@@ -95,8 +104,7 @@ class TestValidatingDocumentStore:
     @requires_schema_validation
     def test_insert_invalid_document_strict_mode(self):
         """Test inserting an invalid document in strict mode raises DocumentValidationError."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         schema = {
@@ -123,8 +131,7 @@ class TestValidatingDocumentStore:
 
     def test_insert_invalid_document_non_strict_mode(self):
         """Test inserting an invalid document in non-strict mode succeeds with warning."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         schema = {
@@ -148,8 +155,7 @@ class TestValidatingDocumentStore:
 
     def test_insert_without_schema_provider(self):
         """Test inserting without schema provider skips validation."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         store = ValidatingDocumentStore(base, schema_provider=None, strict=True)
@@ -162,8 +168,7 @@ class TestValidatingDocumentStore:
 
     def test_insert_schema_not_found_strict_mode(self):
         """Test inserting document with no schema in strict mode fails."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         provider = MockSchemaProvider({})  # Empty schemas
@@ -178,8 +183,7 @@ class TestValidatingDocumentStore:
 
     def test_insert_schema_not_found_non_strict_mode(self):
         """Test inserting document with no schema in non-strict mode succeeds."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         provider = MockSchemaProvider({})  # Empty schemas
@@ -193,8 +197,7 @@ class TestValidatingDocumentStore:
 
     def test_get_document_without_validation(self):
         """Test getting a document without read validation."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         provider = MockSchemaProvider()
@@ -212,8 +215,7 @@ class TestValidatingDocumentStore:
     @requires_schema_validation
     def test_get_document_with_validation_valid(self):
         """Test getting a valid document with read validation."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         schema = {
@@ -238,8 +240,7 @@ class TestValidatingDocumentStore:
 
     def test_get_document_with_validation_invalid_strict(self):
         """Test getting an invalid document with read validation in strict mode fails."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         schema = {
@@ -263,8 +264,7 @@ class TestValidatingDocumentStore:
 
     def test_get_document_not_found(self):
         """Test getting a non-existent document returns None."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         provider = MockSchemaProvider()
@@ -276,8 +276,7 @@ class TestValidatingDocumentStore:
     @requires_schema_validation
     def test_update_valid_document_strict_mode(self):
         """Test updating with a valid patch in strict mode."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         schema = {
@@ -303,8 +302,7 @@ class TestValidatingDocumentStore:
     @requires_schema_validation
     def test_update_invalid_document_strict_mode(self):
         """Test updating with an invalid patch in strict mode fails."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         schema = {
@@ -330,8 +328,7 @@ class TestValidatingDocumentStore:
 
     def test_update_nonexistent_document(self):
         """Test updating a non-existent document raises DocumentNotFoundError."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         provider = MockSchemaProvider()
@@ -343,8 +340,7 @@ class TestValidatingDocumentStore:
 
     def test_query_documents(self):
         """Test querying documents."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         provider = MockSchemaProvider()
@@ -361,8 +357,7 @@ class TestValidatingDocumentStore:
 
     def test_delete_document(self):
         """Test deleting a document."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         provider = MockSchemaProvider()
@@ -380,8 +375,7 @@ class TestValidatingDocumentStore:
 
     def test_connect_delegates_to_underlying_store(self):
         """Test that connect is delegated to underlying store."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         provider = MockSchemaProvider()
         store = ValidatingDocumentStore(base, provider)
 
@@ -389,8 +383,7 @@ class TestValidatingDocumentStore:
 
     def test_disconnect_delegates_to_underlying_store(self):
         """Test that disconnect is delegated to underlying store."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
         assert base.connected is True
 
@@ -405,8 +398,7 @@ class TestValidatingDocumentStore:
 
     def test_aggregate_documents_delegates_to_underlying_store(self):
         """Test that aggregate_documents is delegated to underlying store."""
-        config = DriverConfig(driver_name="inmemory", config={})
-        base = create_document_store("inmemory", config, enable_validation=False)
+        base = _create_base_inmemory_store()
         base.connect()
 
         # Insert test data

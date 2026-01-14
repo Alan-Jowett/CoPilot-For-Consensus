@@ -9,6 +9,8 @@ import re
 import uuid
 from typing import Any
 
+from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_AzureCosmosdb
+
 from .document_store import (
     DocumentNotFoundError,
     DocumentStore,
@@ -31,7 +33,9 @@ class AzureCosmosDocumentStore(DocumentStore):
     """Azure Cosmos DB document store implementation using Core (SQL) API."""
 
     @classmethod
-    def from_config(cls, config: Any) -> "AzureCosmosDocumentStore":
+    def from_config(
+        cls, config: DriverConfig_DocumentStore_AzureCosmosdb
+    ) -> "AzureCosmosDocumentStore":
         """Create an AzureCosmosDocumentStore from configuration.
 
         Args:
@@ -45,37 +49,22 @@ class AzureCosmosDocumentStore(DocumentStore):
         Raises:
             AttributeError: If required config attributes are missing
         """
-        extra_kwargs: dict[str, Any] = {}
-        if isinstance(config, dict):
-            for k, v in config.items():
-                if k not in {"endpoint", "key", "database", "container", "partition_key"}:
-                    extra_kwargs[k] = v
-
         kwargs: dict[str, Any] = {}
 
-        # All fields are accessed via getattr for consistency
-        endpoint = getattr(config, "endpoint", None)
-        if endpoint is not None:
-            kwargs["endpoint"] = endpoint
+        if config.endpoint is not None:
+            kwargs["endpoint"] = config.endpoint
 
-        key = getattr(config, "key", None)
-        if key is not None:
-            kwargs["key"] = key
+        if config.key is not None:
+            kwargs["key"] = config.key
 
-        database = getattr(config, "database", None)
-        if database is not None:
-            kwargs["database"] = database
+        if config.database is not None:
+            kwargs["database"] = config.database
 
-        container = getattr(config, "container", None)
-        if container is not None:
-            kwargs["container"] = container
+        if config.container is not None:
+            kwargs["container"] = config.container
 
-        partition_key = getattr(config, "partition_key", None)
-        if partition_key is not None:
-            kwargs["partition_key"] = partition_key
-
-        # Merge extra kwargs
-        kwargs.update(extra_kwargs)
+        if config.partition_key is not None:
+            kwargs["partition_key"] = config.partition_key
 
         return cls(**kwargs)
 
