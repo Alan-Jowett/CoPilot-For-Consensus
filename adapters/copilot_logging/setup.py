@@ -47,13 +47,13 @@ setup(
             # Pin to the current beta until a stable 1.x release is available
             # azure-monitor-opentelemetry-exporter==1.0.0b21 requires opentelemetry ~=1.21
             "azure-monitor-opentelemetry-exporter==1.0.0b21",
-            "opentelemetry-api~=1.21.0",
+            "opentelemetry-api~=1.39.1",
             "opentelemetry-sdk~=1.21.0",
         ],
         # All optional backends
         "all": [
             "azure-monitor-opentelemetry-exporter==1.0.0b21",
-            "opentelemetry-api~=1.21.0",
+            "opentelemetry-api~=1.39.1",
             "opentelemetry-sdk~=1.21.0",
         ],
         # Test extra includes all drivers for factory tests
@@ -61,7 +61,7 @@ setup(
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
             "azure-monitor-opentelemetry-exporter==1.0.0b21",
-            "opentelemetry-api~=1.21.0",
+            "opentelemetry-api~=1.39.1",
             "opentelemetry-sdk~=1.21.0",
         ],
     },
