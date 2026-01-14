@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_SecretProvider_AzureKeyVault:
     """Configuration for secret_provider adapter using azure_key_vault driver."""
     client_id: Optional[str] = None
-    """Azure client ID (optional; managed identity may be used)"""
+    # Azure client ID (optional; managed identity may be used)
     client_secret: Optional[str] = None
     # Azure client secret (optional; managed identity may be used)
     tenant_id: Optional[str] = None
@@ -30,7 +30,7 @@ class DriverConfig_SecretProvider_AzureKeyVault:
 class DriverConfig_SecretProvider_Local:
     """Configuration for secret_provider adapter using local driver."""
     base_path: Optional[str] = '/run/secrets'
-    """Base path for secret storage"""
+    # Base path for secret storage
 
 
 @dataclass

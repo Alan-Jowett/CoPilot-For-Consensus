@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_MessageBus_AzureServiceBus:
     """Configuration for message_bus adapter using azure_service_bus driver."""
     auto_complete: Optional[bool] = False
-    """Automatically complete messages after processing"""
+    # Automatically complete messages after processing
     connection_string: Optional[str] = None
     # Azure Service Bus connection string (used when not using managed identity)
     max_wait_time: Optional[int] = 5
@@ -42,7 +42,7 @@ class DriverConfig_MessageBus_Noop:
 class DriverConfig_MessageBus_Rabbitmq:
     """Configuration for message_bus adapter using rabbitmq driver."""
     auto_ack: Optional[bool] = False
-    """Automatically acknowledge messages after processing"""
+    # Automatically acknowledge messages after processing
     exchange: Optional[str] = 'copilot.events'
     # RabbitMQ exchange name for publishing
     exchange_name: Optional[str] = 'copilot.events'

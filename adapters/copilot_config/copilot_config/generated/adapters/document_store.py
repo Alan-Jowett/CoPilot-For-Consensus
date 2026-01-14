@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_DocumentStore_AzureCosmosdb:
     """Configuration for document_store adapter using azure_cosmosdb driver."""
     container: Optional[str] = 'documents'
-    """Cosmos DB container name"""
+    # Cosmos DB container name
     database: Optional[str] = 'copilot'
     # Cosmos DB database name
     endpoint: Optional[str] = None
@@ -36,7 +36,7 @@ class DriverConfig_DocumentStore_Inmemory:
 class DriverConfig_DocumentStore_Mongodb:
     """Configuration for document_store adapter using mongodb driver."""
     database: Optional[str] = 'copilot'
-    """MongoDB database name"""
+    # MongoDB database name
     host: Optional[str] = 'documentdb'
     # MongoDB hostname
     password: Optional[str] = None

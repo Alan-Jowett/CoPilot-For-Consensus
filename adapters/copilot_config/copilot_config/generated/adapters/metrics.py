@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_Metrics_AzureMonitor:
     """Configuration for metrics adapter using azure_monitor driver."""
     azure_monitor_instrumentation_key: Optional[str] = None
-    """Application Insights instrumentation key"""
+    # Application Insights instrumentation key
     connection_string: Optional[str] = None
     # Azure Monitor connection string (e.g., InstrumentationKey=... or Connection string)
     export_interval_millis: Optional[int] = 60000
@@ -36,7 +36,7 @@ class DriverConfig_Metrics_Noop:
 class DriverConfig_Metrics_Prometheus:
     """Configuration for metrics adapter using prometheus driver."""
     namespace: Optional[str] = 'copilot'
-    """Namespace prefix for all metrics"""
+    # Namespace prefix for all metrics
     raise_on_error: Optional[bool] = False
     # Whether to raise exceptions on metric errors
     registry: Optional[Dict[str, Any]] = None
@@ -47,7 +47,7 @@ class DriverConfig_Metrics_Prometheus:
 class DriverConfig_Metrics_Pushgateway:
     """Configuration for metrics adapter using pushgateway driver."""
     gateway: str
-    """Pushgateway address (e.g., pushgateway:9091 or http://pushgateway:9091)"""
+    # Pushgateway address (e.g., pushgateway:9091 or http://pushgateway:9091)
     grouping_key: Optional[Dict[str, Any]] = None
     # Optional grouping key dictionary for metric grouping
     job: Optional[str] = None

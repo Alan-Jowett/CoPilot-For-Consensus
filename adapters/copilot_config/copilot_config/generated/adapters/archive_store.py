@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_ArchiveStore_Azureblob:
     """Configuration for archive_store adapter using azureblob driver."""
     azureblob_account_name: str
-    """Azure Storage account name"""
+    # Azure Storage account name
     azureblob_account_key: Optional[str] = None
     # Azure Storage account key (alternative to managed identity)
     azureblob_container_name: Optional[str] = 'archives'
@@ -26,7 +26,7 @@ class DriverConfig_ArchiveStore_Azureblob:
 class DriverConfig_ArchiveStore_Local:
     """Configuration for archive_store adapter using local driver."""
     archive_base_path: Optional[str] = '/data/raw_archives'
-    """Base path for archive storage on local filesystem"""
+    # Base path for archive storage on local filesystem
 
 
 @dataclass

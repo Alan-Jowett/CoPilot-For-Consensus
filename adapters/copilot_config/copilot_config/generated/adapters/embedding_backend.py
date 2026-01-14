@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_EmbeddingBackend_AzureOpenai:
     """Configuration for embedding_backend adapter using azure_openai driver."""
     api_base: Optional[str] = None
-    """Azure OpenAI endpoint URL"""
+    # Azure OpenAI endpoint URL
     api_key: Optional[str] = None
     # Azure OpenAI API key
     api_version: Optional[str] = '2024-02-15-preview'
@@ -30,7 +30,7 @@ class DriverConfig_EmbeddingBackend_AzureOpenai:
 class DriverConfig_EmbeddingBackend_Huggingface:
     """Configuration for embedding_backend adapter using huggingface driver."""
     cache_dir: Optional[str] = None
-    """Cache directory for model files"""
+    # Cache directory for model files
     device: Optional[str] = None
     # Device to use (cpu, cuda, mps)
     max_length: Optional[int] = 512
@@ -43,14 +43,14 @@ class DriverConfig_EmbeddingBackend_Huggingface:
 class DriverConfig_EmbeddingBackend_Mock:
     """Configuration for embedding_backend adapter using mock driver."""
     dimension: Optional[int] = 384
-    """Embedding dimension for mock backend"""
+    # Embedding dimension for mock backend
 
 
 @dataclass
 class DriverConfig_EmbeddingBackend_Openai:
     """Configuration for embedding_backend adapter using openai driver."""
     api_key: Optional[str] = None
-    """OpenAI API key"""
+    # OpenAI API key
     model: Optional[str] = None
     # OpenAI embedding model name
     organization: Optional[str] = None
@@ -61,7 +61,7 @@ class DriverConfig_EmbeddingBackend_Openai:
 class DriverConfig_EmbeddingBackend_Sentencetransformers:
     """Configuration for embedding_backend adapter using sentencetransformers driver."""
     cache_dir: Optional[str] = None
-    """Cache folder for model files"""
+    # Cache folder for model files
     device: Optional[str] = 'cpu'
     # Device to use (cpu, cuda, mps)
     model_name: Optional[str] = 'all-MiniLM-L6-v2'

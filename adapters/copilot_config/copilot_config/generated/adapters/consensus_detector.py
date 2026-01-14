@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_ConsensusDetector_Heuristic:
     """Configuration for consensus_detector adapter using heuristic driver."""
     agreement_threshold: Optional[int] = 3
-    """Minimum agreement signals for consensus"""
+    # Minimum agreement signals for consensus
     min_participants: Optional[int] = 2
     # Minimum participants for valid consensus
     stagnation_days: Optional[int] = 7
@@ -26,14 +26,14 @@ class DriverConfig_ConsensusDetector_Heuristic:
 class DriverConfig_ConsensusDetector_Ml:
     """Configuration for consensus_detector adapter using ml driver."""
     model_path: Optional[str] = None
-    """Path to trained model file"""
+    # Path to trained model file
 
 
 @dataclass
 class DriverConfig_ConsensusDetector_Mock:
     """Configuration for consensus_detector adapter using mock driver."""
     confidence: Optional[float] = 0.8
-    """Confidence score to return"""
+    # Confidence score to return
     level: Optional[str] = 'consensus'
     # Consensus level to return (strong_consensus, consensus, weak_consensus, no_consensus, dissent, stagnation)
 

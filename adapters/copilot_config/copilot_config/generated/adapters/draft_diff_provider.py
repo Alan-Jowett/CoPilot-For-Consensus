@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_DraftDiffProvider_Datatracker:
     """Configuration for draft_diff_provider adapter using datatracker driver."""
     base_url: Optional[str] = 'https://datatracker.ietf.org'
-    """Base URL for the Datatracker service"""
+    # Base URL for the Datatracker service
     diff_format: Optional[str] = 'html'
     # Default format for diffs
 
@@ -24,7 +24,7 @@ class DriverConfig_DraftDiffProvider_Datatracker:
 class DriverConfig_DraftDiffProvider_Mock:
     """Configuration for draft_diff_provider adapter using mock driver."""
     default_format: Optional[str] = 'text'
-    """Default format for auto-generated mock diffs"""
+    # Default format for auto-generated mock diffs
     mock_diffs: Optional[Dict[str, Any]] = None
     # Predefined mock diffs as a mapping (not fully schematized here)
 

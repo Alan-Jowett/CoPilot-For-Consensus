@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_VectorStore_AzureAiSearch:
     """Configuration for vector_store adapter using azure_ai_search driver."""
     api_key: Optional[str] = None
-    """Azure AI Search API key (alternative to managed identity)"""
+    # Azure AI Search API key (alternative to managed identity)
     endpoint: Optional[str] = None
     # Azure AI Search endpoint URL
     index_name: Optional[str] = 'embeddings'
@@ -30,7 +30,7 @@ class DriverConfig_VectorStore_AzureAiSearch:
 class DriverConfig_VectorStore_Faiss:
     """Configuration for vector_store adapter using faiss driver."""
     dimension: Optional[int] = 384
-    """Embedding vector dimension"""
+    # Embedding vector dimension
     index_type: Optional[str] = 'flat'
     # FAISS index type (flat, ivf)
     persist_path: Optional[str] = None
@@ -47,7 +47,7 @@ class DriverConfig_VectorStore_Inmemory:
 class DriverConfig_VectorStore_Qdrant:
     """Configuration for vector_store adapter using qdrant driver."""
     api_key: Optional[str] = None
-    """Qdrant API key (optional)"""
+    # Qdrant API key (optional)
     collection_name: Optional[str] = 'embeddings'
     # Qdrant collection name for embeddings
     distance: Optional[str] = 'cosine'

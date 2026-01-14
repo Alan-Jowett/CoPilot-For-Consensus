@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_Logger_AzureMonitor:
     """Configuration for logger adapter using azure_monitor driver."""
     console_log: Optional[bool] = False
-    """Also log to console when using Azure Monitor"""
+    # Also log to console when using Azure Monitor
     instrumentation_key: Optional[str] = None
     # Application Insights instrumentation key for Azure Monitor logging
     level: Optional[str] = 'INFO'
@@ -28,7 +28,7 @@ class DriverConfig_Logger_AzureMonitor:
 class DriverConfig_Logger_Silent:
     """Configuration for logger adapter using silent driver."""
     level: Optional[str] = 'INFO'
-    """Logging level for silent logger"""
+    # Logging level for silent logger
     name: Optional[str] = None
     # Logger name (optional)
 
@@ -37,7 +37,7 @@ class DriverConfig_Logger_Silent:
 class DriverConfig_Logger_Stdout:
     """Configuration for logger adapter using stdout driver."""
     level: Optional[str] = 'INFO'
-    """Logging level for stdout logger"""
+    # Logging level for stdout logger
     name: Optional[str] = None
     # Logger name (optional)
 

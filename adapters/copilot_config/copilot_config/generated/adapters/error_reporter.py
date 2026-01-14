@@ -15,14 +15,14 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_ErrorReporter_Console:
     """Configuration for error_reporter adapter using console driver."""
     logger_name: Optional[str] = None
-    """Logger name used by the console reporter (defaults to service logger)"""
+    # Logger name used by the console reporter (defaults to service logger)
 
 
 @dataclass
 class DriverConfig_ErrorReporter_Sentry:
     """Configuration for error_reporter adapter using sentry driver."""
     dsn: Optional[str] = None
-    """Sentry DSN for reporting errors"""
+    # Sentry DSN for reporting errors
     environment: Optional[str] = 'production'
     # Environment name to tag Sentry events
 

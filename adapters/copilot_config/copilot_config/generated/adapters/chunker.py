@@ -15,14 +15,14 @@ from typing import Any, Dict, List, Literal, Optional, Union
 class DriverConfig_Chunker_FixedSize:
     """Configuration for chunker adapter using fixed_size driver."""
     messages_per_chunk: Optional[int] = 5
-    """Number of messages per chunk"""
+    # Number of messages per chunk
 
 
 @dataclass
 class DriverConfig_Chunker_Semantic:
     """Configuration for chunker adapter using semantic driver."""
     split_on_speaker: Optional[bool] = False
-    """Split on speaker changes"""
+    # Split on speaker changes
     target_chunk_size: Optional[int] = 400
     # Target chunk size in tokens
 
@@ -31,7 +31,7 @@ class DriverConfig_Chunker_Semantic:
 class DriverConfig_Chunker_TokenWindow:
     """Configuration for chunker adapter using token_window driver."""
     chunk_size: Optional[int] = 384
-    """Target chunk size in tokens"""
+    # Target chunk size in tokens
     max_chunk_size: Optional[int] = 512
     # Maximum chunk size in tokens
     min_chunk_size: Optional[int] = 100

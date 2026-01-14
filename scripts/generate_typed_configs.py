@@ -151,10 +151,8 @@ def generate_driver_dataclass(
                 lines.append(f"    {field_name}: {type_annotation}")
 
             if description:
-                desc_safe = description.replace('"', '\\"')
-                lines.append(
-                    f'    """{desc_safe}"""' if len(lines) == 4 else f"    # {desc_safe}"
-                )
+                desc_safe = description.replace("\n", " ").strip()
+                lines.append(f"    # {desc_safe}")
 
     return class_name, "\n".join(lines)
 

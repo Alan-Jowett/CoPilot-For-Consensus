@@ -58,7 +58,7 @@ def _load_and_populate_driver_config(
     common_properties: dict[str, Any] | None,
     secret_provider: Any | None,
 ) -> Any:
-    """Load and populate a driver configuration dataclass.
+    """Load and populate a driver configuration.
 
     Args:
         driver_schema: The driver schema dictionary
@@ -66,7 +66,7 @@ def _load_and_populate_driver_config(
         secret_provider: Optional secret provider
 
     Returns:
-        Populated driver config dataclass instance
+        Dictionary of config values that can be used to construct a driver dataclass instance.
     """
     # Merge driver properties with common properties
     properties = driver_schema.get("properties", {})
@@ -99,6 +99,7 @@ def _load_and_populate_driver_config(
                     try:
                         value = int(value)
                     except ValueError:
+                        # Ignore conversion errors and keep the original string value.
                         pass
                 elif prop_spec.get("type") in ("bool", "boolean"):
                     value = value.lower() in ("true", "1", "yes")
@@ -118,6 +119,7 @@ def _load_and_populate_driver_config(
                         value = secret_value
                         break
                 except Exception:
+                    # Secret providers may throw for missing/denied secrets; ignore and try next.
                     continue
 
         else:
@@ -260,7 +262,6 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
     # Phase 1: Initialize secret provider if available
     secret_provider = None
     try:
-        import copilot_secrets  # noqa: F401
         from copilot_secrets import create_secret_provider as create_secrets_provider
 
         from .secret_provider import SecretConfigProvider
@@ -300,6 +301,7 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
                         )
                         secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
     except Exception:
+        # Typed config is usable without secrets support; treat secrets as optional.
         pass
 
     # Phase 2: Load service settings
@@ -327,6 +329,7 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
                     try:
                         value = int(value)
                     except ValueError:
+                        # Ignore conversion errors and keep the original string value.
                         pass
                 elif setting_spec.get("type") in ("bool", "boolean"):
                     value = value.lower() in ("true", "1", "yes")
@@ -339,6 +342,7 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
                 try:
                     value = secret_provider.get(secret_name)
                 except Exception:
+                    # Secrets are optional and may be unavailable at runtime.
                     pass
 
         else:
