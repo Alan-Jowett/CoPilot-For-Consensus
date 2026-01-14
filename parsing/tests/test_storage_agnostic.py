@@ -16,9 +16,17 @@ from copilot_storage import create_document_store
 
 def create_test_archive_store():
     """Create a test archive store with automatic temporary directory cleanup."""
-    from copilot_config import DriverConfig
+    from copilot_config.generated.adapters.archive_store import (
+        AdapterConfig_ArchiveStore,
+        DriverConfig_ArchiveStore_Local,
+    )
     tmpdir = tempfile.TemporaryDirectory()
-    archive_store = create_archive_store("local", DriverConfig(driver_name="local", config={"archive_base_path": tmpdir.name}))
+    archive_store = create_archive_store(
+        AdapterConfig_ArchiveStore(
+            archive_store_type="local",
+            driver=DriverConfig_ArchiveStore_Local(archive_base_path=tmpdir.name),
+        )
+    )
     archive_store._tmpdir = tmpdir  # keep tempdir alive for store lifetime
     return archive_store
 

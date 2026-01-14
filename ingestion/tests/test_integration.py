@@ -107,8 +107,19 @@ class TestIngestionIntegration:
         document_store.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
+
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
 
         service = IngestionService(
             config, publisher, document_store=document_store, archive_store=archive_store, logger=test_logger
@@ -170,8 +181,19 @@ class TestIngestionIntegration:
         document_store.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
+
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
 
         service = IngestionService(
             config, publisher, document_store=document_store, archive_store=archive_store, logger=test_logger
@@ -209,8 +231,19 @@ class TestIngestionIntegration:
         publisher.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
+
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
 
         service = IngestionService(config, publisher, archive_store=archive_store, logger=test_logger)
 
@@ -237,8 +270,19 @@ class TestIngestionIntegration:
         publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
         publisher1 = create_publisher(driver_name="noop", driver_config=publisher_config)
         publisher1.connect()
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
+
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
         service1 = IngestionService(
             config, publisher1, document_store=document_store, archive_store=archive_store, logger=test_logger
         )
@@ -274,8 +318,19 @@ class TestIngestionIntegration:
         publisher.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
+
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
 
         service = IngestionService(config, publisher, archive_store=archive_store, logger=test_logger)
         service.ingest_all_enabled_sources()
@@ -312,8 +367,19 @@ class TestIngestionIntegration:
         publisher.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
+
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
 
         service = IngestionService(config, publisher, archive_store=archive_store, logger=test_logger)
         service.ingest_all_enabled_sources()
@@ -356,8 +422,19 @@ class TestIngestionIntegration:
         publisher.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
+
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
 
         service = IngestionService(config, publisher, archive_store=archive_store, logger=test_logger)
         service.ingest_all_enabled_sources()

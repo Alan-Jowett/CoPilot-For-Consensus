@@ -9,12 +9,33 @@ import tempfile
 from pathlib import Path
 
 import pytest
+
+
+def _add_adapter_to_path(adapter_dir_name: str) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    adapter_root = repo_root / "adapters" / adapter_dir_name
+    if adapter_root.exists():
+        sys.path.insert(0, str(adapter_root))
+
+
+# Make adapter packages importable when running parsing tests in isolation.
+for _adapter in (
+    "copilot_config",
+    "copilot_message_bus",
+    "copilot_schema_validation",
+    "copilot_storage",
+    "copilot_archive_store",
+):
+    _add_adapter_to_path(_adapter)
+
+
+# Add service package to path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+
 from copilot_message_bus import create_publisher, create_subscriber
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import create_document_store
-
-# Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 @pytest.fixture(scope="session", autouse=True)

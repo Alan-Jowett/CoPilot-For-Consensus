@@ -256,14 +256,10 @@ def main():
 
         # Create archive store from adapter configuration (required)
         log.info("Creating archive store from adapter configuration...")
-        archive_store_adapter = config.get_adapter("archive_store")
-        if archive_store_adapter is None:
+        if config.archive_store is None:
             raise ValueError("archive_store adapter is required")
 
-        archive_store = create_archive_store(
-            driver_name=archive_store_adapter.driver_name,
-            driver_config=archive_store_adapter.driver_config,
-        )
+        archive_store = create_archive_store(config.archive_store)
 
         # Create parsing service
         parsing_service = ParsingService(

@@ -15,8 +15,9 @@ Minimal exports - services should only use create_archive_store():
     from copilot_archive_store import create_archive_store
 
     config = load_service_config("parsing")
-    archive_adapter = config.get_adapter("archive_store")
-    store = create_archive_store(archive_adapter.driver_name, archive_adapter.driver_config)
+    if config.archive_store is None:
+        raise ValueError("archive_store adapter is required")
+    store = create_archive_store(config.archive_store)
 """
 
 __version__ = "0.1.0"

@@ -12,7 +12,7 @@ from typing import Any
 
 from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.archive_store import DriverConfig_ArchiveStore_Azureblob
 
 from .archive_store import (
     ArchiveStore,
@@ -202,8 +202,10 @@ class AzureBlobArchiveStore(ArchiveStore):
         self._load_metadata()
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "AzureBlobArchiveStore":
-        """Create AzureBlobArchiveStore from DriverConfig.
+    def from_config(
+        cls, driver_config: DriverConfig_ArchiveStore_Azureblob
+    ) -> "AzureBlobArchiveStore":
+        """Create AzureBlobArchiveStore from typed driver config.
 
         Args:
             driver_config: DriverConfig object containing archive store configuration
@@ -216,29 +218,14 @@ class AzureBlobArchiveStore(ArchiveStore):
         Raises:
             ValueError: If required configuration is missing or invalid
         """
-        # Extract authentication settings (one of these must be present)
-        connection_string = driver_config.connection_string
-        account_name = driver_config.account_name
-
-        if not connection_string and not account_name:
-            raise ValueError(
-                "AzureBlobArchiveStore requires either 'connection_string' or 'account_name' "
-                "in driver configuration"
-            )
-
-        # Extract optional credentials and container settings
-        account_key = driver_config.account_key
-        sas_token = driver_config.sas_token
-        container_name = driver_config.container_name or "raw-archives"
-        prefix = driver_config.prefix
+        account_name = driver_config.azureblob_account_name
+        account_key = driver_config.azureblob_account_key
+        container_name = driver_config.azureblob_container_name or "archives"
 
         return cls(
-            connection_string=connection_string,
             account_name=account_name,
             account_key=account_key,
-            sas_token=sas_token,
             container_name=container_name,
-            prefix=prefix,
         )
 
     def _load_metadata(self) -> None:

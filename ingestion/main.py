@@ -305,22 +305,10 @@ def main():
         log.info("Document store configured")
 
         log.info("Creating archive store from adapter configuration...")
-        archive_store_adapter = config.get_adapter("archive_store")
-        if archive_store_adapter is None:
+        if config.archive_store is None:
             raise ValueError("archive_store adapter is required")
 
-        archive_store_driver = getattr(config, "archive_store_type", archive_store_adapter.driver_name)
-        if archive_store_driver != archive_store_adapter.driver_name:
-            log.warning(
-                "Archive store type mismatch between schema and adapter; using schema value",
-                schema_archive_store_type=archive_store_driver,
-                adapter_driver=archive_store_adapter.driver_name,
-            )
-
-        archive_store = create_archive_store(
-            driver_name=archive_store_driver,
-            driver_config=archive_store_adapter.driver_config,
-        )
+        archive_store = create_archive_store(config.archive_store)
 
         # Get sources from config (empty list if not configured)
         sources = getattr(config, 'sources', [])

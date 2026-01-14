@@ -130,13 +130,43 @@ class TestAzureBlobArchiveStore:
             mock_bsc.from_connection_string.assert_called_once_with(conn_str)
 
     def test_initialization_missing_credentials(self):
-        """Test that initialization fails without credentials."""
-        # Managed identity path requires azure-identity; expect a clear connection error when absent
-        with pytest.raises(ArchiveStoreConnectionError, match="azure-identity is required"):
-            AzureBlobArchiveStore(
+        """Test managed identity behavior when explicit credentials are not provided.
+
+        This test must not perform network I/O. It behaves as follows:
+        - If `azure-identity` is not installed, initialization should fail with a clear message.
+        - If `azure-identity` is installed, initialization should succeed when the Azure SDK is mocked.
+        """
+        try:
+            import azure.identity  # noqa: F401
+            has_identity = True
+        except ImportError:
+            has_identity = False
+
+        if not has_identity:
+            with pytest.raises(ArchiveStoreConnectionError, match="azure-identity is required"):
+                AzureBlobArchiveStore(
+                    account_name="testaccount",
+                    container_name="archives",
+                )
+            return
+
+        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+            mock_service = MagicMock()
+            mock_bsc.return_value = mock_service
+
+            mock_container = MagicMock()
+            mock_service.get_container_client.return_value = mock_container
+            mock_container.create_container.return_value = None
+
+            mock_metadata_blob = MagicMock()
+            mock_metadata_blob.download_blob.side_effect = ResourceNotFoundError()
+            mock_container.get_blob_client.return_value = mock_metadata_blob
+
+            store = AzureBlobArchiveStore(
                 account_name="testaccount",
-                container_name="archives"
+                container_name="archives",
             )
+            assert store.account_name == "testaccount"
 
     def test_initialization_missing_account_name(self):
         """Test that initialization fails without account name."""
