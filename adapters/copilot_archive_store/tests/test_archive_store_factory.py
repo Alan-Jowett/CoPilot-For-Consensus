@@ -47,7 +47,7 @@ class TestArchiveStoreFactory:
 
     def test_create_store_unknown_type(self):
         """Test error for unknown driver type."""
-        with pytest.raises(ValueError, match="Unknown archive store driver"):
+        with pytest.raises(ValueError, match=r"Unknown archive_store driver"):
             create_archive_store(
                 AdapterConfig_ArchiveStore(
                     archive_store_type="unknown",  # type: ignore[arg-type]

@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 from copilot_config.generated.adapters.chunker import (
+    AdapterConfig_Chunker,
     DriverConfig_Chunker_FixedSize,
     DriverConfig_Chunker_Semantic,
     DriverConfig_Chunker_TokenWindow,
@@ -100,5 +101,10 @@ class TestChunkerAllDrivers:
             config = config_cls(**config_dict)
             
             # Should not raise any exceptions
-            chunker = create_chunker(driver_name=driver, driver_config=config)
+            chunker = create_chunker(
+                AdapterConfig_Chunker(
+                    chunking_strategy=driver,
+                    driver=config,
+                )
+            )
             assert chunker is not None, f"Failed to create chunker for driver: {driver}"

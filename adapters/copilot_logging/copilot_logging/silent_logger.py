@@ -3,9 +3,9 @@
 
 """Silent logger implementation for testing."""
 
-from typing import Any
+from typing import Any, cast
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.logger import DriverConfig_Logger_Silent
 
 from .logger import Logger
 
@@ -24,12 +24,12 @@ class SilentLogger(Logger):
             level: Logging level (stored but not used for filtering in silent mode)
             name: Optional logger name for identification
         """
-        self.level = level.upper() if level else "INFO"
+        self.level = level.upper()
         self.name = name or "copilot"
         self.logs: list[dict[str, Any]] = []
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "SilentLogger":
+    def from_config(cls, driver_config: DriverConfig_Logger_Silent) -> "SilentLogger":
         """Create a SilentLogger from driver configuration.
 
         Args:
@@ -42,13 +42,8 @@ class SilentLogger(Logger):
         Raises:
             TypeError: If driver_config is not a DriverConfig instance
         """
-        # Required field with schema default
-        level = driver_config.level
-
-        # Optional field
-        name = driver_config.name
-
-        return cls(level=level, name=name)
+        level = cast(str, driver_config.level)
+        return cls(level=level, name=driver_config.name)
 
     def _log(self, level: str, message: str, **kwargs: Any) -> None:
         """Internal method to store log message.
@@ -58,7 +53,7 @@ class SilentLogger(Logger):
             message: The log message
             **kwargs: Additional structured data to log
         """
-        log_entry = {
+        log_entry: dict[str, Any] = {
             "level": level,
             "message": message,
         }
@@ -108,7 +103,7 @@ class SilentLogger(Logger):
         """Clear all stored log messages (useful for testing)."""
         self.logs.clear()
 
-    def get_logs(self, level: str = None) -> list[dict[str, Any]]:
+    def get_logs(self, level: str | None = None) -> list[dict[str, Any]]:
         """Get stored log messages, optionally filtered by level.
 
         Args:
@@ -121,7 +116,7 @@ class SilentLogger(Logger):
             return self.logs
         return [log for log in self.logs if log["level"] == level]
 
-    def has_log(self, message: str, level: str = None) -> bool:
+    def has_log(self, message: str, level: str | None = None) -> bool:
         """Check if a specific log message exists.
 
         Args:

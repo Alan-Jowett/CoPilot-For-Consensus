@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Union
 
+from copilot_config.adapter_factory import create_adapter
 from copilot_config.generated.adapters.chunker import (
     AdapterConfig_Chunker,
     DriverConfig_Chunker_FixedSize,
@@ -483,53 +484,28 @@ class SemanticChunker(ThreadChunker):
 
 
 def create_chunker(
-    driver_name: str | AdapterConfig_Chunker,
-    driver_config: ChunkerDriverConfig | None = None,
+    config: AdapterConfig_Chunker,
 ) -> ThreadChunker:
     """Create a chunker from typed configuration.
 
-    Supports either:
-    - `create_chunker(config: AdapterConfig_Chunker)`
-    - `create_chunker(driver_name: str, driver_config: <typed driver config>)`
-
-    The factory is intentionally permissive about `driver_config` to ease
-    migration from legacy config objects that expose attribute-style access.
-
     Args:
-        driver_name: Type of chunker ("token_window", "fixed_size", "semantic")
-        driver_config: DriverConfig object for the chosen chunker driver
+        config: Typed adapter configuration for chunker.
 
     Returns:
-        ThreadChunker instance
+        ThreadChunker instance.
 
     Raises:
-        ValueError: If driver_name is unknown or required parameters are missing
+        ValueError: If config is missing or chunking_strategy is not recognized.
     """
-    if isinstance(driver_name, AdapterConfig_Chunker):
-        config = driver_name
-        driver_name = config.chunking_strategy
-        driver_config = config.driver
-
-    if not driver_name:
-        raise ValueError(
-            "driver_name parameter is required. "
-            "Must be one of: token_window, fixed_size, semantic"
-        )
-
-    if driver_config is None:
-        raise ValueError("driver_config parameter is required")
-
-    name = str(driver_name).lower()
-
-    if name == "token_window":
-        return TokenWindowChunker.from_config(driver_config)
-    elif name == "fixed_size":
-        return FixedSizeChunker.from_config(driver_config)
-    elif name == "semantic":
-        return SemanticChunker.from_config(driver_config)
-    else:
-        raise ValueError(
-            f"Unknown chunker driver: {driver_name}. "
-            f"Valid options: token_window, fixed_size, semantic"
-        )
+    return create_adapter(
+        config,
+        adapter_name="chunker",
+        get_driver_type=lambda c: c.chunking_strategy,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "token_window": TokenWindowChunker.from_config,
+            "fixed_size": FixedSizeChunker.from_config,
+            "semantic": SemanticChunker.from_config,
+        },
+    )
 

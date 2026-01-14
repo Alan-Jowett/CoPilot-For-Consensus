@@ -16,7 +16,7 @@ Example:
     >>> # Load chunker adapter from service config
     >>> config = load_service_config("chunking")
     >>> chunker_adapter = config.get_adapter("chunker")
-    >>> chunker = create_chunker(chunker_adapter.driver_name, chunker_adapter.driver_config)
+    >>> chunker = create_chunker(chunker_adapter)
     >>>
     >>> # Create a thread
     >>> thread = Thread(

@@ -6,11 +6,22 @@
 from unittest.mock import MagicMock
 
 import pytest
-from copilot_config import load_driver_config
+from copilot_config.generated.adapters.logger import (
+    AdapterConfig_Logger,
+    DriverConfig_Logger_AzureMonitor,
+)
 
 from copilot_logging.factory import create_logger
 from copilot_logging.logger import Logger
 from copilot_logging.azure_monitor_logger import AzureMonitorLogger
+
+
+try:
+    import azure.monitor.opentelemetry.exporter  # type: ignore[import-not-found]
+
+    _AZURE_MONITOR_EXPORTER_AVAILABLE = True
+except Exception:
+    _AZURE_MONITOR_EXPORTER_AVAILABLE = False
 
 
 class TestAzureMonitorLoggerFactory:
@@ -22,8 +33,12 @@ class TestAzureMonitorLoggerFactory:
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
         monkeypatch.delenv("AZURE_MONITOR_INSTRUMENTATION_KEY", raising=False)
 
-        config = load_driver_config(None, "logger", "azure_monitor", fields={"level": "INFO"})
-        logger = create_logger("azure_monitor", config)
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="azure_monitor",
+                driver=DriverConfig_Logger_AzureMonitor(level="INFO"),
+            )
+        )
 
         assert isinstance(logger, AzureMonitorLogger)
         assert isinstance(logger, Logger)
@@ -34,17 +49,25 @@ class TestAzureMonitorLoggerFactory:
         """Test creating an Azure Monitor logger with a custom name."""
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
 
-        config = load_driver_config(None, "logger", "azure_monitor", fields={"level": "INFO", "name": "test-service"})
-        logger = create_logger("azure_monitor", config)
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="azure_monitor",
+                driver=DriverConfig_Logger_AzureMonitor(level="INFO", name="test-service"),
+            )
+        )
 
         assert isinstance(logger, AzureMonitorLogger)
         assert logger.name == "test-service"
 
     def test_factory_rejects_unknown_logger_type(self):
         """Test that factory rejects unknown logger types."""
-        config = load_driver_config(None, "logger", "azure_monitor", fields={})
-        with pytest.raises(ValueError, match="Unknown logger driver"):
-            create_logger("unknown_logger", config)
+        with pytest.raises(ValueError, match=r"Unknown logger driver: unknown_logger"):
+            create_logger(
+                AdapterConfig_Logger(
+                    logger_type="unknown_logger",  # type: ignore[arg-type]
+                    driver=DriverConfig_Logger_AzureMonitor(),
+                )
+            )
 
 
 class TestAzureMonitorLoggerInitialization:
@@ -201,8 +224,15 @@ class TestAzureMonitorLoggerLogging:
 
         # Create a fresh logger configured at WARNING level so level filtering
         # is set up through the normal construction path.
-        config = load_driver_config(None, "logger", "azure_monitor", fields={"level": "WARNING", "name": "test-filter-unique"})
-        logger = create_logger("azure_monitor", config)
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="azure_monitor",
+                driver=DriverConfig_Logger_AzureMonitor(
+                    level="WARNING",
+                    name="test-filter-unique",
+                ),
+            )
+        )
 
         # Attach a mock stdlib logger to observe which messages are emitted.
         logger._stdlib_logger = MagicMock()
@@ -256,6 +286,14 @@ class TestAzureMonitorLoggerIntegration:
 
 class TestAzureMonitorLoggerConfigurationPaths:
     """Tests for various configuration paths and Azure Monitor setup."""
+
+    pytestmark = pytest.mark.skipif(
+        not _AZURE_MONITOR_EXPORTER_AVAILABLE,
+        reason=(
+            "azure.monitor.opentelemetry.exporter not available; "
+            "install azure-monitor-opentelemetry-exporter to run these tests"
+        ),
+    )
 
     def test_instrumentation_key_builds_connection_string(self, monkeypatch):
         """Test that instrumentation_key parameter builds a connection string correctly."""

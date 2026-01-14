@@ -6,6 +6,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from copilot_config.adapter_factory import create_adapter
 from copilot_config.generated.adapters.archive_store import AdapterConfig_ArchiveStore
 
 
@@ -151,16 +152,16 @@ def create_archive_store(config: AdapterConfig_ArchiveStore) -> ArchiveStore:
     Raises:
         ValueError: If config is missing or archive_store_type is not recognized
     """
-    if config is None:
-        raise ValueError("archive_store config is required")
+    from .azure_blob_archive_store import AzureBlobArchiveStore
+    from .local_volume_archive_store import LocalVolumeArchiveStore
 
-    driver_name = config.archive_store_type
-
-    if driver_name == "local":
-        from .local_volume_archive_store import LocalVolumeArchiveStore
-        return LocalVolumeArchiveStore.from_config(config.driver)
-    if driver_name == "azureblob":
-        from .azure_blob_archive_store import AzureBlobArchiveStore
-        return AzureBlobArchiveStore.from_config(config.driver)
-
-    raise ValueError(f"Unknown archive store driver: {driver_name}")
+    return create_adapter(
+        config,
+        adapter_name="archive_store",
+        get_driver_type=lambda c: c.archive_store_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "local": LocalVolumeArchiveStore.from_config,
+            "azureblob": AzureBlobArchiveStore.from_config,
+        },
+    )

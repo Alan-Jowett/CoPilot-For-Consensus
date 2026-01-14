@@ -7,9 +7,9 @@ import json
 import logging
 import sys
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.logger import DriverConfig_Logger_Stdout
 
 from .logger import Logger
 
@@ -45,7 +45,7 @@ class StdoutLogger(Logger):
         self._stdlib_logger.setLevel(logging.NOTSET)
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "StdoutLogger":
+    def from_config(cls, driver_config: DriverConfig_Logger_Stdout) -> "StdoutLogger":
         """Create a StdoutLogger from driver configuration.
 
         Args:
@@ -58,13 +58,8 @@ class StdoutLogger(Logger):
         Raises:
             TypeError: If driver_config is not a DriverConfig instance
         """
-        # Required field with schema default
-        level = driver_config.level
-
-        # Optional field
-        name = driver_config.name
-
-        return cls(level=level, name=name)
+        level = cast(str, driver_config.level)
+        return cls(level=level, name=driver_config.name)
 
     def _log(self, level: str, message: str, **kwargs: Any) -> None:
         """Internal method to format and output log message.

@@ -10,8 +10,13 @@ instantiated via the factory with its required parameters.
 import json
 from pathlib import Path
 
-from copilot_config import DriverConfig
 from copilot_logging.factory import create_logger
+from copilot_config.generated.adapters.logger import (
+    AdapterConfig_Logger,
+    DriverConfig_Logger_AzureMonitor,
+    DriverConfig_Logger_Silent,
+    DriverConfig_Logger_Stdout,
+)
 
 
 def get_schema_dir():
@@ -76,6 +81,12 @@ class TestLoggerAllDrivers:
         drivers_enum = schema["properties"]["discriminant"]["enum"]
         drivers_dir = schema_dir / "drivers" / "logger"
         
+        driver_cls_by_name = {
+            "stdout": DriverConfig_Logger_Stdout,
+            "silent": DriverConfig_Logger_Silent,
+            "azure_monitor": DriverConfig_Logger_AzureMonitor,
+        }
+
         for driver in drivers_enum:
             # Load driver schema
             driver_schema_path = drivers_dir / f"logger_{driver}.json"
@@ -83,16 +94,15 @@ class TestLoggerAllDrivers:
             
             driver_schema = load_json(driver_schema_path)
             config_dict = get_minimal_config(driver_schema)
-            
-            # Get all allowed keys from schema
-            allowed_keys = set(driver_schema.get("properties", {}).keys())
-            
-            config = DriverConfig(
-                driver_name=driver,
-                config=config_dict,
-                allowed_keys=allowed_keys
-            )
-            
+
+            driver_cls = driver_cls_by_name[driver]
+            driver_config = driver_cls(**config_dict)
+
             # Should not raise any exceptions
-            logger = create_logger(driver_name=driver, driver_config=config)
+            logger = create_logger(
+                AdapterConfig_Logger(
+                    logger_type=driver,
+                    driver=driver_config,
+                )
+            )
             assert logger is not None, f"Failed to create logger for driver: {driver}"

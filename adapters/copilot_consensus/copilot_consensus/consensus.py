@@ -14,8 +14,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, TypeAlias
+from typing import Any
 
+from copilot_config.adapter_factory import create_adapter
 from copilot_config.generated.adapters.consensus_detector import (
     AdapterConfig_ConsensusDetector,
     DriverConfig_ConsensusDetector_Heuristic,
@@ -24,13 +25,6 @@ from copilot_config.generated.adapters.consensus_detector import (
 )
 
 from .thread import Thread
-
-
-ConsensusDetectorDriverConfig: TypeAlias = (
-    DriverConfig_ConsensusDetector_Heuristic
-    | DriverConfig_ConsensusDetector_Mock
-    | DriverConfig_ConsensusDetector_Ml
-)
 
 
 class ConsensusLevel(Enum):
@@ -403,49 +397,27 @@ class MLConsensusDetector(ConsensusDetector):
 
 
 def create_consensus_detector(
-    driver_name: str | AdapterConfig_ConsensusDetector,
-    driver_config: ConsensusDetectorDriverConfig | None = None,
+    config: AdapterConfig_ConsensusDetector,
 ) -> ConsensusDetector:
     """Create a consensus detector from typed configuration.
 
-    Supports either:
-    - `create_consensus_detector(config: AdapterConfig_ConsensusDetector)`
-    - `create_consensus_detector(driver_name: str, driver_config: <typed driver config>)`
-
     Args:
-        driver_name: Detector type ("heuristic", "mock", "ml")
-        driver_config: DriverConfig object for the selected detector
+        config: Typed adapter configuration for consensus detector.
 
     Returns:
-        ConsensusDetector instance
+        ConsensusDetector instance.
 
     Raises:
-        ValueError: If driver_name is unknown
+        ValueError: If config is missing or consensus_detector_type is not recognized.
     """
-    if isinstance(driver_name, AdapterConfig_ConsensusDetector):
-        adapter_config = driver_name
-        driver_name = adapter_config.consensus_detector_type
-        driver_config = adapter_config.driver
-
-    if not driver_name:
-        raise ValueError(
-            "driver_name parameter is required. "
-            "Must be one of: heuristic, mock, ml"
-        )
-
-    if driver_config is None:
-        raise ValueError("driver_config parameter is required")
-
-    name = str(driver_name).lower()
-
-    if name == "heuristic":
-        return HeuristicConsensusDetector.from_config(driver_config)
-    elif name == "mock":
-        return MockConsensusDetector.from_config(driver_config)
-    elif name == "ml":
-        return MLConsensusDetector.from_config(driver_config)
-    else:
-        raise ValueError(
-            f"Unknown consensus detector driver: {driver_name}. "
-            f"Valid types are: heuristic, mock, ml"
-        )
+    return create_adapter(
+        config,
+        adapter_name="consensus_detector",
+        get_driver_type=lambda c: c.consensus_detector_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "heuristic": HeuristicConsensusDetector.from_config,
+            "mock": MockConsensusDetector.from_config,
+            "ml": MLConsensusDetector.from_config,
+        },
+    )

@@ -5,6 +5,7 @@
 from datetime import datetime, timedelta, timezone
 import pytest
 from copilot_config.generated.adapters.consensus_detector import (
+    AdapterConfig_ConsensusDetector,
     DriverConfig_ConsensusDetector_Heuristic,
     DriverConfig_ConsensusDetector_Ml,
     DriverConfig_ConsensusDetector_Mock,
@@ -327,26 +328,51 @@ class TestConsensusDetectorFactory:
             "heuristic",
             {"agreement_threshold": 3, "min_participants": 2, "stagnation_days": 7},
         )
-        detector = create_consensus_detector("heuristic", config)
+        detector = create_consensus_detector(
+            AdapterConfig_ConsensusDetector(
+                consensus_detector_type="heuristic",
+                driver=config,
+            )
+        )
         assert isinstance(detector, HeuristicConsensusDetector)
 
     def test_create_mock_detector(self):
         """Test creating mock detector."""
         config = _driver_config("mock", {"level": "consensus", "confidence": 0.9})
-        detector = create_consensus_detector("mock", config)
+        detector = create_consensus_detector(
+            AdapterConfig_ConsensusDetector(
+                consensus_detector_type="mock",
+                driver=config,
+            )
+        )
         assert isinstance(detector, MockConsensusDetector)
 
     def test_create_ml_detector(self):
         """Test creating ML detector."""
         config = _driver_config("ml", {"model_path": "/tmp/model.bin"})
-        detector = create_consensus_detector("ml", config)
+        detector = create_consensus_detector(
+            AdapterConfig_ConsensusDetector(
+                consensus_detector_type="ml",
+                driver=config,
+            )
+        )
         assert isinstance(detector, MLConsensusDetector)
 
     def test_create_unknown_detector(self):
         """Test that unknown detector type raises ValueError."""
         config = _driver_config("heuristic", {})
-        with pytest.raises(ValueError):
-            create_consensus_detector("unknown", config)
+        with pytest.raises(ValueError, match=r"Unknown consensus_detector driver: unknown"):
+            create_consensus_detector(
+                AdapterConfig_ConsensusDetector(
+                    consensus_detector_type="unknown",  # type: ignore[arg-type]
+                    driver=config,
+                )
+            )
+
+    def test_create_detector_missing_config(self):
+        """Test error when config is missing."""
+        with pytest.raises(ValueError, match="consensus_detector config is required"):
+            create_consensus_detector(None)
 
     def test_create_detector_case_insensitive(self):
         """Test that detector type is case-insensitive."""
@@ -357,9 +383,24 @@ class TestConsensusDetectorFactory:
         config_mock = _driver_config("mock", {"level": "consensus", "confidence": 0.8})
         config_ml = _driver_config("ml", {"model_path": None})
 
-        detector1 = create_consensus_detector("HEURISTIC", config_heuristic)
-        detector2 = create_consensus_detector("Mock", config_mock)
-        detector3 = create_consensus_detector("Ml", config_ml)
+        detector1 = create_consensus_detector(
+            AdapterConfig_ConsensusDetector(
+                consensus_detector_type="HEURISTIC",  # type: ignore[arg-type]
+                driver=config_heuristic,
+            )
+        )
+        detector2 = create_consensus_detector(
+            AdapterConfig_ConsensusDetector(
+                consensus_detector_type="Mock",  # type: ignore[arg-type]
+                driver=config_mock,
+            )
+        )
+        detector3 = create_consensus_detector(
+            AdapterConfig_ConsensusDetector(
+                consensus_detector_type="Ml",  # type: ignore[arg-type]
+                driver=config_ml,
+            )
+        )
 
         assert isinstance(detector1, HeuristicConsensusDetector)
         assert isinstance(detector2, MockConsensusDetector)
