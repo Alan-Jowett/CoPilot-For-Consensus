@@ -223,7 +223,7 @@ jobs:
     if: github.event_name == 'pull_request' && always()
     steps:
       - name: Post validation results
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const lint_result = '${{ needs.bicep-lint.result }}';
