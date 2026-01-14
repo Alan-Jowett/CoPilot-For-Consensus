@@ -9,12 +9,11 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 
 from dataclasses import dataclass
 
-from .common import (
-    AdapterConfig_DocumentStore,
-    AdapterConfig_Logger,
-    AdapterConfig_Metrics,
-    AdapterConfig_SecretProvider,
-)
+from ..adapters.document_store import AdapterConfig_DocumentStore
+from ..adapters.logger import AdapterConfig_Logger
+from ..adapters.metrics import AdapterConfig_Metrics
+from ..adapters.oidc_providers import AdapterConfig_OidcProviders
+from ..adapters.secret_provider import AdapterConfig_SecretProvider
 
 
 @dataclass
@@ -49,4 +48,5 @@ class ServiceConfig_Auth:
     document_store: AdapterConfig_DocumentStore | None = None
     logger: AdapterConfig_Logger | None = None
     metrics: AdapterConfig_Metrics | None = None
+    oidc_providers: AdapterConfig_OidcProviders | None = None
     secret_provider: AdapterConfig_SecretProvider | None = None

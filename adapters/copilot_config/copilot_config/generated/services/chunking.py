@@ -9,13 +9,11 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 
 from dataclasses import dataclass
 
-from .common import (
-    AdapterConfig_Chunker,
-    AdapterConfig_DocumentStore,
-    AdapterConfig_MessageBus,
-    AdapterConfig_Metrics,
-    AdapterConfig_SecretProvider,
-)
+from ..adapters.chunker import AdapterConfig_Chunker
+from ..adapters.document_store import AdapterConfig_DocumentStore
+from ..adapters.message_bus import AdapterConfig_MessageBus
+from ..adapters.metrics import AdapterConfig_Metrics
+from ..adapters.secret_provider import AdapterConfig_SecretProvider
 
 
 @dataclass

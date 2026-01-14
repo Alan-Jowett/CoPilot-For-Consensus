@@ -9,16 +9,14 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 
 from dataclasses import dataclass
 
-from .common import (
-    AdapterConfig_DocumentStore,
-    AdapterConfig_EmbeddingBackend,
-    AdapterConfig_ErrorReporter,
-    AdapterConfig_Logger,
-    AdapterConfig_MessageBus,
-    AdapterConfig_Metrics,
-    AdapterConfig_SecretProvider,
-    AdapterConfig_VectorStore,
-)
+from ..adapters.document_store import AdapterConfig_DocumentStore
+from ..adapters.embedding_backend import AdapterConfig_EmbeddingBackend
+from ..adapters.error_reporter import AdapterConfig_ErrorReporter
+from ..adapters.logger import AdapterConfig_Logger
+from ..adapters.message_bus import AdapterConfig_MessageBus
+from ..adapters.metrics import AdapterConfig_Metrics
+from ..adapters.secret_provider import AdapterConfig_SecretProvider
+from ..adapters.vector_store import AdapterConfig_VectorStore
 
 
 @dataclass

@@ -230,9 +230,9 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
         ImportError: If generated module not found
         ValueError: If configuration is invalid
     """
-    # Import the generated module dynamically
+    # Import the generated service module dynamically
     try:
-        module = importlib.import_module(f".generated.{service_name}", package="copilot_config")
+        module = importlib.import_module(f".generated.services.{service_name}", package="copilot_config")
     except ImportError as e:
         raise ImportError(
             f"Generated configuration module not found for service '{service_name}'. "
@@ -382,28 +382,30 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
 
         driver_name, driver_config_dict = adapter_result
 
-        # Get the adapter and driver classes from common module
+        # Get the adapter and driver classes from the adapter module
         try:
-            common_module = importlib.import_module(f".generated.common", package="copilot_config")
+            adapter_module = importlib.import_module(
+                f".generated.adapters.{adapter_name}", package="copilot_config"
+            )
         except ImportError:
-            # Fallback: try to get from service module (for backward compatibility)
-            common_module = module
+            # Fallback: try to get from service module (backward compatibility)
+            adapter_module = module
 
         adapter_class_name = _to_python_class_name(adapter_name, "AdapterConfig")
-        adapter_class = getattr(common_module, adapter_class_name, None)
+        adapter_class = getattr(adapter_module, adapter_class_name, None)
 
         if adapter_class is None:
-            # Try service module if not found in common
+            # Try service module if not found in adapter module
             adapter_class = getattr(module, adapter_class_name, None)
 
         if adapter_class is None:
             continue
 
         driver_class_name = f"DriverConfig_{_to_python_class_name(adapter_name)}_{_to_python_class_name(driver_name)}"
-        driver_class = getattr(common_module, driver_class_name, None)
+        driver_class = getattr(adapter_module, driver_class_name, None)
 
         if driver_class is None:
-            # Try service module if not found in common
+            # Try service module if not found in adapter module
             driver_class = getattr(module, driver_class_name, None)
 
         if driver_class is None:
