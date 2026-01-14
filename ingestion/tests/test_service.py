@@ -423,7 +423,7 @@ def test_publish_success_event_raises_on_publisher_failure(tmp_path):
     metadata = ArchiveMetadata(
         archive_id="archive-123",
         source_name="test-source",
-        source_type="mbox",
+        source_type="http",
         source_url="http://example.com/list.mbox",
         file_path="/path/to/file.mbox",
         file_size_bytes=1024,
@@ -458,7 +458,7 @@ def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
 
     source = SourceConfig(
         name="test-source",
-        source_type="mbox",
+        source_type="http",
         url="http://example.com/list.mbox",
     )
 
@@ -494,7 +494,7 @@ def test_publish_success_event_raises_on_publisher_exception(tmp_path):
     metadata = ArchiveMetadata(
         archive_id="archive-123",
         source_name="test-source",
-        source_type="mbox",
+        source_type="http",
         source_url="http://example.com/list.mbox",
         file_path="/path/to/file.mbox",
         file_size_bytes=1024,
@@ -529,7 +529,7 @@ def test_publish_failure_event_raises_on_publisher_exception(tmp_path):
 
     source = SourceConfig(
         name="test-source",
-        source_type="mbox",
+        source_type="http",
         url="http://example.com/list.mbox",
     )
 

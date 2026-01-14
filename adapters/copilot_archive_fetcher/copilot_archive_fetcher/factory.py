@@ -12,7 +12,7 @@ from .models import SourceConfig
 from .rsync_fetcher import RsyncFetcher
 
 
-def create_fetcher(source: SourceConfig | dict) -> ArchiveFetcher:
+def create_fetcher(source: SourceConfig) -> ArchiveFetcher:
     """Factory function to create an archive fetcher.
 
     Args:
@@ -24,16 +24,15 @@ def create_fetcher(source: SourceConfig | dict) -> ArchiveFetcher:
     Raises:
         UnsupportedSourceTypeError: If source type is not supported
     """
-    source_obj = source if isinstance(source, SourceConfig) else SourceConfig(**source)
-    source_type = source_obj.source_type.lower()
+    source_type = source.source_type
 
     if source_type == "rsync":
-        return RsyncFetcher.from_config(source_obj)
-    elif source_type == "http":
-        return HTTPFetcher.from_config(source_obj)
-    elif source_type == "local":
-        return LocalFetcher.from_config(source_obj)
-    elif source_type == "imap":
-        return IMAPFetcher.from_config(source_obj)
-    else:
-        raise UnsupportedSourceTypeError(f"Unsupported source type: {source_type}")
+        return RsyncFetcher.from_config(source)
+    if source_type == "http":
+        return HTTPFetcher.from_config(source)
+    if source_type == "local":
+        return LocalFetcher.from_config(source)
+    if source_type == "imap":
+        return IMAPFetcher.from_config(source)
+
+    raise UnsupportedSourceTypeError(f"Unsupported source type: {source_type}")

@@ -43,24 +43,14 @@ def _source_from_mapping(source: dict[str, Any]) -> SourceConfig:
     Raises:
         SourceConfigurationError: If source is empty or missing required fields
     """
-    if not source:
-        raise SourceConfigurationError("Source configuration is empty")
-    required = {"name", "source_type", "url"}
-    if not required.issubset(source):
-        missing = required - set(source.keys())
-        raise SourceConfigurationError(
-            f"Source configuration missing required fields: {missing}"
-        )
-
-    return SourceConfig(
-        name=source["name"],
-        source_type=source["source_type"],
-        url=_expand(source.get("url")),
-        port=source.get("port"),
-        username=_expand(source.get("username")),
-        password=_expand(source.get("password")),
-        folder=source.get("folder"),
-    )
+    try:
+        expanded = dict(source)
+        expanded["url"] = _expand(expanded.get("url"))
+        expanded["username"] = _expand(expanded.get("username"))
+        expanded["password"] = _expand(expanded.get("password"))
+        return SourceConfig.from_mapping(expanded)
+    except ValueError as e:
+        raise SourceConfigurationError(str(e)) from e
 
 
 def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
@@ -88,37 +78,17 @@ def _enabled_sources(raw_sources: Iterable[Any]) -> list[SourceConfig]:
 
     for raw in raw_sources or []:
         try:
-            enabled = True
-            if isinstance(raw, dict):
-                enabled = raw.get("enabled", True)
+            if isinstance(raw, SourceConfig):
+                source_cfg = raw
+            elif isinstance(raw, dict):
                 source_cfg = _source_from_mapping(raw)
-            elif isinstance(raw, SourceConfig):
-                enabled = getattr(raw, "enabled", True)
-                source_cfg = SourceConfig(
-                    name=raw.name,
-                    source_type=raw.source_type,
-                    url=_expand(raw.url),
-                    port=getattr(raw, "port", None),
-                    username=_expand(getattr(raw, "username", None)),
-                    password=_expand(getattr(raw, "password", None)),
-                    folder=getattr(raw, "folder", None),
-                )
             else:
-                enabled = getattr(raw, "enabled", True)
-                source_cfg = SourceConfig(
-                    name=getattr(raw, "name", None),
-                    source_type=getattr(raw, "source_type", None),
-                    url=_expand(getattr(raw, "url", None)),
-                    port=getattr(raw, "port", None),
-                    username=_expand(getattr(raw, "username", None)),
-                    password=_expand(getattr(raw, "password", None)),
-                    folder=getattr(raw, "folder", None),
-                )
+                # Not supporting ad-hoc objects anymore; only dict/SourceConfig.
+                raise SourceConfigurationError(f"Unsupported source object: {type(raw).__name__}")
 
-            if enabled:
+            if source_cfg.enabled:
                 enabled_sources.append(source_cfg)
         except SourceConfigurationError as e:
-            # Log but skip invalid source configurations
             logger.warning("Skipping invalid source configuration", error=str(e))
             continue
 
