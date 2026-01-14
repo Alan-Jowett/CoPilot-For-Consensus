@@ -115,24 +115,6 @@ class TestCreateVectorStore:
         with pytest.raises(ValueError, match="host parameter is required"):
             create_vector_store(config)
 
-    def test_azure_backend_alias(self, monkeypatch):
-        """Test that legacy 'azure' backend is treated as an alias for Azure AI Search."""
-        sentinel = object()
-        monkeypatch.setattr(
-            "copilot_vectorstore.factory.AzureAISearchVectorStore.from_config",
-            lambda _cfg: sentinel,
-        )
-
-        config = AdapterConfig_VectorStore(
-            vector_store_type="azure",
-            driver=DriverConfig_VectorStore_AzureAiSearch(
-                endpoint="https://test.search.windows.net",
-                index_name="test-index",
-                use_managed_identity=True,
-            ),
-        )
-        assert create_vector_store(config) is sentinel
-
     def test_azure_ai_search_backend_requires_api_key_when_not_using_managed_identity(self):
         """Test schema-level conditional requirement for api_key."""
         config = AdapterConfig_VectorStore(

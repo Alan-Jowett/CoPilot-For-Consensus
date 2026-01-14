@@ -25,16 +25,10 @@ def create_vector_store(config: AdapterConfig_VectorStore) -> VectorStore:
         VectorStore instance.
     """
 
-    def _normalized_driver_type(c: AdapterConfig_VectorStore) -> str:
-        driver_type = str(c.vector_store_type).lower()
-        if driver_type in {"aisearch", "ai_search", "azure", "azureaisearch"}:
-            return "azure_ai_search"
-        return driver_type
-
     return create_adapter(
         config,
         adapter_name="vector_store",
-        get_driver_type=_normalized_driver_type,
+        get_driver_type=lambda c: str(c.vector_store_type).lower(),
         get_driver_config=lambda c: c.driver,
         drivers={
             "inmemory": InMemoryVectorStore.from_config,
