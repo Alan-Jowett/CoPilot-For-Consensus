@@ -11,12 +11,17 @@ plugging in different backends without changing downstream logic.
 
 Example:
     >>> from copilot_embedding import create_embedding_provider
-    >>> from copilot_config.generated.adapters.embedding_backend import DriverConfig_EmbeddingBackend_Mock
+    >>> from copilot_config.generated.adapters.embedding_backend import (
+    ...     AdapterConfig_EmbeddingBackend,
+    ...     DriverConfig_EmbeddingBackend_Mock,
+    ... )
     >>>
     >>> # Create a mock provider for testing
     >>> provider = create_embedding_provider(
-    ...     driver_name="mock",
-    ...     driver_config=DriverConfig_EmbeddingBackend_Mock(dimension=128),
+    ...     AdapterConfig_EmbeddingBackend(
+    ...         embedding_backend_type="mock",
+    ...         driver=DriverConfig_EmbeddingBackend_Mock(dimension=128),
+    ...     )
     ... )
     >>> embedding = provider.embed("Your text here")
     >>>

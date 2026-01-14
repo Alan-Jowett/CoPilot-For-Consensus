@@ -200,18 +200,16 @@ def main():
         logger.info("Connecting to document store...")
         document_store.connect()
 
-        logger.info("Creating embedding provider from adapter configuration...")
-        embedding_adapter = config.get_adapter("embedding_backend")
-        if embedding_adapter is None:
+        logger.info("Creating embedding provider from typed configuration...")
+        from copilot_config.runtime_loader import get_config as get_typed_config
+
+        typed_config = get_typed_config("embedding")
+        embedding_backend_config = typed_config.embedding_backend
+        if embedding_backend_config is None:
             raise ValueError("embedding_backend adapter is required")
 
-        backend_name = str(embedding_adapter.driver_name).lower()
-        provider_driver_name = backend_name
-
-        embedding_provider = create_embedding_provider(
-            driver_name=provider_driver_name,
-            driver_config=embedding_adapter.driver_config,
-        )
+        backend_name = str(embedding_backend_config.embedding_backend_type).lower()
+        embedding_provider = create_embedding_provider(embedding_backend_config)
 
         # Get embedding configuration for service setup
         # For providers that expose dimension property (like mock), use it
@@ -223,9 +221,9 @@ def main():
             sample_embedding = embedding_provider.embed("test")
             embedding_dimension = len(sample_embedding)
 
-        embedding_model = getattr(embedding_adapter.driver_config, "model_name", provider_driver_name)
+        embedding_model = getattr(embedding_backend_config.driver, "model_name", backend_name)
         embedding_backend_label = backend_name
-        embedding_driver_config = embedding_adapter.driver_config
+        embedding_driver_config = embedding_backend_config.driver
 
         logger.info("Creating vector store from adapter configuration...")
         vector_store_adapter = config.get_adapter("vector_store")

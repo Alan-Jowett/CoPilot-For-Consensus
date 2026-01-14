@@ -537,34 +537,40 @@ def main():
         vector_store = None
         embedding_provider = None
 
-        # Check if we have vector store configuration via adapter
-        vector_store_adapter = config.get_adapter("vector_store")
-        embedding_adapter = config.get_adapter("embedding_provider")
+        # Optional vector store + embedding backend for topic search.
+        # Use typed configs to avoid passing untyped driver config into adapters.
+        from copilot_config.runtime_loader import get_config as get_typed_config
 
-        if vector_store_adapter is not None and embedding_adapter is not None:
+        typed_config = get_typed_config("reporting")
+        vector_store_config = typed_config.vector_store
+        embedding_backend_config = typed_config.embedding_backend
+
+        if vector_store_config is not None and embedding_backend_config is not None:
             try:
-                logger.info("Creating embedding provider for topic search from adapter configuration")
+                logger.info("Creating embedding provider for topic search from typed configuration")
                 from copilot_embedding import create_embedding_provider
-                embedding_provider = create_embedding_provider(
-                    driver_name=embedding_adapter.driver_name,
-                    driver_config=embedding_adapter.driver_config,
-                )
+                embedding_provider = create_embedding_provider(embedding_backend_config)
                 logger.info("Embedding provider created successfully")
 
-                # Get embedding dimension from adapter config
-                embedding_dimension = embedding_adapter.driver_config.get("dimension")
-                if embedding_dimension is None:
+                # Determine embedding dimension (prefer explicit provider dimension when available).
+                if hasattr(embedding_provider, "dimension"):
+                    embedding_dimension = embedding_provider.dimension
+                else:
                     logger.info("Embedding dimension not configured; detecting via test embedding")
-                    test_embedding = embedding_provider.embed("test")
-                    embedding_dimension = len(test_embedding)
+                    embedding_dimension = len(embedding_provider.embed("test"))
                 logger.info(f"Using embedding dimension: {embedding_dimension}")
 
-                logger.info("Creating vector store for topic search from adapter configuration")
+                logger.info("Creating vector store for topic search from typed configuration")
                 from copilot_vectorstore import create_vector_store
+                vector_store_driver_config = vector_store_config.driver
+                if hasattr(vector_store_driver_config, "vector_size"):
+                    vector_store_driver_config.vector_size = embedding_dimension
+                elif hasattr(vector_store_driver_config, "dimension"):
+                    vector_store_driver_config.dimension = embedding_dimension
+
                 vector_store = create_vector_store(
-                    driver_name=vector_store_adapter.driver_name,
-                    driver_config=vector_store_adapter.driver_config,
-                    dimension=embedding_dimension
+                    driver_name=vector_store_config.vector_store_type,
+                    driver_config=vector_store_driver_config,
                 )
                 logger.info("Vector store created successfully")
                 logger.info("Topic-based search is enabled")

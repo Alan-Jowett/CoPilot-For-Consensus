@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from copilot_config.generated.adapters.embedding_backend import (
+    AdapterConfig_EmbeddingBackend,
     DriverConfig_EmbeddingBackend_AzureOpenai,
     DriverConfig_EmbeddingBackend_Huggingface,
     DriverConfig_EmbeddingBackend_Mock,
@@ -110,9 +111,14 @@ class TestEmbeddingBackendAllDrivers:
             else:
                 raise AssertionError(f"Unexpected driver in schema: {driver}")
             
+            adapter_config = AdapterConfig_EmbeddingBackend(
+                embedding_backend_type=driver,
+                driver=config,
+            )
+
             # Should not raise any exceptions (skip if optional dependencies are missing)
             try:
-                provider = create_embedding_provider(driver_name=driver, driver_config=config)
+                provider = create_embedding_provider(adapter_config)
                 assert provider is not None, f"Failed to create provider for driver: {driver}"
             except ImportError as e:
                 pytest.skip(f"Optional dependencies for {driver} not installed: {str(e)}")

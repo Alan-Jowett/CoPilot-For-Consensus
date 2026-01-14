@@ -492,6 +492,17 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
         # Create driver config instance
         driver_config = driver_class(**driver_config_dict)
 
+        # Fail fast on misconfiguration using schema-driven validation.
+        # This keeps adapters simple by centralizing validation in copilot_config.
+        from .schema_validation import validate_driver_config_against_schema
+
+        validate_driver_config_against_schema(
+            adapter=adapter_name,
+            driver=driver_name,
+            config=driver_config,
+            schema_dir=str(schema_dir_path),
+        )
+
         # Get discriminant field name
         discriminant_info = adapter_schema.get("properties", {}).get("discriminant", {})
         discriminant_field = discriminant_info.get("field", "driver_name")

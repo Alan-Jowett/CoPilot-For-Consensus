@@ -65,9 +65,17 @@ def in_memory_vector_store():
 @pytest.fixture
 def mock_embedding_provider():
     """Create a mock embedding provider."""
-    from copilot_config import DriverConfig
-    driver_config = DriverConfig(driver_name="mock", config={"dimension": 384})
-    return create_embedding_provider(driver_name="mock", driver_config=driver_config)
+    from copilot_config.generated.adapters.embedding_backend import (
+        AdapterConfig_EmbeddingBackend,
+        DriverConfig_EmbeddingBackend_Mock,
+    )
+
+    return create_embedding_provider(
+        AdapterConfig_EmbeddingBackend(
+            embedding_backend_type="mock",
+            driver=DriverConfig_EmbeddingBackend_Mock(dimension=384),
+        )
+    )
 
 
 @pytest.fixture
