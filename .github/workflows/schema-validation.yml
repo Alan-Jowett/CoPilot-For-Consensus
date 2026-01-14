@@ -230,6 +230,29 @@ jobs:
           print('\\n✓ All schemas are valid')
           "
 
+      - name: Validate typed config generation (drift check)
+        run: |
+          echo "Checking that generated typed configs are up-to-date..."
+          
+          # Generate typed configs for all services
+          python scripts/generate_typed_configs.py --all
+          
+          # Check if any files changed
+          if ! git diff --exit-code adapters/copilot_config/copilot_config/generated/; then
+            echo "❌ ERROR: Generated typed config files are out of sync with schemas!"
+            echo ""
+            echo "The following files have changed:"
+            git diff --name-only adapters/copilot_config/copilot_config/generated/
+            echo ""
+            echo "To fix this, run the following command and commit the changes:"
+            echo "  python scripts/generate_typed_configs.py --all"
+            echo "  git add adapters/copilot_config/copilot_config/generated/"
+            echo "  git commit -m 'chore: regenerate typed configs'"
+            exit 1
+          fi
+          
+          echo "✓ Generated typed configs are up-to-date"
+
       - name: Summary
         if: always()
         run: |
@@ -238,3 +261,4 @@ jobs:
           echo "- Version field validation"
           echo "- Compatibility checking"
           echo "- JSON Schema draft validation"
+          echo "- Typed config generation drift check"
