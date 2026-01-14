@@ -2,28 +2,29 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Generate typed dataclass hierarchies from JSON schemas with deduplication.
+"""Generate typed dataclass hierarchies from JSON schemas.
 
 This script reads service configuration schemas and generates Python dataclasses
-that represent the complete type hierarchy. Common adapter and driver classes are
-generated once in a common module and imported by service-specific modules.
+that represent the complete type hierarchy including service settings, adapters,
+and driver-specific configurations.
 
 Usage:
-    python scripts/generate_typed_configs_v2.py --all
-    python scripts/generate_typed_configs_v2.py --service ingestion
+    python scripts/generate_typed_configs.py --all
+    python scripts/generate_typed_configs.py --service ingestion
+    python scripts/generate_typed_configs.py --service ingestion --output custom_dir
 """
 
 import argparse
 import json
 import os
 import sys
-from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 
 def resolve_schema_directory() -> Path:
     """Resolve the schema directory path."""
+    # Try from script location (works from any CWD)
     script_dir = Path(__file__).resolve().parent
     repo_root = script_dir.parent
     schema_dir = repo_root / "docs" / "schemas" / "configs"
@@ -31,6 +32,7 @@ def resolve_schema_directory() -> Path:
     if schema_dir.exists():
         return schema_dir
 
+    # Fallback to environment variable
     if "SCHEMA_DIR" in os.environ:
         return Path(os.environ["SCHEMA_DIR"])
 
@@ -38,7 +40,16 @@ def resolve_schema_directory() -> Path:
 
 
 def to_python_class_name(name: str, prefix: str = "") -> str:
-    """Convert a schema name to a Python class name."""
+    """Convert a schema name to a Python class name.
+
+    Args:
+        name: The schema name (e.g., "ingestion", "message_bus")
+        prefix: Optional prefix (e.g., "ServiceConfig", "AdapterConfig")
+
+    Returns:
+        PascalCase class name
+    """
+    # Convert snake_case to PascalCase
     parts = name.split("_")
     pascal_name = "".join(p.capitalize() for p in parts)
     if prefix:
@@ -47,12 +58,27 @@ def to_python_class_name(name: str, prefix: str = "") -> str:
 
 
 def to_python_field_name(name: str) -> str:
-    """Convert a schema field name to a Python field name."""
+    """Convert a schema field name to a Python field name.
+
+    Args:
+        name: Field name from schema
+
+    Returns:
+        snake_case field name
+    """
     return name
 
 
 def schema_type_to_python_type(schema_type: str, default_value: Any = None) -> str:
-    """Convert schema type to Python type annotation."""
+    """Convert schema type to Python type annotation.
+
+    Args:
+        schema_type: Schema type (e.g., "string", "int", "bool")
+        default_value: Default value to help infer optional types
+
+    Returns:
+        Python type annotation string
+    """
     type_mapping = {
         "string": "str",
         "int": "int",
@@ -66,6 +92,8 @@ def schema_type_to_python_type(schema_type: str, default_value: Any = None) -> s
     }
 
     py_type = type_mapping.get(schema_type, "Any")
+
+    # If there's a default or not marked as required, make it optional
     if default_value is not None:
         return py_type
 
@@ -78,12 +106,23 @@ def generate_driver_dataclass(
     driver_schema: dict[str, Any],
     common_properties: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
-    """Generate a dataclass for a specific driver."""
+    """Generate a dataclass for a specific driver.
+
+    Args:
+        adapter_name: Name of the adapter (e.g., "metrics")
+        driver_name: Name of the driver (e.g., "prometheus")
+        driver_schema: The driver schema dictionary
+        common_properties: Common properties from adapter schema
+
+    Returns:
+        Tuple of (class_name, class_code)
+    """
     class_name = f"DriverConfig_{to_python_class_name(adapter_name)}_{to_python_class_name(driver_name)}"
 
     # Merge driver properties with common properties
     properties = driver_schema.get("properties", {})
     if common_properties:
+        # Common properties should not override driver-specific ones
         for key, value in common_properties.items():
             if key not in properties:
                 properties[key] = value
@@ -97,9 +136,11 @@ def generate_driver_dataclass(
     if not properties:
         lines.append("    pass")
     else:
-        # Sort properties: required fields without defaults first
+        # Sort properties: required fields without defaults first, then all others
+        # Within each group, sort alphabetically for stable output
         sorted_props = sorted(properties.items())
 
+        # Separate into two groups
         required_no_default = []
         with_default_or_optional = []
 
@@ -112,6 +153,7 @@ def generate_driver_dataclass(
             else:
                 with_default_or_optional.append((prop_name, prop_spec))
 
+        # Process all fields in correct order
         all_fields = required_no_default + with_default_or_optional
 
         for prop_name, prop_spec in all_fields:
@@ -121,14 +163,20 @@ def generate_driver_dataclass(
             description = prop_spec.get("description", "")
 
             py_type = schema_type_to_python_type(prop_type, default)
+
+            # Format the field
             field_name = to_python_field_name(prop_name)
 
             if required and default is None:
+                # Required field with no default
                 type_annotation = py_type
             else:
+                # Optional field or has default
                 type_annotation = f"{py_type} | None"
 
+            # Generate field with default
             if default is not None:
+                # Handle different default types
                 if isinstance(default, str):
                     default_repr = repr(default)
                 elif isinstance(default, bool):
@@ -143,10 +191,14 @@ def generate_driver_dataclass(
             else:
                 lines.append(f"    {field_name}: {type_annotation}")
 
+            # Add docstring comment if description exists
             if description:
+                # Escape any quotes in description
                 desc_safe = description.replace('"', '\\"')
                 lines.append(
-                    f'    """{desc_safe}"""' if len(lines) == 4 else f"    # {desc_safe}"
+                    f'    """{desc_safe}"""'
+                    if len(lines) == 4
+                    else f"    # {desc_safe}"
                 )
 
     return class_name, "\n".join(lines)
@@ -157,7 +209,16 @@ def generate_adapter_dataclass(
     adapter_schema: dict[str, Any],
     driver_classes: dict[str, str],
 ) -> tuple[str, str, list[str]]:
-    """Generate a dataclass for an adapter with driver discrimination."""
+    """Generate a dataclass for an adapter with driver discrimination.
+
+    Args:
+        adapter_name: Name of the adapter
+        adapter_schema: The adapter schema dictionary
+        driver_classes: Dict mapping driver names to their class names
+
+    Returns:
+        Tuple of (class_name, class_code, required_imports)
+    """
     class_name = f"AdapterConfig_{to_python_class_name(adapter_name)}"
 
     discriminant_info = adapter_schema.get("properties", {}).get("discriminant", {})
@@ -170,17 +231,21 @@ def generate_adapter_dataclass(
         f'    """Configuration for {adapter_name} adapter."""',
     ]
 
+    # If discriminant exists, create a Literal type for it
     imports = ["from typing import Literal"]
 
     if discriminant_enum:
         literal_type = "Literal[" + ", ".join(f'"{v}"' for v in sorted(discriminant_enum)) + "]"
         lines.append(f"    {discriminant_field}: {literal_type}")
 
+        # Add driver field as a Union of all possible driver configs
         driver_union_types = [driver_classes.get(driver, "Any") for driver in sorted(discriminant_enum)]
         driver_union = " | ".join(driver_union_types)
 
+        # Check if the union line would be too long (> 120 chars)
         union_line = f"    driver: {driver_union}"
         if len(union_line) > 120:
+            # Break across multiple lines
             lines.append("    driver: (")
             for i, driver_type in enumerate(driver_union_types):
                 if i < len(driver_union_types) - 1:
@@ -191,240 +256,25 @@ def generate_adapter_dataclass(
         else:
             lines.append(union_line)
     else:
+        # No discriminant - could be composite adapter (like oidc_providers)
         lines.append("    config: dict[str, Any]")
 
     return class_name, "\n".join(lines), imports
-
-
-def collect_all_adapters_and_drivers(
-    schema_dir: Path,
-    services: list[str],
-) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
-    """Collect all unique adapters and their drivers across all services.
-    
-    Returns:
-        Tuple of (adapter_schemas, driver_schemas) where:
-        - adapter_schemas: {adapter_name: adapter_schema_data}
-        - driver_schemas: {adapter_name: {driver_name: driver_schema_data}}
-    """
-    adapter_schemas = {}
-    driver_schemas = defaultdict(dict)
-
-    for service_name in services:
-        service_schema_path = schema_dir / "services" / f"{service_name}.json"
-        if not service_schema_path.exists():
-            continue
-
-        with open(service_schema_path) as f:
-            service_schema = json.load(f)
-
-        adapters_schema = service_schema.get("adapters", {})
-
-        for adapter_name, adapter_ref in adapters_schema.items():
-            if not isinstance(adapter_ref, dict) or "$ref" not in adapter_ref:
-                continue
-
-            # Load adapter schema if not already loaded
-            if adapter_name not in adapter_schemas:
-                adapter_schema_path = schema_dir / adapter_ref["$ref"].lstrip("../")
-                if not adapter_schema_path.exists():
-                    continue
-
-                with open(adapter_schema_path) as f:
-                    adapter_schema = json.load(f)
-
-                discriminant_info = adapter_schema.get("properties", {}).get("discriminant", {})
-                if not discriminant_info:
-                    continue
-
-                adapter_schemas[adapter_name] = {
-                    "schema": adapter_schema,
-                    "schema_path": adapter_schema_path,
-                }
-
-                # Load all driver schemas for this adapter
-                drivers_data = adapter_schema.get("properties", {}).get("drivers", {}).get("properties", {})
-                common_properties = adapter_schema.get("properties", {}).get("common", {}).get("properties", {})
-
-                for driver_name, driver_info in drivers_data.items():
-                    if "$ref" not in driver_info:
-                        continue
-
-                    driver_schema_path = adapter_schema_path.parent / driver_info["$ref"].lstrip("./")
-                    if not driver_schema_path.exists():
-                        continue
-
-                    with open(driver_schema_path) as f:
-                        driver_schema = json.load(f)
-
-                    driver_schemas[adapter_name][driver_name] = {
-                        "schema": driver_schema,
-                        "common_properties": common_properties,
-                    }
-
-    return adapter_schemas, dict(driver_schemas)
-
-
-def generate_common_module(
-    adapter_schemas: dict[str, Any],
-    driver_schemas: dict[str, dict[str, Any]],
-    output_path: Path,
-) -> dict[str, dict[str, str]]:
-    """Generate common.py with all shared adapter/driver classes.
-    
-    Returns:
-        Dict mapping adapter_name to {driver_name: class_name}
-    """
-    imports = [
-        "# SPDX-License-Identifier: MIT",
-        "# Copyright (c) 2025 Copilot-for-Consensus contributors",
-        "",
-        '"""Common adapter and driver configuration classes.',
-        "",
-        "DO NOT EDIT THIS FILE MANUALLY.",
-        "This file is auto-generated from JSON schemas by scripts/generate_typed_configs.py.",
-        "",
-        "All adapter and driver classes that are shared across multiple services",
-        "are defined here to avoid duplication.",
-        '"""',
-        "",
-        "from dataclasses import dataclass",
-        "from typing import Any, Literal",
-        "",
-    ]
-
-    all_classes = []
-    adapter_driver_map = {}
-
-    # Generate in sorted order for stability
-    for adapter_name in sorted(adapter_schemas.keys()):
-        adapter_data = adapter_schemas[adapter_name]
-        adapter_schema = adapter_data["schema"]
-
-        # Generate driver classes
-        driver_classes = {}
-        for driver_name in sorted(driver_schemas.get(adapter_name, {}).keys()):
-            driver_data = driver_schemas[adapter_name][driver_name]
-            driver_schema = driver_data["schema"]
-            common_properties = driver_data["common_properties"]
-
-            driver_class_name, driver_class_code = generate_driver_dataclass(
-                adapter_name,
-                driver_name,
-                driver_schema,
-                common_properties,
-            )
-            driver_classes[driver_name] = driver_class_name
-            all_classes.append(driver_class_code)
-
-        # Generate adapter class
-        adapter_class_name, adapter_class_code, _ = generate_adapter_dataclass(
-            adapter_name,
-            adapter_schema,
-            driver_classes,
-        )
-        all_classes.append(adapter_class_code)
-
-        adapter_driver_map[adapter_name] = {
-            "adapter_class": adapter_class_name,
-            "driver_classes": driver_classes,
-        }
-
-    output = "\n".join(imports) + "\n\n" + "\n\n\n".join(all_classes) + "\n"
-
-    with open(output_path, "w") as f:
-        f.write(output)
-
-    print(f"Generated: {output_path}")
-    return adapter_driver_map
-
-
-def generate_service_module(
-    service_name: str,
-    schema_dir: Path,
-    output_dir: Path,
-    adapter_driver_map: dict[str, dict[str, str]],
-) -> None:
-    """Generate service-specific module that imports from common."""
-    service_schema_path = schema_dir / "services" / f"{service_name}.json"
-    if not service_schema_path.exists():
-        raise FileNotFoundError(f"Service schema not found: {service_schema_path}")
-
-    with open(service_schema_path) as f:
-        service_schema = json.load(f)
-
-    # Determine which adapters this service uses
-    adapters_schema = service_schema.get("adapters", {})
-    used_adapters = set()
-    for adapter_name, adapter_ref in adapters_schema.items():
-        if isinstance(adapter_ref, dict) and "$ref" in adapter_ref:
-            if adapter_name in adapter_driver_map:
-                used_adapters.add(adapter_name)
-
-    # Build imports
-    imports = [
-        "# SPDX-License-Identifier: MIT",
-        "# Copyright (c) 2025 Copilot-for-Consensus contributors",
-        "",
-        f'"""Generated typed configuration for {service_name} service.',
-        "",
-        "DO NOT EDIT THIS FILE MANUALLY.",
-        "This file is auto-generated from JSON schemas by scripts/generate_typed_configs.py.",
-        '"""',
-        "",
-        "from dataclasses import dataclass",
-        "",
-    ]
-
-    # Import adapter classes from common
-    if used_adapters:
-        adapter_imports = []
-        for adapter_name in sorted(used_adapters):
-            adapter_class = adapter_driver_map[adapter_name]["adapter_class"]
-            adapter_imports.append(adapter_class)
-
-        imports.append(f"from .common import (")
-        for adapter_import in adapter_imports:
-            imports.append(f"    {adapter_import},")
-        imports.append(")")
-        imports.append("")
-
-    all_classes = []
-
-    # Generate service settings dataclass
-    service_settings = service_schema.get("service_settings", {})
-    service_settings_class, service_settings_code = generate_service_settings_dataclass(
-        service_name,
-        service_settings,
-    )
-    all_classes.append(service_settings_code)
-
-    # Generate top-level ServiceConfig dataclass
-    adapter_classes = {
-        adapter_name: adapter_driver_map[adapter_name]["adapter_class"]
-        for adapter_name in used_adapters
-    }
-    service_config_class, service_config_code = generate_service_config_dataclass(
-        service_name,
-        service_settings_class,
-        adapter_classes,
-    )
-    all_classes.append(service_config_code)
-
-    output = "\n".join(imports) + "\n\n" + "\n\n\n".join(all_classes) + "\n"
-
-    output_path = output_dir / f"{service_name}.py"
-    with open(output_path, "w") as f:
-        f.write(output)
-
-    print(f"Generated: {output_path}")
 
 
 def generate_service_settings_dataclass(
     service_name: str,
     service_settings: dict[str, Any],
 ) -> tuple[str, str]:
-    """Generate a dataclass for service settings."""
+    """Generate a dataclass for service settings.
+
+    Args:
+        service_name: Name of the service
+        service_settings: The service_settings section from schema
+
+    Returns:
+        Tuple of (class_name, class_code)
+    """
     class_name = f"ServiceSettings_{to_python_class_name(service_name)}"
 
     lines = [
@@ -436,8 +286,10 @@ def generate_service_settings_dataclass(
     if not service_settings:
         lines.append("    pass")
     else:
+        # Sort settings: required fields without defaults first, then all others
         sorted_settings = sorted(service_settings.items())
 
+        # Separate into two groups
         required_no_default = []
         with_default_or_optional = []
 
@@ -450,6 +302,7 @@ def generate_service_settings_dataclass(
             else:
                 with_default_or_optional.append((setting_name, setting_spec))
 
+        # Process all fields in correct order
         all_settings = required_no_default + with_default_or_optional
 
         for setting_name, setting_spec in all_settings:
@@ -465,6 +318,7 @@ def generate_service_settings_dataclass(
             else:
                 type_annotation = f"{py_type} | None"
 
+            # Generate field with default
             if default is not None:
                 if isinstance(default, str):
                     default_repr = repr(default)
@@ -488,7 +342,16 @@ def generate_service_config_dataclass(
     service_settings_class: str,
     adapter_classes: dict[str, str],
 ) -> tuple[str, str]:
-    """Generate the top-level ServiceConfig dataclass."""
+    """Generate the top-level ServiceConfig dataclass.
+
+    Args:
+        service_name: Name of the service
+        service_settings_class: Class name for service settings
+        adapter_classes: Dict mapping adapter names to their class names
+
+    Returns:
+        Tuple of (class_name, class_code)
+    """
     class_name = f"ServiceConfig_{to_python_class_name(service_name)}"
 
     lines = [
@@ -498,6 +361,7 @@ def generate_service_config_dataclass(
         f"    service_settings: {service_settings_class}",
     ]
 
+    # Add adapter fields (sorted for stability)
     if adapter_classes:
         for adapter_name in sorted(adapter_classes.keys()):
             adapter_class = adapter_classes[adapter_name]
@@ -507,13 +371,146 @@ def generate_service_config_dataclass(
     return class_name, "\n".join(lines)
 
 
+def generate_typed_config_for_service(
+    service_name: str,
+    schema_dir: Path,
+    output_dir: Path,
+) -> None:
+    """Generate typed configuration module for a service.
+
+    Args:
+        service_name: Name of the service
+        schema_dir: Path to schema directory
+        output_dir: Path to output directory
+    """
+    # Load service schema
+    service_schema_path = schema_dir / "services" / f"{service_name}.json"
+    if not service_schema_path.exists():
+        raise FileNotFoundError(f"Service schema not found: {service_schema_path}")
+
+    with open(service_schema_path) as f:
+        service_schema = json.load(f)
+
+    # Collect all generated code
+    imports = [
+        "# SPDX-License-Identifier: MIT",
+        "# Copyright (c) 2025 Copilot-for-Consensus contributors",
+        "",
+        f'"""Generated typed configuration for {service_name} service.',
+        "",
+        "DO NOT EDIT THIS FILE MANUALLY.",
+        "This file is auto-generated from JSON schemas by scripts/generate_typed_configs.py.",
+        '"""',
+        "",
+        "from dataclasses import dataclass",
+        "from typing import Any, Literal",
+        "",
+    ]
+
+    all_classes = []
+
+    # Generate driver configs for each adapter
+    adapters_schema = service_schema.get("adapters", {})
+    adapter_classes = {}
+
+    for adapter_name, adapter_ref in sorted(adapters_schema.items()):
+        if not isinstance(adapter_ref, dict) or "$ref" not in adapter_ref:
+            continue
+
+        # Load adapter schema
+        adapter_schema_path = schema_dir / adapter_ref["$ref"].lstrip("../")
+        if not adapter_schema_path.exists():
+            print(f"Warning: Adapter schema not found: {adapter_schema_path}", file=sys.stderr)
+            continue
+
+        with open(adapter_schema_path) as f:
+            adapter_schema = json.load(f)
+
+        # Check for discriminant
+        discriminant_info = adapter_schema.get("properties", {}).get("discriminant", {})
+
+        if not discriminant_info:
+            # Skip composite adapters for now (like oidc_providers)
+            print(f"Skipping composite adapter: {adapter_name}", file=sys.stderr)
+            continue
+
+        # Generate driver configs
+        drivers_data = adapter_schema.get("properties", {}).get("drivers", {}).get("properties", {})
+        common_properties = adapter_schema.get("properties", {}).get("common", {}).get("properties", {})
+
+        driver_classes = {}
+        for driver_name, driver_info in sorted(drivers_data.items()):
+            if "$ref" not in driver_info:
+                continue
+
+            # Load driver schema
+            driver_schema_path = adapter_schema_path.parent / driver_info["$ref"].lstrip("./")
+            if not driver_schema_path.exists():
+                print(f"Warning: Driver schema not found: {driver_schema_path}", file=sys.stderr)
+                continue
+
+            with open(driver_schema_path) as f:
+                driver_schema = json.load(f)
+
+            # Generate driver dataclass
+            driver_class_name, driver_class_code = generate_driver_dataclass(
+                adapter_name,
+                driver_name,
+                driver_schema,
+                common_properties,
+            )
+            driver_classes[driver_name] = driver_class_name
+            all_classes.append(driver_class_code)
+
+        # Generate adapter dataclass
+        adapter_class_name, adapter_class_code, adapter_imports = generate_adapter_dataclass(
+            adapter_name,
+            adapter_schema,
+            driver_classes,
+        )
+        adapter_classes[adapter_name] = adapter_class_name
+        all_classes.append(adapter_class_code)
+
+    # Generate service settings dataclass
+    service_settings = service_schema.get("service_settings", {})
+    service_settings_class, service_settings_code = generate_service_settings_dataclass(
+        service_name,
+        service_settings,
+    )
+    all_classes.append(service_settings_code)
+
+    # Generate top-level ServiceConfig dataclass
+    service_config_class, service_config_code = generate_service_config_dataclass(
+        service_name,
+        service_settings_class,
+        adapter_classes,
+    )
+    all_classes.append(service_config_code)
+
+    # Combine everything
+    output = "\n".join(imports) + "\n\n" + "\n\n\n".join(all_classes) + "\n"
+
+    # Write to file
+    output_path = output_dir / f"{service_name}.py"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w") as f:
+        f.write(output)
+
+    print(f"Generated: {output_path}")
+
+
 def main() -> int:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Generate typed configuration dataclasses from JSON schemas with deduplication"
+    parser = argparse.ArgumentParser(description="Generate typed configuration dataclasses from JSON schemas")
+    parser.add_argument(
+        "--service",
+        help="Generate config for specific service",
     )
-    parser.add_argument("--service", help="Generate config for specific service")
-    parser.add_argument("--all", action="store_true", help="Generate configs for all services")
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Generate configs for all services",
+    )
     parser.add_argument(
         "--output",
         help="Output directory (default: adapters/copilot_config/copilot_config/generated)",
@@ -524,6 +521,7 @@ def main() -> int:
     if not args.service and not args.all:
         parser.error("Must specify either --service or --all")
 
+    # Resolve paths
     try:
         schema_dir = resolve_schema_directory()
     except FileNotFoundError as e:
@@ -533,13 +531,14 @@ def main() -> int:
     if args.output:
         output_dir = Path(args.output)
     else:
+        # Default to generated directory in copilot_config
         script_dir = Path(__file__).resolve().parent
         repo_root = script_dir.parent
         output_dir = repo_root / "adapters" / "copilot_config" / "copilot_config" / "generated"
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create __init__.py
+    # Create __init__.py in generated directory
     init_file = output_dir / "__init__.py"
     if not init_file.exists():
         with open(init_file, "w") as f:
@@ -548,27 +547,17 @@ def main() -> int:
             f.write("\n")
             f.write('"""Generated typed configuration modules."""\n')
 
-    # Get list of services
+    # Get list of services to generate
     if args.all:
         services_dir = schema_dir / "services"
         services = [p.stem for p in services_dir.glob("*.json") if p.stem not in ["__pycache__"]]
     else:
         services = [args.service]
 
-    # Phase 1: Collect all adapters and drivers
-    print("Collecting adapters and drivers...")
-    adapter_schemas, driver_schemas = collect_all_adapters_and_drivers(schema_dir, services)
-
-    # Phase 2: Generate common module
-    print("Generating common module...")
-    common_path = output_dir / "common.py"
-    adapter_driver_map = generate_common_module(adapter_schemas, driver_schemas, common_path)
-
-    # Phase 3: Generate service modules
-    print("Generating service modules...")
+    # Generate configs
     for service_name in sorted(services):
         try:
-            generate_service_module(service_name, schema_dir, output_dir, adapter_driver_map)
+            generate_typed_config_for_service(service_name, schema_dir, output_dir)
         except Exception as e:
             print(f"Error generating config for {service_name}: {e}", file=sys.stderr)
             import traceback
@@ -576,7 +565,6 @@ def main() -> int:
             traceback.print_exc()
             return 1
 
-    print(f"\nGenerated {len(services)} service modules with shared common module")
     return 0
 
 

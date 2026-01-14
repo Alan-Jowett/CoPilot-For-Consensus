@@ -382,15 +382,29 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
 
         driver_name, driver_config_dict = adapter_result
 
-        # Get the adapter and driver classes
+        # Get the adapter and driver classes from common module
+        try:
+            common_module = importlib.import_module(f".generated.common", package="copilot_config")
+        except ImportError:
+            # Fallback: try to get from service module (for backward compatibility)
+            common_module = module
+
         adapter_class_name = _to_python_class_name(adapter_name, "AdapterConfig")
-        adapter_class = getattr(module, adapter_class_name, None)
+        adapter_class = getattr(common_module, adapter_class_name, None)
+
+        if adapter_class is None:
+            # Try service module if not found in common
+            adapter_class = getattr(module, adapter_class_name, None)
 
         if adapter_class is None:
             continue
 
         driver_class_name = f"DriverConfig_{_to_python_class_name(adapter_name)}_{_to_python_class_name(driver_name)}"
-        driver_class = getattr(module, driver_class_name, None)
+        driver_class = getattr(common_module, driver_class_name, None)
+
+        if driver_class is None:
+            # Try service module if not found in common
+            driver_class = getattr(module, driver_class_name, None)
 
         if driver_class is None:
             continue

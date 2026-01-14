@@ -6,6 +6,13 @@ This directory contains auto-generated Python dataclasses that provide strongly-
 
 **These files are generated from JSON schemas** by `scripts/generate_typed_configs.py`. Any manual changes will be overwritten on the next generation run.
 
+## File Structure
+
+- `common.py` - **Shared adapter and driver classes** used across multiple services (metrics, logger, document_store, etc.)
+- `<service>.py` - Service-specific configuration (imports from common.py)
+
+This structure **eliminates duplication** - common adapters like `AdapterConfig_Metrics` and `DriverConfig_Metrics_Prometheus` are defined once in `common.py` and imported by all services that need them.
+
 ## Regenerating Typed Configs
 
 When you modify a schema file in `docs/schemas/configs/`, regenerate the typed configs:
@@ -14,7 +21,7 @@ When you modify a schema file in `docs/schemas/configs/`, regenerate the typed c
 # For a specific service
 python scripts/generate_typed_configs.py --service ingestion
 
-# For all services
+# For all services (regenerates common.py too)
 python scripts/generate_typed_configs.py --all
 ```
 
@@ -52,25 +59,18 @@ if config.metrics:
 3. **Catch typos at development time**, not runtime
 4. **No guessing** about field names, types, or defaults
 5. **Schema is the single source of truth**
+6. **No duplication** - common classes defined once in `common.py`
 
 ## CI Drift Protection
 
 The CI pipeline includes a drift check that ensures generated files match the schemas. If schemas change without regenerating the typed configs, CI will fail with clear instructions on how to fix it.
 
-## File Structure
+## Architecture
 
-- `__init__.py` - Package marker
-- `ingestion.py` - Typed config for ingestion service
-- `parsing.py` - Typed config for parsing service
-- `chunking.py` - Typed config for chunking service
-- `embedding.py` - Typed config for embedding service
-- `orchestrator.py` - Typed config for orchestrator service
-- `summarization.py` - Typed config for summarization service
-- `reporting.py` - Typed config for reporting service
-- `auth.py` - Typed config for auth service
+The generator uses a two-phase approach:
 
-Each file contains:
-- `ServiceConfig_<Service>` - Top-level config class
-- `ServiceSettings_<Service>` - Service-specific settings
-- `AdapterConfig_<Adapter>` - Adapter configuration classes
-- `DriverConfig_<Adapter>_<Driver>` - Driver-specific config classes
+1. **Phase 1**: Scan all services to collect unique adapters/drivers
+2. **Phase 2**: Generate `common.py` with all shared classes
+3. **Phase 3**: Generate service-specific files that import from common
+
+This eliminates duplication while maintaining strong typing. Before this optimization, the same adapter classes were duplicated in every service file (2949 total lines). After optimization with a shared common module, we have only 985 total lines (67% reduction).
