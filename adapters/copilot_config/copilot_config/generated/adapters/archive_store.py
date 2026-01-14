@@ -18,9 +18,9 @@ class DriverConfig_ArchiveStore_Azureblob_ConnectionString:
     # Azure Storage connection string
     azureblob_auth_type: Literal['connection_string'] = 'connection_string'
     # Authentication mode discriminator
-    azureblob_container_name: Optional[str] = 'archives'
+    azureblob_container_name: str = 'archives'
     # Azure Blob Storage container name for archives
-    azureblob_prefix: Optional[str] = ''
+    azureblob_prefix: str = ''
     # Optional path prefix for organizing blobs
 
 
@@ -33,9 +33,9 @@ class DriverConfig_ArchiveStore_Azureblob_AccountKey:
     # Azure Storage account name
     azureblob_auth_type: Literal['account_key'] = 'account_key'
     # Authentication mode discriminator
-    azureblob_container_name: Optional[str] = 'archives'
+    azureblob_container_name: str = 'archives'
     # Azure Blob Storage container name for archives
-    azureblob_prefix: Optional[str] = ''
+    azureblob_prefix: str = ''
     # Optional path prefix for organizing blobs
 
 
@@ -48,9 +48,9 @@ class DriverConfig_ArchiveStore_Azureblob_SasToken:
     # Azure Storage SAS token (may include leading '?')
     azureblob_auth_type: Literal['sas_token'] = 'sas_token'
     # Authentication mode discriminator
-    azureblob_container_name: Optional[str] = 'archives'
+    azureblob_container_name: str = 'archives'
     # Azure Blob Storage container name for archives
-    azureblob_prefix: Optional[str] = ''
+    azureblob_prefix: str = ''
     # Optional path prefix for organizing blobs
 
 
@@ -61,9 +61,9 @@ class DriverConfig_ArchiveStore_Azureblob_ManagedIdentity:
     # Azure Storage account name
     azureblob_auth_type: Literal['managed_identity'] = 'managed_identity'
     # Authentication mode discriminator
-    azureblob_container_name: Optional[str] = 'archives'
+    azureblob_container_name: str = 'archives'
     # Azure Blob Storage container name for archives
-    azureblob_prefix: Optional[str] = ''
+    azureblob_prefix: str = ''
     # Optional path prefix for organizing blobs
 
 
@@ -73,7 +73,7 @@ DriverConfig_ArchiveStore_Azureblob: TypeAlias = Union[DriverConfig_ArchiveStore
 @dataclass
 class DriverConfig_ArchiveStore_Local:
     """Configuration for archive_store adapter using local driver."""
-    archive_base_path: Optional[str] = '/data/raw_archives'
+    archive_base_path: str = '/data/raw_archives'
     # Base path for archive storage on local filesystem
 
 

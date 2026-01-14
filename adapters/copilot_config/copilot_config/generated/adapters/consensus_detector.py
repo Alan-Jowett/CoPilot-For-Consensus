@@ -8,17 +8,17 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
 class DriverConfig_ConsensusDetector_Heuristic:
     """Configuration for consensus_detector adapter using heuristic driver."""
-    agreement_threshold: Optional[int] = 3
+    agreement_threshold: int = 3
     # Minimum agreement signals for consensus
-    min_participants: Optional[int] = 2
+    min_participants: int = 2
     # Minimum participants for valid consensus
-    stagnation_days: Optional[int] = 7
+    stagnation_days: int = 7
     # Days of inactivity before stagnation
 
 
@@ -32,9 +32,9 @@ class DriverConfig_ConsensusDetector_Ml:
 @dataclass
 class DriverConfig_ConsensusDetector_Mock:
     """Configuration for consensus_detector adapter using mock driver."""
-    confidence: Optional[float] = 0.8
+    confidence: float = 0.8
     # Confidence score to return
-    level: Optional[str] = 'consensus'
+    level: str = 'consensus'
     # Consensus level to return (strong_consensus, consensus, weak_consensus, no_consensus, dissent, stagnation)
 
 

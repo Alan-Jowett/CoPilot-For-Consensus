@@ -6,7 +6,7 @@
 import logging
 import time
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.llm_backend import DriverConfig_LlmBackend_Mock
 
 from .models import Citation, Summary, Thread
 from .summarizer import Summarizer
@@ -31,7 +31,7 @@ class MockSummarizer(Summarizer):
         logger.info("Initialized MockSummarizer")
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "MockSummarizer":
+    def from_config(cls, driver_config: DriverConfig_LlmBackend_Mock) -> "MockSummarizer":
         """Create a MockSummarizer from configuration.
 
         Configuration defaults are defined in schema:

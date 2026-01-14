@@ -6,7 +6,10 @@
 import logging
 import time
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.llm_backend import (
+    DriverConfig_LlmBackend_AzureOpenaiGpt,
+    DriverConfig_LlmBackend_Openai,
+)
 
 from .models import Summary, Thread
 from .summarizer import Summarizer
@@ -105,26 +108,21 @@ class OpenAISummarizer(Summarizer):
                 self.client = OpenAI(api_key=api_key)
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "OpenAISummarizer":
+    def from_config(
+        cls,
+        driver_config: DriverConfig_LlmBackend_Openai | DriverConfig_LlmBackend_AzureOpenaiGpt,
+    ) -> "OpenAISummarizer":
         """Create an OpenAISummarizer from configuration.
 
-        Supported driver names are:
-        - "openai" for the OpenAI backend
-        - "azure" for the Azure OpenAI backend
-
         Args:
-            driver_config: DriverConfig instance whose ``driver_name`` is either
-                "openai" or "azure".
+            driver_config: Typed driver config instance.
 
         Returns:
             Configured OpenAISummarizer instance.
 
-        Raises:
-            ValueError: If ``driver_name`` is not "openai" or "azure".
         """
-        driver_lower = driver_config.driver_name.lower()
 
-        if driver_lower == "azure_openai_gpt":
+        if isinstance(driver_config, DriverConfig_LlmBackend_AzureOpenaiGpt):
             return cls(
                 api_key=driver_config.azure_openai_api_key,
                 model=driver_config.azure_openai_model,
@@ -133,14 +131,11 @@ class OpenAISummarizer(Summarizer):
                 deployment_name=driver_config.azure_openai_deployment
             )
 
-        if driver_lower == "openai":
-            return cls(
-                api_key=driver_config.openai_api_key,
-                model=driver_config.openai_model,
-                base_url=driver_config.openai_base_url
-            )
-
-        raise ValueError(f"Unknown OpenAI driver type: {driver_config.driver_name}")
+        return cls(
+            api_key=driver_config.openai_api_key,
+            model=driver_config.openai_model,
+            base_url=driver_config.openai_base_url,
+        )
 
     @property
     def effective_model(self) -> str:

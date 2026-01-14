@@ -8,35 +8,35 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
 class DriverConfig_Chunker_FixedSize:
     """Configuration for chunker adapter using fixed_size driver."""
-    messages_per_chunk: Optional[int] = 5
+    messages_per_chunk: int = 5
     # Number of messages per chunk
 
 
 @dataclass
 class DriverConfig_Chunker_Semantic:
     """Configuration for chunker adapter using semantic driver."""
-    split_on_speaker: Optional[bool] = False
+    split_on_speaker: bool = False
     # Split on speaker changes
-    target_chunk_size: Optional[int] = 400
+    target_chunk_size: int = 400
     # Target chunk size in tokens
 
 
 @dataclass
 class DriverConfig_Chunker_TokenWindow:
     """Configuration for chunker adapter using token_window driver."""
-    chunk_size: Optional[int] = 384
+    chunk_size: int = 384
     # Target chunk size in tokens
-    max_chunk_size: Optional[int] = 512
+    max_chunk_size: int = 512
     # Maximum chunk size in tokens
-    min_chunk_size: Optional[int] = 100
+    min_chunk_size: int = 100
     # Minimum chunk size in tokens
-    overlap: Optional[int] = 50
+    overlap: int = 50
     # Chunk overlap in tokens
 
 

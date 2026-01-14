@@ -23,6 +23,7 @@
             "source": "env",
             "env_var": "LLM_TIMEOUT_SECONDS",
             "default": 300,
+            "minimum": 1,
             "description": "Request timeout in seconds"
         }
     }

@@ -8,7 +8,7 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
@@ -23,7 +23,7 @@ class DriverConfig_ErrorReporter_Sentry:
     """Configuration for error_reporter adapter using sentry driver."""
     dsn: Optional[str] = None
     # Sentry DSN for reporting errors
-    environment: Optional[str] = 'production'
+    environment: str = 'production'
     # Environment name to tag Sentry events
 
 

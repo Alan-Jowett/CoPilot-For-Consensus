@@ -9,10 +9,11 @@ instantiated via the factory with its required parameters.
 
 import json
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import pytest
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.llm_backend import AdapterConfig_LlmBackend
 from copilot_summarization.factory import create_llm_backend
 
 
@@ -64,6 +65,9 @@ def get_minimal_config(driver_schema):
         "azure_openai_endpoint": "https://test.openai.azure.com/",
         "azure_openai_deployment": "test-deployment",
         "azure_openai_model": "gpt-4",
+        # OpenAI specific fields
+        "openai_api_key": "test-openai-key",
+        "openai_model": "gpt-4o-mini",
     }
     
     # Include all properties: required fields and optional fields with defaults
@@ -93,6 +97,16 @@ class TestLLMBackendAllDrivers:
         drivers_enum = schema["properties"]["discriminant"]["enum"]
         drivers_dir = schema_dir / "drivers" / "llm_backend"
         
+        from copilot_config.generated.adapters import llm_backend as llm_backend_types
+
+        driver_to_class = {
+            "openai": llm_backend_types.DriverConfig_LlmBackend_Openai,
+            "azure_openai_gpt": llm_backend_types.DriverConfig_LlmBackend_AzureOpenaiGpt,
+            "local": llm_backend_types.DriverConfig_LlmBackend_Local,
+            "llamacpp": llm_backend_types.DriverConfig_LlmBackend_Llamacpp,
+            "mock": llm_backend_types.DriverConfig_LlmBackend_Mock,
+        }
+
         for driver in drivers_enum:
             # Load driver schema - llm drivers are named with llm_ prefix
             driver_schema_path = drivers_dir / f"llm_{driver}.json"
@@ -101,18 +115,21 @@ class TestLLMBackendAllDrivers:
             driver_schema = load_json(driver_schema_path)
             config_dict = get_minimal_config(driver_schema)
             
-            # Get all allowed keys from schema
-            allowed_keys = set(driver_schema.get("properties", {}).keys())
-            
-            config = DriverConfig(
-                driver_name=driver,
-                config=config_dict,
-                allowed_keys=allowed_keys
-            )
-            
+            driver_class = driver_to_class[driver]
+            driver_config = driver_class(**config_dict)
+            adapter_config = AdapterConfig_LlmBackend(llm_backend_type=driver, driver=driver_config)
+
             # Should not raise any exceptions (skip if optional dependencies are missing)
             try:
-                backend = create_llm_backend(driver_name=driver, driver_config=config)
+                if driver in {"openai", "azure_openai_gpt"}:
+                    mock_module = Mock()
+                    mock_module.OpenAI = Mock(return_value=Mock())
+                    mock_module.AzureOpenAI = Mock(return_value=Mock())
+                    with patch.dict("sys.modules", {"openai": mock_module}):
+                        backend = create_llm_backend(adapter_config)
+                else:
+                    backend = create_llm_backend(adapter_config)
+
                 assert backend is not None, f"Failed to create LLM backend for driver: {driver}"
             except ImportError as e:
                 pytest.skip(f"Optional dependencies for {driver} not installed: {str(e)}")

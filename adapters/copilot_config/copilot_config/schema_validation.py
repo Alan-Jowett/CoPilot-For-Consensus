@@ -109,6 +109,11 @@ def _validate_uri(value: str) -> bool:
     return bool(parsed.scheme and parsed.netloc)
 
 
+def _is_bool(value: Any) -> bool:
+    # bool is a subclass of int; keep checks explicit.
+    return isinstance(value, bool)
+
+
 def _human_join_or(items: list[str]) -> str:
     if not items:
         return ""
@@ -316,6 +321,20 @@ def validate_config_against_schema_dict(*, schema: dict[str, Any], config: objec
         value = config_map.get(field_name)
         if value is None:
             continue
+
+        expected_type = spec.get("type")
+        if expected_type in ("int", "integer"):
+            if not isinstance(value, int) or _is_bool(value):
+                raise ValueError(f"{field_name} parameter is invalid")
+        elif expected_type in ("number", "float"):
+            if not isinstance(value, (int, float)) or _is_bool(value):
+                raise ValueError(f"{field_name} parameter is invalid")
+        elif expected_type in ("bool", "boolean"):
+            if not isinstance(value, bool):
+                raise ValueError(f"{field_name} parameter is invalid")
+        elif expected_type == "string":
+            if not isinstance(value, str):
+                raise ValueError(f"{field_name} parameter is invalid")
 
         if "const" in spec and value != spec.get("const"):
             raise ValueError(f"{field_name} parameter is invalid")

@@ -6,9 +6,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
-from copilot_config import DriverConfig
+from copilot_config.adapter_factory import create_adapter
+from copilot_config.generated.adapters.llm_backend import AdapterConfig_LlmBackend
 
 from .llamacpp_summarizer import LlamaCppSummarizer
 from .local_llm_summarizer import LocalLLMSummarizer
@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_llm_backend(
-    driver_name: str,
-    driver_config: DriverConfig,
+    config: AdapterConfig_LlmBackend,
 ) -> Summarizer:
     """Create an LLM backend (summarizer) instance.
 
@@ -31,32 +30,26 @@ def create_llm_backend(
     language models, hence they are referred to as 'LLM backends'.
 
     Args:
-        driver_name: Backend type (required). Options: "openai", "azure", "local", "llamacpp", "mock".
-        driver_config: Backend configuration as DriverConfig instance.
+        config: Typed AdapterConfig_LlmBackend instance.
 
     Returns:
         Summarizer instance.
 
     Raises:
-        ValueError: If driver_name is unknown.
+        ValueError: If config is missing or llm_backend_type is unknown.
     """
-    driver_lower = driver_name.lower()
+    logger.info("Creating LLM backend with driver: %s", config.llm_backend_type)
 
-    logger.info("Creating LLM backend with driver: %s", driver_lower)
-
-    if driver_lower == "openai":
-        return OpenAISummarizer.from_config(driver_config)
-
-    if driver_lower == "azure_openai_gpt":
-        return OpenAISummarizer.from_config(driver_config)
-
-    if driver_lower == "local":
-        return LocalLLMSummarizer.from_config(driver_config)
-
-    if driver_lower == "llamacpp":
-        return LlamaCppSummarizer.from_config(driver_config)
-
-    if driver_lower == "mock":
-        return MockSummarizer.from_config(driver_config)
-
-    raise ValueError(f"Unknown LLM backend driver: {driver_name}")
+    return create_adapter(
+        config,
+        adapter_name="llm_backend",
+        get_driver_type=lambda c: c.llm_backend_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "openai": OpenAISummarizer.from_config,
+            "azure_openai_gpt": OpenAISummarizer.from_config,
+            "local": LocalLLMSummarizer.from_config,
+            "llamacpp": LlamaCppSummarizer.from_config,
+            "mock": MockSummarizer.from_config,
+        },
+    )
