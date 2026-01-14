@@ -8,21 +8,21 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 
 @dataclass
 class DriverConfig_DocumentStore_AzureCosmosdb:
     """Configuration for document_store adapter using azure_cosmosdb driver."""
-    container: str | None = 'documents'
+    container: Optional[str] = 'documents'
     """Cosmos DB container name"""
-    database: str | None = 'copilot'
+    database: Optional[str] = 'copilot'
     # Cosmos DB database name
-    endpoint: str | None = None
+    endpoint: Optional[str] = None
     # Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
-    key: str | None = None
+    key: Optional[str] = None
     # Cosmos DB account key (optional if using managed identity)
-    partition_key: str | None = '/collection'
+    partition_key: Optional[str] = '/collection'
     # Cosmos DB partition key path
 
 
@@ -35,15 +35,15 @@ class DriverConfig_DocumentStore_Inmemory:
 @dataclass
 class DriverConfig_DocumentStore_Mongodb:
     """Configuration for document_store adapter using mongodb driver."""
-    database: str | None = 'copilot'
+    database: Optional[str] = 'copilot'
     """MongoDB database name"""
-    host: str | None = 'documentdb'
+    host: Optional[str] = 'documentdb'
     # MongoDB hostname
-    password: str | None = None
+    password: Optional[str] = None
     # MongoDB password
-    port: int | None = 27017
+    port: Optional[int] = 27017
     # MongoDB port
-    username: str | None = None
+    username: Optional[str] = None
     # MongoDB username
 
 
@@ -51,8 +51,8 @@ class DriverConfig_DocumentStore_Mongodb:
 class AdapterConfig_DocumentStore:
     """Configuration for document_store adapter."""
     doc_store_type: Literal["azure_cosmosdb", "inmemory", "mongodb"]
-    driver: (
-        DriverConfig_DocumentStore_AzureCosmosdb |
-        DriverConfig_DocumentStore_Inmemory |
+    driver: Union[
+        DriverConfig_DocumentStore_AzureCosmosdb,
+        DriverConfig_DocumentStore_Inmemory,
         DriverConfig_DocumentStore_Mongodb
-    )
+    ]

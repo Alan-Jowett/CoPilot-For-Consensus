@@ -8,6 +8,7 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 from ..adapters.document_store import AdapterConfig_DocumentStore
 from ..adapters.embedding_backend import AdapterConfig_EmbeddingBackend
@@ -21,27 +22,27 @@ from ..adapters.vector_store import AdapterConfig_VectorStore
 @dataclass
 class ServiceSettings_Embedding:
     """Service-specific settings for embedding."""
-    auth_service_url: str | None = 'http://auth:8090'
-    batch_size: int | None = 32
-    cache_ttl_seconds: int | None = 86400
-    enable_cache: bool | None = True
-    http_host: str | None = '0.0.0.0'
-    http_port: int | None = 8000
-    jwt_auth_enabled: bool | None = True
-    max_retries: int | None = 3
-    request_timeout_seconds: int | None = 30
-    retry_backoff_seconds: int | None = 5
-    service_audience: str | None = 'copilot-for-consensus'
+    auth_service_url: Optional[str] = 'http://auth:8090'
+    batch_size: Optional[int] = 32
+    cache_ttl_seconds: Optional[int] = 86400
+    enable_cache: Optional[bool] = True
+    http_host: Optional[str] = '0.0.0.0'
+    http_port: Optional[int] = 8000
+    jwt_auth_enabled: Optional[bool] = True
+    max_retries: Optional[int] = 3
+    request_timeout_seconds: Optional[int] = 30
+    retry_backoff_seconds: Optional[int] = 5
+    service_audience: Optional[str] = 'copilot-for-consensus'
 
 
 @dataclass
 class ServiceConfig_Embedding:
     """Top-level configuration for embedding service."""
     service_settings: ServiceSettings_Embedding
-    document_store: AdapterConfig_DocumentStore | None = None
-    embedding_backend: AdapterConfig_EmbeddingBackend | None = None
-    error_reporter: AdapterConfig_ErrorReporter | None = None
-    message_bus: AdapterConfig_MessageBus | None = None
-    metrics: AdapterConfig_Metrics | None = None
-    secret_provider: AdapterConfig_SecretProvider | None = None
-    vector_store: AdapterConfig_VectorStore | None = None
+    document_store: Optional[AdapterConfig_DocumentStore] = None
+    embedding_backend: Optional[AdapterConfig_EmbeddingBackend] = None
+    error_reporter: Optional[AdapterConfig_ErrorReporter] = None
+    message_bus: Optional[AdapterConfig_MessageBus] = None
+    metrics: Optional[AdapterConfig_Metrics] = None
+    secret_provider: Optional[AdapterConfig_SecretProvider] = None
+    vector_store: Optional[AdapterConfig_VectorStore] = None

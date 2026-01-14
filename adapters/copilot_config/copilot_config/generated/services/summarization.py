@@ -8,6 +8,7 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 from ..adapters.document_store import AdapterConfig_DocumentStore
 from ..adapters.embedding_backend import AdapterConfig_EmbeddingBackend
@@ -23,26 +24,26 @@ from ..adapters.vector_store import AdapterConfig_VectorStore
 @dataclass
 class ServiceSettings_Summarization:
     """Service-specific settings for summarization."""
-    auth_service_url: str | None = 'http://auth:8090'
-    citation_count: int | None = 12
-    http_port: int | None = 8000
-    jwt_auth_enabled: bool | None = True
-    max_retries: int | None = 3
-    retry_delay_seconds: int | None = 5
-    service_audience: str | None = 'copilot-for-consensus'
-    top_k: int | None = 12
+    auth_service_url: Optional[str] = 'http://auth:8090'
+    citation_count: Optional[int] = 12
+    http_port: Optional[int] = 8000
+    jwt_auth_enabled: Optional[bool] = True
+    max_retries: Optional[int] = 3
+    retry_delay_seconds: Optional[int] = 5
+    service_audience: Optional[str] = 'copilot-for-consensus'
+    top_k: Optional[int] = 12
 
 
 @dataclass
 class ServiceConfig_Summarization:
     """Top-level configuration for summarization service."""
     service_settings: ServiceSettings_Summarization
-    document_store: AdapterConfig_DocumentStore | None = None
-    embedding_backend: AdapterConfig_EmbeddingBackend | None = None
-    error_reporter: AdapterConfig_ErrorReporter | None = None
-    llm_backend: AdapterConfig_LlmBackend | None = None
-    logger: AdapterConfig_Logger | None = None
-    message_bus: AdapterConfig_MessageBus | None = None
-    metrics: AdapterConfig_Metrics | None = None
-    secret_provider: AdapterConfig_SecretProvider | None = None
-    vector_store: AdapterConfig_VectorStore | None = None
+    document_store: Optional[AdapterConfig_DocumentStore] = None
+    embedding_backend: Optional[AdapterConfig_EmbeddingBackend] = None
+    error_reporter: Optional[AdapterConfig_ErrorReporter] = None
+    llm_backend: Optional[AdapterConfig_LlmBackend] = None
+    logger: Optional[AdapterConfig_Logger] = None
+    message_bus: Optional[AdapterConfig_MessageBus] = None
+    metrics: Optional[AdapterConfig_Metrics] = None
+    secret_provider: Optional[AdapterConfig_SecretProvider] = None
+    vector_store: Optional[AdapterConfig_VectorStore] = None

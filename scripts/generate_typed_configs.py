@@ -55,7 +55,11 @@ def to_python_field_name(name: str) -> str:
 
 
 def schema_type_to_python_type(schema_type: str, default_value: Any = None) -> str:
-    """Convert schema type to Python type annotation."""
+    """Convert schema type to Python type annotation.
+    
+    Uses MyPy-style type hints with typing module (Dict, List, Optional, Union)
+    for better compatibility and stricter type checking.
+    """
     type_mapping = {
         "string": "str",
         "int": "int",
@@ -64,8 +68,8 @@ def schema_type_to_python_type(schema_type: str, default_value: Any = None) -> s
         "boolean": "bool",
         "float": "float",
         "number": "float",
-        "object": "dict[str, Any]",
-        "array": "list[Any]",
+        "object": "Dict[str, Any]",
+        "array": "List[Any]",
     }
 
     py_type = type_mapping.get(schema_type, "Any")
@@ -129,7 +133,7 @@ def generate_driver_dataclass(
             if required and default is None:
                 type_annotation = py_type
             else:
-                type_annotation = f"{py_type} | None"
+                type_annotation = f"Optional[{py_type}]"
 
             if default is not None:
                 if isinstance(default, str):
@@ -178,21 +182,21 @@ def generate_adapter_dataclass(
         lines.append(f"    {discriminant_field}: {literal_type}")
 
         driver_union_types = [driver_classes.get(driver, "Any") for driver in sorted(discriminant_enum)]
-        driver_union = " | ".join(driver_union_types)
+        driver_union = ", ".join(driver_union_types)
 
-        union_line = f"    driver: {driver_union}"
+        union_line = f"    driver: Union[{driver_union}]"
         if len(union_line) > 120:
-            lines.append("    driver: (")
+            lines.append("    driver: Union[")
             for i, driver_type in enumerate(driver_union_types):
                 if i < len(driver_union_types) - 1:
-                    lines.append(f"        {driver_type} |")
+                    lines.append(f"        {driver_type},")
                 else:
                     lines.append(f"        {driver_type}")
-            lines.append("    )")
+            lines.append("    ]")
         else:
             lines.append(union_line)
     else:
-        lines.append("    config: dict[str, Any]")
+        lines.append("    config: Dict[str, Any]")
 
     return class_name, "\n".join(lines)
 
@@ -231,7 +235,7 @@ def generate_adapter_module(
         '"""',
         "",
         "from dataclasses import dataclass",
-        "from typing import Any, Literal",
+        "from typing import Any, Dict, List, Literal, Optional, Union",
         "",
     ]
 
@@ -325,7 +329,7 @@ def generate_service_settings_dataclass(
             if required and default is None:
                 type_annotation = py_type
             else:
-                type_annotation = f"{py_type} | None"
+                type_annotation = f"Optional[{py_type}]"
 
             if default is not None:
                 if isinstance(default, str):
@@ -364,7 +368,7 @@ def generate_service_config_dataclass(
         for adapter_name in sorted(adapter_classes.keys()):
             adapter_class = adapter_classes[adapter_name]
             field_name = to_python_field_name(adapter_name)
-            lines.append(f"    {field_name}: {adapter_class} | None = None")
+            lines.append(f"    {field_name}: Optional[{adapter_class}] = None")
 
     return class_name, "\n".join(lines)
 
@@ -405,6 +409,7 @@ def generate_service_module(
         '"""',
         "",
         "from dataclasses import dataclass",
+        "from typing import Optional",
         "",
     ]
 

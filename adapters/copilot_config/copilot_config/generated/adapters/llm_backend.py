@@ -8,7 +8,7 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 
 @dataclass
@@ -20,38 +20,38 @@ class DriverConfig_LlmBackend_AzureOpenaiGpt:
     # Azure OpenAI endpoint URL (e.g., https://your-resource.openai.azure.com/)
     azure_openai_model: str
     # Model name (used when invoking Azure OpenAI deployment)
-    azure_openai_api_version: str | None = '2023-12-01'
+    azure_openai_api_version: Optional[str] = '2023-12-01'
     # Azure OpenAI API version
-    azure_openai_deployment: str | None = None
+    azure_openai_deployment: Optional[str] = None
     # Azure OpenAI deployment name
 
 
 @dataclass
 class DriverConfig_LlmBackend_Llamacpp:
     """Configuration for llm_backend adapter using llamacpp driver."""
-    llamacpp_endpoint: str | None = 'http://llama-cpp:8081'
+    llamacpp_endpoint: Optional[str] = 'http://llama-cpp:8081'
     """llama.cpp server endpoint URL"""
-    llamacpp_model: str | None = 'mistral'
+    llamacpp_model: Optional[str] = 'mistral'
     # llama.cpp model name
-    llamacpp_timeout_seconds: int | None = 300
+    llamacpp_timeout_seconds: Optional[int] = 300
     # Request timeout in seconds
 
 
 @dataclass
 class DriverConfig_LlmBackend_Local:
     """Configuration for llm_backend adapter using local driver."""
-    local_llm_endpoint: str | None = 'http://ollama:11434'
+    local_llm_endpoint: Optional[str] = 'http://ollama:11434'
     """Local LLM endpoint URL (e.g., Ollama)"""
-    local_llm_model: str | None = 'mistral'
+    local_llm_model: Optional[str] = 'mistral'
     # Local model name (e.g., mistral, llama2)
-    local_llm_timeout_seconds: int | None = 300
+    local_llm_timeout_seconds: Optional[int] = 300
     # Request timeout in seconds
 
 
 @dataclass
 class DriverConfig_LlmBackend_Mock:
     """Configuration for llm_backend adapter using mock driver."""
-    mock_latency_ms: int | None = 100
+    mock_latency_ms: Optional[int] = 100
     """Simulated latency in milliseconds"""
 
 
@@ -62,7 +62,7 @@ class DriverConfig_LlmBackend_Openai:
     """OpenAI API key"""
     openai_model: str
     # OpenAI model name (e.g., gpt-4o, gpt-3.5-turbo)
-    openai_base_url: str | None = None
+    openai_base_url: Optional[str] = None
     # Optional custom OpenAI-compatible base URL
 
 
@@ -70,10 +70,10 @@ class DriverConfig_LlmBackend_Openai:
 class AdapterConfig_LlmBackend:
     """Configuration for llm_backend adapter."""
     llm_backend_type: Literal["azure_openai_gpt", "llamacpp", "local", "mock", "openai"]
-    driver: (
-        DriverConfig_LlmBackend_AzureOpenaiGpt |
-        DriverConfig_LlmBackend_Llamacpp |
-        DriverConfig_LlmBackend_Local |
-        DriverConfig_LlmBackend_Mock |
+    driver: Union[
+        DriverConfig_LlmBackend_AzureOpenaiGpt,
+        DriverConfig_LlmBackend_Llamacpp,
+        DriverConfig_LlmBackend_Local,
+        DriverConfig_LlmBackend_Mock,
         DriverConfig_LlmBackend_Openai
-    )
+    ]

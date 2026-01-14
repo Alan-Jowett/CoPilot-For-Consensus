@@ -8,6 +8,7 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 from ..adapters.archive_store import AdapterConfig_ArchiveStore
 from ..adapters.document_store import AdapterConfig_DocumentStore
@@ -21,30 +22,30 @@ from ..adapters.secret_provider import AdapterConfig_SecretProvider
 @dataclass
 class ServiceSettings_Ingestion:
     """Service-specific settings for ingestion."""
-    archive_store_type: str | None = 'local'
-    auth_service_url: str | None = 'http://auth:8090'
-    batch_size: int | None = 100
-    concurrent_sources: int | None = 5
-    enable_incremental: bool | None = True
-    http_host: str | None = '0.0.0.0'
-    http_port: int | None = 8000
-    jwt_auth_enabled: bool | None = True
-    max_retries: int | None = 3
-    poll_interval_seconds: int | None = 3600
-    request_timeout_seconds: int | None = 60
-    schedule_interval_seconds: int | None = 21600
-    service_audience: str | None = 'copilot-for-consensus'
-    storage_path: str | None = '/tmp/ingestion'
+    archive_store_type: Optional[str] = 'local'
+    auth_service_url: Optional[str] = 'http://auth:8090'
+    batch_size: Optional[int] = 100
+    concurrent_sources: Optional[int] = 5
+    enable_incremental: Optional[bool] = True
+    http_host: Optional[str] = '0.0.0.0'
+    http_port: Optional[int] = 8000
+    jwt_auth_enabled: Optional[bool] = True
+    max_retries: Optional[int] = 3
+    poll_interval_seconds: Optional[int] = 3600
+    request_timeout_seconds: Optional[int] = 60
+    schedule_interval_seconds: Optional[int] = 21600
+    service_audience: Optional[str] = 'copilot-for-consensus'
+    storage_path: Optional[str] = '/tmp/ingestion'
 
 
 @dataclass
 class ServiceConfig_Ingestion:
     """Top-level configuration for ingestion service."""
     service_settings: ServiceSettings_Ingestion
-    archive_store: AdapterConfig_ArchiveStore | None = None
-    document_store: AdapterConfig_DocumentStore | None = None
-    error_reporter: AdapterConfig_ErrorReporter | None = None
-    logger: AdapterConfig_Logger | None = None
-    message_bus: AdapterConfig_MessageBus | None = None
-    metrics: AdapterConfig_Metrics | None = None
-    secret_provider: AdapterConfig_SecretProvider | None = None
+    archive_store: Optional[AdapterConfig_ArchiveStore] = None
+    document_store: Optional[AdapterConfig_DocumentStore] = None
+    error_reporter: Optional[AdapterConfig_ErrorReporter] = None
+    logger: Optional[AdapterConfig_Logger] = None
+    message_bus: Optional[AdapterConfig_MessageBus] = None
+    metrics: Optional[AdapterConfig_Metrics] = None
+    secret_provider: Optional[AdapterConfig_SecretProvider] = None

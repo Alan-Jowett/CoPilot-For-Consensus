@@ -8,28 +8,28 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 
 @dataclass
 class DriverConfig_SecretProvider_AzureKeyVault:
     """Configuration for secret_provider adapter using azure_key_vault driver."""
-    client_id: str | None = None
+    client_id: Optional[str] = None
     """Azure client ID (optional; managed identity may be used)"""
-    client_secret: str | None = None
+    client_secret: Optional[str] = None
     # Azure client secret (optional; managed identity may be used)
-    tenant_id: str | None = None
+    tenant_id: Optional[str] = None
     # Azure tenant ID (optional; managed identity may be used)
-    vault_name: str | None = None
+    vault_name: Optional[str] = None
     # Azure Key Vault name (optional when vault_url is provided)
-    vault_url: str | None = None
+    vault_url: Optional[str] = None
     # Azure Key Vault URL (e.g., https://my-vault.vault.azure.net/)
 
 
 @dataclass
 class DriverConfig_SecretProvider_Local:
     """Configuration for secret_provider adapter using local driver."""
-    base_path: str | None = '/run/secrets'
+    base_path: Optional[str] = '/run/secrets'
     """Base path for secret storage"""
 
 
@@ -37,4 +37,4 @@ class DriverConfig_SecretProvider_Local:
 class AdapterConfig_SecretProvider:
     """Configuration for secret_provider adapter."""
     secret_provider_type: Literal["azure_key_vault", "local"]
-    driver: DriverConfig_SecretProvider_AzureKeyVault | DriverConfig_SecretProvider_Local
+    driver: Union[DriverConfig_SecretProvider_AzureKeyVault, DriverConfig_SecretProvider_Local]

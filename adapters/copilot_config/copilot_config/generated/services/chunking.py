@@ -8,6 +8,7 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 from ..adapters.chunker import AdapterConfig_Chunker
 from ..adapters.document_store import AdapterConfig_DocumentStore
@@ -19,25 +20,25 @@ from ..adapters.secret_provider import AdapterConfig_SecretProvider
 @dataclass
 class ServiceSettings_Chunking:
     """Service-specific settings for chunking."""
-    auth_service_url: str | None = 'http://auth:8090'
-    chunk_overlap: int | None = 50
-    chunk_size: int | None = 384
-    chunking_strategy: str | None = 'token_window'
-    error_reporter_type: str | None = 'console'
-    http_port: int | None = 8000
-    jwt_auth_enabled: bool | None = True
-    max_chunk_size: int | None = 512
-    max_retries: int | None = 3
-    min_chunk_size: int | None = 100
-    service_audience: str | None = 'copilot-for-consensus'
+    auth_service_url: Optional[str] = 'http://auth:8090'
+    chunk_overlap: Optional[int] = 50
+    chunk_size: Optional[int] = 384
+    chunking_strategy: Optional[str] = 'token_window'
+    error_reporter_type: Optional[str] = 'console'
+    http_port: Optional[int] = 8000
+    jwt_auth_enabled: Optional[bool] = True
+    max_chunk_size: Optional[int] = 512
+    max_retries: Optional[int] = 3
+    min_chunk_size: Optional[int] = 100
+    service_audience: Optional[str] = 'copilot-for-consensus'
 
 
 @dataclass
 class ServiceConfig_Chunking:
     """Top-level configuration for chunking service."""
     service_settings: ServiceSettings_Chunking
-    chunker: AdapterConfig_Chunker | None = None
-    document_store: AdapterConfig_DocumentStore | None = None
-    message_bus: AdapterConfig_MessageBus | None = None
-    metrics: AdapterConfig_Metrics | None = None
-    secret_provider: AdapterConfig_SecretProvider | None = None
+    chunker: Optional[AdapterConfig_Chunker] = None
+    document_store: Optional[AdapterConfig_DocumentStore] = None
+    message_bus: Optional[AdapterConfig_MessageBus] = None
+    metrics: Optional[AdapterConfig_Metrics] = None
+    secret_provider: Optional[AdapterConfig_SecretProvider] = None

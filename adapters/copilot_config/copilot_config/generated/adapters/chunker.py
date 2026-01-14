@@ -8,35 +8,35 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 
 @dataclass
 class DriverConfig_Chunker_FixedSize:
     """Configuration for chunker adapter using fixed_size driver."""
-    messages_per_chunk: int | None = 5
+    messages_per_chunk: Optional[int] = 5
     """Number of messages per chunk"""
 
 
 @dataclass
 class DriverConfig_Chunker_Semantic:
     """Configuration for chunker adapter using semantic driver."""
-    split_on_speaker: bool | None = False
+    split_on_speaker: Optional[bool] = False
     """Split on speaker changes"""
-    target_chunk_size: int | None = 400
+    target_chunk_size: Optional[int] = 400
     # Target chunk size in tokens
 
 
 @dataclass
 class DriverConfig_Chunker_TokenWindow:
     """Configuration for chunker adapter using token_window driver."""
-    chunk_size: int | None = 384
+    chunk_size: Optional[int] = 384
     """Target chunk size in tokens"""
-    max_chunk_size: int | None = 512
+    max_chunk_size: Optional[int] = 512
     # Maximum chunk size in tokens
-    min_chunk_size: int | None = 100
+    min_chunk_size: Optional[int] = 100
     # Minimum chunk size in tokens
-    overlap: int | None = 50
+    overlap: Optional[int] = 50
     # Chunk overlap in tokens
 
 
@@ -44,4 +44,4 @@ class DriverConfig_Chunker_TokenWindow:
 class AdapterConfig_Chunker:
     """Configuration for chunker adapter."""
     chunking_strategy: Literal["fixed_size", "semantic", "token_window"]
-    driver: DriverConfig_Chunker_FixedSize | DriverConfig_Chunker_Semantic | DriverConfig_Chunker_TokenWindow
+    driver: Union[DriverConfig_Chunker_FixedSize, DriverConfig_Chunker_Semantic, DriverConfig_Chunker_TokenWindow]

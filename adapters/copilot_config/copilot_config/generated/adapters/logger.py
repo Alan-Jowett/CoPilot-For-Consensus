@@ -8,37 +8,37 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 
 @dataclass
 class DriverConfig_Logger_AzureMonitor:
     """Configuration for logger adapter using azure_monitor driver."""
-    console_log: bool | None = False
+    console_log: Optional[bool] = False
     """Also log to console when using Azure Monitor"""
-    instrumentation_key: str | None = None
+    instrumentation_key: Optional[str] = None
     # Application Insights instrumentation key for Azure Monitor logging
-    level: str | None = 'INFO'
+    level: Optional[str] = 'INFO'
     # Logging level
-    name: str | None = 'copilot'
+    name: Optional[str] = 'copilot'
     # Logger name for identification
 
 
 @dataclass
 class DriverConfig_Logger_Silent:
     """Configuration for logger adapter using silent driver."""
-    level: str | None = 'INFO'
+    level: Optional[str] = 'INFO'
     """Logging level for silent logger"""
-    name: str | None = None
+    name: Optional[str] = None
     # Logger name (optional)
 
 
 @dataclass
 class DriverConfig_Logger_Stdout:
     """Configuration for logger adapter using stdout driver."""
-    level: str | None = 'INFO'
+    level: Optional[str] = 'INFO'
     """Logging level for stdout logger"""
-    name: str | None = None
+    name: Optional[str] = None
     # Logger name (optional)
 
 
@@ -46,4 +46,4 @@ class DriverConfig_Logger_Stdout:
 class AdapterConfig_Logger:
     """Configuration for logger adapter."""
     logger_type: Literal["azure_monitor", "silent", "stdout"]
-    driver: DriverConfig_Logger_AzureMonitor | DriverConfig_Logger_Silent | DriverConfig_Logger_Stdout
+    driver: Union[DriverConfig_Logger_AzureMonitor, DriverConfig_Logger_Silent, DriverConfig_Logger_Stdout]

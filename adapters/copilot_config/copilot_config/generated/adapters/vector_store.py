@@ -8,32 +8,32 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 
 @dataclass
 class DriverConfig_VectorStore_AzureAiSearch:
     """Configuration for vector_store adapter using azure_ai_search driver."""
-    api_key: str | None = None
+    api_key: Optional[str] = None
     """Azure AI Search API key (alternative to managed identity)"""
-    endpoint: str | None = None
+    endpoint: Optional[str] = None
     # Azure AI Search endpoint URL
-    index_name: str | None = 'embeddings'
+    index_name: Optional[str] = 'embeddings'
     # Azure AI Search index name for embeddings
-    use_managed_identity: bool | None = False
+    use_managed_identity: Optional[bool] = False
     # Use managed identity instead of API key
-    vector_size: int | None = 384
+    vector_size: Optional[int] = 384
     # Embedding vector dimension
 
 
 @dataclass
 class DriverConfig_VectorStore_Faiss:
     """Configuration for vector_store adapter using faiss driver."""
-    dimension: int | None = 384
+    dimension: Optional[int] = 384
     """Embedding vector dimension"""
-    index_type: str | None = 'flat'
+    index_type: Optional[str] = 'flat'
     # FAISS index type (flat, ivf)
-    persist_path: str | None = None
+    persist_path: Optional[str] = None
     # Optional path to persist the index
 
 
@@ -46,19 +46,19 @@ class DriverConfig_VectorStore_Inmemory:
 @dataclass
 class DriverConfig_VectorStore_Qdrant:
     """Configuration for vector_store adapter using qdrant driver."""
-    api_key: str | None = None
+    api_key: Optional[str] = None
     """Qdrant API key (optional)"""
-    collection_name: str | None = 'embeddings'
+    collection_name: Optional[str] = 'embeddings'
     # Qdrant collection name for embeddings
-    distance: str | None = 'cosine'
+    distance: Optional[str] = 'cosine'
     # Distance metric (cosine, euclid)
-    host: str | None = 'vectorstore'
+    host: Optional[str] = 'vectorstore'
     # Qdrant server hostname
-    port: int | None = 6333
+    port: Optional[int] = 6333
     # Qdrant server port
-    upsert_batch_size: int | None = 100
+    upsert_batch_size: Optional[int] = 100
     # Batch size for upsert operations
-    vector_size: int | None = 384
+    vector_size: Optional[int] = 384
     # Embedding vector dimension
 
 
@@ -66,9 +66,9 @@ class DriverConfig_VectorStore_Qdrant:
 class AdapterConfig_VectorStore:
     """Configuration for vector_store adapter."""
     vector_store_type: Literal["azure_ai_search", "faiss", "inmemory", "qdrant"]
-    driver: (
-        DriverConfig_VectorStore_AzureAiSearch |
-        DriverConfig_VectorStore_Faiss |
-        DriverConfig_VectorStore_Inmemory |
+    driver: Union[
+        DriverConfig_VectorStore_AzureAiSearch,
+        DriverConfig_VectorStore_Faiss,
+        DriverConfig_VectorStore_Inmemory,
         DriverConfig_VectorStore_Qdrant
-    )
+    ]

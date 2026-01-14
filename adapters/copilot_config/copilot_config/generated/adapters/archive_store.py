@@ -8,7 +8,7 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 
 @dataclass
@@ -16,16 +16,16 @@ class DriverConfig_ArchiveStore_Azureblob:
     """Configuration for archive_store adapter using azureblob driver."""
     azureblob_account_name: str
     """Azure Storage account name"""
-    azureblob_account_key: str | None = None
+    azureblob_account_key: Optional[str] = None
     # Azure Storage account key (alternative to managed identity)
-    azureblob_container_name: str | None = 'archives'
+    azureblob_container_name: Optional[str] = 'archives'
     # Azure Blob Storage container name for archives
 
 
 @dataclass
 class DriverConfig_ArchiveStore_Local:
     """Configuration for archive_store adapter using local driver."""
-    archive_base_path: str | None = '/data/raw_archives'
+    archive_base_path: Optional[str] = '/data/raw_archives'
     """Base path for archive storage on local filesystem"""
 
 
@@ -33,4 +33,4 @@ class DriverConfig_ArchiveStore_Local:
 class AdapterConfig_ArchiveStore:
     """Configuration for archive_store adapter."""
     archive_store_type: Literal["azureblob", "local"]
-    driver: DriverConfig_ArchiveStore_Azureblob | DriverConfig_ArchiveStore_Local
+    driver: Union[DriverConfig_ArchiveStore_Azureblob, DriverConfig_ArchiveStore_Local]

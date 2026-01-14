@@ -8,33 +8,33 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 
 @dataclass
 class DriverConfig_ConsensusDetector_Heuristic:
     """Configuration for consensus_detector adapter using heuristic driver."""
-    agreement_threshold: int | None = 3
+    agreement_threshold: Optional[int] = 3
     """Minimum agreement signals for consensus"""
-    min_participants: int | None = 2
+    min_participants: Optional[int] = 2
     # Minimum participants for valid consensus
-    stagnation_days: int | None = 7
+    stagnation_days: Optional[int] = 7
     # Days of inactivity before stagnation
 
 
 @dataclass
 class DriverConfig_ConsensusDetector_Ml:
     """Configuration for consensus_detector adapter using ml driver."""
-    model_path: str | None = None
+    model_path: Optional[str] = None
     """Path to trained model file"""
 
 
 @dataclass
 class DriverConfig_ConsensusDetector_Mock:
     """Configuration for consensus_detector adapter using mock driver."""
-    confidence: float | None = 0.8
+    confidence: Optional[float] = 0.8
     """Confidence score to return"""
-    level: str | None = 'consensus'
+    level: Optional[str] = 'consensus'
     # Consensus level to return (strong_consensus, consensus, weak_consensus, no_consensus, dissent, stagnation)
 
 
@@ -42,8 +42,8 @@ class DriverConfig_ConsensusDetector_Mock:
 class AdapterConfig_ConsensusDetector:
     """Configuration for consensus_detector adapter."""
     consensus_detector_type: Literal["heuristic", "ml", "mock"]
-    driver: (
-        DriverConfig_ConsensusDetector_Heuristic |
-        DriverConfig_ConsensusDetector_Ml |
+    driver: Union[
+        DriverConfig_ConsensusDetector_Heuristic,
+        DriverConfig_ConsensusDetector_Ml,
         DriverConfig_ConsensusDetector_Mock
-    )
+    ]
