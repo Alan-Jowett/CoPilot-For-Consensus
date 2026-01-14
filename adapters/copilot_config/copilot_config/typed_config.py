@@ -398,6 +398,12 @@ def load_service_config(
         try:
             from copilot_secrets import create_secret_provider as create_secrets_provider
 
+            from copilot_config.generated.adapters.secret_provider import (
+                AdapterConfig_SecretProvider,
+                DriverConfig_SecretProvider_AzureKeyVault,
+                DriverConfig_SecretProvider_Local,
+            )
+
             from .secret_provider import SecretConfigProvider
 
             secret_adapter = next(
@@ -406,9 +412,24 @@ def load_service_config(
             )
 
             if secret_adapter is not None:
+                secret_driver_name = secret_adapter.driver_name
+                secret_config_dict = getattr(secret_adapter.driver_config, "config", {})
+
+                if secret_driver_name == "local":
+                    driver_config = DriverConfig_SecretProvider_Local(**secret_config_dict)
+                elif secret_driver_name == "azure_key_vault":
+                    driver_config = DriverConfig_SecretProvider_AzureKeyVault(**secret_config_dict)
+                else:
+                    raise ValueError(
+                        f"Unknown secret_provider driver: {secret_driver_name}. "
+                        "Supported drivers: local, azure_key_vault"
+                    )
+
                 secret_provider_instance = create_secrets_provider(
-                    secret_adapter.driver_name,
-                    secret_adapter.driver_config,
+                    AdapterConfig_SecretProvider(
+                        secret_provider_type=secret_driver_name,
+                        driver=driver_config,
+                    )
                 )
                 secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
         except Exception as e:

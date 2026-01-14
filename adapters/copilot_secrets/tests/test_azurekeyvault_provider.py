@@ -4,30 +4,11 @@
 """Tests for Azure Key Vault secret provider."""
 
 import os
-import sys
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 pytestmark = pytest.mark.integration
-
-# Mock Azure modules globally before any imports
-mock_secret_client = MagicMock()
-mock_default_credential = MagicMock()
-mock_resource_not_found = type('ResourceNotFoundError', (Exception,), {})
-mock_client_auth_error = type('ClientAuthenticationError', (Exception,), {})
-mock_azure_error = type('AzureError', (Exception,), {})
-
-sys.modules['azure'] = MagicMock()
-sys.modules['azure.keyvault'] = MagicMock()
-sys.modules['azure.keyvault.secrets'] = MagicMock(SecretClient=mock_secret_client)
-sys.modules['azure.identity'] = MagicMock(DefaultAzureCredential=mock_default_credential)
-sys.modules['azure.core'] = MagicMock()
-sys.modules['azure.core.exceptions'] = MagicMock(
-    ResourceNotFoundError=mock_resource_not_found,
-    ClientAuthenticationError=mock_client_auth_error,
-    AzureError=mock_azure_error
-)
 
 from copilot_secrets import (
     SecretNotFoundError,
@@ -36,28 +17,20 @@ from copilot_secrets import (
 from copilot_secrets.azurekeyvault_provider import AzureKeyVaultProvider
 
 
-@pytest.fixture(autouse=True)
-def reset_mocks():
-    """Reset mocks before each test."""
-    mock_secret_client.reset_mock()
-    mock_default_credential.reset_mock()
-    yield
-
-
 class TestAzureKeyVaultProvider:
     """Test suite for AzureKeyVaultProvider."""
 
-    def test_init_with_vault_url(self):
+    def test_init_with_vault_url(self, azure_sdk_mocks):
         """Test initialization with explicit vault URL."""
         vault_url = "https://test-vault.vault.azure.net/"
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
         assert provider.vault_url == vault_url
-        mock_default_credential.assert_called()
-        mock_secret_client.assert_called()
+        azure_sdk_mocks.default_credential_cls.assert_called()
+        azure_sdk_mocks.secret_client_cls.assert_called()
 
-    def test_init_with_vault_name(self):
+    def test_init_with_vault_name(self, azure_sdk_mocks):
         """Test initialization with vault name."""
         vault_name = "test-vault"
         expected_url = f"https://{vault_name}.vault.azure.net/"
@@ -66,13 +39,13 @@ class TestAzureKeyVaultProvider:
 
         assert provider.vault_url == expected_url
 
-    def test_init_without_vault_config(self):
+    def test_init_without_vault_config(self, azure_sdk_mocks):
         """Test initialization without any vault configuration raises error."""
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(SecretProviderError, match="Azure Key Vault URL not configured"):
                 AzureKeyVaultProvider()
 
-    def test_init_prioritizes_vault_url_over_name(self):
+    def test_init_prioritizes_vault_url_over_name(self, azure_sdk_mocks):
         """Test that explicit vault_url takes priority over vault_name."""
         vault_url = "https://priority-vault.vault.azure.net/"
         vault_name = "ignored-vault"
@@ -82,7 +55,7 @@ class TestAzureKeyVaultProvider:
         assert provider.vault_url == vault_url
         assert "ignored" not in provider.vault_url
 
-    def test_init_prioritizes_vault_url_over_env(self):
+    def test_init_prioritizes_vault_url_over_env(self, azure_sdk_mocks):
         """Test that explicit vault_url takes priority over environment variables."""
         vault_url = "https://explicit-vault.vault.azure.net/"
         env_url = "https://env-vault.vault.azure.net/"
@@ -91,11 +64,11 @@ class TestAzureKeyVaultProvider:
             provider = AzureKeyVaultProvider(vault_url=vault_url)
             assert provider.vault_url == vault_url
 
-    def test_get_secret_success(self):
+    def test_get_secret_success(self, azure_sdk_mocks):
         """Test successful secret retrieval."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
 
         mock_secret = Mock()
         mock_secret.value = "my-secret-value"
@@ -106,11 +79,11 @@ class TestAzureKeyVaultProvider:
 
         assert result == "my-secret-value"
 
-    def test_get_secret_with_version(self):
+    def test_get_secret_with_version(self, azure_sdk_mocks):
         """Test secret retrieval with version."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
 
         mock_secret = Mock()
         mock_secret.value = "versioned-secret-value"
@@ -122,23 +95,23 @@ class TestAzureKeyVaultProvider:
         assert result == "versioned-secret-value"
         mock_client.get_secret.assert_called_once_with("api-key", version="v2")
 
-    def test_get_secret_not_found(self):
+    def test_get_secret_not_found(self, azure_sdk_mocks):
         """Test retrieval of non-existent secret."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
-        mock_client.get_secret.side_effect = mock_resource_not_found("Secret not found")
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
+        mock_client.get_secret.side_effect = azure_sdk_mocks.ResourceNotFoundError("Secret not found")
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
         with pytest.raises(SecretNotFoundError, match="Key not found: missing-key"):
             provider.get_secret("missing-key")
 
-    def test_get_secret_with_null_value(self):
+    def test_get_secret_with_null_value(self, azure_sdk_mocks):
         """Test retrieval of secret with null value."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
 
         mock_secret = Mock()
         mock_secret.value = None
@@ -149,11 +122,11 @@ class TestAzureKeyVaultProvider:
         with pytest.raises(SecretNotFoundError, match="has no value"):
             provider.get_secret("null-secret")
 
-    def test_get_secret_provider_error(self):
+    def test_get_secret_provider_error(self, azure_sdk_mocks):
         """Test handling of provider errors during retrieval."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
         mock_client.get_secret.side_effect = Exception("Network error")
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
@@ -161,11 +134,11 @@ class TestAzureKeyVaultProvider:
         with pytest.raises(SecretProviderError, match="Failed to retrieve key"):
             provider.get_secret("api-key")
 
-    def test_get_secret_bytes_success(self):
+    def test_get_secret_bytes_success(self, azure_sdk_mocks):
         """Test successful binary secret retrieval."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
 
         mock_secret = Mock()
         mock_secret.value = "binary-secret-value"
@@ -177,11 +150,11 @@ class TestAzureKeyVaultProvider:
         assert result == b"binary-secret-value"
         assert isinstance(result, bytes)
 
-    def test_get_secret_bytes_utf8_encoding(self):
+    def test_get_secret_bytes_utf8_encoding(self, azure_sdk_mocks):
         """Test that get_secret_bytes properly encodes UTF-8."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
 
         mock_secret = Mock()
         mock_secret.value = "café"
@@ -192,11 +165,11 @@ class TestAzureKeyVaultProvider:
 
         assert result == "café".encode()
 
-    def test_secret_exists_returns_true(self):
+    def test_secret_exists_returns_true(self, azure_sdk_mocks):
         """Test secret_exists returns True for existing enabled secrets."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
 
         mock_secret = Mock()
         mock_props = Mock()
@@ -208,11 +181,11 @@ class TestAzureKeyVaultProvider:
 
         assert provider.secret_exists("existing-key") is True
 
-    def test_secret_exists_returns_false_for_disabled(self):
+    def test_secret_exists_returns_false_for_disabled(self, azure_sdk_mocks):
         """Test secret_exists returns False for disabled secrets."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
 
         mock_secret = Mock()
         mock_props = Mock()
@@ -224,38 +197,40 @@ class TestAzureKeyVaultProvider:
 
         assert provider.secret_exists("disabled-key") is False
 
-    def test_secret_exists_returns_false_for_not_found(self):
+    def test_secret_exists_returns_false_for_not_found(self, azure_sdk_mocks):
         """Test secret_exists returns False for non-existent secrets."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
-        mock_client.get_secret.side_effect = mock_resource_not_found("Not found")
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
+        mock_client.get_secret.side_effect = azure_sdk_mocks.ResourceNotFoundError("Not found")
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
         assert provider.secret_exists("missing-key") is False
 
-    def test_secret_exists_handles_errors_gracefully(self):
+    def test_secret_exists_handles_errors_gracefully(self, azure_sdk_mocks):
         """Test secret_exists returns False on unexpected Azure errors."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
         # Use AzureError which should be caught and logged
-        mock_client.get_secret.side_effect = mock_azure_error("Network error")
+        mock_client.get_secret.side_effect = azure_sdk_mocks.AzureError("Network error")
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
         assert provider.secret_exists("error-key") is False
 
-    def test_authentication_error(self):
+    def test_authentication_error(self, azure_sdk_mocks):
         """Test handling of authentication errors."""
-        mock_default_credential.side_effect = mock_client_auth_error("Auth failed")
+        azure_sdk_mocks.default_credential_cls.side_effect = azure_sdk_mocks.ClientAuthenticationError(
+            "Auth failed"
+        )
 
         with pytest.raises(SecretProviderError, match="Failed to authenticate"):
             AzureKeyVaultProvider(vault_url="https://test.vault.azure.net/")
 
         # Reset for other tests
-        mock_default_credential.side_effect = None
+        azure_sdk_mocks.default_credential_cls.side_effect = None
 
     def test_missing_azure_sdk_dependencies(self):
         """Test that appropriate error is raised when Azure SDK is not installed."""
@@ -280,13 +255,13 @@ class TestAzureKeyVaultProvider:
             for keyword in expected_keywords:
                 assert keyword in error_message, f"Expected keyword '{keyword}' in error message"
 
-    def test_close_method(self):
+    def test_close_method(self, azure_sdk_mocks):
         """Test that close method properly closes both client and credential."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
         mock_credential = Mock()
-        mock_secret_client.return_value = mock_client
-        mock_default_credential.return_value = mock_credential
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
+        azure_sdk_mocks.default_credential_cls.return_value = mock_credential
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -301,13 +276,13 @@ class TestAzureKeyVaultProvider:
         mock_client.close.assert_called_once()
         mock_credential.close.assert_called_once()
 
-    def test_close_method_handles_missing_close(self):
+    def test_close_method_handles_missing_close(self, azure_sdk_mocks):
         """Test that close method handles objects without close method."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
         mock_credential = Mock()
-        mock_secret_client.return_value = mock_client
-        mock_default_credential.return_value = mock_credential
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
+        azure_sdk_mocks.default_credential_cls.return_value = mock_credential
 
         # Remove close method from mocks
         del mock_client.close
@@ -318,13 +293,13 @@ class TestAzureKeyVaultProvider:
         # Should not raise any exception
         provider.close()
 
-    def test_close_method_handles_exceptions(self):
+    def test_close_method_handles_exceptions(self, azure_sdk_mocks):
         """Test that close method suppresses exceptions during cleanup."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
         mock_credential = Mock()
-        mock_secret_client.return_value = mock_client
-        mock_default_credential.return_value = mock_credential
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
+        azure_sdk_mocks.default_credential_cls.return_value = mock_credential
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -335,13 +310,13 @@ class TestAzureKeyVaultProvider:
         # Should not raise any exception
         provider.close()
 
-    def test_del_method(self):
+    def test_del_method(self, azure_sdk_mocks):
         """Test that __del__ method calls close without raising exceptions."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
         mock_credential = Mock()
-        mock_secret_client.return_value = mock_client
-        mock_default_credential.return_value = mock_credential
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
+        azure_sdk_mocks.default_credential_cls.return_value = mock_credential
 
         # Add close methods to mocks before creating provider
         mock_client.close = Mock()
@@ -364,13 +339,13 @@ class TestAzureKeyVaultProvider:
         mock_client.close.assert_called_once()
         mock_credential.close.assert_called_once()
 
-    def test_del_method_handles_exceptions(self):
+    def test_del_method_handles_exceptions(self, azure_sdk_mocks):
         """Test that __del__ method suppresses exceptions during cleanup."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
         mock_credential = Mock()
-        mock_secret_client.return_value = mock_client
-        mock_default_credential.return_value = mock_credential
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
+        azure_sdk_mocks.default_credential_cls.return_value = mock_credential
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -388,11 +363,11 @@ class TestAzureKeyVaultProvider:
 class TestAzureKeyVaultProviderIntegration:
     """Integration-style tests with more realistic mocking."""
 
-    def test_complete_workflow(self):
+    def test_complete_workflow(self, azure_sdk_mocks):
         """Test complete workflow of checking, retrieving, and reading secrets."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
 
         # Setup mock responses for get_secret
         def get_secret_side_effect(name, version=None):
@@ -404,7 +379,7 @@ class TestAzureKeyVaultProviderIntegration:
             }
             if name in secrets:
                 return secrets[name]
-            raise mock_resource_not_found(f"Secret {name} not found")
+            raise azure_sdk_mocks.ResourceNotFoundError(f"Secret {name} not found")
 
         # Setup mock responses for get_secret_properties
         def get_secret_properties_side_effect(name):
@@ -414,7 +389,7 @@ class TestAzureKeyVaultProviderIntegration:
             }
             if name in properties:
                 return properties[name]
-            raise mock_resource_not_found(f"Secret {name} not found")
+            raise azure_sdk_mocks.ResourceNotFoundError(f"Secret {name} not found")
 
         mock_client.get_secret.side_effect = get_secret_side_effect
         mock_client.get_secret_properties.side_effect = get_secret_properties_side_effect
@@ -460,11 +435,11 @@ class TestSecretNameNormalization:
         """Test names with multiple consecutive underscores."""
         assert AzureKeyVaultProvider._normalize_secret_name("my__secret__key") == "my--secret--key"
 
-    def test_get_secret_normalizes_name(self):
+    def test_get_secret_normalizes_name(self, azure_sdk_mocks):
         """Test that get_secret automatically normalizes secret names."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
 
         mock_secret = Mock()
         mock_secret.value = "test-value"
@@ -479,11 +454,11 @@ class TestSecretNameNormalization:
         mock_client.get_secret.assert_called_with("jwt-private-key")
         assert result == "test-value"
 
-    def test_secret_exists_normalizes_name(self):
+    def test_secret_exists_normalizes_name(self, azure_sdk_mocks):
         """Test that secret_exists automatically normalizes secret names."""
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
-        mock_secret_client.return_value = mock_client
+        azure_sdk_mocks.secret_client_cls.return_value = mock_client
 
         mock_secret = Mock()
         mock_props = Mock()

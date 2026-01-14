@@ -24,8 +24,7 @@ def load_auth_config():
     based on configuration in docs/schemas/configs/auth.json.
 
     In Azure Container Apps, secrets are accessed directly from Azure Key Vault
-    using the copilot_secrets.create_secret_provider("azure", ...) factory with managed identity
-    authentication (SDK-based, not environment variable injection).
+    via the schema-configured `secret_provider` adapter (driver: `azure_key_vault`).
 
     Returns:
         TypedConfig instance with validated configuration

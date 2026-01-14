@@ -340,6 +340,12 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
     try:
         from copilot_secrets import create_secret_provider as create_secrets_provider
 
+        from copilot_config.generated.adapters.secret_provider import (
+            AdapterConfig_SecretProvider,
+            DriverConfig_SecretProvider_AzureKeyVault,
+            DriverConfig_SecretProvider_Local,
+        )
+
         from .secret_provider import SecretConfigProvider
 
         # Check if secret provider is configured
@@ -363,17 +369,22 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
                     )
 
                     if secret_result:
-                        from .models import DriverConfig
-
                         secret_driver_name, secret_config_dict = secret_result
-                        secret_driver_config = DriverConfig(
-                            driver_name=secret_driver_name,
-                            config=secret_config_dict,
-                            allowed_keys=set(secret_config_dict.keys()),
-                        )
+                        if secret_driver_name == "local":
+                            driver_config = DriverConfig_SecretProvider_Local(**secret_config_dict)
+                        elif secret_driver_name == "azure_key_vault":
+                            driver_config = DriverConfig_SecretProvider_AzureKeyVault(**secret_config_dict)
+                        else:
+                            raise ValueError(
+                                f"Unknown secret_provider driver: {secret_driver_name}. "
+                                "Supported drivers: local, azure_key_vault"
+                            )
+
                         secret_provider_instance = create_secrets_provider(
-                            secret_driver_name,
-                            secret_driver_config,
+                            AdapterConfig_SecretProvider(
+                                secret_provider_type=secret_driver_name,
+                                driver=driver_config,
+                            )
                         )
                         secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
     except Exception:
