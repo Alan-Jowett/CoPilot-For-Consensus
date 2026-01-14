@@ -7,6 +7,10 @@ import os
 import time
 
 import pytest
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_Qdrant,
+)
 from copilot_vectorstore import SearchResult, create_vector_store
 
 # Check if qdrant-client is available
@@ -44,11 +48,16 @@ def qdrant_store():
     for i in range(max_retries):
         try:
             store = create_vector_store(
-                driver_name="qdrant",
-                driver_config={
-                    **config,
-                    "vector_size": 384,
-                },
+                AdapterConfig_VectorStore(
+                    vector_store_type="qdrant",
+                    driver=DriverConfig_VectorStore_Qdrant(
+                        host=config["host"],
+                        port=config["port"],
+                        api_key=config["api_key"],
+                        collection_name=config["collection_name"],
+                        vector_size=384,
+                    ),
+                )
             )
             # Test connection by getting count
             store.count()

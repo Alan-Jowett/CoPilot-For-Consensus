@@ -72,14 +72,27 @@ pip install faiss-cpu numpy qdrant-client azure-search-documents azure-identity
 ```python
 from copilot_vectorstore import create_vector_store
 
-# Create using environment variable VECTOR_STORE_BACKEND
-store = create_vector_store(dimension=384)
-
-# Or explicitly specify backend
-store = create_vector_store(backend="faiss", dimension=768)
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_Faiss,
+    DriverConfig_VectorStore_Inmemory,
+)
 
 # For testing
-store = create_vector_store(backend="inmemory")
+store = create_vector_store(
+    AdapterConfig_VectorStore(
+        vector_store_type="inmemory",
+        driver=DriverConfig_VectorStore_Inmemory(),
+    )
+)
+
+# FAISS example
+store = create_vector_store(
+    AdapterConfig_VectorStore(
+        vector_store_type="faiss",
+        driver=DriverConfig_VectorStore_Faiss(dimension=768, index_type="flat"),
+    )
+)
 ```
 
 ### Direct Instantiation
@@ -138,17 +151,17 @@ store.clear()
 
 ### Environment Variables
 
-- `VECTOR_STORE_BACKEND`: Backend to use (`inmemory`, `faiss`, `qdrant`, `azure_ai_search`)
-  - Default: `faiss`
+- `VECTOR_STORE_TYPE`: Vector store type (`inmemory`, `faiss`, `qdrant`, `azure_ai_search`)
+    - Used by the schema-driven config loader (not read directly by `create_vector_store`).
 
 #### Qdrant Configuration
 
-- `QDRANT_HOST`: Qdrant server host (default: `localhost`)
+- `QDRANT_HOST`: Qdrant server host (default: `vectorstore`)
 - `QDRANT_PORT`: Qdrant server port (default: `6333`)
 - `QDRANT_API_KEY`: Optional API key for authentication
 - `QDRANT_COLLECTION`: Collection name (default: `embeddings`)
 - `QDRANT_DISTANCE`: Distance metric - `cosine` or `euclid` (default: `cosine`)
-- `QDRANT_BATCH_SIZE`: Batch size for upsert operations (default: `100`)
+- `QDRANT_UPSERT_BATCH_SIZE`: Batch size for upsert operations (default: `100`)
 
 #### Azure AI Search Configuration
 
@@ -161,11 +174,21 @@ store.clear()
 #### FAISS
 
 ```python
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_Faiss,
+)
+from copilot_vectorstore import create_vector_store
+
 store = create_vector_store(
-    backend="faiss",
-    dimension=384,
-    index_type="flat",  # or "ivf" for large datasets
-    persist_path="/path/to/index.faiss"  # optional
+    AdapterConfig_VectorStore(
+        vector_store_type="faiss",
+        driver=DriverConfig_VectorStore_Faiss(
+            dimension=384,
+            index_type="flat",  # or "ivf" for large datasets
+            persist_path="/path/to/index.faiss",  # optional
+        ),
+    )
 )
 ```
 
@@ -173,26 +196,40 @@ store = create_vector_store(
 
 ```python
 # Local Qdrant instance
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_Qdrant,
+)
+from copilot_vectorstore import create_vector_store
+
 store = create_vector_store(
-    backend="qdrant",
-    dimension=384,
-    host="localhost",
-    port=6333,
-    collection_name="embeddings",
-    distance="cosine",  # or "euclid"
-    upsert_batch_size=100,
+    AdapterConfig_VectorStore(
+        vector_store_type="qdrant",
+        driver=DriverConfig_VectorStore_Qdrant(
+            host="localhost",
+            port=6333,
+            collection_name="embeddings",
+            vector_size=384,
+            distance="cosine",  # or "euclid"
+            upsert_batch_size=100,
+        ),
+    )
 )
 
 # Qdrant Cloud with API key
 store = create_vector_store(
-    backend="qdrant",
-    dimension=768,
-    host="your-cluster.cloud.qdrant.io",
-    port=6333,
-    api_key="your-api-key",
-    collection_name="production_embeddings",
-    distance="cosine",
-    upsert_batch_size=100,
+    AdapterConfig_VectorStore(
+        vector_store_type="qdrant",
+        driver=DriverConfig_VectorStore_Qdrant(
+            host="your-cluster.cloud.qdrant.io",
+            port=6333,
+            api_key="your-api-key",
+            collection_name="production_embeddings",
+            vector_size=768,
+            distance="cosine",
+            upsert_batch_size=100,
+        ),
+    )
 )
 ```
 
@@ -200,21 +237,35 @@ store = create_vector_store(
 
 ```python
 # Using API key authentication
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_AzureAiSearch,
+)
+from copilot_vectorstore import create_vector_store
+
 store = create_vector_store(
-    backend="azure_ai_search",
-    dimension=384,
-    endpoint="https://your-service.search.windows.net",
-    api_key="your-api-key",
-    index_name="embeddings",
+    AdapterConfig_VectorStore(
+        vector_store_type="azure_ai_search",
+        driver=DriverConfig_VectorStore_AzureAiSearch(
+            endpoint="https://your-service.search.windows.net",
+            api_key="your-api-key",
+            index_name="embeddings",
+            vector_size=384,
+        ),
+    )
 )
 
 # Using managed identity (Azure VM, Azure Functions, etc.)
 store = create_vector_store(
-    backend="azure_ai_search",
-    dimension=768,
-    endpoint="https://your-service.search.windows.net",
-    use_managed_identity=True,
-    index_name="production_embeddings",
+    AdapterConfig_VectorStore(
+        vector_store_type="azure_ai_search",
+        driver=DriverConfig_VectorStore_AzureAiSearch(
+            endpoint="https://your-service.search.windows.net",
+            use_managed_identity=True,
+            index_name="production_embeddings",
+            vector_size=768,
+        ),
+    )
 )
 ```
 
@@ -230,6 +281,10 @@ store = create_vector_store(
 
 ```python
 import os
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_AzureAiSearch,
+)
 from copilot_vectorstore import create_vector_store
 
 os.environ["AZURE_SEARCH_ENDPOINT"] = "https://myservice.search.windows.net"
@@ -237,11 +292,15 @@ os.environ["AZURE_SEARCH_API_KEY"] = "your-api-key"
 os.environ["AZURE_SEARCH_INDEX_NAME"] = "my_embeddings"
 
 store = create_vector_store(
-    backend="azure_ai_search",
-    dimension=384,
-    endpoint=os.environ["AZURE_SEARCH_ENDPOINT"],
-    api_key=os.environ["AZURE_SEARCH_API_KEY"],
-    index_name=os.environ["AZURE_SEARCH_INDEX_NAME"],
+    AdapterConfig_VectorStore(
+        vector_store_type="azure_ai_search",
+        driver=DriverConfig_VectorStore_AzureAiSearch(
+            endpoint=os.environ["AZURE_SEARCH_ENDPOINT"],
+            api_key=os.environ["AZURE_SEARCH_API_KEY"],
+            index_name=os.environ["AZURE_SEARCH_INDEX_NAME"],
+            vector_size=384,
+        ),
+    )
 )
 ```
 
@@ -251,11 +310,15 @@ When running on Azure (VM, App Service, Functions, AKS), you can use managed ide
 
 ```python
 store = create_vector_store(
-    backend="azure_ai_search",
-    dimension=384,
-    endpoint="https://your-service.search.windows.net",
-    index_name="embeddings",
-    use_managed_identity=True,
+    AdapterConfig_VectorStore(
+        vector_store_type="azure_ai_search",
+        driver=DriverConfig_VectorStore_AzureAiSearch(
+            endpoint="https://your-service.search.windows.net",
+            index_name="embeddings",
+            vector_size=384,
+            use_managed_identity=True,
+        ),
+    )
 )
 ```
 
@@ -324,10 +387,19 @@ class SearchResult:
 
 ```python
 from copilot_vectorstore import create_vector_store
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_Inmemory,
+)
 
 class EmbeddingService:
     def __init__(self):
-        self.vector_store = create_vector_store(dimension=384)
+        self.vector_store = create_vector_store(
+            AdapterConfig_VectorStore(
+                vector_store_type="inmemory",
+                driver=DriverConfig_VectorStore_Inmemory(),
+            )
+        )
 
     def store_embeddings(self, chunks, embeddings):
         self.vector_store.add_embeddings(
@@ -341,10 +413,19 @@ class EmbeddingService:
 
 ```python
 from copilot_vectorstore import create_vector_store
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_Inmemory,
+)
 
 class SummarizationService:
     def __init__(self):
-        self.vector_store = create_vector_store(dimension=384)
+        self.vector_store = create_vector_store(
+            AdapterConfig_VectorStore(
+                vector_store_type="inmemory",
+                driver=DriverConfig_VectorStore_Inmemory(),
+            )
+        )
 
     def get_relevant_context(self, query_embedding, top_k=10):
         results = self.vector_store.query(

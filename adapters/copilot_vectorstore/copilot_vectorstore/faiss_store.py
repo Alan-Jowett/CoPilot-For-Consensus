@@ -6,6 +6,8 @@
 import logging
 from typing import Any
 
+from copilot_config.generated.adapters.vector_store import DriverConfig_VectorStore_Faiss
+
 import numpy as np
 
 from .interface import SearchResult, VectorStore
@@ -71,7 +73,7 @@ class FAISSVectorStore(VectorStore):
         logger.info(f"Initialized FAISS vector store with dimension={dimension}, type={index_type}")
 
     @classmethod
-    def from_config(cls, config: Any) -> "FAISSVectorStore":
+    def from_config(cls, config: DriverConfig_VectorStore_Faiss) -> "FAISSVectorStore":
         """Create a FAISSVectorStore from configuration.
 
         Args:
@@ -80,29 +82,11 @@ class FAISSVectorStore(VectorStore):
         Returns:
             Configured FAISSVectorStore instance
 
-        Raises:
-            ValueError: If required attributes are missing or invalid
-            AttributeError: If required config attributes are missing
         """
-        # Try dimension first, fall back to vector_size for backward compatibility
-        dimension = getattr(config, "dimension", None) or getattr(config, "vector_size", None)
-        if dimension is None:
-            raise ValueError(
-                "dimension is required for FAISS backend. "
-                "Provide 'dimension' (or 'vector_size') in driver_config."
-            )
-
-        index_type = config.index_type
-        if index_type is None:
-            raise ValueError(
-                "index_type is required for FAISS backend. "
-                "Provide 'index_type' in driver_config (e.g., 'flat', 'ivf')."
-            )
-
-        persist_path = getattr(config, "persist_path", None)
+        persist_path = config.persist_path
         return cls(
-            dimension=int(dimension),
-            index_type=str(index_type),
+            dimension=config.dimension,
+            index_type=config.index_type,
             persist_path=persist_path,
         )
 

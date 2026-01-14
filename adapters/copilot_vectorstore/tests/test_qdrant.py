@@ -9,6 +9,7 @@ import pytest
 
 # Check if qdrant-client is available
 try:
+    import qdrant_client  # type: ignore[import]  # noqa: F401
     from copilot_vectorstore.qdrant_store import QdrantVectorStore
     QDRANT_AVAILABLE = True
 except ImportError:

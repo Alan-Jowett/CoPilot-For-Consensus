@@ -5,7 +5,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from copilot_config.adapter_factory import create_adapter
+from copilot_config.generated.adapters.vector_store import AdapterConfig_VectorStore
 
 from .azure_ai_search_store import AzureAISearchVectorStore
 from .faiss_store import FAISSVectorStore
@@ -14,45 +15,31 @@ from .interface import VectorStore
 from .qdrant_store import QdrantVectorStore
 
 
-def create_vector_store(
-    driver_name: str | None = None,
-    driver_config: Any | None = None,
-) -> VectorStore:
+def create_vector_store(config: AdapterConfig_VectorStore) -> VectorStore:
     """Create a vector store instance.
 
     Args:
-        driver_name: Backend type (required). Options: "inmemory", "faiss", "qdrant", "azure_ai_search", "aisearch".
-        driver_config: Backend configuration as dict-like object.
+        config: Typed adapter config.
 
     Returns:
         VectorStore instance.
-
-    Raises:
-        ValueError: If driver_name is not provided or is unknown.
     """
-    if not driver_name:
-        raise ValueError(
-            "driver_name is required for create_vector_store "
-            "(choose: 'inmemory', 'faiss', 'qdrant', 'azure_ai_search', or 'aisearch')"
-        )
 
-    driver_lower = driver_name.lower()
-    if driver_lower in {"aisearch", "ai_search", "azure", "azureaisearch", "azure_ai_search"}:
-        driver_lower = "azure_ai_search"
+    def _normalized_driver_type(c: AdapterConfig_VectorStore) -> str:
+        driver_type = str(c.vector_store_type).lower()
+        if driver_type in {"aisearch", "ai_search", "azure", "azureaisearch"}:
+            return "azure_ai_search"
+        return driver_type
 
-    if driver_config is None:
-        driver_config = {}
-
-    if driver_lower == "inmemory":
-        return InMemoryVectorStore.from_config(driver_config)
-
-    if driver_lower == "faiss":
-        return FAISSVectorStore.from_config(driver_config)
-
-    if driver_lower == "qdrant":
-        return QdrantVectorStore.from_config(driver_config)
-
-    if driver_lower == "azure_ai_search":
-        return AzureAISearchVectorStore.from_config(driver_config)
-
-    raise ValueError(f"Unknown vector store driver: {driver_name}")
+    return create_adapter(
+        config,
+        adapter_name="vector_store",
+        get_driver_type=_normalized_driver_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "inmemory": InMemoryVectorStore.from_config,
+            "faiss": FAISSVectorStore.from_config,
+            "qdrant": QdrantVectorStore.from_config,
+            "azure_ai_search": AzureAISearchVectorStore.from_config,
+        },
+    )

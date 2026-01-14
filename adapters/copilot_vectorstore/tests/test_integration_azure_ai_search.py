@@ -7,6 +7,10 @@ import os
 import time
 
 import pytest
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_AzureAiSearch,
+)
 from copilot_vectorstore import create_vector_store
 
 # Check if azure-search-documents is available
@@ -53,11 +57,16 @@ def azure_store():
     for i in range(max_retries):
         try:
             store = create_vector_store(
-                driver_name="azure_ai_search",
-                driver_config={
-                    **config,
-                    "vector_size": 384,
-                },
+                AdapterConfig_VectorStore(
+                    vector_store_type="azure_ai_search",
+                    driver=DriverConfig_VectorStore_AzureAiSearch(
+                        endpoint=config["endpoint"],
+                        api_key=config["api_key"],
+                        index_name=config["index_name"],
+                        use_managed_identity=config["use_managed_identity"],
+                        vector_size=384,
+                    ),
+                )
             )
             # Test connection by getting count
             store.count()

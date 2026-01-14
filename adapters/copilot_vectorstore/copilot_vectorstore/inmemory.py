@@ -5,6 +5,8 @@
 
 from typing import Any
 
+from copilot_config.generated.adapters.vector_store import DriverConfig_VectorStore_Inmemory
+
 import numpy as np
 
 from .interface import SearchResult, VectorStore
@@ -26,8 +28,8 @@ class InMemoryVectorStore(VectorStore):
         self._metadata: dict[str, dict[str, Any]] = {}
 
     @classmethod
-    def from_config(cls, config: Any) -> "InMemoryVectorStore":
-        """Create an InMemoryVectorStore from a dict-like configuration."""
+    def from_config(cls, config: DriverConfig_VectorStore_Inmemory) -> "InMemoryVectorStore":
+        """Create an InMemoryVectorStore from configuration."""
         _ = config
         return cls()
 
