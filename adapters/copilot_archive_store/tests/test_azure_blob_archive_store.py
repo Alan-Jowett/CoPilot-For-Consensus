@@ -18,6 +18,12 @@ except ImportError:
 if AZURE_AVAILABLE:
     from copilot_archive_store.azure_blob_archive_store import AzureBlobArchiveStore
     from copilot_archive_store.archive_store import ArchiveStoreConnectionError
+    from copilot_config.generated.adapters.archive_store import (
+        DriverConfig_ArchiveStore_Azureblob_AccountKey,
+        DriverConfig_ArchiveStore_Azureblob_ConnectionString,
+        DriverConfig_ArchiveStore_Azureblob_ManagedIdentity,
+        DriverConfig_ArchiveStore_Azureblob_SasToken,
+    )
 
 
 @pytest.mark.skipif(not AZURE_AVAILABLE, reason="azure-storage-blob not installed")
@@ -128,6 +134,84 @@ class TestAzureBlobArchiveStore:
 
             assert store.connection_string == conn_str
             mock_bsc.from_connection_string.assert_called_once_with(conn_str)
+
+    def test_from_config_connection_string_maps_fields(self):
+        """from_config should map the connection_string variant correctly."""
+        cfg = DriverConfig_ArchiveStore_Azureblob_ConnectionString(
+            azureblob_connection_string="UseDevelopmentStorage=true",
+            azureblob_container_name="archives",
+            azureblob_prefix="pfx",
+        )
+
+        with patch.object(AzureBlobArchiveStore, "__init__", return_value=None) as mock_init:
+            AzureBlobArchiveStore.from_config(cfg)
+
+        kwargs = mock_init.call_args.kwargs
+        assert kwargs["connection_string"] == "UseDevelopmentStorage=true"
+        assert kwargs["container_name"] == "archives"
+        assert kwargs["prefix"] == "pfx"
+        assert "account_name" not in kwargs
+        assert "account_key" not in kwargs
+        assert "sas_token" not in kwargs
+
+    def test_from_config_account_key_maps_fields(self):
+        """from_config should map the account_key variant correctly."""
+        cfg = DriverConfig_ArchiveStore_Azureblob_AccountKey(
+            azureblob_account_name="acct",
+            azureblob_account_key="key==",
+            azureblob_container_name="archives",
+            azureblob_prefix="pfx",
+        )
+
+        with patch.object(AzureBlobArchiveStore, "__init__", return_value=None) as mock_init:
+            AzureBlobArchiveStore.from_config(cfg)
+
+        kwargs = mock_init.call_args.kwargs
+        assert kwargs["account_name"] == "acct"
+        assert kwargs["account_key"] == "key=="
+        assert kwargs["container_name"] == "archives"
+        assert kwargs["prefix"] == "pfx"
+        assert "connection_string" not in kwargs
+        assert "sas_token" not in kwargs
+
+    def test_from_config_sas_token_maps_fields(self):
+        """from_config should map the sas_token variant correctly."""
+        cfg = DriverConfig_ArchiveStore_Azureblob_SasToken(
+            azureblob_account_name="acct",
+            azureblob_sas_token="?sv=2022-11-02&ss=b...",
+            azureblob_container_name="archives",
+            azureblob_prefix="pfx",
+        )
+
+        with patch.object(AzureBlobArchiveStore, "__init__", return_value=None) as mock_init:
+            AzureBlobArchiveStore.from_config(cfg)
+
+        kwargs = mock_init.call_args.kwargs
+        assert kwargs["account_name"] == "acct"
+        assert kwargs["sas_token"] == "?sv=2022-11-02&ss=b..."
+        assert kwargs["container_name"] == "archives"
+        assert kwargs["prefix"] == "pfx"
+        assert "connection_string" not in kwargs
+        assert "account_key" not in kwargs
+
+    def test_from_config_managed_identity_maps_fields(self):
+        """from_config should map the managed_identity variant correctly."""
+        cfg = DriverConfig_ArchiveStore_Azureblob_ManagedIdentity(
+            azureblob_account_name="acct",
+            azureblob_container_name="archives",
+            azureblob_prefix="pfx",
+        )
+
+        with patch.object(AzureBlobArchiveStore, "__init__", return_value=None) as mock_init:
+            AzureBlobArchiveStore.from_config(cfg)
+
+        kwargs = mock_init.call_args.kwargs
+        assert kwargs["account_name"] == "acct"
+        assert kwargs["container_name"] == "archives"
+        assert kwargs["prefix"] == "pfx"
+        assert "connection_string" not in kwargs
+        assert "account_key" not in kwargs
+        assert "sas_token" not in kwargs
 
     def test_initialization_missing_credentials(self):
         """Test managed identity behavior when explicit credentials are not provided.

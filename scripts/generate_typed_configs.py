@@ -79,6 +79,92 @@ def schema_type_to_python_type(schema_type: str, default_value: Any = None) -> s
     return py_type
 
 
+def _format_literal(value: Any) -> str:
+    """Format a literal value for embedding in generated Python."""
+    if isinstance(value, str):
+        return repr(value)
+    if isinstance(value, bool):
+        return "True" if value else "False"
+    if isinstance(value, (int, float)):
+        return str(value)
+    return repr(value)
+
+
+def _generate_dataclass_code(
+    *,
+    class_name: str,
+    doc: str,
+    properties: dict[str, Any],
+) -> str:
+    """Generate a dataclass body for a schema properties dict."""
+    lines = [
+        "@dataclass",
+        f"class {class_name}:",
+        f'    """{doc}"""',
+    ]
+
+    if not properties:
+        lines.append("    pass")
+        return "\n".join(lines)
+
+    sorted_props = sorted(properties.items())
+
+    required_no_default: list[tuple[str, dict[str, Any]]] = []
+    with_default_or_optional: list[tuple[str, dict[str, Any]]] = []
+
+    for prop_name, prop_spec in sorted_props:
+        if not isinstance(prop_spec, dict):
+            continue
+
+        # const fields are always required and have an implicit default
+        if "const" in prop_spec:
+            with_default_or_optional.append((prop_name, prop_spec))
+            continue
+
+        default = prop_spec.get("default")
+        required = prop_spec.get("required", False)
+
+        if required and default is None:
+            required_no_default.append((prop_name, prop_spec))
+        else:
+            with_default_or_optional.append((prop_name, prop_spec))
+
+    all_fields = required_no_default + with_default_or_optional
+
+    for prop_name, prop_spec in all_fields:
+        prop_type = prop_spec.get("type", "string")
+        default = prop_spec.get("default")
+        required = prop_spec.get("required", False)
+        description = prop_spec.get("description", "")
+
+        field_name = to_python_field_name(prop_name)
+
+        if "const" in prop_spec:
+            const_value = prop_spec["const"]
+            type_annotation = f"Literal[{_format_literal(const_value)}]"
+            lines.append(f"    {field_name}: {type_annotation} = {_format_literal(const_value)}")
+        else:
+            py_type = schema_type_to_python_type(prop_type, default)
+
+            if required and default is None:
+                type_annotation = py_type
+            else:
+                type_annotation = f"Optional[{py_type}]"
+
+            if default is not None:
+                lines.append(f"    {field_name}: {type_annotation} = {_format_literal(default)}")
+            elif not required:
+                lines.append(f"    {field_name}: {type_annotation} = None")
+            else:
+                lines.append(f"    {field_name}: {type_annotation}")
+
+        if description:
+            desc_safe = description.replace("\n", " ").strip()
+            lines.append(f"    # {desc_safe}")
+
+    return "\n".join(lines)
+
+
 def generate_driver_dataclass(
     adapter_name: str,
     driver_name: str,
@@ -88,6 +174,66 @@ def generate_driver_dataclass(
     """Generate a dataclass for a specific driver."""
     class_name = f"DriverConfig_{to_python_class_name(adapter_name)}_{to_python_class_name(driver_name)}"
 
+    # Support strict discriminated unions for drivers with nested oneOf schemas.
+    if "oneOf" in driver_schema:
+        discriminant_info = driver_schema.get("discriminant", {}) if isinstance(driver_schema, dict) else {}
+        discriminant_field = discriminant_info.get("field")
+
+        one_of = driver_schema.get("oneOf")
+        if not isinstance(one_of, list) or not discriminant_field:
+            raise ValueError(
+                f"Driver schema for {adapter_name}/{driver_name} uses oneOf but is missing a discriminant.field"
+            )
+
+        variant_class_names: list[str] = []
+        variant_codes: list[str] = []
+
+        for idx, variant_schema in enumerate(one_of):
+            if not isinstance(variant_schema, dict):
+                continue
+
+            properties = variant_schema.get("properties", {})
+            if not isinstance(properties, dict):
+                properties = {}
+
+            if common_properties:
+                for key, value in common_properties.items():
+                    if key not in properties:
+                        properties[key] = value
+
+            # Prefer the discriminant const value for naming.
+            discriminant_prop = properties.get(discriminant_field, {})
+            const_value = None
+            if isinstance(discriminant_prop, dict):
+                const_value = discriminant_prop.get("const")
+
+            variant_suffix = None
+            if isinstance(const_value, str) and const_value:
+                variant_suffix = to_python_class_name(const_value)
+            elif isinstance(variant_schema.get("title"), str) and variant_schema.get("title"):
+                variant_suffix = to_python_class_name(variant_schema["title"].replace(" ", "_"))
+            else:
+                variant_suffix = f"Variant{idx + 1}"
+
+            variant_class_name = f"{class_name}_{variant_suffix}"
+            variant_class_names.append(variant_class_name)
+            variant_codes.append(
+                _generate_dataclass_code(
+                    class_name=variant_class_name,
+                    doc=f"Configuration variant for {adapter_name} adapter using {driver_name} driver.",
+                    properties=properties,
+                )
+            )
+
+        if not variant_class_names:
+            raise ValueError(f"Driver schema for {adapter_name}/{driver_name} oneOf produced no variants")
+
+        union_types = ", ".join(variant_class_names)
+        alias_lines = [f"{class_name}: TypeAlias = Union[{union_types}]" ]
+        alias_code = "\n".join(alias_lines)
+
+        return class_name, "\n\n\n".join([*variant_codes, alias_code])
+
     # Merge driver properties with common properties
     properties = driver_schema.get("properties", {})
     if common_properties:
@@ -95,66 +241,11 @@ def generate_driver_dataclass(
             if key not in properties:
                 properties[key] = value
 
-    lines = [
-        "@dataclass",
-        f"class {class_name}:",
-        f'    """Configuration for {adapter_name} adapter using {driver_name} driver."""',
-    ]
-
-    if not properties:
-        lines.append("    pass")
-    else:
-        # Sort properties: required fields without defaults first
-        sorted_props = sorted(properties.items())
-
-        required_no_default = []
-        with_default_or_optional = []
-
-        for prop_name, prop_spec in sorted_props:
-            default = prop_spec.get("default")
-            required = prop_spec.get("required", False)
-
-            if required and default is None:
-                required_no_default.append((prop_name, prop_spec))
-            else:
-                with_default_or_optional.append((prop_name, prop_spec))
-
-        all_fields = required_no_default + with_default_or_optional
-
-        for prop_name, prop_spec in all_fields:
-            prop_type = prop_spec.get("type", "string")
-            default = prop_spec.get("default")
-            required = prop_spec.get("required", False)
-            description = prop_spec.get("description", "")
-
-            py_type = schema_type_to_python_type(prop_type, default)
-            field_name = to_python_field_name(prop_name)
-
-            if required and default is None:
-                type_annotation = py_type
-            else:
-                type_annotation = f"Optional[{py_type}]"
-
-            if default is not None:
-                if isinstance(default, str):
-                    default_repr = repr(default)
-                elif isinstance(default, bool):
-                    default_repr = str(default)
-                elif isinstance(default, (int, float)):
-                    default_repr = str(default)
-                else:
-                    default_repr = repr(default)
-                lines.append(f"    {field_name}: {type_annotation} = {default_repr}")
-            elif not required:
-                lines.append(f"    {field_name}: {type_annotation} = None")
-            else:
-                lines.append(f"    {field_name}: {type_annotation}")
-
-            if description:
-                desc_safe = description.replace("\n", " ").strip()
-                lines.append(f"    # {desc_safe}")
-
-    return class_name, "\n".join(lines)
+    return class_name, _generate_dataclass_code(
+        class_name=class_name,
+        doc=f"Configuration for {adapter_name} adapter using {driver_name} driver.",
+        properties=properties,
+    )
 
 
 def generate_adapter_dataclass(
@@ -229,7 +320,7 @@ def generate_adapter_module(
         '"""',
         "",
         "from dataclasses import dataclass",
-        "from typing import Any, Dict, List, Literal, Optional, Union",
+        "from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union",
         "",
     ]
 

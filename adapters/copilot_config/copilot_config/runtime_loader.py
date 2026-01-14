@@ -68,6 +68,50 @@ def _load_and_populate_driver_config(
     Returns:
         Dictionary of config values that can be used to construct a driver dataclass instance.
     """
+    # Support discriminated oneOf schemas by selecting a concrete variant first.
+    if "oneOf" in driver_schema:
+        discriminant_info = driver_schema.get("discriminant", {})
+        discriminant_field = discriminant_info.get("field")
+        discriminant_env_var = discriminant_info.get("env_var")
+
+        if not discriminant_field or not discriminant_env_var:
+            raise ValueError(
+                "Driver schema uses oneOf but is missing discriminant.field or discriminant.env_var"
+            )
+
+        selected_variant = os.environ.get(discriminant_env_var)
+        if not selected_variant:
+            is_required = discriminant_info.get("required", False)
+            default_variant = discriminant_info.get("default")
+            if is_required and not default_variant:
+                raise ValueError(
+                    f"Driver schema requires discriminant configuration: set environment variable {discriminant_env_var}"
+                )
+            selected_variant = default_variant
+
+        one_of = driver_schema.get("oneOf")
+        if not isinstance(one_of, list):
+            raise ValueError("Driver schema oneOf must be a list")
+
+        selected_schema: dict[str, Any] | None = None
+        for candidate in one_of:
+            if not isinstance(candidate, dict):
+                continue
+            candidate_props = candidate.get("properties", {})
+            if not isinstance(candidate_props, dict):
+                continue
+            disc_prop = candidate_props.get(discriminant_field, {})
+            if isinstance(disc_prop, dict) and disc_prop.get("const") == selected_variant:
+                selected_schema = candidate
+                break
+
+        if selected_schema is None:
+            raise ValueError(
+                f"Driver schema discriminant '{discriminant_field}' has invalid value '{selected_variant}'"
+            )
+
+        return _load_and_populate_driver_config(selected_schema, common_properties, secret_provider)
+
     # Merge driver properties with common properties
     properties = driver_schema.get("properties", {})
     if common_properties:

@@ -12,7 +12,13 @@ from typing import Any
 
 from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
-from copilot_config.generated.adapters.archive_store import DriverConfig_ArchiveStore_Azureblob
+from copilot_config.generated.adapters.archive_store import (
+    DriverConfig_ArchiveStore_Azureblob,
+    DriverConfig_ArchiveStore_Azureblob_AccountKey,
+    DriverConfig_ArchiveStore_Azureblob_ConnectionString,
+    DriverConfig_ArchiveStore_Azureblob_ManagedIdentity,
+    DriverConfig_ArchiveStore_Azureblob_SasToken,
+)
 
 from .archive_store import (
     ArchiveStore,
@@ -218,15 +224,40 @@ class AzureBlobArchiveStore(ArchiveStore):
         Raises:
             ValueError: If required configuration is missing or invalid
         """
-        account_name = driver_config.azureblob_account_name
-        account_key = driver_config.azureblob_account_key
         container_name = driver_config.azureblob_container_name or "archives"
+        prefix = driver_config.azureblob_prefix or ""
 
-        return cls(
-            account_name=account_name,
-            account_key=account_key,
-            container_name=container_name,
-        )
+        if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob_ConnectionString):
+            return cls(
+                connection_string=driver_config.azureblob_connection_string,
+                container_name=container_name,
+                prefix=prefix,
+            )
+
+        if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob_AccountKey):
+            return cls(
+                account_name=driver_config.azureblob_account_name,
+                account_key=driver_config.azureblob_account_key,
+                container_name=container_name,
+                prefix=prefix,
+            )
+
+        if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob_SasToken):
+            return cls(
+                account_name=driver_config.azureblob_account_name,
+                sas_token=driver_config.azureblob_sas_token,
+                container_name=container_name,
+                prefix=prefix,
+            )
+
+        if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob_ManagedIdentity):
+            return cls(
+                account_name=driver_config.azureblob_account_name,
+                container_name=container_name,
+                prefix=prefix,
+            )
+
+        raise ValueError(f"Unsupported azureblob driver config type: {type(driver_config)}")
 
     def _load_metadata(self) -> None:
         """Load metadata index from Azure Blob Storage."""

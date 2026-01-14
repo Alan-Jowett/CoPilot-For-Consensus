@@ -62,6 +62,49 @@ def load_service_config(
         secret_provider: Any | None,
     ) -> dict[str, Any]:
         """Extract configuration values from a driver schema."""
+        if "oneOf" in driver_schema_data:
+            discriminant_info = driver_schema_data.get("discriminant", {})
+            discriminant_field = discriminant_info.get("field")
+            discriminant_env_var = discriminant_info.get("env_var")
+
+            if not discriminant_field or not discriminant_env_var:
+                raise ValueError(
+                    "Driver schema uses oneOf but is missing discriminant.field or discriminant.env_var"
+                )
+
+            selected_variant = os.environ.get(discriminant_env_var)
+            if not selected_variant:
+                is_required = discriminant_info.get("required", False)
+                default_variant = discriminant_info.get("default")
+                if is_required and not default_variant:
+                    raise ValueError(
+                        f"Driver schema requires discriminant configuration: set environment variable {discriminant_env_var}"
+                    )
+                selected_variant = default_variant
+
+            one_of = driver_schema_data.get("oneOf")
+            if not isinstance(one_of, list):
+                raise ValueError("Driver schema oneOf must be a list")
+
+            selected_schema: dict[str, Any] | None = None
+            for candidate in one_of:
+                if not isinstance(candidate, dict):
+                    continue
+                candidate_props = candidate.get("properties", {})
+                if not isinstance(candidate_props, dict):
+                    continue
+                disc_prop = candidate_props.get(discriminant_field, {})
+                if isinstance(disc_prop, dict) and disc_prop.get("const") == selected_variant:
+                    selected_schema = candidate
+                    break
+
+            if selected_schema is None:
+                raise ValueError(
+                    f"Driver schema discriminant '{discriminant_field}' has invalid value '{selected_variant}'"
+                )
+
+            return _extract_config_from_driver_schema(selected_schema, secret_provider)
+
         driver_config_dict: dict[str, Any] = {}
         driver_properties = driver_schema_data.get("properties", {})
 
@@ -239,6 +282,26 @@ def load_service_config(
 
         # Extract allowed keys from driver schema
         allowed_keys = set((driver_schema_data.get("properties") or {}).keys())
+
+        if not allowed_keys and "oneOf" in driver_schema_data:
+            # For discriminated oneOf driver schemas, select the active variant and use its properties.
+            discriminant_info = driver_schema_data.get("discriminant", {})
+            discriminant_field = discriminant_info.get("field")
+            discriminant_env_var = discriminant_info.get("env_var")
+            selected_variant = os.environ.get(discriminant_env_var) if discriminant_env_var else None
+            if not selected_variant:
+                selected_variant = discriminant_info.get("default")
+
+            for candidate in driver_schema_data.get("oneOf", []):
+                if not isinstance(candidate, dict):
+                    continue
+                candidate_props = candidate.get("properties", {})
+                if not isinstance(candidate_props, dict):
+                    continue
+                disc_prop = candidate_props.get(discriminant_field, {}) if discriminant_field else {}
+                if isinstance(disc_prop, dict) and disc_prop.get("const") == selected_variant:
+                    allowed_keys = set(candidate_props.keys())
+                    break
 
         # Merge in common properties from adapter schema if they exist
         allowed_keys.update(common_properties.keys())
