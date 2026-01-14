@@ -195,7 +195,11 @@ def generate_driver_dataclass(
             if description:
                 # Escape any quotes in description
                 desc_safe = description.replace('"', '\\"')
-                lines.append(f'    """{desc_safe}"""' if len(lines) == 4 else f"    # {description}")
+                lines.append(
+                    f'    """{desc_safe}"""'
+                    if len(lines) == 4
+                    else f"    # {desc_safe}"
+                )
 
     return class_name, "\n".join(lines)
 
