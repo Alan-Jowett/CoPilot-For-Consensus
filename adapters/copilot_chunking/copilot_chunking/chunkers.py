@@ -10,10 +10,22 @@ threads before embedding or summarization.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Union
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.chunker import (
+    AdapterConfig_Chunker,
+    DriverConfig_Chunker_FixedSize,
+    DriverConfig_Chunker_Semantic,
+    DriverConfig_Chunker_TokenWindow,
+)
 from copilot_schema_validation import generate_chunk_id
+
+
+ChunkerDriverConfig = Union[
+    DriverConfig_Chunker_FixedSize,
+    DriverConfig_Chunker_Semantic,
+    DriverConfig_Chunker_TokenWindow,
+]
 
 
 @dataclass
@@ -120,7 +132,7 @@ class TokenWindowChunker(ThreadChunker):
         self.max_chunk_size = max_chunk_size
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "TokenWindowChunker":
+    def from_config(cls, driver_config: DriverConfig_Chunker_TokenWindow | Any) -> "TokenWindowChunker":
         """Create TokenWindowChunker from driver configuration.
 
         Expected keys in driver_config:
@@ -129,10 +141,10 @@ class TokenWindowChunker(ThreadChunker):
         - min_chunk_size (int)
         - max_chunk_size (int)
         """
-        chunk_size = driver_config.chunk_size
-        overlap = driver_config.overlap
-        min_chunk_size = driver_config.min_chunk_size
-        max_chunk_size = driver_config.max_chunk_size
+        chunk_size = getattr(driver_config, "chunk_size", 384)
+        overlap = getattr(driver_config, "overlap", 50)
+        min_chunk_size = getattr(driver_config, "min_chunk_size", 100)
+        max_chunk_size = getattr(driver_config, "max_chunk_size", 512)
         return cls(
             chunk_size=int(chunk_size),
             overlap=int(overlap),
@@ -224,13 +236,13 @@ class FixedSizeChunker(ThreadChunker):
         self.messages_per_chunk = messages_per_chunk
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "FixedSizeChunker":
+    def from_config(cls, driver_config: DriverConfig_Chunker_FixedSize | Any) -> "FixedSizeChunker":
         """Create FixedSizeChunker from driver configuration.
 
         Expected keys:
         - messages_per_chunk (int)
         """
-        messages_per_chunk = int(driver_config.messages_per_chunk)
+        messages_per_chunk = int(getattr(driver_config, "messages_per_chunk", 5))
         return cls(messages_per_chunk=messages_per_chunk)
 
     def chunk(self, thread: Thread) -> list[Chunk]:
@@ -366,15 +378,15 @@ class SemanticChunker(ThreadChunker):
         self.split_on_speaker = split_on_speaker
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "SemanticChunker":
+    def from_config(cls, driver_config: DriverConfig_Chunker_Semantic | Any) -> "SemanticChunker":
         """Create SemanticChunker from driver configuration.
 
         Expected keys:
         - target_chunk_size (int)
         - split_on_speaker (bool)
         """
-        target_chunk_size = int(driver_config.target_chunk_size)
-        split_on_speaker = bool(driver_config.split_on_speaker)
+        target_chunk_size = int(getattr(driver_config, "target_chunk_size", 400))
+        split_on_speaker = bool(getattr(driver_config, "split_on_speaker", False))
         return cls(
             target_chunk_size=target_chunk_size,
             split_on_speaker=split_on_speaker,
@@ -470,10 +482,17 @@ class SemanticChunker(ThreadChunker):
 
 
 def create_chunker(
-    driver_name: str,
-    driver_config: DriverConfig,
+    driver_name: str | AdapterConfig_Chunker,
+    driver_config: ChunkerDriverConfig | Any | None = None,
 ) -> ThreadChunker:
-    """Create a chunker from DriverConfig.
+    """Create a chunker from typed configuration.
+
+    Supports either:
+    - `create_chunker(config: AdapterConfig_Chunker)`
+    - `create_chunker(driver_name: str, driver_config: <typed driver config>)`
+
+    The factory is intentionally permissive about `driver_config` to ease
+    migration from legacy config objects that expose attribute-style access.
 
     Args:
         driver_name: Type of chunker ("token_window", "fixed_size", "semantic")
@@ -485,11 +504,19 @@ def create_chunker(
     Raises:
         ValueError: If driver_name is unknown or required parameters are missing
     """
+    if isinstance(driver_name, AdapterConfig_Chunker):
+        config = driver_name
+        driver_name = config.chunking_strategy
+        driver_config = config.driver
+
     if not driver_name:
         raise ValueError(
             "driver_name parameter is required. "
             "Must be one of: token_window, fixed_size, semantic"
         )
+
+    if driver_config is None:
+        raise ValueError("driver_config parameter is required")
 
     name = str(driver_name).lower()
 
