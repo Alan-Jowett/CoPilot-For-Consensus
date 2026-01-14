@@ -71,7 +71,7 @@ resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
 
 resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
   parent: keyVault
-  name: 'azure-connection-string'
+  name: 'azure-monitor-connection-string'
 }
 
 // Grant all services access to App Insights secrets for telemetry
