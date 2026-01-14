@@ -155,7 +155,7 @@ jobs:
           "
 
       - name: Upload generated spec
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: openapi-${{ matrix.service }}
           path: openapi/generated/${{ matrix.service }}.yaml
@@ -261,7 +261,7 @@ jobs:
           ls -lh /tmp/spec-bundle/
 
       - name: Upload complete spec bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: openapi-spec-bundle
           path: /tmp/spec-bundle/
