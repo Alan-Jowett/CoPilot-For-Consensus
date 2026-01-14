@@ -160,7 +160,7 @@ def create_archive_store(driver_name: str, driver_config: DriverConfig) -> Archi
         >>> store = create_archive_store(archive_adapter.driver_name, archive_adapter.driver_config)
     """
     if not driver_name:
-        raise ValueError("driver_name is required for create_archive_store (choose: 'local', 'mongodb', 'azure_blob')")
+        raise ValueError("driver_name is required for create_archive_store (choose: 'local', 'mongodb', 'azureblob')")
 
     if driver_name == "local":
         from .local_volume_archive_store import LocalVolumeArchiveStore
@@ -168,7 +168,8 @@ def create_archive_store(driver_name: str, driver_config: DriverConfig) -> Archi
     elif driver_name == "mongodb":
         from .mongodb_archive_store import MongoDBArchiveStore
         return MongoDBArchiveStore.from_config(driver_config)
-    elif driver_name == "azure_blob":
+    elif driver_name in ("azure_blob", "azureblob"):
+        # Support both azure_blob (old) and azureblob (schema name) for backward compatibility
         from .azure_blob_archive_store import AzureBlobArchiveStore
         return AzureBlobArchiveStore.from_config(driver_config)
     elif driver_name == "s3":

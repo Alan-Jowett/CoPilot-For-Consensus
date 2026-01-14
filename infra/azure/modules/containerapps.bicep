@@ -466,7 +466,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'QDRANT_HOST'
-              value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
+              value: vectorStoreBackend == 'qdrant' ? qdrantApp!.properties.configuration.ingress.fqdn : ''
             }
             {
               name: 'QDRANT_PORT'
@@ -1135,7 +1135,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'QDRANT_HOST'
-              value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
+              value: vectorStoreBackend == 'qdrant' ? qdrantApp!.properties.configuration.ingress.fqdn : ''
             }
             {
               name: 'QDRANT_PORT'
@@ -1368,7 +1368,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'QDRANT_HOST'
-              value: 'qdrant'
+              value: vectorStoreBackend == 'qdrant' ? qdrantApp!.properties.configuration.ingress.fqdn : ''
             }
             {
               name: 'QDRANT_PORT'
@@ -1549,7 +1549,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'QDRANT_HOST'
-              value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
+              value: vectorStoreBackend == 'qdrant' ? qdrantApp!.properties.configuration.ingress.fqdn : ''
             }
             {
               name: 'QDRANT_PORT'
