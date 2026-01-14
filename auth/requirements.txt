@@ -43,7 +43,7 @@ idna==3.11
     #   anyio
     #   httpx
     #   requests
-prometheus-client==0.23.1
+prometheus-client==0.24.0
     # via -r requirements.in
 pycparser==2.23
     # via cffi
