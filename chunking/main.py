@@ -8,6 +8,7 @@ import sys
 import threading
 from pathlib import Path
 from dataclasses import replace
+from typing import cast
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -34,13 +35,23 @@ from app import __version__
 from app.service import ChunkingService
 from copilot_chunking import create_chunker
 from copilot_config.runtime_loader import get_config
+from copilot_config.generated.adapters.message_bus import (
+    DriverConfig_MessageBus_AzureServiceBus,
+    DriverConfig_MessageBus_Rabbitmq,
+)
+from copilot_config.generated.adapters.metrics import (
+    DriverConfig_Metrics_AzureMonitor,
+    DriverConfig_Metrics_Prometheus,
+    DriverConfig_Metrics_Pushgateway,
+)
+from copilot_config.generated.services.chunking import ServiceConfig_Chunking
 from copilot_message_bus import create_publisher, create_subscriber
 
 # Create FastAPI app
 app = FastAPI(title="Chunking Service", version=__version__)
 
 # Global service instance
-chunking_service = None
+chunking_service: ChunkingService | None = None
 
 
 @app.get("/health")
@@ -101,7 +112,7 @@ def main():
 
     try:
         # Load strongly-typed configuration from JSON schemas
-        config = get_config("chunking")
+        config = cast(ServiceConfig_Chunking, get_config("chunking"))
         logger.info("Configuration loaded successfully")
 
         # These identities are service-owned constants (not deployment settings).
@@ -112,20 +123,27 @@ def main():
         subscriber_queue_name = "json.parsed"
 
         # Message bus: ensure subscriber identity is set before connect().
-        if hasattr(config.message_bus.driver, "queue_name"):
-            config.message_bus.driver = replace(config.message_bus.driver, queue_name=subscriber_queue_name)
-        if hasattr(config.message_bus.driver, "topic_name") and hasattr(config.message_bus.driver, "subscription_name"):
+        if config.message_bus.message_bus_type == "rabbitmq":
+            driver = cast(DriverConfig_MessageBus_Rabbitmq, config.message_bus.driver)
+            config.message_bus.driver = replace(driver, queue_name=subscriber_queue_name)
+        elif config.message_bus.message_bus_type == "azure_service_bus":
+            driver = cast(DriverConfig_MessageBus_AzureServiceBus, config.message_bus.driver)
             config.message_bus.driver = replace(
-                config.message_bus.driver,
+                driver,
                 topic_name="copilot.events",
                 subscription_name=service_name,
             )
 
         # Metrics: stamp per-service identifier onto driver config.
-        if config.metrics.metrics_type == "pushgateway" and hasattr(config.metrics.driver, "job"):
-            config.metrics.driver = replace(config.metrics.driver, job=service_name, namespace=service_name)
-        elif hasattr(config.metrics.driver, "namespace"):
-            config.metrics.driver = replace(config.metrics.driver, namespace=service_name)
+        if config.metrics.metrics_type == "pushgateway":
+            driver = cast(DriverConfig_Metrics_Pushgateway, config.metrics.driver)
+            config.metrics.driver = replace(driver, job=service_name, namespace=service_name)
+        elif config.metrics.metrics_type == "prometheus":
+            driver = cast(DriverConfig_Metrics_Prometheus, config.metrics.driver)
+            config.metrics.driver = replace(driver, namespace=service_name)
+        elif config.metrics.metrics_type == "azure_monitor":
+            driver = cast(DriverConfig_Metrics_AzureMonitor, config.metrics.driver)
+            config.metrics.driver = replace(driver, namespace=service_name)
 
         # Replace bootstrap logger with config-based logger
         logger = create_logger(config.logger)
@@ -137,12 +155,12 @@ def main():
         chunking_service_module.logger = get_logger(chunking_service_module.__name__)
 
         # Conditionally add JWT authentication middleware based on config
-        if config.service_settings.jwt_auth_enabled:
+        if bool(config.service_settings.jwt_auth_enabled):
             logger.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
-                auth_service_url = config.service_settings.auth_service_url
-                audience = config.service_settings.service_audience
+                auth_service_url = config.service_settings.auth_service_url or "http://auth:8090"
+                audience = config.service_settings.service_audience or "copilot-for-consensus"
                 auth_middleware = create_jwt_middleware(
                     auth_service_url=auth_service_url,
                     audience=audience,
@@ -234,7 +252,7 @@ def main():
         logger.info("Subscriber thread started")
 
         # Start FastAPI server
-        http_port = config.service_settings.http_port
+        http_port = config.service_settings.http_port if config.service_settings.http_port is not None else 8000
         logger.info(f"Starting HTTP server on port {http_port}...")
 
         # Configure Uvicorn with structured JSON logging

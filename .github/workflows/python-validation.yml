@@ -99,6 +99,13 @@ jobs:
             pip install -r auth/requirements.txt
           fi
 
+      - name: Install chunking service dependencies (for pyright)
+        run: |
+          # Ensure third-party deps used by chunking entrypoints are available.
+          if [ -f "chunking/requirements.txt" ]; then
+            pip install -r chunking/requirements.txt
+          fi
+
       - name: Ruff - Fast Python Linter
         id: ruff
         run: |
@@ -293,6 +300,12 @@ jobs:
           # Auth uses schema-driven config; this guards against config schema drift
           # and missing attribute access in entrypoints and core logic.
           pyright auth/main.py auth/app/config.py auth/app/service.py auth/app/role_store.py --level error
+
+      - name: Pyright (gating) - Chunking typed config safety
+        run: |
+          # Chunking uses schema-driven config; this guards against config schema drift
+          # and missing attribute access in the entrypoint and core service.
+          pyright chunking/main.py chunking/app/service.py --level error
 
       - name: Generate Validation Summary
         if: always()

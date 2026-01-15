@@ -5,7 +5,7 @@
 
 import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 from copilot_chunking import Thread, ThreadChunker
 from copilot_message_bus import (
@@ -19,7 +19,6 @@ from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
-from pymongo.errors import DuplicateKeyError
 
 logger = get_logger(__name__)
 
@@ -88,8 +87,8 @@ class ChunkingService:
 
             # Use aggregation pipeline to efficiently find messages without chunks
             try:
-                # Check if document store supports aggregation
-                if not hasattr(self.document_store, 'aggregate_documents'):
+                aggregate_documents = getattr(self.document_store, "aggregate_documents", None)
+                if not callable(aggregate_documents):
                     logger.warning("Document store doesn't support aggregation, skipping chunking requeue")
                     return
 
@@ -119,9 +118,12 @@ class ChunkingService:
                     },
                 ]
 
-                unchunked_messages = self.document_store.aggregate_documents(
+                unchunked_messages = cast(
+                    list[dict[str, Any]],
+                    aggregate_documents(
                     collection="messages",
                     pipeline=pipeline,
+                    ),
                 )
 
                 if not unchunked_messages:
@@ -299,12 +301,17 @@ class ChunkingService:
                         self.document_store.insert_document("chunks", chunk)
                         chunk_ids.append(chunk["_id"])
                         new_chunks_created += 1
-                    except DuplicateKeyError:
-                        # Chunk already exists (idempotent retry)
-                        logger.debug(f"Chunk {chunk.get('_id', 'unknown')} already exists, skipping")
-                        chunk_ids.append(chunk.get("_id", "unknown"))  # Still include in output
-                        skipped_duplicates += 1
                     except Exception as e:
+                        # Chunk already exists (idempotent retry).
+                        # Do not depend on pymongo at import-time; detect duplicates by name/message.
+                        if type(e).__name__ == "DuplicateKeyError" or "duplicate key" in str(e).lower():
+                            logger.debug(
+                                f"Chunk {chunk.get('_id', 'unknown')} already exists, skipping"
+                            )
+                            chunk_ids.append(chunk.get("_id", "unknown"))  # Still include in output
+                            skipped_duplicates += 1
+                            continue
+
                         # Other errors (transient) should fail the processing
                         logger.error(f"Error storing chunk {chunk.get('_id')}: {e}")
                         raise
@@ -479,7 +486,10 @@ class ChunkingService:
         Returns:
             True if chunker has overlap configured, False otherwise
         """
-        return hasattr(self.chunker, 'overlap') and self.chunker.overlap > 0
+        overlap = getattr(self.chunker, "overlap", None)
+        if isinstance(overlap, (int, float)):
+            return overlap > 0
+        return False
 
     def _publish_chunks_prepared(
         self,
