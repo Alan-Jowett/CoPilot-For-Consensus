@@ -354,6 +354,14 @@ jobs:
             adapters/copilot_auth/copilot_auth/microsoft_provider.py \
             --level error
 
+      - name: Pyright (gating) - Chunking adapter typed config safety
+        run: |
+          # Chunking adapter consumes generated typed chunker configs.
+          # Gate the factory and core module to prevent config schema drift.
+          pyright \
+            adapters/copilot_chunking/copilot_chunking/chunkers.py \
+            --level error
+
       - name: Pyright (gating) - Ingestion typed config safety
         run: |
           # This is the shift-left guardrail: catch missing/incorrect config attribute
