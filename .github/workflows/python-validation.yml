@@ -446,6 +446,16 @@ jobs:
             adapters/copilot_schema_validation/copilot_schema_validation/models.py \
             --level error
 
+      - name: Pyright (gating) - Secrets adapter typed config safety
+        run: |
+          # Secrets adapter consumes generated typed secret_provider configs.
+          # Gate the factory and providers so schema drift breaks CI.
+          pyright \
+            adapters/copilot_secrets/copilot_secrets/factory.py \
+            adapters/copilot_secrets/copilot_secrets/local_provider.py \
+            adapters/copilot_secrets/copilot_secrets/azurekeyvault_provider.py \
+            --level error
+
       - name: Pyright (gating) - Message bus adapter typed config safety
         run: |
           # Message bus adapter consumes generated typed message_bus configs.
