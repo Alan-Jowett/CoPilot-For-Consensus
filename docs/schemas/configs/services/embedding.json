@@ -92,6 +92,10 @@
             "$ref": "../adapters/document_store.json",
             "required": true
         },
+        "logger": {
+            "$ref": "../adapters/logger.json",
+            "required": true
+        },
         "embedding_backend": {
             "$ref": "../adapters/embedding_backend.json",
             "required": true

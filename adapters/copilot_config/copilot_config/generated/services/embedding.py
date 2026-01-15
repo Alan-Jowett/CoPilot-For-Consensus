@@ -13,6 +13,7 @@ from typing import Optional
 from ..adapters.document_store import AdapterConfig_DocumentStore
 from ..adapters.embedding_backend import AdapterConfig_EmbeddingBackend
 from ..adapters.error_reporter import AdapterConfig_ErrorReporter
+from ..adapters.logger import AdapterConfig_Logger
 from ..adapters.message_bus import AdapterConfig_MessageBus
 from ..adapters.metrics import AdapterConfig_Metrics
 from ..adapters.secret_provider import AdapterConfig_SecretProvider
@@ -42,6 +43,7 @@ class ServiceConfig_Embedding:
     document_store: AdapterConfig_DocumentStore
     embedding_backend: AdapterConfig_EmbeddingBackend
     error_reporter: AdapterConfig_ErrorReporter
+    logger: AdapterConfig_Logger
     message_bus: AdapterConfig_MessageBus
     metrics: AdapterConfig_Metrics
     secret_provider: AdapterConfig_SecretProvider

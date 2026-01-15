@@ -7,6 +7,7 @@ import os
 import sys
 import threading
 from pathlib import Path
+from copilot_config import DriverConfig
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -471,9 +472,14 @@ def main():
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
         logger.info("Creating message bus subscriber from adapter configuration")
+        subscriber_driver_config = DriverConfig(
+            driver_name=message_bus_adapter.driver_name,
+            config={**message_bus_adapter.driver_config.config, "queue_name": "summary.complete"},
+            allowed_keys=message_bus_adapter.driver_config.allowed_keys,
+        )
         subscriber = create_subscriber(
             driver_name=message_bus_adapter.driver_name,
-            driver_config=message_bus_adapter.driver_config,
+            driver_config=subscriber_driver_config,
             enable_validation=True,
             strict_validation=True,
         )

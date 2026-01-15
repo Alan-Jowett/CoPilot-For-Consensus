@@ -30,14 +30,6 @@
             "default": "token_window",
             "description": "Chunking strategy (token_window, recursive, sentence)"
         },
-        "error_reporter_type": {
-            "type": "string",
-            "source": "env",
-            "env_var": "CHUNK_ERROR_REPORTER_TYPE",
-            "default": "console",
-            "required": false,
-            "description": "Error reporter type"
-        },
         "http_port": {
             "type": "int",
             "source": "env",
@@ -95,6 +87,14 @@
         },
         "document_store": {
             "$ref": "../adapters/document_store.json",
+            "required": true
+        },
+        "error_reporter": {
+            "$ref": "../adapters/error_reporter.json",
+            "required": true
+        },
+        "logger": {
+            "$ref": "../adapters/logger.json",
             "required": true
         },
         "message_bus": {

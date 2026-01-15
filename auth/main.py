@@ -80,14 +80,7 @@ async def lifespan(app: FastAPI):
     auth_service_module.logger = get_logger(auth_service_module.__name__)
 
     # Initialize metrics from config
-    metrics = create_metrics_collector(
-        config.metrics
-        if config.metrics is not None
-        else AdapterConfig_Metrics(
-            metrics_type="noop",
-            driver=DriverConfig_Metrics_Noop(),
-        )
-    )
+    metrics = create_metrics_collector(config.metrics)
 
     # Initialize auth service
     auth_service = AuthService(config=config)

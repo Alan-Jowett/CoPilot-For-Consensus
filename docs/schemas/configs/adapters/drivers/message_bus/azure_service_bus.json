@@ -17,20 +17,6 @@
             ]
         }
     ],
-    "x-required_one_of": [
-        [
-            "queue_name",
-            "topic_name"
-        ]
-    ],
-    "x-dependent_required": [
-        {
-            "if_present": "topic_name",
-            "then_required": [
-                "subscription_name"
-            ]
-        }
-    ],
     "properties": {
         "connection_string": {
             "type": "string",

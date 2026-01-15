@@ -10,6 +10,10 @@ from pathlib import Path
 import pytest
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import create_document_store
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -75,9 +79,12 @@ def document_store():
     schema_provider = create_schema_provider(schema_dir=schema_dir, schema_type="documents")
 
     document_store = create_document_store(
-        driver_name="inmemory",
-        driver_config={"schema_provider": schema_provider},
+        AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        ),
         enable_validation=True,
+        schema_provider=schema_provider,
     )
     document_store.connect()
 

@@ -7,6 +7,7 @@ import os
 import sys
 import threading
 from pathlib import Path
+from dataclasses import replace
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -32,7 +33,7 @@ set_default_logger(logger)
 from app import __version__
 from app.service import ChunkingService
 from copilot_chunking import create_chunker
-from copilot_config import load_service_config
+from copilot_config.runtime_loader import get_config
 from copilot_message_bus import create_publisher, create_subscriber
 
 # Create FastAPI app
@@ -99,31 +100,49 @@ def main():
     logger.info(f"Starting Chunking Service (version {__version__})")
 
     try:
-        # Load configuration using schema-driven service config
-        config = load_service_config("chunking")
+        # Load strongly-typed configuration from JSON schemas
+        config = get_config("chunking")
         logger.info("Configuration loaded successfully")
 
-        # Replace bootstrap logger with config-based logger
-        logger_adapter = config.get_adapter("logger")
-        if logger_adapter is not None:
-            logger = create_logger(
-                driver_name=logger_adapter.driver_name,
-                driver_config=logger_adapter.driver_config
+        # These identities are service-owned constants (not deployment settings).
+        # - RabbitMQ: stable queue name (durable) to avoid ephemeral exclusive queues.
+        # - Azure Service Bus: stable subscription identity.
+        # - Metrics: stable per-service namespace/job label to prevent collisions.
+        service_name = "chunking"
+        subscriber_queue_name = "json.parsed"
+
+        # Message bus: ensure subscriber identity is set before connect().
+        if hasattr(config.message_bus.driver, "queue_name"):
+            config.message_bus.driver = replace(config.message_bus.driver, queue_name=subscriber_queue_name)
+        if hasattr(config.message_bus.driver, "topic_name") and hasattr(config.message_bus.driver, "subscription_name"):
+            config.message_bus.driver = replace(
+                config.message_bus.driver,
+                topic_name="copilot.events",
+                subscription_name=service_name,
             )
-            set_default_logger(logger)
-            logger.info("Logger initialized from service configuration")
+
+        # Metrics: stamp per-service identifier onto driver config.
+        if config.metrics.metrics_type == "pushgateway" and hasattr(config.metrics.driver, "job"):
+            config.metrics.driver = replace(config.metrics.driver, job=service_name, namespace=service_name)
+        elif hasattr(config.metrics.driver, "namespace"):
+            config.metrics.driver = replace(config.metrics.driver, namespace=service_name)
+
+        # Replace bootstrap logger with config-based logger
+        logger = create_logger(config.logger)
+        set_default_logger(logger)
+        logger.info("Logger initialized from service configuration")
 
         # Refresh module-level service logger to use the current default
         from app import service as chunking_service_module
         chunking_service_module.logger = get_logger(chunking_service_module.__name__)
 
         # Conditionally add JWT authentication middleware based on config
-        if getattr(config, 'jwt_auth_enabled', True):
+        if config.service_settings.jwt_auth_enabled:
             logger.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
-                auth_service_url = getattr(config, 'auth_service_url', None)
-                audience = getattr(config, 'service_audience', None)
+                auth_service_url = config.service_settings.auth_service_url
+                audience = config.service_settings.service_audience
                 auth_middleware = create_jwt_middleware(
                     auth_service_url=auth_service_url,
                     audience=audience,
@@ -136,37 +155,26 @@ def main():
         else:
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
 
-        # Create adapters
-        message_bus_adapter = config.get_adapter("message_bus")
-        if message_bus_adapter is None:
-            raise ValueError("message_bus adapter is required")
-
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
-            driver_name=message_bus_adapter.driver_name,
-            driver_config=message_bus_adapter.driver_config,
+            config.message_bus,
+            enable_validation=True,
+            strict_validation=True,
         )
         try:
             publisher.connect()
         except Exception as e:
-            if str(message_bus_adapter.driver_name).lower() != "noop":
+            if str(config.message_bus.message_bus_type).lower() != "noop":
                 logger.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
         logger.info("Creating message bus subscriber...")
-        # Add queue_name to subscriber config
-        from copilot_config import DriverConfig
-        subscriber_config = {**message_bus_adapter.driver_config.config, "queue_name": "json.parsed"}
-        subscriber_driver_config = DriverConfig(
-            driver_name=message_bus_adapter.driver_name,
-            config=subscriber_config,
-            allowed_keys=message_bus_adapter.driver_config.allowed_keys
-        )
         subscriber = create_subscriber(
-            driver_name=message_bus_adapter.driver_name,
-            driver_config=subscriber_driver_config,
+            config.message_bus,
+            enable_validation=True,
+            strict_validation=True,
         )
         try:
             subscriber.connect()
@@ -175,26 +183,15 @@ def main():
             raise ConnectionError("Subscriber failed to connect to message bus")
 
         logger.info("Creating document store...")
-        document_store_adapter = config.get_adapter("document_store")
-        if document_store_adapter is None:
-            raise ValueError("document_store adapter is required")
-
         document_schema_provider = create_schema_provider(
             schema_dir=Path(__file__).parent / "docs" / "schemas" / "documents",
             schema_type="documents",
         )
-
-        from copilot_config import DriverConfig
-        document_store_driver_config = DriverConfig(
-            driver_name=document_store_adapter.driver_name,
-            config={**document_store_adapter.driver_config.config, "schema_provider": document_schema_provider},
-            allowed_keys=document_store_adapter.driver_config.allowed_keys
-        )
         document_store = create_document_store(
-            driver_name=document_store_adapter.driver_name,
-            driver_config=document_store_driver_config,
+            config.document_store,
             enable_validation=True,
             strict_validation=True,
+            schema_provider=document_schema_provider,
         )
         logger.info("Connecting to document store...")
         # connect() raises on failure; None return indicates success
@@ -204,51 +201,18 @@ def main():
         # Create chunker via adapter config
         logger.info("Creating chunker from adapter configuration")
         try:
-            chunker_adapter = config.get_adapter("chunker")
-            chunker = create_chunker(
-                driver_name=chunker_adapter.driver_name,
-                driver_config=chunker_adapter.driver_config,
-            )
+            chunker = create_chunker(config.chunker)
         except Exception as e:
             logger.error(f"Failed to create chunker from adapter config: {e}")
             raise
 
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
-        metrics_adapter = config.get_adapter("metrics")
-        if metrics_adapter is not None:
-            from copilot_config import DriverConfig
-            metrics_driver_config = DriverConfig(
-                driver_name=metrics_adapter.driver_name,
-                config={**metrics_adapter.driver_config.config, "job": "chunking"},
-                allowed_keys=metrics_adapter.driver_config.allowed_keys
-            )
-            metrics_collector = create_metrics_collector(
-                driver_name=metrics_adapter.driver_name,
-                driver_config=metrics_driver_config,
-            )
-        else:
-            from copilot_config import DriverConfig
-            metrics_collector = create_metrics_collector(
-                driver_name="noop",
-                driver_config=DriverConfig(driver_name="noop")
-            )
+        metrics_collector = create_metrics_collector(config.metrics)
 
         # Create error reporter - fail fast on errors
         logger.info("Creating error reporter...")
-        error_reporter_adapter = config.get_adapter("error_reporter")
-        if error_reporter_adapter is not None:
-            error_reporter = create_error_reporter(
-                driver_name=error_reporter_adapter.driver_name,
-                driver_config=error_reporter_adapter.driver_config,
-            )
-        else:
-            # Fallback to console reporter with empty config
-            from copilot_config import DriverConfig
-            error_reporter = create_error_reporter(
-                driver_name="console",
-                driver_config=DriverConfig(driver_name="console", config={}, allowed_keys=set()),
-            )
+        error_reporter = create_error_reporter(config.error_reporter)
 
         # Create chunking service
         chunking_service = ChunkingService(
@@ -270,7 +234,7 @@ def main():
         logger.info("Subscriber thread started")
 
         # Start FastAPI server
-        http_port = getattr(config, "http_port", 8000)
+        http_port = config.service_settings.http_port
         logger.info(f"Starting HTTP server on port {http_port}...")
 
         # Configure Uvicorn with structured JSON logging
