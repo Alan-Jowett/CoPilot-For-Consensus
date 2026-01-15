@@ -103,6 +103,7 @@ extraPaths = [
     "adapters/copilot_archive_fetcher",
     "adapters/copilot_archive_store",
     "adapters/copilot_chunking",
+    "adapters/copilot_embedding",
     "adapters/copilot_error_reporting",
     "adapters/copilot_logging",
     "adapters/copilot_message_bus",
@@ -110,6 +111,7 @@ extraPaths = [
     "adapters/copilot_schema_validation",
     "adapters/copilot_startup",
     "adapters/copilot_storage",
+    "adapters/copilot_vectorstore",
 ]
 pythonVersion = "3.10"
 typeCheckingMode = "basic"  # Start with basic, can move to "strict" gradually

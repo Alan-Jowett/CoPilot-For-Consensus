@@ -106,6 +106,13 @@ jobs:
             pip install -r chunking/requirements.txt
           fi
 
+      - name: Install embedding service dependencies (for pyright)
+        run: |
+          # Ensure third-party deps used by embedding entrypoints are available.
+          if [ -f "embedding/requirements.txt" ]; then
+            pip install -r embedding/requirements.txt
+          fi
+
       - name: Ruff - Fast Python Linter
         id: ruff
         run: |
@@ -306,6 +313,12 @@ jobs:
           # Chunking uses schema-driven config; this guards against config schema drift
           # and missing attribute access in the entrypoint and core service.
           pyright chunking/main.py chunking/app/service.py --level error
+
+      - name: Pyright (gating) - Embedding typed config safety
+        run: |
+          # Embedding uses schema-driven config; this guards against config schema drift
+          # and missing attribute access in the entrypoint and core service.
+          pyright embedding/main.py embedding/app/service.py --level error
 
       - name: Generate Validation Summary
         if: always()
