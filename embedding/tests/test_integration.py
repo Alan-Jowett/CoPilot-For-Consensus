@@ -8,6 +8,14 @@ from unittest.mock import Mock
 
 import pytest
 from app.service import EmbeddingService
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_Inmemory,
+)
 from copilot_embedding import create_embedding_provider
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import create_document_store
@@ -41,9 +49,12 @@ def in_memory_document_store():
     )
 
     document_store = create_document_store(
-        driver_name="inmemory",
-        driver_config={"schema_provider": schema_provider},
+        AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        ),
         enable_validation=True,
+        schema_provider=schema_provider,
     )
     document_store.connect()
 
@@ -59,7 +70,12 @@ def in_memory_document_store():
 @pytest.fixture
 def in_memory_vector_store():
     """Create an in-memory vector store."""
-    return create_vector_store(driver_name="inmemory", driver_config={})
+    return create_vector_store(
+        AdapterConfig_VectorStore(
+            vector_store_type="inmemory",
+            driver=DriverConfig_VectorStore_Inmemory(),
+        )
+    )
 
 
 @pytest.fixture
