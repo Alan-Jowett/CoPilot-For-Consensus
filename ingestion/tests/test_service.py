@@ -104,7 +104,7 @@ class TestIngestionService:
         )
         document_store.connect()
 
-        archive_store = make_archive_store(base_path=config.storage_path)
+        archive_store = make_archive_store(base_path=config.service_settings.storage_path or "/tmp/ingestion")
 
         return IngestionService(
             config,
@@ -232,14 +232,6 @@ class TestIngestionService:
         error_reporter = create_error_reporter(
             AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
         )
-        service = IngestionService(
-            config,
-            publisher,
-            logger=logger,
-            metrics=metrics,
-            error_reporter=error_reporter,
-            archive_store=make_archive_store(config.storage_path),
-        )
 
         with tempfile.TemporaryDirectory() as source_dir:
             file1 = os.path.join(source_dir, "file1.mbox")
@@ -256,7 +248,15 @@ class TestIngestionService:
                 make_source(name="source3", url=file1, enabled=False),
             ]
 
-            config.sources = sources
+            service = IngestionService(
+                config,
+                publisher,
+                sources=sources,
+                logger=logger,
+                metrics=metrics,
+                error_reporter=error_reporter,
+                archive_store=make_archive_store(config.service_settings.storage_path or temp_storage),
+            )
             results = service.ingest_all_enabled_sources()
 
             assert len(results) == 2
@@ -316,7 +316,6 @@ class TestIngestionService:
     def test_error_reporter_integration(self, temp_storage):
         """Test error reporter integration."""
         config = make_config(storage_path=temp_storage)
-        config.log_type = "silent"
         publisher = create_publisher(
             AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
             enable_validation=False,
@@ -347,7 +346,7 @@ class TestIngestionService:
             error_reporter=error_reporter,
             logger=logger,
             metrics=metrics,
-            archive_store=make_archive_store(config.storage_path),
+            archive_store=make_archive_store(config.service_settings.storage_path or temp_storage),
         )
 
         assert service.error_reporter is error_reporter
@@ -376,7 +375,7 @@ class TestIngestionService:
                 publisher,
                 logger=logger,
                 metrics=metrics,
-                archive_store=make_archive_store(config.storage_path),
+                archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
             )
 
 
@@ -399,7 +398,7 @@ def test_archive_ingested_event_schema_validation():
             logger=logger,
             metrics=metrics,
             error_reporter=error_reporter,
-            archive_store=make_archive_store(config.storage_path),
+            archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
         )
 
         with tempfile.TemporaryDirectory() as source_dir:
@@ -438,7 +437,7 @@ def test_archive_ingestion_failed_event_schema_validation():
             logger=logger,
             metrics=metrics,
             error_reporter=error_reporter,
-            archive_store=make_archive_store(config.storage_path),
+            archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
         )
 
         source = make_source(name="test-source", url="/nonexistent/file.mbox")
@@ -478,7 +477,7 @@ def test_publish_success_event_raises_on_publisher_failure(tmp_path):
         logger=logger,
         metrics=metrics,
         error_reporter=error_reporter,
-        archive_store=make_archive_store(config.storage_path),
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
     )
 
     metadata = ArchiveMetadata(
@@ -518,7 +517,7 @@ def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
         logger=logger,
         metrics=metrics,
         error_reporter=error_reporter,
-        archive_store=make_archive_store(config.storage_path),
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
     )
 
     source = SourceConfig(
@@ -557,7 +556,7 @@ def test_publish_success_event_raises_on_publisher_exception(tmp_path):
         logger=logger,
         metrics=metrics,
         error_reporter=error_reporter,
-        archive_store=make_archive_store(config.storage_path),
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
     )
 
     metadata = ArchiveMetadata(
@@ -597,7 +596,7 @@ def test_publish_failure_event_raises_on_publisher_exception(tmp_path):
         logger=logger,
         metrics=metrics,
         error_reporter=error_reporter,
-        archive_store=make_archive_store(config.storage_path),
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
     )
 
     source = SourceConfig(
@@ -632,7 +631,7 @@ def test_ingest_archive_raises_source_configuration_error(tmp_path):
         logger=logger,
         metrics=metrics,
         error_reporter=error_reporter,
-        archive_store=make_archive_store(config.storage_path),
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
     )
 
     # Invalid source dict missing required fields
@@ -657,7 +656,7 @@ def test_ingest_archive_raises_fetch_error(tmp_path):
         logger=logger,
         metrics=metrics,
         error_reporter=error_reporter,
-        archive_store=make_archive_store(config.storage_path),
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
     )
 
     # Source with non-existent URL
@@ -676,15 +675,6 @@ def test_ingest_all_enabled_sources_returns_exceptions(tmp_path):
     logger = _make_silent_logger()
     metrics = _make_noop_metrics()
     error_reporter = _make_silent_error_reporter()
-    service = IngestionService(
-        config=config,
-        publisher=publisher,
-        logger=logger,
-        metrics=metrics,
-        error_reporter=error_reporter,
-        archive_store=make_archive_store(config.storage_path),
-    )
-
     with tempfile.TemporaryDirectory() as source_dir:
         # Create one valid file
         valid_file = os.path.join(source_dir, "valid.mbox")
@@ -696,7 +686,15 @@ def test_ingest_all_enabled_sources_returns_exceptions(tmp_path):
             make_source(name="invalid-source", url="file:///nonexistent/file.mbox"),
         ]
 
-        config.sources = sources
+        service = IngestionService(
+            config=config,
+            publisher=publisher,
+            sources=sources,
+            logger=logger,
+            metrics=metrics,
+            error_reporter=error_reporter,
+            archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
+        )
         results = service.ingest_all_enabled_sources()
 
         # Check that results contain one success and one failure
@@ -730,7 +728,7 @@ def test_exception_prevents_silent_failure():
             logger=logger,
             metrics=metrics,
             error_reporter=error_reporter,
-            archive_store=make_archive_store(config.storage_path),
+            archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
         )
 
         # Create a source that will fail (non-existent file)
@@ -798,7 +796,7 @@ def test_archive_deduplication_via_document_store(tmp_path):
         logger=logger,
         metrics=metrics,
         error_reporter=error_reporter,
-        archive_store=make_archive_store(config.storage_path),
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
     )
 
     # Use proper SHA256 hashes: 64 hex chars for full hash
@@ -839,7 +837,7 @@ def test_delete_archives_for_source_deletes_from_document_store(tmp_path):
         logger=logger,
         metrics=metrics,
         error_reporter=error_reporter,
-        archive_store=make_archive_store(config.storage_path),
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
     )
 
     # Add some archives to document store
@@ -898,7 +896,7 @@ def test_archive_ingested_event_without_file_path():
             logger=logger,
             metrics=metrics,
             error_reporter=error_reporter,
-            archive_store=make_archive_store(config.storage_path),
+            archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
         )
 
         # Create test file

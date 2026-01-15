@@ -308,7 +308,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                 )
 
             # Create uploads directory in storage path
-            uploads_dir = Path(service.config.storage_path) / "uploads"
+            uploads_dir = Path(service.storage_path) / "uploads"
             logger.debug("Creating uploads directory", uploads_dir=str(uploads_dir))
             uploads_dir.mkdir(parents=True, exist_ok=True)
 

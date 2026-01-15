@@ -11,12 +11,23 @@ import importlib
 import json
 import os
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 from .models import ServiceConfig
 from .schema_validation import validate_config_against_schema_dict
 
 T = TypeVar("T")
+
+
+if TYPE_CHECKING:
+    from .generated.services.auth import ServiceConfig_Auth
+    from .generated.services.chunking import ServiceConfig_Chunking
+    from .generated.services.embedding import ServiceConfig_Embedding
+    from .generated.services.ingestion import ServiceConfig_Ingestion
+    from .generated.services.orchestrator import ServiceConfig_Orchestrator
+    from .generated.services.parsing import ServiceConfig_Parsing
+    from .generated.services.reporting import ServiceConfig_Reporting
+    from .generated.services.summarization import ServiceConfig_Summarization
 
 
 def _to_python_class_name(name: str, prefix: str = "") -> str:
@@ -282,6 +293,42 @@ def _load_adapter_config(
     )
 
     return selected_driver, driver_config_dict
+
+
+@overload
+def get_config(service_name: Literal["auth"], schema_dir: str | None = None) -> "ServiceConfig_Auth": ...
+
+
+@overload
+def get_config(service_name: Literal["chunking"], schema_dir: str | None = None) -> "ServiceConfig_Chunking": ...
+
+
+@overload
+def get_config(service_name: Literal["embedding"], schema_dir: str | None = None) -> "ServiceConfig_Embedding": ...
+
+
+@overload
+def get_config(service_name: Literal["ingestion"], schema_dir: str | None = None) -> "ServiceConfig_Ingestion": ...
+
+
+@overload
+def get_config(service_name: Literal["orchestrator"], schema_dir: str | None = None) -> "ServiceConfig_Orchestrator": ...
+
+
+@overload
+def get_config(service_name: Literal["parsing"], schema_dir: str | None = None) -> "ServiceConfig_Parsing": ...
+
+
+@overload
+def get_config(service_name: Literal["reporting"], schema_dir: str | None = None) -> "ServiceConfig_Reporting": ...
+
+
+@overload
+def get_config(service_name: Literal["summarization"], schema_dir: str | None = None) -> "ServiceConfig_Summarization": ...
+
+
+@overload
+def get_config(service_name: str, schema_dir: str | None = None) -> Any: ...
 
 
 def get_config(service_name: str, schema_dir: str | None = None) -> Any:

@@ -100,8 +100,7 @@ class TestIngestionIntegration:
         # Create configuration
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources,
-            retry_max_attempts=1,
+            max_retries=1,
         )
 
         # Create publisher and service
@@ -134,8 +133,14 @@ class TestIngestionIntegration:
         )
 
         service = IngestionService(
-            config, publisher, document_store=document_store, archive_store=archive_store, logger=test_logger
-            , metrics=test_metrics, error_reporter=test_error_reporter
+            config,
+            publisher,
+            sources=test_sources,
+            document_store=document_store,
+            archive_store=archive_store,
+            logger=test_logger,
+            metrics=test_metrics,
+            error_reporter=test_error_reporter,
         )
 
         # Ingest all sources
@@ -181,7 +186,6 @@ class TestIngestionIntegration:
         """Test ingestion handling of duplicate archives."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources,
         )
 
         publisher = create_publisher(
@@ -213,8 +217,14 @@ class TestIngestionIntegration:
         )
 
         service = IngestionService(
-            config, publisher, document_store=document_store, archive_store=archive_store, logger=test_logger
-            , metrics=test_metrics, error_reporter=test_error_reporter
+            config,
+            publisher,
+            sources=test_sources,
+            document_store=document_store,
+            archive_store=archive_store,
+            logger=test_logger,
+            metrics=test_metrics,
+            error_reporter=test_error_reporter,
         )
 
         # First ingestion
@@ -241,7 +251,6 @@ class TestIngestionIntegration:
 
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources,
         )
 
         publisher = create_publisher(
@@ -268,6 +277,7 @@ class TestIngestionIntegration:
         service = IngestionService(
             config,
             publisher,
+            sources=test_sources,
             archive_store=archive_store,
             logger=test_logger,
             metrics=test_metrics,
@@ -285,7 +295,6 @@ class TestIngestionIntegration:
         """Test that deduplication via document store works across service instances."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources[:1],  # Just first source
         )
 
         # Create shared document store
@@ -315,6 +324,7 @@ class TestIngestionIntegration:
         service1 = IngestionService(
             config,
             publisher1,
+            sources=test_sources[:1],
             document_store=document_store,
             archive_store=archive_store,
             logger=test_logger,
@@ -333,6 +343,7 @@ class TestIngestionIntegration:
         service2 = IngestionService(
             config,
             publisher2,
+            sources=test_sources[:1],
             document_store=document_store,
             archive_store=archive_store,
             logger=test_logger,
@@ -351,7 +362,6 @@ class TestIngestionIntegration:
         """Test that ingestion log has correct format."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources[:1],
         )
 
         publisher = create_publisher(
@@ -378,6 +388,7 @@ class TestIngestionIntegration:
         service = IngestionService(
             config,
             publisher,
+            sources=test_sources[:1],
             archive_store=archive_store,
             logger=test_logger,
             metrics=test_metrics,
@@ -409,7 +420,6 @@ class TestIngestionIntegration:
         """Test that published events have correct format."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources[:1],
         )
 
         publisher = create_publisher(
@@ -436,6 +446,7 @@ class TestIngestionIntegration:
         service = IngestionService(
             config,
             publisher,
+            sources=test_sources[:1],
             archive_store=archive_store,
             logger=test_logger,
             metrics=test_metrics,
@@ -473,7 +484,6 @@ class TestIngestionIntegration:
         """Test that storage directory structure is correct."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources[:2],
         )
 
         publisher = create_publisher(
@@ -500,6 +510,7 @@ class TestIngestionIntegration:
         service = IngestionService(
             config,
             publisher,
+            sources=test_sources[:2],
             archive_store=archive_store,
             logger=test_logger,
             metrics=test_metrics,

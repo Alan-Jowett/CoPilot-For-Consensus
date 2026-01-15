@@ -38,8 +38,8 @@ def service(document_store, tmp_path):
     """Create ingestion service for testing."""
     from .test_helpers import make_archive_store
 
+    sources: list[dict] = []
     config = make_config(
-        sources=[],
         storage_path=str(tmp_path / "raw_archives"),
     )
 
@@ -56,11 +56,12 @@ def service(document_store, tmp_path):
     error_reporter = create_error_reporter(
         AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
     )
-    archive_store = make_archive_store(base_path=config.storage_path)
+    archive_store = make_archive_store(base_path=config.service_settings.storage_path or str(tmp_path / "raw_archives"))
 
     service = IngestionService(
         config,
         publisher,
+        sources=sources,
         document_store=document_store,
         logger=logger,
         metrics=metrics,

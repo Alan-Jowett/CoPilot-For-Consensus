@@ -5,36 +5,94 @@
 
 import os
 import tempfile
-from types import SimpleNamespace
 from typing import Any
 
 from copilot_schema_validation import create_schema_provider, validate_json
 from copilot_archive_store.local_volume_archive_store import LocalVolumeArchiveStore
 
+from copilot_config.generated.adapters.archive_store import (
+    AdapterConfig_ArchiveStore,
+    DriverConfig_ArchiveStore_Local,
+)
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.error_reporter import (
+    AdapterConfig_ErrorReporter,
+    DriverConfig_ErrorReporter_Silent,
+)
+from copilot_config.generated.adapters.logger import (
+    AdapterConfig_Logger,
+    DriverConfig_Logger_Silent,
+)
+from copilot_config.generated.adapters.message_bus import (
+    AdapterConfig_MessageBus,
+    DriverConfig_MessageBus_Noop,
+)
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_Noop,
+)
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_Local,
+)
+from copilot_config.generated.services.ingestion import ServiceConfig_Ingestion, ServiceSettings_Ingestion
+
 
 def make_config(**overrides):
-    defaults = {
-        "storage_path": "/data/raw_archives",
-        "message_bus_host": "messagebus",
-        "message_bus_port": 5672,
-        "message_bus_user": "guest",
-        "message_bus_password": "guest",
-        "message_bus_type": "rabbitmq",
-        "log_level": "INFO",
-        "log_type": "stdout",
-        "logger_name": "ingestion-test",
-        "metrics_backend": "noop",
-        "metrics_type": "noop",
-        "max_retries": 3,
-        "request_timeout_seconds": 60,
-        "error_reporter_type": "console",
-        "sentry_dsn": None,
-        "sentry_environment": "test",
-        "archive_store_type": "local",
-        "sources": [],
-    }
-    defaults.update(overrides)
-    return SimpleNamespace(**defaults)
+    # Some older tests passed "sources" into config; sources are now provided
+    # explicitly to IngestionService, so ignore it here.
+    overrides.pop("sources", None)
+
+    storage_path = overrides.pop("storage_path", "/data/raw_archives")
+    max_retries = overrides.pop("max_retries", 3)
+    request_timeout_seconds = overrides.pop("request_timeout_seconds", 60)
+    archive_store_type = overrides.pop("archive_store_type", "local")
+
+    if overrides:
+        unknown = ", ".join(sorted(overrides.keys()))
+        raise TypeError(f"Unknown config override(s): {unknown}")
+
+    settings = ServiceSettings_Ingestion(
+        storage_path=storage_path,
+        max_retries=max_retries,
+        request_timeout_seconds=request_timeout_seconds,
+        archive_store_type=archive_store_type,
+    )
+
+    return ServiceConfig_Ingestion(
+        service_settings=settings,
+        archive_store=AdapterConfig_ArchiveStore(
+            archive_store_type="local",
+            driver=DriverConfig_ArchiveStore_Local(archive_base_path=storage_path),
+        ),
+        document_store=AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        ),
+        error_reporter=AdapterConfig_ErrorReporter(
+            error_reporter_type="silent",
+            driver=DriverConfig_ErrorReporter_Silent(),
+        ),
+        logger=AdapterConfig_Logger(
+            logger_type="silent",
+            driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"),
+        ),
+        message_bus=AdapterConfig_MessageBus(
+            message_bus_type="noop",
+            driver=DriverConfig_MessageBus_Noop(),
+        ),
+        metrics=AdapterConfig_Metrics(
+            metrics_type="noop",
+            driver=DriverConfig_Metrics_Noop(),
+        ),
+        secret_provider=AdapterConfig_SecretProvider(
+            secret_provider_type="local",
+            driver=DriverConfig_SecretProvider_Local(),
+        ),
+    )
 
 
 def make_archive_store(base_path: str) -> LocalVolumeArchiveStore:

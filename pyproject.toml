@@ -95,6 +95,20 @@ ignore_missing_imports = true
 
 [tool.pyright]
 # Pyright strict mode - catches attribute errors and missing fields
+venvPath = "."
+venv = ".venv"
+extraPaths = [
+    "adapters/copilot_config",
+    "adapters/copilot_auth",
+    "adapters/copilot_archive_fetcher",
+    "adapters/copilot_archive_store",
+    "adapters/copilot_error_reporting",
+    "adapters/copilot_logging",
+    "adapters/copilot_message_bus",
+    "adapters/copilot_metrics",
+    "adapters/copilot_schema_validation",
+    "adapters/copilot_storage",
+]
 pythonVersion = "3.10"
 typeCheckingMode = "basic"  # Start with basic, can move to "strict" gradually
 reportMissingImports = true

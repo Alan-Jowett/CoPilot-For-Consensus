@@ -11,7 +11,11 @@ import pytest
 
 from copilot_config.generated.services.ingestion import ServiceConfig_Ingestion, ServiceSettings_Ingestion
 from copilot_config.generated.adapters.archive_store import AdapterConfig_ArchiveStore, DriverConfig_ArchiveStore_Local
-from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+    DriverConfig_DocumentStore_Mongodb,
+)
 from copilot_config.generated.adapters.error_reporter import AdapterConfig_ErrorReporter, DriverConfig_ErrorReporter_Silent
 from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Silent
 from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop, DriverConfig_MessageBus_Rabbitmq
@@ -45,11 +49,22 @@ def _make_service_config(
             ),
         )
 
-    # For startup validation we can use inmemory document store.
-    document_store = AdapterConfig_DocumentStore(
-        doc_store_type="inmemory",
-        driver=DriverConfig_DocumentStore_Inmemory(),
-    )
+    if document_store_driver == "inmemory":
+        document_store = AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        )
+    else:
+        document_store = AdapterConfig_DocumentStore(
+            doc_store_type="mongodb",
+            driver=DriverConfig_DocumentStore_Mongodb(
+                host="localhost",
+                port=27017,
+                username="guest",
+                password="guest",
+                database="copilot",
+            ),
+        )
 
     archive_store = AdapterConfig_ArchiveStore(
         archive_store_type="local",

@@ -61,36 +61,10 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Global service instance and scheduler
-ingestion_service = None
-scheduler = None
+ingestion_service: IngestionService | None = None
+scheduler: IngestionScheduler | None = None
 base_publisher = None
 base_document_store = None
-
-
-class _ConfigWithSources:
-    """Wrapper that adds sources to the loaded config without modifying it."""
-
-    def __init__(self, base_config: object, sources: list):
-        self._base_config = base_config
-        self.sources = sources
-
-    def __setattr__(self, name: str, value: object) -> None:
-        """Prevent runtime mutation to keep config immutable."""
-        if name in ("_base_config", "sources"):
-            object.__setattr__(self, name, value)
-        else:
-            raise AttributeError(
-                f"Cannot modify configuration. '{name}' is read-only."
-            )
-
-    def __getattr__(self, name: str) -> object:
-        if name in ("_base_config", "sources"):
-            return object.__getattribute__(self, name)
-        # Provide backward-compatible access to service_settings fields.
-        if hasattr(self._base_config, "service_settings") and hasattr(self._base_config.service_settings, name):
-            return getattr(self._base_config.service_settings, name)
-        return getattr(self._base_config, name)
-
 
 def _substitute_env_vars(value: object) -> object:
     if isinstance(value, str):
@@ -194,13 +168,19 @@ def main():
             config.metrics.driver = replace(config.metrics.driver, namespace=service_name)
 
         # Conditionally add JWT authentication middleware based on config
-        if config.service_settings.jwt_auth_enabled:
+        if config.service_settings.jwt_auth_enabled is True:
             log.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
                 # Use shared audience for all services
                 auth_service_url = config.service_settings.auth_service_url
                 audience = config.service_settings.service_audience
+
+                if auth_service_url is None or audience is None:
+                    raise ValueError(
+                        "JWT auth is enabled but auth_service_url/service_audience is missing"
+                    )
+
                 auth_middleware = create_jwt_middleware(
                     auth_service_url=auth_service_url,
                     audience=audience,
@@ -233,7 +213,7 @@ def main():
         log.info("Ingestion service configured and ready")
 
         # Ensure storage path exists (if configured)
-        storage_path = config.storage_path
+        storage_path = config.service_settings.storage_path or "/tmp/ingestion"
         IngestionService._ensure_storage_path(storage_path)
         log.info("Storage path prepared", storage_path=storage_path)
 
@@ -302,13 +282,11 @@ def main():
         sources = _load_sources_from_file(sources_path)
         log.info("Ingestion sources loaded", count=len(sources))
 
-        # Create config wrapper that includes sources
-        config_with_sources = _ConfigWithSources(config, sources)
-
         # Create ingestion service
         ingestion_service = IngestionService(
-            config_with_sources,
+            config,
             publisher,
+            sources=sources,
             document_store=document_store,
             error_reporter=error_reporter,
             logger=log,
@@ -324,7 +302,11 @@ def main():
         log.info("API routes configured")
 
         # Create and start scheduler for periodic ingestion
-        schedule_interval = config.service_settings.schedule_interval_seconds
+        schedule_interval = (
+            config.service_settings.schedule_interval_seconds
+            if config.service_settings.schedule_interval_seconds is not None
+            else 21600
+        )
         scheduler = IngestionScheduler(
             service=ingestion_service,
             interval_seconds=schedule_interval,
@@ -342,8 +324,12 @@ def main():
         signal.signal(signal.SIGTERM, signal_handler)
 
         # Start FastAPI server
-        http_port = int(config.service_settings.http_port)
-        http_host = config.service_settings.http_host
+        http_port = (
+            int(config.service_settings.http_port)
+            if config.service_settings.http_port is not None
+            else 8000
+        )
+        http_host = config.service_settings.http_host or "0.0.0.0"
         log.info(f"Starting HTTP server on {http_host}:{http_port}...")
 
         # Configure Uvicorn with structured JSON logging

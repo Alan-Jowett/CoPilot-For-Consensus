@@ -26,8 +26,8 @@ from .test_helpers import make_config, make_archive_store
 @pytest.fixture
 def service(tmp_path):
     """Create ingestion service for testing."""
+    sources: list[dict] = []
     config = make_config(
-        sources=[],
         storage_path=str(tmp_path / "raw_archives"),
     )
 
@@ -52,11 +52,12 @@ def service(tmp_path):
     )
     document_store.connect()
 
-    archive_store = make_archive_store(base_path=config.storage_path)
+    archive_store = make_archive_store(base_path=config.service_settings.storage_path or str(tmp_path / "raw_archives"))
 
     return IngestionService(
         config,
         publisher,
+        sources=sources,
         document_store=document_store,
         logger=logger,
         metrics=metrics,
