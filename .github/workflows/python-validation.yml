@@ -343,6 +343,17 @@ jobs:
             adapters/copilot_archive_store/copilot_archive_store/local_volume_archive_store.py \
             --level error
 
+      - name: Pyright (gating) - Auth adapter typed config safety
+        run: |
+          # Auth adapter consumes generated typed oidc_providers configs.
+          # Gate the factory and provider constructors to prevent config schema drift.
+          pyright \
+            adapters/copilot_auth/copilot_auth/factory.py \
+            adapters/copilot_auth/copilot_auth/github_provider.py \
+            adapters/copilot_auth/copilot_auth/google_provider.py \
+            adapters/copilot_auth/copilot_auth/microsoft_provider.py \
+            --level error
+
       - name: Pyright (gating) - Ingestion typed config safety
         run: |
           # This is the shift-left guardrail: catch missing/incorrect config attribute
