@@ -120,6 +120,20 @@ jobs:
             pip install -r orchestrator/requirements.txt
           fi
 
+      - name: Install parsing service dependencies (for pyright)
+        run: |
+          # Ensure third-party deps used by parsing entrypoints are available.
+          if [ -f "parsing/requirements.txt" ]; then
+            pip install -r parsing/requirements.txt
+          fi
+
+      - name: Install reporting service dependencies (for pyright)
+        run: |
+          # Ensure third-party deps used by reporting entrypoints are available.
+          if [ -f "reporting/requirements.txt" ]; then
+            pip install -r reporting/requirements.txt
+          fi
+
       - name: Ruff - Fast Python Linter
         id: ruff
         run: |
@@ -332,6 +346,18 @@ jobs:
           # Orchestrator uses schema-driven config; this guards against config schema drift
           # and missing attribute access in the entrypoint and core service.
           pyright orchestrator/main.py orchestrator/app/service.py --level error
+
+      - name: Pyright (gating) - Parsing typed config safety
+        run: |
+          # Parsing uses schema-driven config; this guards against config schema drift
+          # and missing attribute access in the entrypoint and core service.
+          pyright parsing/main.py parsing/app/service.py --level error
+
+      - name: Pyright (gating) - Reporting typed config safety
+        run: |
+          # Reporting uses schema-driven config; this guards against config schema drift
+          # and missing attribute access in the entrypoint and core service.
+          pyright reporting/main.py reporting/app/service.py --level error
 
       - name: Generate Validation Summary
         if: always()
