@@ -434,6 +434,18 @@ jobs:
             adapters/copilot_metrics/copilot_metrics/azure_monitor_metrics.py \
             --level error
 
+      - name: Pyright (gating) - Schema validation adapter safety
+        run: |
+          # Schema validation is a shared library used across services/adapters.
+          # Gate key entrypoints so missing imports/attribute errors fail fast.
+          pyright \
+            adapters/copilot_schema_validation/copilot_schema_validation/__init__.py \
+            adapters/copilot_schema_validation/copilot_schema_validation/schema_registry.py \
+            adapters/copilot_schema_validation/copilot_schema_validation/schema_provider.py \
+            adapters/copilot_schema_validation/copilot_schema_validation/file_schema_provider.py \
+            adapters/copilot_schema_validation/copilot_schema_validation/models.py \
+            --level error
+
       - name: Pyright (gating) - Message bus adapter typed config safety
         run: |
           # Message bus adapter consumes generated typed message_bus configs.
