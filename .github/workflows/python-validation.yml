@@ -423,6 +423,17 @@ jobs:
             adapters/copilot_logging/copilot_logging/azure_monitor_logger.py \
             --level error
 
+      - name: Pyright (gating) - Metrics adapter typed config safety
+        run: |
+          # Metrics adapter consumes generated typed metrics configs.
+          # Gate the factory and key drivers so schema drift breaks CI.
+          pyright \
+            adapters/copilot_metrics/copilot_metrics/factory.py \
+            adapters/copilot_metrics/copilot_metrics/prometheus_metrics.py \
+            adapters/copilot_metrics/copilot_metrics/pushgateway_metrics.py \
+            adapters/copilot_metrics/copilot_metrics/azure_monitor_metrics.py \
+            --level error
+
       - name: Pyright (gating) - Message bus adapter typed config safety
         run: |
           # Message bus adapter consumes generated typed message_bus configs.

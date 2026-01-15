@@ -22,6 +22,10 @@ try:
     AZURE_MONITOR_AVAILABLE = True
 except ImportError:
     AZURE_MONITOR_AVAILABLE = False
+    AzureMonitorMetricExporter = None  # type: ignore
+    MeterProvider = None  # type: ignore
+    PeriodicExportingMetricReader = None  # type: ignore
+    Resource = None  # type: ignore
     otel_metrics = None  # type: ignore
     # Use debug level for optional dependency - error is raised if user tries to actually use it
     logger.debug(
@@ -68,6 +72,17 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             ImportError: If required Azure Monitor packages are not installed
         """
         if not AZURE_MONITOR_AVAILABLE:
+            raise ImportError(
+                "Azure Monitor OpenTelemetry packages are required for AzureMonitorMetricsCollector. "
+                "Install with: pip install azure-monitor-opentelemetry-exporter opentelemetry-sdk"
+            )
+
+        if (
+            AzureMonitorMetricExporter is None
+            or MeterProvider is None
+            or PeriodicExportingMetricReader is None
+            or Resource is None
+        ):
             raise ImportError(
                 "Azure Monitor OpenTelemetry packages are required for AzureMonitorMetricsCollector. "
                 "Install with: pip install azure-monitor-opentelemetry-exporter opentelemetry-sdk"
@@ -186,9 +201,14 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             self._gauge_values[gauge_key] = 0.0
 
             # Create callback that returns the current value
-            # Capture gauge_key by value to avoid closure bug
-            def gauge_callback(key: str = gauge_key) -> Any:
-                return [(self._gauge_values[key], {})]
+            # Capture gauge_key by value to avoid closure bug.
+            # OpenTelemetry calls callbacks with a callback options object; accept it
+            # and ignore it to avoid accidental key shadowing.
+            def gauge_callback(callback_options: Any = None, key: str = gauge_key) -> Any:
+                _ = callback_options
+                if otel_metrics is None:
+                    return []
+                return [otel_metrics.Observation(self._gauge_values.get(key, 0.0), {})]
 
             self._gauges[name] = self._meter.create_observable_gauge(
                 name=gauge_key,

@@ -4,13 +4,59 @@
 """Factory functions for creating metrics collectors."""
 
 import logging
+from typing import TypeAlias
 
 from copilot_config.adapter_factory import create_adapter
-from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_AzureMonitor,
+    DriverConfig_Metrics_Noop,
+    DriverConfig_Metrics_Prometheus,
+    DriverConfig_Metrics_Pushgateway,
+)
 
 from .base import MetricsCollector
 
 logger = logging.getLogger(__name__)
+
+_DriverConfig: TypeAlias = (
+    DriverConfig_Metrics_Prometheus
+    | DriverConfig_Metrics_Pushgateway
+    | DriverConfig_Metrics_AzureMonitor
+    | DriverConfig_Metrics_Noop
+)
+
+
+def _build_prometheus(config: _DriverConfig) -> MetricsCollector:
+    from .prometheus_metrics import PrometheusMetricsCollector
+
+    if not isinstance(config, DriverConfig_Metrics_Prometheus):
+        raise TypeError("driver config must be DriverConfig_Metrics_Prometheus")
+    return PrometheusMetricsCollector.from_config(config)
+
+
+def _build_pushgateway(config: _DriverConfig) -> MetricsCollector:
+    from .pushgateway_metrics import PrometheusPushGatewayMetricsCollector
+
+    if not isinstance(config, DriverConfig_Metrics_Pushgateway):
+        raise TypeError("driver config must be DriverConfig_Metrics_Pushgateway")
+    return PrometheusPushGatewayMetricsCollector.from_config(config)
+
+
+def _build_azure_monitor(config: _DriverConfig) -> MetricsCollector:
+    from .azure_monitor_metrics import AzureMonitorMetricsCollector
+
+    if not isinstance(config, DriverConfig_Metrics_AzureMonitor):
+        raise TypeError("driver config must be DriverConfig_Metrics_AzureMonitor")
+    return AzureMonitorMetricsCollector.from_config(config)
+
+
+def _build_noop(config: _DriverConfig) -> MetricsCollector:
+    from .noop_metrics import NoOpMetricsCollector
+
+    if not isinstance(config, DriverConfig_Metrics_Noop):
+        raise TypeError("driver config must be DriverConfig_Metrics_Noop")
+    return NoOpMetricsCollector.from_config(config)
 
 
 def create_metrics_collector(
@@ -46,20 +92,15 @@ def create_metrics_collector(
         ...     AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
         ... )
     """
-    from .azure_monitor_metrics import AzureMonitorMetricsCollector
-    from .noop_metrics import NoOpMetricsCollector
-    from .prometheus_metrics import PrometheusMetricsCollector
-    from .pushgateway_metrics import PrometheusPushGatewayMetricsCollector
-
     return create_adapter(
         config,
         adapter_name="metrics",
         get_driver_type=lambda c: c.metrics_type,
         get_driver_config=lambda c: c.driver,
         drivers={
-            "prometheus": PrometheusMetricsCollector.from_config,
-            "pushgateway": PrometheusPushGatewayMetricsCollector.from_config,
-            "azure_monitor": AzureMonitorMetricsCollector.from_config,
-            "noop": NoOpMetricsCollector.from_config,
+            "prometheus": _build_prometheus,
+            "pushgateway": _build_pushgateway,
+            "azure_monitor": _build_azure_monitor,
+            "noop": _build_noop,
         },
     )
