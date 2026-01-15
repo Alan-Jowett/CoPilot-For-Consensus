@@ -372,6 +372,15 @@ jobs:
             adapters/copilot_config/copilot_config/adapter_factory.py \
             --level error
 
+      - name: Pyright (gating) - Consensus adapter typed config safety
+        run: |
+          # Consensus adapter consumes generated typed consensus_detector configs.
+          # Gate the factory and core model so config drift becomes a CI failure.
+          pyright \
+            adapters/copilot_consensus/copilot_consensus/consensus.py \
+            adapters/copilot_consensus/copilot_consensus/thread.py \
+            --level error
+
       - name: Pyright (gating) - Ingestion typed config safety
         run: |
           # This is the shift-left guardrail: catch missing/incorrect config attribute

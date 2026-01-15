@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, TypeAlias
 
 from copilot_config.adapter_factory import create_adapter
 from copilot_config.generated.adapters.consensus_detector import (
@@ -25,6 +25,13 @@ from copilot_config.generated.adapters.consensus_detector import (
 )
 
 from .thread import Thread
+
+
+ConsensusDetectorDriverConfig: TypeAlias = (
+    DriverConfig_ConsensusDetector_Heuristic
+    | DriverConfig_ConsensusDetector_Mock
+    | DriverConfig_ConsensusDetector_Ml
+)
 
 
 class ConsensusLevel(Enum):
@@ -410,14 +417,38 @@ def create_consensus_detector(
     Raises:
         ValueError: If config is missing or consensus_detector_type is not recognized.
     """
+    def _build_heuristic(driver_config: ConsensusDetectorDriverConfig) -> ConsensusDetector:
+        if not isinstance(driver_config, DriverConfig_ConsensusDetector_Heuristic):
+            raise TypeError(
+                "Expected DriverConfig_ConsensusDetector_Heuristic for 'heuristic' driver, "
+                f"got {type(driver_config).__name__}"
+            )
+        return HeuristicConsensusDetector.from_config(driver_config)
+
+    def _build_mock(driver_config: ConsensusDetectorDriverConfig) -> ConsensusDetector:
+        if not isinstance(driver_config, DriverConfig_ConsensusDetector_Mock):
+            raise TypeError(
+                "Expected DriverConfig_ConsensusDetector_Mock for 'mock' driver, "
+                f"got {type(driver_config).__name__}"
+            )
+        return MockConsensusDetector.from_config(driver_config)
+
+    def _build_ml(driver_config: ConsensusDetectorDriverConfig) -> ConsensusDetector:
+        if not isinstance(driver_config, DriverConfig_ConsensusDetector_Ml):
+            raise TypeError(
+                "Expected DriverConfig_ConsensusDetector_Ml for 'ml' driver, "
+                f"got {type(driver_config).__name__}"
+            )
+        return MLConsensusDetector.from_config(driver_config)
+
     return create_adapter(
         config,
         adapter_name="consensus_detector",
         get_driver_type=lambda c: c.consensus_detector_type,
         get_driver_config=lambda c: c.driver,
         drivers={
-            "heuristic": HeuristicConsensusDetector.from_config,
-            "mock": MockConsensusDetector.from_config,
-            "ml": MLConsensusDetector.from_config,
+            "heuristic": _build_heuristic,
+            "mock": _build_mock,
+            "ml": _build_ml,
         },
     )
