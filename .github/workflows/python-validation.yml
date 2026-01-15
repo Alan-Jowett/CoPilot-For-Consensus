@@ -362,6 +362,16 @@ jobs:
             adapters/copilot_chunking/copilot_chunking/chunkers.py \
             --level error
 
+      - name: Pyright (gating) - Config adapter typed runtime loader safety
+        run: |
+          # copilot_config is the typed boundary between JSON schema/env/secret loading
+          # and the generated ServiceConfig_* / AdapterConfig_* dataclasses.
+          # Gate key entrypoints so schema drift shows up as attribute errors in CI.
+          pyright \
+            adapters/copilot_config/copilot_config/runtime_loader.py \
+            adapters/copilot_config/copilot_config/adapter_factory.py \
+            --level error
+
       - name: Pyright (gating) - Ingestion typed config safety
         run: |
           # This is the shift-left guardrail: catch missing/incorrect config attribute

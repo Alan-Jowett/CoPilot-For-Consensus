@@ -109,6 +109,7 @@ extraPaths = [
     "adapters/copilot_message_bus",
     "adapters/copilot_metrics",
     "adapters/copilot_schema_validation",
+    "adapters/copilot_secrets",
     "adapters/copilot_startup",
     "adapters/copilot_storage",
     "adapters/copilot_vectorstore",

@@ -14,6 +14,8 @@
         },
         "job": {
             "type": "string",
+            "source": "env",
+            "env_var": "PUSHGATEWAY_JOB",
             "required": false,
             "default": "copilot",
             "minLength": 1,
