@@ -174,8 +174,16 @@ class OpenAISummarizer(Summarizer):
             )
 
             summary_text = response.choices[0].message.content
-            tokens_prompt = response.usage.prompt_tokens
-            tokens_completion = response.usage.completion_tokens
+            if summary_text is None:
+                raise AttributeError("OpenAI response message content was None")
+
+            usage = response.usage
+            if usage is None:
+                tokens_prompt = 0
+                tokens_completion = 0
+            else:
+                tokens_prompt = usage.prompt_tokens
+                tokens_completion = usage.completion_tokens
 
             logger.info("Successfully generated summary for thread %s (prompt_tokens=%d, completion_tokens=%d)",
                        thread.thread_id, tokens_prompt, tokens_completion)

@@ -475,6 +475,17 @@ jobs:
             adapters/copilot_storage/copilot_storage/validating_document_store.py \
             --level error
 
+      - name: Pyright (gating) - Summarization adapter typed config safety
+        run: |
+          # Summarization adapter consumes generated typed llm_backend configs.
+          # Gate the factory and the concrete summarizers used by services.
+          pyright \
+            adapters/copilot_summarization/copilot_summarization/factory.py \
+            adapters/copilot_summarization/copilot_summarization/openai_summarizer.py \
+            adapters/copilot_summarization/copilot_summarization/local_llm_summarizer.py \
+            adapters/copilot_summarization/copilot_summarization/llamacpp_summarizer.py \
+            --level error
+
       - name: Pyright (gating) - Message bus adapter typed config safety
         run: |
           # Message bus adapter consumes generated typed message_bus configs.
