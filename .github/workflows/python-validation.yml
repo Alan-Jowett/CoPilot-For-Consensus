@@ -412,6 +412,17 @@ jobs:
             adapters/copilot_error_reporting/copilot_error_reporting/silent_error_reporter.py \
             --level error
 
+      - name: Pyright (gating) - Logging adapter typed config safety
+        run: |
+          # Logging adapter consumes generated typed logger configs.
+          # Gate the factory and key drivers so schema drift breaks CI.
+          pyright \
+            adapters/copilot_logging/copilot_logging/factory.py \
+            adapters/copilot_logging/copilot_logging/stdout_logger.py \
+            adapters/copilot_logging/copilot_logging/silent_logger.py \
+            adapters/copilot_logging/copilot_logging/azure_monitor_logger.py \
+            --level error
+
       - name: Pyright (gating) - Ingestion typed config safety
         run: |
           # This is the shift-left guardrail: catch missing/incorrect config attribute

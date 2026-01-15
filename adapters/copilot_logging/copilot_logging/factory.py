@@ -3,7 +3,7 @@
 
 """Factory functions for creating logger instances."""
 
-from typing import cast
+from typing import TypeAlias, cast
 
 from copilot_config.adapter_factory import create_adapter
 from copilot_config.generated.adapters.logger import (
@@ -21,6 +21,30 @@ from .stdout_logger import StdoutLogger
 # Global logger registry (similar to logging.getLogger)
 _logger_registry: dict[str, Logger] = {}
 _default_logger: Logger | None = None
+
+_DriverConfig: TypeAlias = (
+    DriverConfig_Logger_Stdout
+    | DriverConfig_Logger_Silent
+    | DriverConfig_Logger_AzureMonitor
+)
+
+
+def _build_stdout(config: _DriverConfig) -> Logger:
+    if not isinstance(config, DriverConfig_Logger_Stdout):
+        raise TypeError("driver config must be DriverConfig_Logger_Stdout")
+    return StdoutLogger.from_config(config)
+
+
+def _build_silent(config: _DriverConfig) -> Logger:
+    if not isinstance(config, DriverConfig_Logger_Silent):
+        raise TypeError("driver config must be DriverConfig_Logger_Silent")
+    return SilentLogger.from_config(config)
+
+
+def _build_azure_monitor(config: _DriverConfig) -> Logger:
+    if not isinstance(config, DriverConfig_Logger_AzureMonitor):
+        raise TypeError("driver config must be DriverConfig_Logger_AzureMonitor")
+    return AzureMonitorLogger.from_config(config)
 
 
 def create_logger(
@@ -43,9 +67,9 @@ def create_logger(
         get_driver_type=lambda c: c.logger_type,
         get_driver_config=lambda c: c.driver,
         drivers={
-            "stdout": StdoutLogger.from_config,
-            "silent": SilentLogger.from_config,
-            "azure_monitor": AzureMonitorLogger.from_config,
+            "stdout": _build_stdout,
+            "silent": _build_silent,
+            "azure_monitor": _build_azure_monitor,
         },
     )
 
