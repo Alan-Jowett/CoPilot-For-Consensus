@@ -456,6 +456,14 @@ jobs:
             adapters/copilot_secrets/copilot_secrets/azurekeyvault_provider.py \
             --level error
 
+      - name: Pyright (gating) - Startup adapter safety
+        run: |
+          # Startup adapter provides requeue utilities used by services.
+          # Gate the core module to catch import/typing regressions.
+          pyright \
+            adapters/copilot_startup/copilot_startup/startup_requeue.py \
+            --level error
+
       - name: Pyright (gating) - Message bus adapter typed config safety
         run: |
           # Message bus adapter consumes generated typed message_bus configs.
