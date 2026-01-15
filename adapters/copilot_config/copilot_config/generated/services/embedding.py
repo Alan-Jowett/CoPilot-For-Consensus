@@ -39,10 +39,10 @@ class ServiceSettings_Embedding:
 class ServiceConfig_Embedding:
     """Top-level configuration for embedding service."""
     service_settings: ServiceSettings_Embedding
-    document_store: Optional[AdapterConfig_DocumentStore] = None
-    embedding_backend: Optional[AdapterConfig_EmbeddingBackend] = None
-    error_reporter: Optional[AdapterConfig_ErrorReporter] = None
-    message_bus: Optional[AdapterConfig_MessageBus] = None
-    metrics: Optional[AdapterConfig_Metrics] = None
-    secret_provider: Optional[AdapterConfig_SecretProvider] = None
-    vector_store: Optional[AdapterConfig_VectorStore] = None
+    document_store: AdapterConfig_DocumentStore
+    embedding_backend: AdapterConfig_EmbeddingBackend
+    error_reporter: AdapterConfig_ErrorReporter
+    message_bus: AdapterConfig_MessageBus
+    metrics: AdapterConfig_Metrics
+    secret_provider: AdapterConfig_SecretProvider
+    vector_store: AdapterConfig_VectorStore

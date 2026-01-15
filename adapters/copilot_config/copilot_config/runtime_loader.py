@@ -444,6 +444,28 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
     service_settings_class = getattr(module, service_settings_class_name)
     service_settings = service_settings_class(**service_settings_data)
 
+    # Optional: apply repository schema extensions (x-*) to service settings.
+    # Service schemas use a custom format (service_settings dict rather than JSON Schema properties),
+    # so we construct a minimal schema dict that our validator understands.
+    service_settings_validation_keys = (
+        "x-conditional_required",
+        "x-required_one_of",
+        "x-dependent_required",
+    )
+    service_settings_validation_extensions: dict[str, Any] = {}
+    for key in service_settings_validation_keys:
+        value = service_schema.get(key)
+        if isinstance(value, list) and value:
+            service_settings_validation_extensions[key] = value
+
+    if service_settings_validation_extensions:
+        service_settings_validation_schema: dict[str, Any] = {
+            "type": "object",
+            "properties": service_settings_schema,
+            **service_settings_validation_extensions,
+        }
+        validate_config_against_schema_dict(schema=service_settings_validation_schema, config=service_settings)
+
     # Phase 3: Load adapter configs
     adapters_dict = {}
     adapters_schema = service_schema.get("adapters", {})
@@ -452,6 +474,8 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
         if not isinstance(adapter_ref, dict) or "$ref" not in adapter_ref:
             continue
 
+        adapter_required = adapter_ref.get("required") is True
+
         # Load adapter schema
         adapter_schema_path = schema_dir_path / adapter_ref["$ref"].lstrip("../")
         if not adapter_schema_path.exists():
@@ -459,6 +483,76 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
 
         with open(adapter_schema_path) as f:
             adapter_schema = json.load(f)
+
+        # Composite (non-discriminant) adapters: support multiple child configs.
+        # Currently used for oidc_providers, which can configure multiple providers at once.
+        discriminant_info = adapter_schema.get("properties", {}).get("discriminant", {})
+        discriminant_env_var = discriminant_info.get("env_var") if isinstance(discriminant_info, dict) else None
+
+        if not discriminant_env_var:
+            # Attempt composite adapter loading.
+            try:
+                adapter_module = importlib.import_module(
+                    f".generated.adapters.{adapter_name}", package="copilot_config"
+                )
+            except ImportError:
+                adapter_module = module
+
+            adapter_class_name = _to_python_class_name(adapter_name, "AdapterConfig")
+            adapter_class = getattr(adapter_module, adapter_class_name, None) or getattr(module, adapter_class_name, None)
+
+            composite_class_name = _to_python_class_name(adapter_name, "CompositeConfig")
+            composite_class = getattr(adapter_module, composite_class_name, None) or getattr(module, composite_class_name, None)
+
+            composite_root = adapter_schema.get("properties", {}).get(adapter_name)
+            composite_properties = (composite_root or {}).get("properties", {})
+
+            if adapter_class and composite_class and isinstance(composite_properties, dict) and composite_properties:
+                composite_kwargs: dict[str, Any] = {}
+
+                for child_name, child_info in composite_properties.items():
+                    child_ref = child_info.get("$ref") if isinstance(child_info, dict) else None
+                    if not child_ref:
+                        continue
+
+                    child_schema_path = (adapter_schema_path.parent / child_ref.lstrip("./")).resolve()
+                    if not child_schema_path.exists():
+                        continue
+
+                    with open(child_schema_path) as child_file:
+                        child_schema = json.load(child_file)
+
+                    child_config_dict = _load_and_populate_driver_config(
+                        child_schema,
+                        common_properties=None,
+                        secret_provider=secret_provider,
+                    )
+
+                    # Only include provider entries that are actually configured.
+                    # For known OIDC providers, require both client_id and client_secret.
+                    if adapter_name == "oidc_providers":
+                        client_id_key = f"{child_name}_client_id"
+                        client_secret_key = f"{child_name}_client_secret"
+                        if not child_config_dict.get(client_id_key) or not child_config_dict.get(client_secret_key):
+                            continue
+
+                    driver_class_name = (
+                        f"DriverConfig_{_to_python_class_name(adapter_name)}_{_to_python_class_name(child_name)}"
+                    )
+                    driver_class = getattr(adapter_module, driver_class_name, None) or getattr(module, driver_class_name, None)
+                    if driver_class is None:
+                        continue
+
+                    composite_kwargs[child_name] = driver_class(**child_config_dict)
+
+                if composite_kwargs:
+                    composite_config = composite_class(**composite_kwargs)
+                    adapters_dict[adapter_name] = adapter_class(**{adapter_name: composite_config})
+                elif adapter_required and adapter_class is not None:
+                    # Service schema requires this adapter block, but no child configs are present.
+                    # Emit an empty adapter config rather than omitting the field entirely.
+                    adapters_dict[adapter_name] = adapter_class()
+            continue
 
         # Load adapter config
         adapter_result = _load_adapter_config(
@@ -469,6 +563,16 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
         )
 
         if not adapter_result:
+            if adapter_required:
+                discriminant_info = adapter_schema.get("properties", {}).get("discriminant", {})
+                discriminant_env_var = (
+                    discriminant_info.get("env_var") if isinstance(discriminant_info, dict) else None
+                )
+                if discriminant_env_var:
+                    raise ValueError(
+                        f"Adapter {adapter_name} is required: set environment variable {discriminant_env_var}"
+                    )
+                raise ValueError(f"Adapter {adapter_name} is required but not configured")
             continue
 
         driver_name, driver_config_dict = adapter_result

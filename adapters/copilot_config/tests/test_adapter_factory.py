@@ -32,6 +32,7 @@ def test_create_adapter_dispatches_case_insensitive():
         get_driver_type=lambda c: c.test_type,
         get_driver_config=lambda c: c.driver,
         drivers={"a": lambda d: f"created:{d.value}"},
+        validate_schema=False,
     )
 
     assert created == "created:x"
@@ -47,6 +48,7 @@ def test_create_adapter_unknown_driver_message_is_helpful():
             get_driver_type=lambda c: c.test_type,
             get_driver_config=lambda c: c.driver,
             drivers={"a": lambda d: d.value, "b": lambda d: d.value},
+            validate_schema=False,
         )
 
 
@@ -58,4 +60,5 @@ def test_create_adapter_requires_config():
             get_driver_type=lambda _c: "a",
             get_driver_config=lambda _c: _TestDriverConfig(value="x"),
             drivers={"a": lambda d: d.value},
+            validate_schema=False,
         )

@@ -90,19 +90,24 @@
     },
     "adapters": {
         "chunker": {
-            "$ref": "../adapters/chunker.json"
+            "$ref": "../adapters/chunker.json",
+            "required": true
         },
         "document_store": {
-            "$ref": "../adapters/document_store.json"
+            "$ref": "../adapters/document_store.json",
+            "required": true
         },
         "message_bus": {
-            "$ref": "../adapters/message_bus.json"
+            "$ref": "../adapters/message_bus.json",
+            "required": true
         },
         "metrics": {
-            "$ref": "../adapters/metrics.json"
+            "$ref": "../adapters/metrics.json",
+            "required": true
         },
         "secret_provider": {
-            "$ref": "../adapters/secret_provider.json"
+            "$ref": "../adapters/secret_provider.json",
+            "required": true
         }
     }
 }

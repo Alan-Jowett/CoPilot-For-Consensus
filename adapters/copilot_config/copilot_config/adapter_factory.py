@@ -30,6 +30,8 @@ def create_adapter(
     get_driver_type: Callable[[TConfig], str],
     get_driver_config: Callable[[TConfig], TDriverConfig],
     drivers: Mapping[str, Callable[[TDriverConfig], TAdapter]],
+    validate_schema: bool = True,
+    schema_adapter: str | None = None,
 ) -> TAdapter:
     """Create an adapter instance from a typed adapter config.
 
@@ -59,9 +61,10 @@ def create_adapter(
         ) from exc
 
     driver_config = get_driver_config(config)
-    validate_driver_config_against_schema(
-        adapter=adapter_name,
-        driver=driver_type,
-        config=driver_config,
-    )
+    if validate_schema:
+        validate_driver_config_against_schema(
+            adapter=schema_adapter or adapter_name,
+            driver=driver_type,
+            config=driver_config,
+        )
     return factory(driver_config)

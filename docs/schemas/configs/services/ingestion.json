@@ -110,25 +110,32 @@
     },
     "adapters": {
         "archive_store": {
-            "$ref": "../adapters/archive_store.json"
+            "$ref": "../adapters/archive_store.json",
+            "required": true
         },
         "document_store": {
-            "$ref": "../adapters/document_store.json"
+            "$ref": "../adapters/document_store.json",
+            "required": true
         },
         "error_reporter": {
-            "$ref": "../adapters/error_reporter.json"
+            "$ref": "../adapters/error_reporter.json",
+            "required": true
         },
         "logger": {
-            "$ref": "../adapters/logger.json"
+            "$ref": "../adapters/logger.json",
+            "required": true
         },
         "message_bus": {
-            "$ref": "../adapters/message_bus.json"
+            "$ref": "../adapters/message_bus.json",
+            "required": true
         },
         "metrics": {
-            "$ref": "../adapters/metrics.json"
+            "$ref": "../adapters/metrics.json",
+            "required": true
         },
         "secret_provider": {
-            "$ref": "../adapters/secret_provider.json"
+            "$ref": "../adapters/secret_provider.json",
+            "required": true
         }
     }
 }

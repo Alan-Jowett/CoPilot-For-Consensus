@@ -45,12 +45,12 @@ class ServiceSettings_Orchestrator:
 class ServiceConfig_Orchestrator:
     """Top-level configuration for orchestrator service."""
     service_settings: ServiceSettings_Orchestrator
-    consensus_detector: Optional[AdapterConfig_ConsensusDetector] = None
-    document_store: Optional[AdapterConfig_DocumentStore] = None
-    embedding_backend: Optional[AdapterConfig_EmbeddingBackend] = None
-    error_reporter: Optional[AdapterConfig_ErrorReporter] = None
-    logger: Optional[AdapterConfig_Logger] = None
-    message_bus: Optional[AdapterConfig_MessageBus] = None
-    metrics: Optional[AdapterConfig_Metrics] = None
-    secret_provider: Optional[AdapterConfig_SecretProvider] = None
-    vector_store: Optional[AdapterConfig_VectorStore] = None
+    consensus_detector: AdapterConfig_ConsensusDetector
+    document_store: AdapterConfig_DocumentStore
+    embedding_backend: AdapterConfig_EmbeddingBackend
+    error_reporter: AdapterConfig_ErrorReporter
+    logger: AdapterConfig_Logger
+    message_bus: AdapterConfig_MessageBus
+    metrics: AdapterConfig_Metrics
+    secret_provider: AdapterConfig_SecretProvider
+    vector_store: AdapterConfig_VectorStore

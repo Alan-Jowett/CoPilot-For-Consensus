@@ -37,8 +37,8 @@ class ServiceSettings_Chunking:
 class ServiceConfig_Chunking:
     """Top-level configuration for chunking service."""
     service_settings: ServiceSettings_Chunking
-    chunker: Optional[AdapterConfig_Chunker] = None
-    document_store: Optional[AdapterConfig_DocumentStore] = None
-    message_bus: Optional[AdapterConfig_MessageBus] = None
-    metrics: Optional[AdapterConfig_Metrics] = None
-    secret_provider: Optional[AdapterConfig_SecretProvider] = None
+    chunker: AdapterConfig_Chunker
+    document_store: AdapterConfig_DocumentStore
+    message_bus: AdapterConfig_MessageBus
+    metrics: AdapterConfig_Metrics
+    secret_provider: AdapterConfig_SecretProvider

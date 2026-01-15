@@ -3,20 +3,18 @@
 
 """Auth service configuration.
 
-Uses copilot_config adapter with ServiceConfig for schema-driven configuration.
-Secrets are integrated based on schema metadata.
+Uses schema-driven typed configuration (generated dataclasses) via copilot_config.get_config.
 """
 
 import logging
-import tempfile
-from pathlib import Path
 
-from copilot_config import load_service_config
+from copilot_config import get_config
+from copilot_config.generated.services.auth import ServiceConfig_Auth
 
 logger = logging.getLogger(__name__)
 
 
-def load_auth_config():
+def load_auth_config() -> ServiceConfig_Auth:
     """Load auth service configuration from environment and secrets.
 
     Uses copilot_config with schema-driven configuration loading.
@@ -36,26 +34,6 @@ def load_auth_config():
         >>> print(config.jwt_algorithm)
         'RS256'
     """
-    config = load_service_config("auth")
+    config = get_config("auth")
     logger.info("Auth configuration loaded successfully")
-
-    # Handle JWT key file setup for RS256
-    # JWTManager needs file paths, so we write secrets to temp files
-    # In Azure, JWT keys are fetched from Key Vault via SDK using managed identity
-    if config.jwt_algorithm == "RS256":
-        if hasattr(config, 'jwt_private_key') and config.jwt_private_key:
-            # Write secrets to temp files
-            temp_dir = Path(tempfile.gettempdir()) / "auth_keys"
-            temp_dir.mkdir(parents=True, exist_ok=True)
-
-            private_key_path = temp_dir / "jwt_private.pem"
-            public_key_path = temp_dir / "jwt_public.pem"
-
-            private_key_path.write_text(config.jwt_private_key)
-            logger.info("JWT private key loaded and written to temp file")
-
-            if hasattr(config, 'jwt_public_key') and config.jwt_public_key:
-                public_key_path.write_text(config.jwt_public_key)
-                logger.info("JWT public key loaded and written to temp file")
-
     return config

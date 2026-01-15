@@ -525,7 +525,7 @@ class TestLoadServiceConfig:
         assert test_adapter.driver_config.debug is True
 
     def test_invalid_integer_conversion_fallback(self, tmp_path, monkeypatch):
-        """Test that invalid integer values are kept as strings."""
+        """Test that invalid integer values raise a validation error."""
         schema_dir = tmp_path / "schemas"
         schema_dir.mkdir()
 
@@ -573,12 +573,8 @@ class TestLoadServiceConfig:
         monkeypatch.setenv("TEST_ADAPTER_TYPE", "test")
         monkeypatch.setenv("TEST_COUNT", "not_a_number")
 
-        # Load config
-        config = load_service_config("test-service", schema_dir=str(schema_dir))
-
-        # Verify the value is kept as string when int conversion fails
-        test_adapter = config.get_adapter("test_adapter")
-        assert test_adapter.driver_config.count == "not_a_number"
+        with pytest.raises(ValueError, match=r"count parameter is invalid"):
+            load_service_config("test-service", schema_dir=str(schema_dir))
 
     def test_required_discriminant_missing(self, tmp_path, monkeypatch):
         """Test that missing required discriminant raises ValueError."""

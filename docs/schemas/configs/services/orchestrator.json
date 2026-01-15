@@ -117,31 +117,40 @@
     },
     "adapters": {
         "consensus_detector": {
-            "$ref": "../adapters/consensus_detector.json"
+            "$ref": "../adapters/consensus_detector.json",
+            "required": true
         },
         "document_store": {
-            "$ref": "../adapters/document_store.json"
+            "$ref": "../adapters/document_store.json",
+            "required": true
         },
         "embedding_backend": {
-            "$ref": "../adapters/embedding_backend.json"
+            "$ref": "../adapters/embedding_backend.json",
+            "required": true
         },
         "error_reporter": {
-            "$ref": "../adapters/error_reporter.json"
+            "$ref": "../adapters/error_reporter.json",
+            "required": true
         },
         "logger": {
-            "$ref": "../adapters/logger.json"
+            "$ref": "../adapters/logger.json",
+            "required": true
         },
         "message_bus": {
-            "$ref": "../adapters/message_bus.json"
+            "$ref": "../adapters/message_bus.json",
+            "required": true
         },
         "metrics": {
-            "$ref": "../adapters/metrics.json"
+            "$ref": "../adapters/metrics.json",
+            "required": true
         },
         "secret_provider": {
-            "$ref": "../adapters/secret_provider.json"
+            "$ref": "../adapters/secret_provider.json",
+            "required": true
         },
         "vector_store": {
-            "$ref": "../adapters/vector_store.json"
+            "$ref": "../adapters/vector_store.json",
+            "required": true
         }
     }
 }

@@ -552,9 +552,12 @@ def generate_service_config_dataclass(
     service_name: str,
     service_settings_class: str,
     adapter_classes: dict[str, str],
+    required_adapters: set[str] | None = None,
 ) -> tuple[str, str]:
     """Generate the top-level ServiceConfig dataclass."""
     class_name = f"ServiceConfig_{to_python_class_name(service_name)}"
+
+    required_adapters = required_adapters or set()
 
     lines = [
         "@dataclass",
@@ -564,9 +567,22 @@ def generate_service_config_dataclass(
     ]
 
     if adapter_classes:
+        required_fields: list[tuple[str, str]] = []
+        optional_fields: list[tuple[str, str]] = []
+
         for adapter_name in sorted(adapter_classes.keys()):
             adapter_class = adapter_classes[adapter_name]
             field_name = to_python_field_name(adapter_name)
+
+            if adapter_name in required_adapters:
+                required_fields.append((field_name, adapter_class))
+            else:
+                optional_fields.append((field_name, adapter_class))
+
+        # Dataclasses require all non-default fields to come before defaulted fields.
+        for field_name, adapter_class in required_fields:
+            lines.append(f"    {field_name}: {adapter_class}")
+        for field_name, adapter_class in optional_fields:
             lines.append(f"    {field_name}: Optional[{adapter_class}] = None")
 
     return class_name, "\n".join(lines)
@@ -588,10 +604,14 @@ def generate_service_module(
     # Determine which adapters this service uses
     adapters_schema = service_schema.get("adapters", {})
     adapter_imports = {}
+    required_adapters: set[str] = set()
 
     for adapter_name, adapter_ref in sorted(adapters_schema.items()):
         if not isinstance(adapter_ref, dict) or "$ref" not in adapter_ref:
             continue
+
+        if adapter_ref.get("required") is True:
+            required_adapters.add(adapter_name)
 
         # Each adapter has its own module
         adapter_class_name = f"AdapterConfig_{to_python_class_name(adapter_name)}"
@@ -634,6 +654,7 @@ def generate_service_module(
         service_name,
         service_settings_class,
         adapter_imports,
+        required_adapters,
     )
     all_classes.append(service_config_code)
 

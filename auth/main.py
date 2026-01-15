@@ -30,7 +30,11 @@ from copilot_logging import (
     set_default_logger,
 )
 from copilot_metrics import create_metrics_collector
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_Noop,
+    DriverConfig_Metrics_Pushgateway,
+)
 from fastapi import FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
@@ -49,7 +53,12 @@ auth_service: AuthService | None = None
 # Global metrics instance
 # Default to a no-op collector so unit tests (and imports) don't crash when
 # lifespan/startup hasn't executed yet.
-metrics: Any = create_metrics_collector(driver_name="noop", driver_config={})
+metrics: Any = create_metrics_collector(
+    AdapterConfig_Metrics(
+        metrics_type="noop",
+        driver=DriverConfig_Metrics_Noop(),
+    )
+)
 
 
 @asynccontextmanager
@@ -64,40 +73,23 @@ async def lifespan(app: FastAPI):
     config = load_auth_config()
 
     # Replace bootstrap logger with config-based logger
-    logger_adapter = None
-    get_adapter = getattr(config, "get_adapter", None)
-    if callable(get_adapter):
-        logger_adapter = get_adapter("logger")
-
-    if logger_adapter is not None:
-        logger = create_logger(
-            driver_name=logger_adapter.driver_name,
-            driver_config=logger_adapter.driver_config
-        )
-        set_default_logger(logger)
-        logger.info("Logger initialized from service configuration")
-        from app import service as auth_service_module
-        auth_service_module.logger = get_logger(auth_service_module.__name__)
+    logger = create_logger(config.logger)
+    set_default_logger(logger)
+    logger.info("Logger initialized from service configuration")
+    from app import service as auth_service_module
+    auth_service_module.logger = get_logger(auth_service_module.__name__)
 
     # Initialize metrics from config
-    metrics_adapter = None
-    if callable(get_adapter):
-        metrics_adapter = get_adapter("metrics")
-
-    if metrics_adapter is not None:
-        driver_name = metrics_adapter.driver_name
-        metrics_config = dict(metrics_adapter.driver_config.config)
-        if driver_name.lower() in ("prometheus_pushgateway", "pushgateway"):
-            metrics_config.setdefault("job", "auth")
-        metrics_driver_config = DriverConfig(
-            driver_name=metrics_adapter.driver_config.driver_name,
-            config=metrics_config,
-            allowed_keys=metrics_adapter.driver_config.allowed_keys,
+    metrics = create_metrics_collector(
+        config.metrics
+        if config.metrics is not None
+        else AdapterConfig_Metrics(
+            metrics_type="noop",
+            driver=DriverConfig_Metrics_Noop(),
         )
-        metrics = create_metrics_collector(driver_name=driver_name, driver_config=metrics_driver_config)
-    else:
-        metrics = create_metrics_collector(driver_name="noop")
+    )
 
+    # Initialize auth service
     auth_service = AuthService(config=config)
     logger.info("Authentication Service started successfully")
 
@@ -279,7 +271,10 @@ async def callback(
         logger.info(f"Successful callback for state={state[:8]}...")
 
         # Record metrics
-        metrics.increment("callback_success_total", {"audience": auth_service.config.audiences.split(",")[0]})
+        metrics.increment(
+            "callback_success_total",
+            {"audience": auth_service.config.service_settings.audiences.split(",")[0]},
+        )
 
         # Create response with JWT cookie for seamless SSO integration with services like Grafana
         # The cookie allows services accessed via browser navigation (not fetch/XHR) to authenticate
@@ -288,7 +283,7 @@ async def callback(
             content={
                 "access_token": local_jwt,
                 "token_type": "Bearer",
-                "expires_in": auth_service.config.jwt_default_expiry,
+                "expires_in": auth_service.config.service_settings.jwt_default_expiry,
             }
         )
 
@@ -306,7 +301,7 @@ async def callback(
             secure=cookie_secure,
             samesite="lax",
             path="/",
-            max_age=auth_service.config.jwt_default_expiry,
+            max_age=auth_service.config.service_settings.jwt_default_expiry,
         )
 
         return response
@@ -416,7 +411,9 @@ def userinfo(request: Request) -> JSONResponse:
 
     try:
         # Parse audiences from config (comma-separated string)
-        configured_audiences = [aud.strip() for aud in auth_service.config.audiences.split(",")]
+        configured_audiences = [
+            aud.strip() for aud in auth_service.config.service_settings.audiences.split(",")
+        ]
 
         # Try to validate against each configured audience
         # The token must match at least one configured audience
@@ -583,7 +580,9 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
 
     try:
         # Parse audiences from config
-        configured_audiences = [aud.strip() for aud in auth_service.config.audiences.split(",")]
+        configured_audiences = [
+            aud.strip() for aud in auth_service.config.service_settings.audiences.split(",")
+        ]
         logger.info(f"Configured audiences: {configured_audiences}")
 
         # Try to validate against each configured audience
@@ -923,16 +922,14 @@ if __name__ == "__main__":
 
     # Get log level from logger adapter config
     log_level = "INFO"
-    for adapter in config.adapters:
-        if adapter.adapter_type == "logger":
-            log_level = adapter.driver_config.config.get("level", "INFO")
-            break
+    if config.logger is not None and hasattr(config.logger.driver, "level"):
+        log_level = str(getattr(config.logger.driver, "level"))
 
     # Run with uvicorn
     uvicorn.run(
         "main:app",
-        host=config.host,
-        port=config.port,
+        host=config.service_settings.host,
+        port=config.service_settings.port,
         log_config=create_uvicorn_log_config("auth", log_level),
         access_log=True,
     )

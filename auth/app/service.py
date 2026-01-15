@@ -4,19 +4,93 @@
 """Auth service implementation."""
 
 import asyncio
+from dataclasses import replace
+from dataclasses import asdict
 import secrets
 import time
 from pathlib import Path
 from typing import Any
 
 from copilot_auth import AuthenticationError, IdentityProvider, JWTManager, create_identity_provider
-from copilot_config import DriverConfig
+from copilot_config.generated.services.auth import ServiceConfig_Auth
 from copilot_logging import get_logger
 
 from . import OAUTH_PROVIDERS, SUPPORTED_PROVIDERS
 from .role_store import RoleStore
 
 logger = get_logger(__name__)
+
+
+def create_identity_providers(
+    config: Any,
+    *,
+    issuer: str | None = None,
+) -> dict[str, IdentityProvider]:
+    """Create identity providers from the typed oidc_providers adapter config.
+
+    Implemented here (instead of importing copilot_auth.factory.create_identity_providers)
+    so that unit tests can patch `app.service.create_identity_provider`.
+    """
+
+    if config is None:
+        return {}
+
+    composite = getattr(config, "oidc_providers", None)
+    if composite is None:
+        return {}
+
+    default_redirect_uri = f"{issuer.rstrip('/')}/callback" if issuer else None
+
+    providers: dict[str, IdentityProvider] = {}
+    github = getattr(composite, "github", None)
+    google = getattr(composite, "google", None)
+    microsoft = getattr(composite, "microsoft", None)
+
+    if github is not None:
+        try:
+            if default_redirect_uri and not getattr(github, "github_redirect_uri", None):
+                github = replace(github, github_redirect_uri=default_redirect_uri)
+            providers["github"] = create_identity_provider(
+                "github",
+                github,
+                issuer=issuer,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error("Failed to initialize provider github: %s", e)
+    if google is not None:
+        try:
+            if default_redirect_uri and not getattr(google, "google_redirect_uri", None):
+                google = replace(google, google_redirect_uri=default_redirect_uri)
+            providers["google"] = create_identity_provider(
+                "google",
+                google,
+                issuer=issuer,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error("Failed to initialize provider google: %s", e)
+    if microsoft is not None:
+        try:
+            if default_redirect_uri and not getattr(microsoft, "microsoft_redirect_uri", None):
+                microsoft = replace(microsoft, microsoft_redirect_uri=default_redirect_uri)
+            providers["microsoft"] = create_identity_provider(
+                "microsoft",
+                microsoft,
+                issuer=issuer,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error("Failed to initialize provider microsoft: %s", e)
+
+    # Provider discovery (best-effort)
+    for name, provider in list(providers.items()):
+        discover = getattr(provider, "discover", None)
+        if callable(discover):
+            try:
+                discover()
+            except Exception as e:  # noqa: BLE001
+                logger.error("Provider %s discovery failed: %s", name, e)
+                providers.pop(name, None)
+
+    return providers
 
 
 class AuthService:
@@ -31,7 +105,7 @@ class AuthService:
         stats: Service statistics
     """
 
-    def __init__(self, config):
+    def __init__(self, config: ServiceConfig_Auth):
         """Initialize the auth service.
 
         Args:
@@ -66,104 +140,52 @@ class AuthService:
         """Initialize OIDC providers and JWT manager."""
         logger.info("Initializing Auth Service...")
 
-        # Get JWT keys from secrets store (via copilot_secrets adapter)
-        private_key = getattr(self.config, 'jwt_private_key', None)
-        public_key = getattr(self.config, 'jwt_public_key', None)
+        settings = self.config.service_settings
 
-        if not private_key or not public_key:
-            logger.error(f"Keys not found: private={private_key is not None}, public={public_key is not None}")
-            raise ValueError("JWT keys (jwt_private_key, jwt_public_key) not found in secrets store")
+        algorithm = settings.jwt_algorithm
 
-        # Write keys to temp files for JWTManager
-        import tempfile
-        temp_dir = Path(tempfile.gettempdir()) / "auth_keys"
-        temp_dir.mkdir(exist_ok=True)
+        private_key_path: Path | None = None
+        public_key_path: Path | None = None
+        secret_key_path: Path | None = None
 
-        private_key_path = temp_dir / "jwt_private.pem"
-        public_key_path = temp_dir / "jwt_public.pem"
+        if algorithm == "RS256":
+            private_key = settings.jwt_private_key
+            public_key = settings.jwt_public_key
 
-        private_key_path.write_text(private_key)
-        public_key_path.write_text(public_key)
+            # Write keys to temp files for JWTManager
+            import tempfile
+
+            temp_dir = Path(tempfile.gettempdir()) / "auth_keys"
+            temp_dir.mkdir(exist_ok=True)
+
+            private_key_path = temp_dir / "jwt_private.pem"
+            public_key_path = temp_dir / "jwt_public.pem"
+
+            private_key_path.write_text(private_key)
+            public_key_path.write_text(public_key)
 
         self.jwt_manager = JWTManager(
-            issuer=self.config.issuer,
-            algorithm=self.config.jwt_algorithm,
-            private_key_path=str(private_key_path),
-            public_key_path=str(public_key_path),
-            secret_key=getattr(self.config, 'jwt_secret_key', None),
-            key_id=self.config.jwt_key_id,
-            default_expiry=self.config.jwt_default_expiry,
+            issuer=settings.issuer,
+            algorithm=algorithm,
+            private_key_path=private_key_path,
+            public_key_path=public_key_path,
+            secret_key=settings.jwt_secret_key,
+            key_id=settings.jwt_key_id,
+            default_expiry=settings.jwt_default_expiry,
         )
 
         # Initialize role store
         self.role_store = RoleStore(self.config)
 
         # Initialize OIDC providers from config
-        self._initialize_providers()
+        self.providers = create_identity_providers(
+            self.config.oidc_providers,
+            issuer=settings.issuer,
+        )
 
+        # Ready
         logger.info(f"Auth Service initialized with {len(self.providers)} providers")
 
-    def _initialize_providers(self) -> None:
-        """Initialize OIDC providers from configuration."""
-        oidc_adapter = None
-        get_adapter = getattr(self.config, "get_adapter", None)
-        if callable(get_adapter):
-            oidc_adapter = get_adapter("oidc_providers")
-
-        providers_cfg = {}
-        if oidc_adapter is not None:
-            providers_cfg = getattr(getattr(oidc_adapter, "driver_config", None), "config", {}) or {}
-
-        for provider_name, raw_cfg in providers_cfg.items():
-            if not isinstance(raw_cfg, dict):
-                continue
-
-            try:
-                redirect_uri = raw_cfg.get(f"{provider_name}_redirect_uri") or f"{self.config.issuer}/callback"
-
-                # Keep service-owned defaulting logic here (redirect URI uses service issuer),
-                # but do not map provider-specific keys; that normalization belongs in copilot_auth.
-                provider_cfg = dict(raw_cfg)
-                provider_cfg.setdefault("redirect_uri", redirect_uri)
-
-                # Wrap raw dict in DriverConfig to satisfy provider factories
-                if provider_name == "github":
-                    allowed_keys = {
-                        "github_client_id",
-                        "github_client_secret",
-                        "github_redirect_uri",
-                        "github_api_base_url",
-                    }
-                elif provider_name == "google":
-                    allowed_keys = {
-                        "google_client_id",
-                        "google_client_secret",
-                        "google_redirect_uri",
-                    }
-                elif provider_name == "microsoft":
-                    allowed_keys = {
-                        "microsoft_client_id",
-                        "microsoft_client_secret",
-                        "microsoft_redirect_uri",
-                        "microsoft_tenant",
-                    }
-                else:
-                    allowed_keys = set(provider_cfg.keys())
-
-                driver_config = DriverConfig(
-                    driver_name=provider_name,
-                    config=provider_cfg,
-                    allowed_keys=allowed_keys,
-                )
-
-                provider = create_identity_provider(driver_name=provider_name, driver_config=driver_config)
-                # Call discovery method if it exists (e.g., for OIDC well-known discovery)
-                if hasattr(provider, "discover") and callable(getattr(provider, "discover")):
-                    provider.discover()
-                self.providers[provider_name] = provider
-                logger.info(f"Initialized provider: {provider_name}")
-            except Exception as e:
-                logger.error(f"Failed to initialize provider {provider_name}: {e}")
 
     def is_ready(self) -> bool:
         """Check if service is ready to handle requests."""
@@ -374,7 +396,7 @@ class AuthService:
             claims = self.jwt_manager.validate_token(
                 token=token,
                 audience=audience,
-                max_skew_seconds=self.config.max_skew_seconds
+                max_skew_seconds=self.config.service_settings.max_skew_seconds
             )
 
             self.stats["tokens_validated"] += 1

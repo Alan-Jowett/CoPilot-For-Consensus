@@ -4,6 +4,7 @@
 """Tests for runtime_loader module."""
 
 import os
+from pathlib import Path
 
 import pytest
 from copilot_config.runtime_loader import get_config
@@ -18,6 +19,7 @@ def test_get_config_ingestion_basic(monkeypatch):
     monkeypatch.setenv("DOCUMENT_STORE_TYPE", "inmemory")
     monkeypatch.setenv("ERROR_REPORTER_TYPE", "silent")
     monkeypatch.setenv("ARCHIVE_STORE_TYPE", "local")
+    monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
 
     # Load config
     config = get_config("ingestion")
@@ -55,6 +57,7 @@ def test_get_config_with_custom_settings(monkeypatch):
     monkeypatch.setenv("DOCUMENT_STORE_TYPE", "inmemory")
     monkeypatch.setenv("ERROR_REPORTER_TYPE", "silent")
     monkeypatch.setenv("ARCHIVE_STORE_TYPE", "local")
+    monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
 
     # Load config
     config = get_config("ingestion")
@@ -82,6 +85,7 @@ def test_get_config_pushgateway_driver(monkeypatch):
     monkeypatch.setenv("DOCUMENT_STORE_TYPE", "inmemory")
     monkeypatch.setenv("ERROR_REPORTER_TYPE", "silent")
     monkeypatch.setenv("ARCHIVE_STORE_TYPE", "local")
+    monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
 
     # Load config
     config = get_config("ingestion")
@@ -101,6 +105,7 @@ def test_get_config_missing_required_discriminant(monkeypatch):
     monkeypatch.setenv("DOCUMENT_STORE_TYPE", "inmemory")
     monkeypatch.setenv("ERROR_REPORTER_TYPE", "silent")
     monkeypatch.setenv("ARCHIVE_STORE_TYPE", "local")
+    monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
 
     # Should raise error for missing required adapter
     with pytest.raises(ValueError, match="Adapter logger requires discriminant configuration"):
@@ -121,6 +126,7 @@ def test_get_config_type_annotations():
     os.environ.setdefault("DOCUMENT_STORE_TYPE", "inmemory")
     os.environ.setdefault("ERROR_REPORTER_TYPE", "silent")
     os.environ.setdefault("ARCHIVE_STORE_TYPE", "local")
+    os.environ.setdefault("SECRET_PROVIDER_TYPE", "local")
 
     config = get_config("ingestion")
 
@@ -129,3 +135,81 @@ def test_get_config_type_annotations():
     assert isinstance(config.service_settings.http_port, int)
     assert isinstance(config.service_settings.enable_incremental, bool)
     assert isinstance(config.service_settings.http_host, str)
+
+
+def test_get_config_auth_composite_oidc_providers(monkeypatch, tmp_path):
+    """Ensure auth config loads composite oidc_providers into typed dataclasses."""
+    secrets_dir = tmp_path / "secrets"
+    secrets_dir.mkdir()
+
+    # Service JWT keys (required for RS256 at runtime, but loader should still surface secrets)
+    (secrets_dir / "jwt_private_key").write_text("PRIVATE_KEY")
+    (secrets_dir / "jwt_public_key").write_text("PUBLIC_KEY")
+
+    # OIDC provider secrets (composite adapter)
+    (secrets_dir / "github_oauth_client_id").write_text("github-client-id")
+    (secrets_dir / "github_oauth_client_secret").write_text("github-client-secret")
+
+    monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
+    monkeypatch.setenv("SECRETS_BASE_PATH", str(secrets_dir))
+
+    # Required adapters for auth
+    monkeypatch.setenv("LOG_TYPE", "stdout")
+    monkeypatch.setenv("METRICS_TYPE", "noop")
+    monkeypatch.setenv("AUTH_ISSUER", "http://issuer.example")
+
+    config = get_config("auth")
+
+    assert config.service_settings.issuer == "http://issuer.example"
+    assert config.service_settings.jwt_private_key == "PRIVATE_KEY"
+    assert config.service_settings.jwt_public_key == "PUBLIC_KEY"
+
+    assert config.oidc_providers is not None
+    assert config.oidc_providers.oidc_providers is not None
+    assert config.oidc_providers.oidc_providers.github is not None
+    assert config.oidc_providers.oidc_providers.github.github_client_id == "github-client-id"
+    assert config.oidc_providers.oidc_providers.github.github_client_secret == "github-client-secret"
+
+
+def test_get_config_auth_hs256_requires_jwt_secret_key(monkeypatch, tmp_path):
+    """HS256 requires jwt_secret_key and does not require RSA keys."""
+    secrets_dir = tmp_path / "secrets"
+    secrets_dir.mkdir()
+
+    (secrets_dir / "jwt_secret_key").write_text("HMAC_SECRET")
+
+    monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
+    monkeypatch.setenv("SECRETS_BASE_PATH", str(secrets_dir))
+
+    monkeypatch.setenv("AUTH_JWT_ALGORITHM", "HS256")
+    monkeypatch.setenv("AUTH_ISSUER", "http://issuer.example")
+
+    # Required adapters for auth
+    monkeypatch.setenv("LOG_TYPE", "stdout")
+    monkeypatch.setenv("METRICS_TYPE", "noop")
+
+    config = get_config("auth")
+
+    assert config.service_settings.jwt_algorithm == "HS256"
+    assert config.service_settings.jwt_secret_key == "HMAC_SECRET"
+    assert config.service_settings.jwt_private_key is None
+    assert config.service_settings.jwt_public_key is None
+
+
+def test_get_config_auth_hs256_missing_jwt_secret_key_raises(monkeypatch, tmp_path):
+    """HS256 should fail schema validation when jwt_secret_key is missing."""
+    secrets_dir = tmp_path / "secrets"
+    secrets_dir.mkdir()
+
+    monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
+    monkeypatch.setenv("SECRETS_BASE_PATH", str(secrets_dir))
+
+    monkeypatch.setenv("AUTH_JWT_ALGORITHM", "HS256")
+    monkeypatch.setenv("AUTH_ISSUER", "http://issuer.example")
+
+    # Required adapters for auth
+    monkeypatch.setenv("LOG_TYPE", "stdout")
+    monkeypatch.setenv("METRICS_TYPE", "noop")
+
+    with pytest.raises(ValueError, match=r"jwt_secret_key parameter is required"):
+        get_config("auth")

@@ -42,10 +42,10 @@ class ServiceSettings_Ingestion:
 class ServiceConfig_Ingestion:
     """Top-level configuration for ingestion service."""
     service_settings: ServiceSettings_Ingestion
-    archive_store: Optional[AdapterConfig_ArchiveStore] = None
-    document_store: Optional[AdapterConfig_DocumentStore] = None
-    error_reporter: Optional[AdapterConfig_ErrorReporter] = None
-    logger: Optional[AdapterConfig_Logger] = None
-    message_bus: Optional[AdapterConfig_MessageBus] = None
-    metrics: Optional[AdapterConfig_Metrics] = None
-    secret_provider: Optional[AdapterConfig_SecretProvider] = None
+    archive_store: AdapterConfig_ArchiveStore
+    document_store: AdapterConfig_DocumentStore
+    error_reporter: AdapterConfig_ErrorReporter
+    logger: AdapterConfig_Logger
+    message_bus: AdapterConfig_MessageBus
+    metrics: AdapterConfig_Metrics
+    secret_provider: AdapterConfig_SecretProvider
