@@ -48,7 +48,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         self.model = model
         self.is_azure = api_base is not None
 
-        if self.is_azure:
+        if api_base is not None:
             logger.info(f"Initializing Azure OpenAI embedding provider with deployment: {deployment_name or model}")
             self.client = AzureOpenAI(
                 api_key=api_key,

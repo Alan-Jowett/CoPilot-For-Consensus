@@ -391,6 +391,16 @@ jobs:
             adapters/copilot_draft_diff/copilot_draft_diff/datatracker_provider.py \
             --level error
 
+      - name: Pyright (gating) - Embedding adapter typed config safety
+        run: |
+          # Embedding adapter consumes generated typed embedding_backend configs.
+          # Gate the factory and providers so driver/config drift becomes a CI failure.
+          pyright \
+            adapters/copilot_embedding/copilot_embedding/factory.py \
+            adapters/copilot_embedding/copilot_embedding/openai_provider.py \
+            adapters/copilot_embedding/copilot_embedding/sentence_transformer_provider.py \
+            --level error
+
       - name: Pyright (gating) - Ingestion typed config safety
         run: |
           # This is the shift-left guardrail: catch missing/incorrect config attribute
