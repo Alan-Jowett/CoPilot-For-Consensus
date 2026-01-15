@@ -40,8 +40,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from copilot_config import load_driver_config
-from copilot_logging import create_logger
+from copilot_logging import create_stdout_logger
 
 # Import dependencies - these will fail gracefully in main() if not installed
 try:
@@ -69,13 +68,7 @@ except ImportError:
     Histogram = None  # type: ignore
     push_to_gateway = None  # type: ignore
 
-logger_config = load_driver_config(
-    service=None,
-    adapter="logger",
-    driver="stdout",
-    fields={"level": "INFO", "name": __name__}
-)
-logger = create_logger(driver_name="stdout", driver_config=logger_config)
+logger = create_stdout_logger(level=os.getenv("LOG_LEVEL", "INFO"), name=__name__)
 
 
 def _get_env_or_secret(env_var: str, secret_name: str) -> str | None:
@@ -718,18 +711,12 @@ For full documentation, see documents/RETRY_POLICY.md
     # Configure logging
     global logger
     if args.verbose:
-        logger_config = load_driver_config(
-            service=None,
-            adapter="logger",
-            driver="stdout",
-            fields={"level": "DEBUG", "name": __name__}
-        )
-        logger = create_logger(driver_name="stdout", driver_config=logger_config)
+        logger = create_stdout_logger(level="DEBUG", name=__name__)
 
-    mongodb_username = _get_env_or_secret("MONGODB_USERNAME", "document_database_user")
-    mongodb_password = _get_env_or_secret("MONGODB_PASSWORD", "document_database_password")
-    rabbitmq_username = _get_env_or_secret("RABBITMQ_USERNAME", "message_bus_user") or "guest"
-    rabbitmq_password = _get_env_or_secret("RABBITMQ_PASSWORD", "message_bus_password") or "guest"
+    mongodb_username = _get_env_or_secret("MONGODB_USERNAME", "mongodb_user")
+    mongodb_password = _get_env_or_secret("MONGODB_PASSWORD", "mongodb_password")
+    rabbitmq_username = _get_env_or_secret("RABBITMQ_USERNAME", "rabbitmq_user") or "guest"
+    rabbitmq_password = _get_env_or_secret("RABBITMQ_PASSWORD", "rabbitmq_password") or "guest"
 
     # Create retry job
     job = RetryStuckDocumentsJob(
