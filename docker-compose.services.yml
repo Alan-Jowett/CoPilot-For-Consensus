@@ -14,6 +14,8 @@ services:
     environment:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
+      - LOG_TYPE=stdout
+      - LOG_LEVEL=INFO
       - MESSAGE_BUS_TYPE=rabbitmq
       - RABBITMQ_HOST=messagebus
       - RABBITMQ_PORT=5672
@@ -68,6 +70,8 @@ services:
     environment:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
+      - LOG_TYPE=stdout
+      - LOG_LEVEL=INFO
       - MESSAGE_BUS_TYPE=rabbitmq
       - RABBITMQ_HOST=messagebus
       - RABBITMQ_PORT=5672
@@ -192,6 +196,7 @@ services:
     environment:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
+      - CONSENSUS_DETECTOR_TYPE=heuristic
       - MESSAGE_BUS_TYPE=rabbitmq
       - RABBITMQ_HOST=messagebus
       - RABBITMQ_PORT=5672
@@ -206,8 +211,10 @@ services:
       - ORCHESTRATOR_RETRY_MAX_ATTEMPTS=${ORCHESTRATOR_RETRY_MAX_ATTEMPTS:-3}
       - ORCHESTRATOR_REQUEST_TIMEOUT_SECONDS=${ORCHESTRATOR_REQUEST_TIMEOUT_SECONDS:-60}
       - ORCHESTRATOR_WORKFLOW_HISTORY_RETENTION_DAYS=${ORCHESTRATOR_WORKFLOW_HISTORY_RETENTION_DAYS:-90}
+      - VECTOR_STORE_TYPE=qdrant
       - QDRANT_HOST=vectorstore
       - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=embeddings
       - EMBEDDING_BACKEND_TYPE=${EMBEDDING_BACKEND_TYPE:-sentencetransformers}
       - SENTENCETRANSFORMERS_MODEL=${SENTENCETRANSFORMERS_MODEL:-all-MiniLM-L6-v2}
       - LLM_BACKEND=${LLM_BACKEND:-local}
@@ -379,6 +386,10 @@ services:
     environment:
       - SERVICE_VERSION=0.1.0
       - LOG_TYPE=${LOG_TYPE:-stdout}
+      - DOCUMENT_STORE_TYPE=mongodb
+      - MONGODB_HOST=documentdb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=auth
       - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/ui}
       - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-for-consensus}
       - AUTH_JWT_ALGORITHM=${AUTH_JWT_ALGORITHM:-RS256}
