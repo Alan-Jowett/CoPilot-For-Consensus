@@ -381,6 +381,16 @@ jobs:
             adapters/copilot_consensus/copilot_consensus/thread.py \
             --level error
 
+      - name: Pyright (gating) - Draft diff adapter typed config safety
+        run: |
+          # Draft diff adapter consumes generated typed draft_diff_provider configs.
+          # Gate the factory and key providers to prevent schema drift.
+          pyright \
+            adapters/copilot_draft_diff/copilot_draft_diff/factory.py \
+            adapters/copilot_draft_diff/copilot_draft_diff/mock_provider.py \
+            adapters/copilot_draft_diff/copilot_draft_diff/datatracker_provider.py \
+            --level error
+
       - name: Pyright (gating) - Ingestion typed config safety
         run: |
           # This is the shift-left guardrail: catch missing/incorrect config attribute

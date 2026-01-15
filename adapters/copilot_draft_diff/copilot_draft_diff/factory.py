@@ -3,11 +3,72 @@
 
 """Factory for creating draft diff providers (DriverConfig-based)."""
 
-from typing import Any
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any, TypeAlias
+
+from copilot_config.adapter_factory import create_adapter
+from copilot_config.generated.adapters.draft_diff_provider import (
+    AdapterConfig_DraftDiffProvider,
+    DriverConfig_DraftDiffProvider_Datatracker,
+    DriverConfig_DraftDiffProvider_Mock,
+)
 
 from .datatracker_provider import DatatrackerDiffProvider
 from .mock_provider import MockDiffProvider
 from .provider import DraftDiffProvider
+
+
+DraftDiffProviderDriverConfig: TypeAlias = (
+    DriverConfig_DraftDiffProvider_Datatracker | DriverConfig_DraftDiffProvider_Mock
+)
+DraftDiffProviderDriverConfigLike: TypeAlias = DraftDiffProviderDriverConfig | Mapping[str, Any] | None
+
+
+def create_draft_diff_provider(config: AdapterConfig_DraftDiffProvider) -> DraftDiffProvider:
+    """Create a draft diff provider from typed configuration."""
+
+    return create_adapter(
+        config,
+        adapter_name="draft_diff_provider",
+        schema_adapter="draft_diff_provider",
+        get_driver_type=lambda c: c.draft_diff_provider_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "datatracker": DatatrackerDiffProvider.from_config,
+            "mock": MockDiffProvider.from_config,
+        },
+    )
+
+
+def _coerce_driver_config(
+    driver_name: str,
+    driver_config: DraftDiffProviderDriverConfigLike,
+) -> DraftDiffProviderDriverConfig:
+    name = str(driver_name).lower()
+
+    if name == "datatracker":
+        if driver_config is None:
+            return DriverConfig_DraftDiffProvider_Datatracker()
+        if isinstance(driver_config, DriverConfig_DraftDiffProvider_Datatracker):
+            return driver_config
+        if isinstance(driver_config, Mapping):
+            return DriverConfig_DraftDiffProvider_Datatracker(**dict(driver_config))
+        raise TypeError(
+            "driver_config must be a mapping or DriverConfig_DraftDiffProvider_Datatracker for 'datatracker'"
+        )
+
+    if name == "mock":
+        if driver_config is None:
+            return DriverConfig_DraftDiffProvider_Mock()
+        if isinstance(driver_config, DriverConfig_DraftDiffProvider_Mock):
+            return driver_config
+        if isinstance(driver_config, Mapping):
+            return DriverConfig_DraftDiffProvider_Mock(**dict(driver_config))
+        raise TypeError("driver_config must be a mapping or DriverConfig_DraftDiffProvider_Mock for 'mock'")
+
+    raise ValueError(f"Unknown provider driver: {driver_name}.")
 
 
 class DiffProviderFactory:
@@ -19,13 +80,17 @@ class DiffProviderFactory:
     """
 
     # Registry of available provider types
-    _providers = {
+    _providers: dict[str, type[DraftDiffProvider]] = {
         "datatracker": DatatrackerDiffProvider,
         "mock": MockDiffProvider,
     }
 
     @classmethod
-    def create(cls, driver_name: str | None = None, driver_config: Any | None = None) -> DraftDiffProvider:
+    def create(
+        cls,
+        driver_name: str | None = None,
+        driver_config: DraftDiffProviderDriverConfigLike = None,
+    ) -> DraftDiffProvider:
         """Create a draft diff provider instance from DriverConfig.
 
         Args:
@@ -51,20 +116,23 @@ class DiffProviderFactory:
                 f"Available providers: {', '.join(cls._providers.keys())}"
             )
 
-        provider_class = cls._providers[name]
-        cfg = driver_config or {}
+        # Built-in drivers use schema-generated typed configs.
+        if name in ("datatracker", "mock"):
+            typed_driver_config = _coerce_driver_config(name, driver_config)
+            typed_config = AdapterConfig_DraftDiffProvider(
+                draft_diff_provider_type=name,  # type: ignore[arg-type]
+                driver=typed_driver_config,
+            )
+            return create_draft_diff_provider(typed_config)
 
-        # Create provider via from_config when available; fallback to kwargs
-        from_cfg = getattr(provider_class, "from_config", None)
-        if callable(from_cfg):
-            return from_cfg(cfg)
-        if isinstance(cfg, dict):
-            return provider_class(**cfg)
-        # No config mapping; instantiate with defaults
+        # Custom providers (out of schema) remain supported via registration.
+        provider_class = cls._providers[name]
+        if isinstance(driver_config, Mapping):
+            return provider_class(**dict(driver_config))
         return provider_class()
 
     @classmethod
-    def register_provider(cls, name: str, provider_class: type) -> None:
+    def register_provider(cls, name: str, provider_class: type[DraftDiffProvider]) -> None:
         """Register a new provider type.
 
         This allows external code to register custom provider implementations.
@@ -86,7 +154,7 @@ class DiffProviderFactory:
 
 
 def create_diff_provider(driver_name: str | None = None,
-                        driver_config: Any | None = None) -> DraftDiffProvider:
+                        driver_config: DraftDiffProviderDriverConfigLike = None) -> DraftDiffProvider:
     """Convenience function to create a draft diff provider (DriverConfig-based).
 
     Args:
