@@ -4,14 +4,15 @@
 """Auth service implementation."""
 
 import asyncio
-from dataclasses import replace
 from dataclasses import asdict
+from dataclasses import replace
 import secrets
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
-from copilot_auth import AuthenticationError, IdentityProvider, JWTManager, create_identity_provider
+from copilot_auth import AuthenticationError, JWTManager, create_identity_provider
+from copilot_config.generated.adapters.oidc_providers import AdapterConfig_OidcProviders
 from copilot_config.generated.services.auth import ServiceConfig_Auth
 from copilot_logging import get_logger
 
@@ -21,64 +22,110 @@ from .role_store import RoleStore
 logger = get_logger(__name__)
 
 
+class _OidcProvider(Protocol):
+    def discover(self) -> None: ...
+
+    @staticmethod
+    def build_pkce_pair() -> tuple[str, str]: ...
+
+    def get_authorization_url(
+        self,
+        state: str | None = None,
+        nonce: str | None = None,
+        prompt: str | None = None,
+        code_challenge: str | None = None,
+        code_challenge_method: str = "S256",
+    ) -> tuple[str, str, str]: ...
+
+    def exchange_code_for_token(self, code: str, code_verifier: str | None = None) -> dict[str, Any]: ...
+
+    def validate_and_get_user(self, token_response: dict, nonce: str | None = None) -> Any: ...
+
+
 def create_identity_providers(
-    config: Any,
+    config: AdapterConfig_OidcProviders,
     *,
     issuer: str | None = None,
-) -> dict[str, IdentityProvider]:
+) -> dict[str, _OidcProvider]:
     """Create identity providers from the typed oidc_providers adapter config.
 
     Implemented here (instead of importing copilot_auth.factory.create_identity_providers)
     so that unit tests can patch `app.service.create_identity_provider`.
     """
-
-    if config is None:
-        return {}
-
-    composite = getattr(config, "oidc_providers", None)
+    composite = config.oidc_providers
     if composite is None:
         return {}
 
     default_redirect_uri = f"{issuer.rstrip('/')}/callback" if issuer else None
 
-    providers: dict[str, IdentityProvider] = {}
-    github = getattr(composite, "github", None)
-    google = getattr(composite, "google", None)
-    microsoft = getattr(composite, "microsoft", None)
+    providers: dict[str, _OidcProvider] = {}
+    github = composite.github
+    google = composite.google
+    microsoft = composite.microsoft
 
     if github is not None:
         try:
-            if default_redirect_uri and not getattr(github, "github_redirect_uri", None):
+            if default_redirect_uri and github.github_redirect_uri is None:
                 github = replace(github, github_redirect_uri=default_redirect_uri)
-            providers["github"] = create_identity_provider(
+            provider = create_identity_provider(
                 "github",
                 github,
                 issuer=issuer,
             )
+            required_methods = (
+                "build_pkce_pair",
+                "get_authorization_url",
+                "exchange_code_for_token",
+                "validate_and_get_user",
+            )
+            if not all(callable(getattr(provider, m, None)) for m in required_methods):
+                logger.error("Provider github does not support the OIDC flow")
+            else:
+                providers["github"] = cast(_OidcProvider, provider)
         except Exception as e:  # noqa: BLE001
-            logger.error("Failed to initialize provider github: %s", e)
+            logger.error(f"Failed to initialize provider github: {e}")
     if google is not None:
         try:
-            if default_redirect_uri and not getattr(google, "google_redirect_uri", None):
+            if default_redirect_uri and google.google_redirect_uri is None:
                 google = replace(google, google_redirect_uri=default_redirect_uri)
-            providers["google"] = create_identity_provider(
+            provider = create_identity_provider(
                 "google",
                 google,
                 issuer=issuer,
             )
+            required_methods = (
+                "build_pkce_pair",
+                "get_authorization_url",
+                "exchange_code_for_token",
+                "validate_and_get_user",
+            )
+            if not all(callable(getattr(provider, m, None)) for m in required_methods):
+                logger.error("Provider google does not support the OIDC flow")
+            else:
+                providers["google"] = cast(_OidcProvider, provider)
         except Exception as e:  # noqa: BLE001
-            logger.error("Failed to initialize provider google: %s", e)
+            logger.error(f"Failed to initialize provider google: {e}")
     if microsoft is not None:
         try:
-            if default_redirect_uri and not getattr(microsoft, "microsoft_redirect_uri", None):
+            if default_redirect_uri and microsoft.microsoft_redirect_uri is None:
                 microsoft = replace(microsoft, microsoft_redirect_uri=default_redirect_uri)
-            providers["microsoft"] = create_identity_provider(
+            provider = create_identity_provider(
                 "microsoft",
                 microsoft,
                 issuer=issuer,
             )
+            required_methods = (
+                "build_pkce_pair",
+                "get_authorization_url",
+                "exchange_code_for_token",
+                "validate_and_get_user",
+            )
+            if not all(callable(getattr(provider, m, None)) for m in required_methods):
+                logger.error("Provider microsoft does not support the OIDC flow")
+            else:
+                providers["microsoft"] = cast(_OidcProvider, provider)
         except Exception as e:  # noqa: BLE001
-            logger.error("Failed to initialize provider microsoft: %s", e)
+            logger.error(f"Failed to initialize provider microsoft: {e}")
 
     # Provider discovery (best-effort)
     for name, provider in list(providers.items()):
@@ -87,7 +134,7 @@ def create_identity_providers(
             try:
                 discover()
             except Exception as e:  # noqa: BLE001
-                logger.error("Provider %s discovery failed: %s", name, e)
+                logger.error(f"Provider {name} discovery failed: {e}")
                 providers.pop(name, None)
 
     return providers
@@ -112,7 +159,7 @@ class AuthService:
             config: Auth service configuration
         """
         self.config = config
-        self.providers: dict[str, IdentityProvider] = {}
+        self.providers: dict[str, _OidcProvider] = {}
         self.jwt_manager: JWTManager | None = None
 
         # Statistics
@@ -131,7 +178,7 @@ class AuthService:
         self._cleanup_interval_seconds = 60  # Clean up every minute
 
         # Role store (backed by copilot_storage)
-        self.role_store: RoleStore | None = None
+        self.role_store: RoleStore
 
         # Initialize providers and JWT manager
         self._initialize()
@@ -142,15 +189,19 @@ class AuthService:
 
         settings = self.config.service_settings
 
-        algorithm = settings.jwt_algorithm
+        algorithm = settings.jwt_algorithm or "RS256"
 
         private_key_path: Path | None = None
         public_key_path: Path | None = None
-        secret_key_path: Path | None = None
 
         if algorithm == "RS256":
             private_key = settings.jwt_private_key
             public_key = settings.jwt_public_key
+
+            if private_key is None or public_key is None:
+                raise ValueError(
+                    "RS256 requires jwt_private_key and jwt_public_key to be configured"
+                )
 
             # Write keys to temp files for JWTManager
             import tempfile
@@ -164,6 +215,12 @@ class AuthService:
             private_key_path.write_text(private_key)
             public_key_path.write_text(public_key)
 
+        elif algorithm.startswith("HS"):
+            if settings.jwt_secret_key is None:
+                raise ValueError(f"{algorithm} requires jwt_secret_key to be configured")
+
+        default_expiry = settings.jwt_default_expiry if settings.jwt_default_expiry is not None else 1800
+
         self.jwt_manager = JWTManager(
             issuer=settings.issuer,
             algorithm=algorithm,
@@ -171,17 +228,14 @@ class AuthService:
             public_key_path=public_key_path,
             secret_key=settings.jwt_secret_key,
             key_id=settings.jwt_key_id,
-            default_expiry=settings.jwt_default_expiry,
+            default_expiry=default_expiry,
         )
 
         # Initialize role store
         self.role_store = RoleStore(self.config)
 
         # Initialize OIDC providers from config
-        self.providers = create_identity_providers(
-            self.config.oidc_providers,
-            issuer=settings.issuer,
-        )
+        self.providers = create_identity_providers(self.config.oidc_providers, issuer=settings.issuer)
 
         # Ready
         logger.info(f"Auth Service initialized with {len(self.providers)} providers")
@@ -331,24 +385,29 @@ class AuthService:
             if not user:
                 raise AuthenticationError("Failed to retrieve user info")
 
-            # Resolve roles dynamically from role store
-            auto_roles = getattr(self.config, "auto_approve_roles", "") or ""
-            auto_roles_list = [r.strip() for r in auto_roles.split(",") if r.strip()]
-            auto_enabled = bool(getattr(self.config, "auto_approve_enabled", False))
-            first_user_promotion_enabled = bool(getattr(self.config, "first_user_auto_promotion_enabled", False))
+            settings = self.config.service_settings
 
-            roles, status = (self.role_store.get_roles_for_user(
+            auto_roles = settings.auto_approve_roles or ""
+            auto_roles_list = [r.strip() for r in auto_roles.split(",") if r.strip()]
+            auto_enabled = bool(settings.auto_approve_enabled)
+            first_user_promotion_enabled = bool(settings.first_user_auto_promotion_enabled)
+
+            roles, status = self.role_store.get_roles_for_user(
                 user=user,
                 auto_approve_enabled=auto_enabled,
                 auto_approve_roles=auto_roles_list,
                 first_user_auto_promotion_enabled=first_user_promotion_enabled,
-            ) if self.role_store else (user.roles, "approved"))
+            )
 
             user.roles = roles
             pending = status != "approved"
 
+            jwt_manager = self.jwt_manager
+            if jwt_manager is None:
+                raise RuntimeError("JWT manager is not initialized")
+
             # Mint local JWT
-            local_jwt = self.jwt_manager.mint_token(
+            local_jwt = jwt_manager.mint_token(
                 user=user,
                 audience=audience,
                 additional_claims={
@@ -393,10 +452,20 @@ class AuthService:
             jwt.InvalidTokenError: If token is invalid
         """
         try:
-            claims = self.jwt_manager.validate_token(
+            jwt_manager = self.jwt_manager
+            if jwt_manager is None:
+                raise RuntimeError("JWT manager is not initialized")
+
+            max_skew_seconds = (
+                self.config.service_settings.max_skew_seconds
+                if self.config.service_settings.max_skew_seconds is not None
+                else 90
+            )
+
+            claims = jwt_manager.validate_token(
                 token=token,
                 audience=audience,
-                max_skew_seconds=self.config.service_settings.max_skew_seconds
+                max_skew_seconds=max_skew_seconds,
             )
 
             self.stats["tokens_validated"] += 1
@@ -413,7 +482,11 @@ class AuthService:
         Returns:
             JWKS dictionary
         """
-        return self.jwt_manager.get_jwks()
+        jwt_manager = self.jwt_manager
+        if jwt_manager is None:
+            raise RuntimeError("JWT manager is not initialized")
+
+        return jwt_manager.get_jwks()
 
     def _cleanup_expired_sessions(self) -> None:
         """Clean up expired sessions (called with lock held).

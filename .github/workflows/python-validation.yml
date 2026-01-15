@@ -92,6 +92,13 @@ jobs:
             pip install -r ingestion/requirements.txt
           fi
 
+      - name: Install auth service dependencies (for pyright)
+        run: |
+          # Ensure third-party deps used by auth entrypoints are available.
+          if [ -f "auth/requirements.txt" ]; then
+            pip install -r auth/requirements.txt
+          fi
+
       - name: Ruff - Fast Python Linter
         id: ruff
         run: |
@@ -280,6 +287,12 @@ jobs:
           # access (e.g., config.storage_path vs config.service_settings.storage_path)
           # before merge.
           pyright ingestion/main.py ingestion/app/service.py --level error
+
+      - name: Pyright (gating) - Auth typed config safety
+        run: |
+          # Auth uses schema-driven config; this guards against config schema drift
+          # and missing attribute access in entrypoints and core logic.
+          pyright auth/main.py auth/app/config.py auth/app/service.py auth/app/role_store.py --level error
 
       - name: Generate Validation Summary
         if: always()

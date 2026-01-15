@@ -61,6 +61,22 @@ metrics: Any = create_metrics_collector(
 )
 
 
+def _get_audience_list(audiences: str | None) -> list[str]:
+    """Parse a comma-separated audiences config value into a list.
+
+    Falls back to the default audience when not configured.
+    """
+    raw = audiences or "copilot-for-consensus"
+    return [aud.strip() for aud in raw.split(",") if aud.strip()]
+
+
+def _require_auth_service() -> AuthService:
+    service = auth_service
+    if service is None:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    return service
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage service lifecycle."""
@@ -158,10 +174,11 @@ async def list_providers() -> dict[str, Any]:
     """
     global auth_service
 
-    if not auth_service:
+    service = auth_service
+    if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    configured_providers = list(auth_service.providers.keys())
+    configured_providers = list(service.providers.keys())
 
     provider_status = {}
     for provider in SUPPORTED_PROVIDERS:
@@ -196,11 +213,12 @@ async def login(
     """
     global auth_service
 
-    if not auth_service:
+    service = auth_service
+    if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     try:
-        authorization_url, state, nonce = await auth_service.initiate_login(
+        authorization_url, state, nonce = await service.initiate_login(
             provider=provider, audience=aud, prompt=prompt
         )
 
@@ -249,12 +267,13 @@ async def callback(
     """
     global auth_service
 
-    if not auth_service:
+    service = auth_service
+    if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     try:
         # Handle callback - provider and audience retrieved from session via state
-        callback_result = auth_service.handle_callback(
+        callback_result = service.handle_callback(
             code=code,
             state=state,
         )
@@ -264,9 +283,10 @@ async def callback(
         logger.info(f"Successful callback for state={state[:8]}...")
 
         # Record metrics
+        audiences = _get_audience_list(service.config.service_settings.audiences)
         metrics.increment(
             "callback_success_total",
-            {"audience": auth_service.config.service_settings.audiences.split(",")[0]},
+            {"audience": audiences[0] if audiences else "copilot-for-consensus"},
         )
 
         # Create response with JWT cookie for seamless SSO integration with services like Grafana
@@ -276,7 +296,7 @@ async def callback(
             content={
                 "access_token": local_jwt,
                 "token_type": "Bearer",
-                "expires_in": auth_service.config.service_settings.jwt_default_expiry,
+                "expires_in": service.config.service_settings.jwt_default_expiry or 1800,
             }
         )
 
@@ -286,7 +306,7 @@ async def callback(
         # - samesite=lax: allows cookie on top-level navigation (clicking links)
         # - path=/: makes cookie available to all paths
         # - max_age: matches JWT expiry time
-        cookie_secure = getattr(auth_service.config, "cookie_secure", False)
+        cookie_secure = bool(service.config.service_settings.cookie_secure)
         response.set_cookie(
             key="auth_token",
             value=local_jwt,
@@ -294,7 +314,7 @@ async def callback(
             secure=cookie_secure,
             samesite="lax",
             path="/",
-            max_age=auth_service.config.service_settings.jwt_default_expiry,
+            max_age=service.config.service_settings.jwt_default_expiry or 1800,
         )
 
         return response
@@ -387,7 +407,8 @@ def userinfo(request: Request) -> JSONResponse:
     """
     global auth_service
 
-    if not auth_service:
+    service = auth_service
+    if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     # Extract token from Authorization header or cookie
@@ -404,16 +425,14 @@ def userinfo(request: Request) -> JSONResponse:
 
     try:
         # Parse audiences from config (comma-separated string)
-        configured_audiences = [
-            aud.strip() for aud in auth_service.config.service_settings.audiences.split(",")
-        ]
+        configured_audiences = _get_audience_list(service.config.service_settings.audiences)
 
         # Try to validate against each configured audience
         # The token must match at least one configured audience
         validation_errors = []
         for audience in configured_audiences:
             try:
-                claims = auth_service.validate_token(token=token, audience=audience)
+                claims = service.validate_token(token=token, audience=audience)
                 # Successfully validated - return user info
                 metrics.increment("userinfo_success_total", {"audience": audience})
                 return JSONResponse(
@@ -485,14 +504,15 @@ async def get_public_key() -> Response:
     Returns:
         Public key in PEM format
     """
-    global auth_service
-
-    if not auth_service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    service = _require_auth_service()
 
     try:
         # Get public key from JWT manager
-        public_key_pem = auth_service.jwt_manager.get_public_key_pem()
+        jwt_manager = service.jwt_manager
+        if jwt_manager is None:
+            raise HTTPException(status_code=503, detail="JWT manager not initialized")
+
+        public_key_pem = jwt_manager.get_public_key_pem()
 
         if not public_key_pem:
             raise HTTPException(status_code=404, detail="Public key not available")
@@ -550,7 +570,8 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
     """
     global auth_service
 
-    if not auth_service:
+    service = auth_service
+    if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     # Extract token from Authorization header or cookie
@@ -573,23 +594,28 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
 
     try:
         # Parse audiences from config
-        configured_audiences = [
-            aud.strip() for aud in auth_service.config.service_settings.audiences.split(",")
-        ]
+        configured_audiences = _get_audience_list(service.config.service_settings.audiences)
         logger.info(f"Configured audiences: {configured_audiences}")
 
         # Try to validate against each configured audience
         for audience in configured_audiences:
             try:
-                claims = auth_service.validate_token(token=token, audience=audience)
+                claims = service.validate_token(token=token, audience=audience)
 
                 # Check for admin role
                 user_roles = claims.get("roles", [])
                 if "admin" not in user_roles:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
 
-                # Return user info
-                return claims.get("sub"), claims.get("email")
+                sub = claims.get("sub")
+                if not isinstance(sub, str) or not sub:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid token: missing subject",
+                    )
+
+                email = claims.get("email")
+                return sub, email if isinstance(email, str) else None
 
             except HTTPException:
                 raise
@@ -643,13 +669,12 @@ async def list_pending_assignments(
     Returns:
         JSON with pending assignments and pagination info
     """
-    global auth_service
-
     # Validate admin role
     admin_user_id, admin_email = require_admin_role(request)
+    service = _require_auth_service()
 
     try:
-        assignments, total = auth_service.role_store.list_pending_role_assignments(
+        assignments, total = service.role_store.list_pending_role_assignments(
             user_id=user_id,
             role=role,
             limit=limit,
@@ -702,13 +727,12 @@ async def search_users(
     Returns:
         JSON with matching user records
     """
-    global auth_service
-
     # Validate admin role
     admin_user_id, admin_email = require_admin_role(request)
+    service = _require_auth_service()
 
     try:
-        users = auth_service.role_store.search_users(
+        users = service.role_store.search_users(
             search_term=search_term,
             search_by=search_by.value,  # Use .value to get the string value from Enum
         )
@@ -760,13 +784,12 @@ async def get_user_roles(
     Returns:
         JSON with user role information
     """
-    global auth_service
-
     # Validate admin role
     admin_user_id, admin_email = require_admin_role(request)
+    service = _require_auth_service()
 
     try:
-        user_record = auth_service.role_store.get_user_roles(user_id)
+        user_record = service.role_store.get_user_roles(user_id)
 
         if not user_record:
             raise HTTPException(status_code=404, detail=f"User not found: {user_id}")
@@ -810,13 +833,12 @@ async def assign_user_roles(
     Returns:
         JSON with updated user record
     """
-    global auth_service
-
     # Validate admin role
     admin_user_id, admin_email = require_admin_role(request)
+    service = _require_auth_service()
 
     try:
-        updated_record = auth_service.role_store.assign_roles(
+        updated_record = service.role_store.assign_roles(
             user_id=user_id,
             roles=role_request.roles,
             admin_user_id=admin_user_id,
@@ -869,13 +891,12 @@ async def revoke_user_roles(
     Returns:
         JSON with updated user record
     """
-    global auth_service
-
     # Validate admin role
     admin_user_id, admin_email = require_admin_role(request)
+    service = _require_auth_service()
 
     try:
-        updated_record = auth_service.role_store.revoke_roles(
+        updated_record = service.role_store.revoke_roles(
             user_id=user_id,
             roles=role_request.roles,
             admin_user_id=admin_user_id,
@@ -915,14 +936,14 @@ if __name__ == "__main__":
 
     # Get log level from logger adapter config
     log_level = "INFO"
-    if config.logger is not None and hasattr(config.logger.driver, "level"):
+    if hasattr(config.logger.driver, "level"):
         log_level = str(getattr(config.logger.driver, "level"))
 
     # Run with uvicorn
     uvicorn.run(
         "main:app",
-        host=config.service_settings.host,
-        port=config.service_settings.port,
+        host=config.service_settings.host or "0.0.0.0",
+        port=config.service_settings.port if config.service_settings.port is not None else 8090,
         log_config=create_uvicorn_log_config("auth", log_level),
         access_log=True,
     )

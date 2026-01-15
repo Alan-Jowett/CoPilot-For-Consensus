@@ -3,12 +3,12 @@
 
 """Auth service configuration.
 
-Uses schema-driven typed configuration (generated dataclasses) via copilot_config.get_config.
+Uses schema-driven typed configuration (generated dataclasses) via copilot_config.
 """
 
 import logging
 
-from copilot_config import get_config
+from copilot_config.runtime_loader import get_config
 from copilot_config.generated.services.auth import ServiceConfig_Auth
 
 logger = logging.getLogger(__name__)
@@ -29,9 +29,9 @@ def load_auth_config() -> ServiceConfig_Auth:
 
     Example:
         >>> config = load_auth_config()
-        >>> print(config.issuer)
+        >>> print(config.service_settings.issuer)
         'http://localhost:8090'
-        >>> print(config.jwt_algorithm)
+        >>> print(config.service_settings.jwt_algorithm)
         'RS256'
     """
     config = get_config("auth")

@@ -136,7 +136,7 @@ def test_cookie_secure_flag_from_env(mock_auth_service):
             importlib.reload(main)
 
             # Configure mock to return cookie_secure=False
-            mock_auth_service.config.cookie_secure = False
+            mock_auth_service.config.service_settings.cookie_secure = False
             main.auth_service = mock_auth_service
             client = TestClient(main.app)
 

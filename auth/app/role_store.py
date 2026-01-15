@@ -39,7 +39,7 @@ class RoleStore:
 
     def __init__(self, config: ServiceConfig_Auth):
         settings = config.service_settings
-        self.collection = settings.role_store_collection
+        self.collection = settings.role_store_collection or "user_roles"
 
         schema_dir = settings.role_store_schema_dir
         if schema_dir is None:
@@ -371,16 +371,15 @@ class RoleStore:
                 # Update using the document's _id
                 self.store.update_document(self.collection, record["_id"], update_doc)
             else:
-                # If no _id, try to update with query filter (may not work with all stores)
-                # This is a fallback for stores that support filter-based updates
+                # Fallback: Some stores/tests may not return _id. Use user_id as the document
+                # ID for update, and insert if the store reports it doesn't exist.
                 from copilot_storage.document_store import DocumentNotFoundError
 
                 try:
-                    self.store.update_document(self.collection, {"user_id": user_id}, update_doc)
-                except (DocumentNotFoundError, TypeError):
-                    # If update by query fails, this store requires _id
-                    # Shouldn't happen since record came from _find_user_record which queries
-                    raise ValueError(f"Cannot update document for user {user_id} without _id")
+                    self.store.update_document(self.collection, user_id, update_doc)
+                except DocumentNotFoundError:
+                    insert_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+                    self.store.insert_document(self.collection, insert_doc)
 
             # Log audit event
             logger.info(

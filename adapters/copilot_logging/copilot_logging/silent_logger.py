@@ -99,6 +99,17 @@ class SilentLogger(Logger):
         """
         self._log("DEBUG", message, **kwargs)
 
+    def exception(self, message: str, **kwargs: Any) -> None:
+        """Log an exception-level message.
+
+        Silent logger treats exception as an error-level message.
+
+        Args:
+            message: The log message
+            **kwargs: Additional structured data to log
+        """
+        self._log("ERROR", message, **kwargs)
+
     def clear_logs(self) -> None:
         """Clear all stored log messages (useful for testing)."""
         self.logs.clear()
