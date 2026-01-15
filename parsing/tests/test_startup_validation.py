@@ -9,7 +9,38 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from copilot_config.models import AdapterConfig, DriverConfig, ServiceConfig
+from copilot_config.generated.adapters.archive_store import (
+    AdapterConfig_ArchiveStore,
+    DriverConfig_ArchiveStore_Local,
+)
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Mongodb,
+)
+from copilot_config.generated.adapters.error_reporter import (
+    AdapterConfig_ErrorReporter,
+    DriverConfig_ErrorReporter_Silent,
+)
+from copilot_config.generated.adapters.logger import (
+    AdapterConfig_Logger,
+    DriverConfig_Logger_Stdout,
+)
+from copilot_config.generated.adapters.message_bus import (
+    AdapterConfig_MessageBus,
+    DriverConfig_MessageBus_Rabbitmq,
+)
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_Noop,
+)
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_Local,
+)
+from copilot_config.generated.services.parsing import (
+    ServiceConfig_Parsing,
+    ServiceSettings_Parsing,
+)
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -21,52 +52,49 @@ def _make_service_config(
     document_store_driver: str = "mongodb",
     archive_store_driver: str = "local",
     http_port: int = 8081,
-) -> ServiceConfig:
-    return ServiceConfig(
-        service_name="parsing",
-        service_settings={
-            "http_port": http_port,
-        },
-        adapters=[
-            AdapterConfig(
-                adapter_type="message_bus",
-                driver_name=message_bus_driver,
-                driver_config=DriverConfig(
-                    driver_name=message_bus_driver,
-                    config={
-                        "rabbitmq_host": "localhost",
-                        "rabbitmq_port": 5672,
-                        "rabbitmq_username": "guest",
-                        "rabbitmq_password": "guest",
-                    },
-                ),
+) -> ServiceConfig_Parsing:
+    if message_bus_driver != "rabbitmq":
+        raise ValueError("These tests currently expect message_bus_driver='rabbitmq'")
+    if document_store_driver != "mongodb":
+        raise ValueError("These tests currently expect document_store_driver='mongodb'")
+    if archive_store_driver != "local":
+        raise ValueError("These tests currently expect archive_store_driver='local'")
+
+    return ServiceConfig_Parsing(
+        service_settings=ServiceSettings_Parsing(http_port=http_port),
+        message_bus=AdapterConfig_MessageBus(
+            message_bus_type="rabbitmq",
+            driver=DriverConfig_MessageBus_Rabbitmq(
+                rabbitmq_host="localhost",
+                rabbitmq_port=5672,
+                rabbitmq_username="guest",
+                rabbitmq_password="guest",
             ),
-            AdapterConfig(
-                adapter_type="document_store",
-                driver_name=document_store_driver,
-                driver_config=DriverConfig(
-                    driver_name=document_store_driver,
-                    config={
-                        "mongodb_host": "localhost",
-                        "mongodb_port": 27017,
-                        "mongodb_database": "test_db",
-                    },
-                ),
+        ),
+        document_store=AdapterConfig_DocumentStore(
+            doc_store_type="mongodb",
+            driver=DriverConfig_DocumentStore_Mongodb(
+                host="localhost",
+                port=27017,
+                database="test_db",
+                username=None,
+                password=None,
             ),
-            AdapterConfig(
-                adapter_type="archive_store",
-                driver_name=archive_store_driver,
-                driver_config=DriverConfig(
-                    driver_name=archive_store_driver,
-                    config={"base_path": "/tmp/archives"},
-                ),
-            ),
-            AdapterConfig(
-                adapter_type="metrics",
-                driver_name="noop",
-                driver_config=DriverConfig(driver_name="noop", config={}),
-            ),
-        ],
+        ),
+        archive_store=AdapterConfig_ArchiveStore(
+            archive_store_type="local",
+            driver=DriverConfig_ArchiveStore_Local(archive_base_path="/tmp/archives"),
+        ),
+        metrics=AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()),
+        logger=AdapterConfig_Logger(logger_type="stdout", driver=DriverConfig_Logger_Stdout()),
+        error_reporter=AdapterConfig_ErrorReporter(
+            error_reporter_type="silent",
+            driver=DriverConfig_ErrorReporter_Silent(),
+        ),
+        secret_provider=AdapterConfig_SecretProvider(
+            secret_provider_type="local",
+            driver=DriverConfig_SecretProvider_Local(base_path="/run/secrets"),
+        ),
     )
 
 
