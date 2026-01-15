@@ -9,8 +9,14 @@ from unittest.mock import patch
 import pytest
 from app.scheduler import IngestionScheduler
 from app.service import IngestionService
+from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
+from copilot_config.generated.adapters.error_reporter import AdapterConfig_ErrorReporter, DriverConfig_ErrorReporter_Silent
+from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Silent
+from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
+from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
+from copilot_error_reporting import create_error_reporter
 from copilot_message_bus import create_publisher
-from copilot_config import load_driver_config; from copilot_logging import create_logger
+from copilot_logging import create_logger
 from copilot_metrics import create_metrics_collector
 from copilot_storage import create_document_store
 
@@ -25,19 +31,25 @@ def service(tmp_path):
         storage_path=str(tmp_path / "raw_archives"),
     )
 
-    publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-    publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
+    publisher = create_publisher(
+        AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+        enable_validation=False,
+    )
     publisher.connect()
 
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
-
-    from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
-    metrics = create_metrics_collector(
-        AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+    logger = create_logger(
+        AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"))
     )
 
-    store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
-    document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
+    metrics = create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
+    error_reporter = create_error_reporter(
+        AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
+    )
+
+    document_store = create_document_store(
+        AdapterConfig_DocumentStore(doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()),
+        enable_validation=False,
+    )
     document_store.connect()
 
     archive_store = make_archive_store(base_path=config.storage_path)
@@ -48,6 +60,7 @@ def service(tmp_path):
         document_store=document_store,
         logger=logger,
         metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=archive_store,
     )
 
@@ -57,7 +70,9 @@ class TestIngestionScheduler:
 
     def test_scheduler_initialization(self, service):
         """Test scheduler initialization."""
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "scheduler-test"}))
+        logger = create_logger(
+            AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="scheduler-test"))
+        )
         scheduler = IngestionScheduler(
             service=service,
             interval_seconds=10,
@@ -71,7 +86,9 @@ class TestIngestionScheduler:
 
     def test_scheduler_start_stop(self, service):
         """Test starting and stopping the scheduler."""
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "scheduler-test"}))
+        logger = create_logger(
+            AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="scheduler-test"))
+        )
         scheduler = IngestionScheduler(
             service=service,
             interval_seconds=1,
@@ -91,7 +108,9 @@ class TestIngestionScheduler:
 
     def test_scheduler_runs_ingestion(self, service):
         """Test that scheduler calls service ingestion method."""
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "scheduler-test"}))
+        logger = create_logger(
+            AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="scheduler-test"))
+        )
 
         # Mock the ingestion method to avoid actual ingestion
         with patch.object(service, 'ingest_all_enabled_sources', return_value={}) as mock_ingest:
@@ -115,7 +134,9 @@ class TestIngestionScheduler:
 
     def test_scheduler_handles_errors(self, service):
         """Test that scheduler continues after ingestion errors."""
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "scheduler-test"}))
+        logger = create_logger(
+            AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="scheduler-test"))
+        )
 
         # Mock the ingestion method to raise an error
         call_count = 0
@@ -148,7 +169,9 @@ class TestIngestionScheduler:
 
     def test_scheduler_stop_when_not_running(self, service):
         """Test stopping scheduler when not running is safe."""
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "scheduler-test"}))
+        logger = create_logger(
+            AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="scheduler-test"))
+        )
         scheduler = IngestionScheduler(
             service=service,
             interval_seconds=10,
@@ -161,7 +184,9 @@ class TestIngestionScheduler:
 
     def test_scheduler_start_when_already_running(self, service):
         """Test starting scheduler when already running is safe."""
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "scheduler-test"}))
+        logger = create_logger(
+            AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="scheduler-test"))
+        )
         scheduler = IngestionScheduler(
             service=service,
             interval_seconds=1,

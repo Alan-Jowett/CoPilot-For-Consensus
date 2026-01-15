@@ -11,13 +11,54 @@ import pytest
 from app.service import IngestionService
 from copilot_error_reporting import create_error_reporter
 from copilot_message_bus import create_publisher
-from copilot_config import load_driver_config
 from copilot_logging import create_logger
 from copilot_metrics import create_metrics_collector
-from copilot_schema_validation import create_schema_provider
 from copilot_storage import create_document_store
 
+from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
+from copilot_config.generated.adapters.error_reporter import AdapterConfig_ErrorReporter, DriverConfig_ErrorReporter_Silent
+from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Silent
+from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
+from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
+
 from .test_helpers import assert_valid_event_schema, make_archive_store, make_config, make_source
+
+
+def _make_noop_publisher():
+    publisher = create_publisher(
+        AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+        enable_validation=False,
+    )
+    publisher.connect()
+    return publisher
+
+
+def _make_silent_logger(name: str = "ingestion-test"):
+    return create_logger(
+        AdapterConfig_Logger(
+            logger_type="silent",
+            driver=DriverConfig_Logger_Silent(level="INFO", name=name),
+        )
+    )
+
+
+def _make_noop_metrics():
+    return create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
+
+
+def _make_silent_error_reporter():
+    return create_error_reporter(
+        AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
+    )
+
+
+def _make_inmemory_store():
+    store = create_document_store(
+        AdapterConfig_DocumentStore(doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()),
+        enable_validation=False,
+    )
+    store.connect()
+    return store
 
 
 class TestIngestionService:
@@ -39,25 +80,28 @@ class TestIngestionService:
         """Create test ingestion service."""
         from pathlib import Path
 
-        # Create publisher with schema validation
-        base_publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        base_publisher = create_publisher(driver_name="noop", driver_config=base_publisher_config)
-        base_publisher.connect()
-
-        schema_provider = create_schema_provider(schema_type="events")
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
+        publisher = create_publisher(
+            AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+            enable_validation=False,
+        )
         publisher.connect()
 
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
-        from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
-        metrics = create_metrics_collector(
-            AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="silent",
+                driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"),
+            )
+        )
+        metrics = create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
+        error_reporter = create_error_reporter(
+            AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
         )
 
         # Create in-memory document store for testing
-        store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
-        document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
+        document_store = create_document_store(
+            AdapterConfig_DocumentStore(doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()),
+            enable_validation=False,
+        )
         document_store.connect()
 
         archive_store = make_archive_store(base_path=config.storage_path)
@@ -66,6 +110,7 @@ class TestIngestionService:
             config,
             publisher,
             document_store=document_store,
+            error_reporter=error_reporter,
             logger=logger,
             metrics=metrics,
             archive_store=archive_store,
@@ -172,14 +217,27 @@ class TestIngestionService:
     def test_ingest_all_enabled_sources(self, temp_storage):
         """Test ingesting from all enabled sources."""
         config = make_config(storage_path=temp_storage)
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
+        publisher = create_publisher(
+            AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+            enable_validation=False,
+        )
         publisher.connect()
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="silent",
+                driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"),
+            )
+        )
+        metrics = create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
+        error_reporter = create_error_reporter(
+            AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
+        )
         service = IngestionService(
             config,
             publisher,
             logger=logger,
+            metrics=metrics,
+            error_reporter=error_reporter,
             archive_store=make_archive_store(config.storage_path),
         )
 
@@ -259,22 +317,27 @@ class TestIngestionService:
         """Test error reporter integration."""
         config = make_config(storage_path=temp_storage)
         config.log_type = "silent"
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
+        publisher = create_publisher(
+            AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+            enable_validation=False,
+        )
         publisher.connect()
         error_reporter = create_error_reporter(
-            driver_name="silent",
-            driver_config=load_driver_config(service=None, adapter="error_reporter", driver="silent", fields={}),
+            AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
         )
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
-        from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
-        metrics = create_metrics_collector(
-            AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="silent",
+                driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"),
+            )
         )
+        metrics = create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
 
         # Add document store
-        store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
-        document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
+        document_store = create_document_store(
+            AdapterConfig_DocumentStore(doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()),
+            enable_validation=False,
+        )
         document_store.connect()
 
         service = IngestionService(
@@ -301,30 +364,20 @@ class TestIngestionService:
         assert len(errors) == 1
         assert errors[0]["context"]["test"] == "value"
 
-    def test_error_reporter_default_initialization(self, config):
-        """Test default error reporter initialization from config."""
-        config.error_reporter_type = "silent"
-        config.log_type = "silent"
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
-        publisher.connect()
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
-        from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
-        metrics = create_metrics_collector(
-            AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
-        )
+    def test_error_reporter_required(self, config):
+        """Test that error_reporter must be provided by the caller."""
+        publisher = _make_noop_publisher()
+        logger = _make_silent_logger()
+        metrics = _make_noop_metrics()
 
-        service = IngestionService(
-            config,
-            publisher,
-            logger=logger,
-            metrics=metrics,
-            archive_store=make_archive_store(config.storage_path),
-        )
-
-        # Verify error_reporter was created from config (default to config.error_reporter_type)
-        assert service.error_reporter is not None
-        assert hasattr(service.error_reporter, 'report')
+        with pytest.raises(ValueError, match="error_reporter is required"):
+            IngestionService(
+                config,
+                publisher,
+                logger=logger,
+                metrics=metrics,
+                archive_store=make_archive_store(config.storage_path),
+            )
 
 
 # ============================================================================
@@ -336,19 +389,16 @@ def test_archive_ingested_event_schema_validation():
     """Test that ArchiveIngested events validate against schema."""
     with tempfile.TemporaryDirectory() as tmpdir:
         config = make_config(storage_path=tmpdir)
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
-        publisher.connect()
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
-        from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
-        metrics = create_metrics_collector(
-            AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
-        )
+        publisher = _make_noop_publisher()
+        logger = _make_silent_logger()
+        metrics = _make_noop_metrics()
+        error_reporter = _make_silent_error_reporter()
         service = IngestionService(
             config,
             publisher,
             logger=logger,
             metrics=metrics,
+            error_reporter=error_reporter,
             archive_store=make_archive_store(config.storage_path),
         )
 
@@ -378,19 +428,16 @@ def test_archive_ingestion_failed_event_schema_validation():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         config = make_config(storage_path=tmpdir, request_timeout_seconds=1)
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
-        publisher.connect()
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
-        from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
-        metrics = create_metrics_collector(
-            AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
-        )
+        publisher = _make_noop_publisher()
+        logger = _make_silent_logger()
+        metrics = _make_noop_metrics()
+        error_reporter = _make_silent_error_reporter()
         service = IngestionService(
             config,
             publisher,
             logger=logger,
             metrics=metrics,
+            error_reporter=error_reporter,
             archive_store=make_archive_store(config.storage_path),
         )
 
@@ -422,11 +469,15 @@ def test_publish_success_event_raises_on_publisher_failure(tmp_path):
     publisher = Mock()
     publisher.publish = Mock(side_effect=Exception("Publisher failure"))  # Simulate publisher failure
 
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
     service = IngestionService(
         config=config,
         publisher=publisher,
         logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=make_archive_store(config.storage_path),
     )
 
@@ -458,11 +509,15 @@ def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
     publisher = Mock()
     publisher.publish = Mock(side_effect=Exception("Publisher failure"))  # Simulate publisher failure
 
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
     service = IngestionService(
         config=config,
         publisher=publisher,
         logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=make_archive_store(config.storage_path),
     )
 
@@ -493,11 +548,15 @@ def test_publish_success_event_raises_on_publisher_exception(tmp_path):
     publisher = Mock()
     publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
 
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
     service = IngestionService(
         config=config,
         publisher=publisher,
         logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=make_archive_store(config.storage_path),
     )
 
@@ -529,11 +588,15 @@ def test_publish_failure_event_raises_on_publisher_exception(tmp_path):
     publisher = Mock()
     publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
 
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
     service = IngestionService(
         config=config,
         publisher=publisher,
         logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=make_archive_store(config.storage_path),
     )
 
@@ -559,15 +622,16 @@ def test_ingest_archive_raises_source_configuration_error(tmp_path):
     from app.exceptions import SourceConfigurationError
 
     config = make_config(storage_path=str(tmp_path), request_timeout_seconds=1)
-    publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-    publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
-    publisher.connect()
-
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
+    publisher = _make_noop_publisher()
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
     service = IngestionService(
         config=config,
         publisher=publisher,
         logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=make_archive_store(config.storage_path),
     )
 
@@ -583,15 +647,16 @@ def test_ingest_archive_raises_fetch_error(tmp_path):
     from app.exceptions import FetchError
 
     config = make_config(storage_path=str(tmp_path), request_timeout_seconds=1)
-    publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-    publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
-    publisher.connect()
-
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
+    publisher = _make_noop_publisher()
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
     service = IngestionService(
         config=config,
         publisher=publisher,
         logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=make_archive_store(config.storage_path),
     )
 
@@ -607,15 +672,16 @@ def test_ingest_all_enabled_sources_returns_exceptions(tmp_path):
     from app.exceptions import FetchError
 
     config = make_config(storage_path=str(tmp_path), max_retries=1, request_timeout_seconds=1)
-    publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-    publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
-    publisher.connect()
-
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
+    publisher = _make_noop_publisher()
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
     service = IngestionService(
         config=config,
         publisher=publisher,
         logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=make_archive_store(config.storage_path),
     )
 
@@ -653,15 +719,17 @@ def test_exception_prevents_silent_failure():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         config = make_config(storage_path=tmpdir, request_timeout_seconds=1)
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
-        publisher.connect()
+        publisher = _make_noop_publisher()
+        logger = _make_silent_logger()
+        metrics = _make_noop_metrics()
+        error_reporter = _make_silent_error_reporter()
 
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
         service = IngestionService(
             config=config,
             publisher=publisher,
             logger=logger,
+            metrics=metrics,
+            error_reporter=error_reporter,
             archive_store=make_archive_store(config.storage_path),
         )
 
@@ -692,18 +760,20 @@ def test_exception_prevents_silent_failure():
 def test_service_initialization_with_archive_store(tmp_path):
     """Test that service can be initialized with ArchiveStore."""
     config = make_config(storage_path=str(tmp_path))
-    publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-    publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
-    publisher.connect()
+    publisher = _make_noop_publisher()
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
 
     # Create ArchiveStore using factory
     archive_store = make_archive_store(base_path=str(tmp_path))
 
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
     service = IngestionService(
         config=config,
         publisher=publisher,
         logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=archive_store,
     )
 
@@ -714,21 +784,20 @@ def test_service_initialization_with_archive_store(tmp_path):
 def test_archive_deduplication_via_document_store(tmp_path):
     """Test that _is_archive_already_stored checks document store instead of checksums."""
     config = make_config(storage_path=str(tmp_path))
-    publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-    publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
-    publisher.connect()
+    publisher = _make_noop_publisher()
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
 
     # Create in-memory document store
-    store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
-    document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
-    document_store.connect()
-
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
+    document_store = _make_inmemory_store()
     service = IngestionService(
         config=config,
         publisher=publisher,
         document_store=document_store,
         logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=make_archive_store(config.storage_path),
     )
 
@@ -755,21 +824,21 @@ def test_archive_deduplication_via_document_store(tmp_path):
 def test_delete_archives_for_source_deletes_from_document_store(tmp_path):
     """Test that delete_archives_for_source deletes archives from document store."""
     config = make_config(storage_path=str(tmp_path))
-    publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-    publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
-    publisher.connect()
+    publisher = _make_noop_publisher()
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
 
     # Create in-memory document store
-    store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
-    document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
-    document_store.connect()
+    document_store = _make_inmemory_store()
 
-    logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
     service = IngestionService(
         config=config,
         publisher=publisher,
         document_store=document_store,
         logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=make_archive_store(config.storage_path),
     )
 
@@ -816,20 +885,11 @@ def test_archive_ingested_event_without_file_path():
     with tempfile.TemporaryDirectory() as tmpdir:
         config = make_config(storage_path=tmpdir)
 
-        # Create publisher with schema validation
-        schema_provider = create_schema_provider(schema_type="events")
-        publisher = create_publisher(driver_name="noop", driver_config={"schema_provider": schema_provider, "strict": True})
-        publisher.connect()
-
-        logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
-        from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
-        metrics = create_metrics_collector(
-            AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
-        )
-
-        store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
-        document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
-        document_store.connect()
+        publisher = _make_noop_publisher()
+        logger = _make_silent_logger()
+        metrics = _make_noop_metrics()
+        error_reporter = _make_silent_error_reporter()
+        document_store = _make_inmemory_store()
 
         service = IngestionService(
             config,
@@ -837,6 +897,7 @@ def test_archive_ingested_event_without_file_path():
             document_store=document_store,
             logger=logger,
             metrics=metrics,
+            error_reporter=error_reporter,
             archive_store=make_archive_store(config.storage_path),
         )
 

@@ -3,15 +3,18 @@
 
 """Ingestion Service: Continuous service for managing and ingesting mailing list archives."""
 
+import json
 import os
 import signal
 import sys
+from dataclasses import replace
+from pathlib import Path
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from copilot_config import load_service_config, load_driver_config, DriverConfig
+from copilot_config.runtime_loader import get_config
 from copilot_message_bus import create_publisher
 from copilot_logging import (
     create_logger,
@@ -21,12 +24,12 @@ from copilot_logging import (
     set_default_logger,
 )
 from copilot_metrics import create_metrics_collector
-from copilot_schema_validation import create_schema_provider
 from copilot_storage import (
     DocumentStoreConnectionError,
     create_document_store,
 )
 from copilot_archive_store import create_archive_store
+from copilot_error_reporting import create_error_reporter
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -83,7 +86,38 @@ class _ConfigWithSources:
     def __getattr__(self, name: str) -> object:
         if name in ("_base_config", "sources"):
             return object.__getattribute__(self, name)
+        # Provide backward-compatible access to service_settings fields.
+        if hasattr(self._base_config, "service_settings") and hasattr(self._base_config.service_settings, name):
+            return getattr(self._base_config.service_settings, name)
         return getattr(self._base_config, name)
+
+
+def _substitute_env_vars(value: object) -> object:
+    if isinstance(value, str):
+        return os.path.expandvars(value)
+    if isinstance(value, list):
+        return [_substitute_env_vars(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _substitute_env_vars(v) for k, v in value.items()}
+    return value
+
+
+def _load_sources_from_file(path: Path) -> list[dict]:
+    if not path.exists():
+        bootstrap_logger.info("Sources config file not found; starting with no sources", path=str(path))
+        return []
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        raise ValueError(f"Failed to read sources config from {path}: {e}") from e
+
+    sources = raw.get("sources", [])
+    if not isinstance(sources, list):
+        raise ValueError(f"Invalid sources config in {path}: 'sources' must be a list")
+    expanded = _substitute_env_vars(sources)
+    if not isinstance(expanded, list):
+        return []
+    return [s for s in expanded if isinstance(s, dict)]
 
 
 @app.get("/")
@@ -147,17 +181,26 @@ def main():
     log.info("Starting Ingestion Service (continuous mode)", version=__version__)
 
     try:
-        # Load configuration using schema-driven service config
-        config = load_service_config("ingestion")
+        # Load typed configuration
+        config = get_config("ingestion")
+
+        # Service-owned identity constants (not deployment settings)
+        service_name = "ingestion"
+
+        # Metrics: stamp per-service identifier onto driver config
+        if str(config.metrics.metrics_type).lower() == "pushgateway" and hasattr(config.metrics.driver, "job"):
+            config.metrics.driver = replace(config.metrics.driver, job=service_name, namespace=service_name)
+        elif hasattr(config.metrics.driver, "namespace"):
+            config.metrics.driver = replace(config.metrics.driver, namespace=service_name)
 
         # Conditionally add JWT authentication middleware based on config
-        if getattr(config, 'jwt_auth_enabled', True):
+        if config.service_settings.jwt_auth_enabled:
             log.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
                 # Use shared audience for all services
-                auth_service_url = getattr(config, 'auth_service_url', None)
-                audience = getattr(config, 'service_audience', None)
+                auth_service_url = config.service_settings.auth_service_url
+                audience = config.service_settings.service_audience
                 auth_middleware = create_jwt_middleware(
                     auth_service_url=auth_service_url,
                     audience=audience,
@@ -170,22 +213,8 @@ def main():
         else:
             log.warning("JWT authentication is DISABLED - all endpoints are public")
 
-        # Create service logger using logger adapter from config or default stdout
-        logger_adapter = config.get_adapter("logger")
-        if logger_adapter:
-            service_logger = create_logger(
-                driver_name=logger_adapter.driver_name,
-                driver_config=logger_adapter.driver_config,
-            )
-        else:
-            # Fallback to stdout logger with DriverConfig
-            logger_config = load_driver_config(
-                service="ingestion",
-                adapter="logger",
-                driver="stdout",
-                fields={"level": "INFO", "name": "ingestion"},
-            )
-            service_logger = create_logger(driver_name="stdout", driver_config=logger_config)
+        # Create service logger from typed config
+        service_logger = create_logger(config.logger)
 
         # Set the default logger for the application so any module can use get_logger()
         set_default_logger(service_logger)
@@ -194,23 +223,9 @@ def main():
         from app import service as ingestion_service_module
         ingestion_service_module.logger = get_logger(ingestion_service_module.__name__)
 
-        # Create metrics collector - fail fast on errors
-        metrics_adapter = config.get_adapter("metrics")
-        if metrics_adapter is not None:
-            # Create new DriverConfig with modified config dict
-            metrics_config = dict(metrics_adapter.driver_config.config)
-            metrics_config.setdefault("job", "ingestion")
-            metrics_driver_config = DriverConfig(
-                driver_name=metrics_adapter.driver_config.driver_name,
-                config=metrics_config,
-                allowed_keys=metrics_adapter.driver_config.allowed_keys,
-            )
-            metrics = create_metrics_collector(
-                driver_name=metrics_adapter.driver_name,
-                driver_config=metrics_driver_config,
-            )
-        else:
-            metrics = create_metrics_collector(driver_name="noop")
+        metrics = create_metrics_collector(config.metrics)
+
+        error_reporter = create_error_reporter(config.error_reporter)
 
 
         log = service_logger
@@ -222,64 +237,39 @@ def main():
         IngestionService._ensure_storage_path(storage_path)
         log.info("Storage path prepared", storage_path=storage_path)
 
-        message_bus_adapter = config.get_adapter("message_bus")
-        if message_bus_adapter is None:
-            raise ValueError("message_bus adapter is required")
-
         log.info("Creating message bus publisher...")
 
-        # Create new DriverConfig for publisher
-        publisher_config = dict(message_bus_adapter.driver_config.config)
-        publisher_driver_config = DriverConfig(
-            driver_name=message_bus_adapter.driver_config.driver_name,
-            config=publisher_config,
-            allowed_keys=message_bus_adapter.driver_config.allowed_keys,
-        )
         base_publisher = create_publisher(
-            driver_name=message_bus_adapter.driver_name,
-            driver_config=publisher_driver_config,
+            config.message_bus,
+            enable_validation=True,
+            strict_validation=True,
         )
 
         # Connect publisher
         try:
             base_publisher.connect()
         except Exception:
-            if message_bus_adapter.driver_name.lower() != "noop":
+            if str(config.message_bus.message_bus_type).lower() != "noop":
                 log.error(
                     "Failed to connect to message bus. Failing fast as message_bus_type is not noop.",
-                    message_bus_type=message_bus_adapter.driver_name,
+                    message_bus_type=config.message_bus.message_bus_type,
                 )
                 # Raise ConnectionError to signal publisher connection failure
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 log.warning(
                     "Failed to connect to message bus. Continuing with noop publisher.",
-                    message_bus_type=message_bus_adapter.driver_name,
+                    message_bus_type=config.message_bus.message_bus_type,
                 )
 
         # Wrap publisher already handled by factory (defaults to validating)
         publisher = base_publisher
-        event_schema_provider = create_schema_provider()
         log.info("Event publisher configured")
 
         # Create document store
         log.info("Creating document store from adapter configuration...")
-        document_store_adapter = config.get_adapter("document_store")
-        if document_store_adapter is None:
-            raise ValueError("document_store adapter is required")
-
-        # Create new DriverConfig for document store with DOCUMENT schemas provider
-        document_store_config = dict(document_store_adapter.driver_config.config)
-        document_schema_provider = create_schema_provider(schema_type="documents")
-        document_store_config["schema_provider"] = document_schema_provider
-        document_store_driver_config = DriverConfig(
-            driver_name=document_store_adapter.driver_config.driver_name,
-            config=document_store_config,
-            allowed_keys=document_store_adapter.driver_config.allowed_keys,
-        )
         base_document_store = create_document_store(
-            driver_name=document_store_adapter.driver_name,
-            driver_config=document_store_driver_config,
+            config.document_store,
             enable_validation=True,
             strict_validation=True,
         )
@@ -288,10 +278,10 @@ def main():
         try:
             base_document_store.connect()
         except DocumentStoreConnectionError as e:
-            if document_store_adapter.driver_name.lower() != "inmemory":
+            if str(config.document_store.doc_store_type).lower() != "inmemory":
                 log.error(
                     "Failed to connect to document store. Failing fast as doc_store_type is not inmemory.",
-                    doc_store_type=document_store_adapter.driver_name,
+                    doc_store_type=config.document_store.doc_store_type,
                     error=str(e),
                 )
                 raise
@@ -305,13 +295,11 @@ def main():
         log.info("Document store configured")
 
         log.info("Creating archive store from adapter configuration...")
-        if config.archive_store is None:
-            raise ValueError("archive_store adapter is required")
-
         archive_store = create_archive_store(config.archive_store)
 
-        # Get sources from config (empty list if not configured)
-        sources = getattr(config, 'sources', [])
+        # Load sources from local config file (optional)
+        sources_path = Path(os.environ.get("INGESTION_SOURCES_CONFIG_PATH", Path(__file__).with_name("config.json")))
+        sources = _load_sources_from_file(sources_path)
         log.info("Ingestion sources loaded", count=len(sources))
 
         # Create config wrapper that includes sources
@@ -322,6 +310,7 @@ def main():
             config_with_sources,
             publisher,
             document_store=document_store,
+            error_reporter=error_reporter,
             logger=log,
             metrics=metrics,
             archive_store=archive_store,
@@ -335,7 +324,7 @@ def main():
         log.info("API routes configured")
 
         # Create and start scheduler for periodic ingestion
-        schedule_interval = config.schedule_interval_seconds
+        schedule_interval = config.service_settings.schedule_interval_seconds
         scheduler = IngestionScheduler(
             service=ingestion_service,
             interval_seconds=schedule_interval,
@@ -353,16 +342,14 @@ def main():
         signal.signal(signal.SIGTERM, signal_handler)
 
         # Start FastAPI server
-        http_port = int(config.http_port)
-        http_host = config.http_host
+        http_port = int(config.service_settings.http_port)
+        http_host = config.service_settings.http_host
         log.info(f"Starting HTTP server on {http_host}:{http_port}...")
 
         # Configure Uvicorn with structured JSON logging
         log_level = "INFO"
-        for adapter in config.adapters:
-            if adapter.adapter_type == "logger":
-                log_level = adapter.driver_config.config.get("level", "INFO")
-                break
+        if hasattr(config.logger.driver, "level"):
+            log_level = getattr(config.logger.driver, "level") or "INFO"
         log_config = create_uvicorn_log_config(service_name="ingestion", log_level=log_level)
         uvicorn.run(app, host=http_host, port=http_port, log_config=log_config, access_log=False)
 

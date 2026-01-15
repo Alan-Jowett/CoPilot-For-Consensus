@@ -15,10 +15,9 @@ from copilot_archive_store import ArchiveStore
 from copilot_message_bus import ArchiveIngestedEvent, ArchiveIngestionFailedEvent, EventPublisher
 from copilot_schema_validation import ArchiveMetadata
 from copilot_logging import Logger, get_logger
-from copilot_metrics import MetricsCollector, create_metrics_collector
-from copilot_error_reporting import ErrorReporter, create_error_reporter
+from copilot_metrics import MetricsCollector
+from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
-from copilot_config import load_driver_config
 
 from .exceptions import (
     FetchError,
@@ -126,48 +125,16 @@ class IngestionService:
             raise ValueError("logger is required and must be provided by the caller")
         self.logger = logger
         if metrics is None:
-            metrics_config = load_driver_config(service=None, adapter="metrics", driver="noop", fields={})
-            metrics = create_metrics_collector(driver_name="noop", driver_config=metrics_config)
+            raise ValueError("metrics is required and must be provided by the caller")
         self.metrics = metrics
 
         # Get storage path from config or use default (store as instance variable for use throughout service)
         self.storage_path = config.storage_path
         self._ensure_storage_path(self.storage_path)
 
-        # Initialize error reporter from adapter if not provided
         if error_reporter is None:
-            try:
-                error_reporter_adapter = config.get_adapter("error_reporter")
-                if error_reporter_adapter is not None:
-                    adapter_driver_config = getattr(error_reporter_adapter, "driver_config", None)
-                    if adapter_driver_config is None:
-                        fields: dict[str, Any] = {}
-                    elif hasattr(adapter_driver_config, "config"):
-                        fields = dict(getattr(adapter_driver_config, "config"))  # type: ignore[arg-type]
-                    else:
-                        fields = dict(adapter_driver_config)  # type: ignore[arg-type]
-
-                    # Use load_driver_config to create proper DriverConfig
-                    driver_config = load_driver_config(
-                        service=None,
-                        adapter="error_reporter",
-                        driver=error_reporter_adapter.driver_name,
-                        fields=fields,
-                    )
-                    self.error_reporter = create_error_reporter(
-                        driver_name=error_reporter_adapter.driver_name,
-                        driver_config=driver_config,
-                    )
-                else:
-                    # No error_reporter adapter in config, use silent with empty config
-                    silent_config = load_driver_config(service=None, adapter="error_reporter", driver="silent", fields={})
-                    self.error_reporter = create_error_reporter(driver_name="silent", driver_config=silent_config)
-            except Exception:
-                # Exception during error_reporter creation, fallback to silent
-                silent_config = load_driver_config(service=None, adapter="error_reporter", driver="silent", fields={})
-                self.error_reporter = create_error_reporter(driver_name="silent", driver_config=silent_config)
-        else:
-            self.error_reporter = error_reporter
+            raise ValueError("error_reporter is required and must be provided by the caller")
+        self.error_reporter = error_reporter
 
         if archive_store is None:
             raise ValueError("archive_store is required and must be provided by the caller")
