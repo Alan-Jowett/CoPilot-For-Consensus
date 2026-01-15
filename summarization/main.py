@@ -7,13 +7,23 @@ import os
 import sys
 import threading
 from dataclasses import replace
-from pathlib import Path
+from typing import cast
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
 from copilot_config.runtime_loader import get_config
+from copilot_config.generated.services.summarization import ServiceConfig_Summarization
+from copilot_config.generated.adapters.message_bus import (
+    DriverConfig_MessageBus_AzureServiceBus,
+    DriverConfig_MessageBus_Rabbitmq,
+)
+from copilot_config.generated.adapters.metrics import (
+    DriverConfig_Metrics_AzureMonitor,
+    DriverConfig_Metrics_Prometheus,
+    DriverConfig_Metrics_Pushgateway,
+)
 from copilot_message_bus import create_publisher, create_subscriber
 from copilot_logging import (
     create_logger,
@@ -43,6 +53,10 @@ app = FastAPI(title="Summarization Service", version=__version__)
 
 # Global service instance
 summarization_service = None
+
+
+def load_service_config() -> ServiceConfig_Summarization:
+    return cast(ServiceConfig_Summarization, get_config("summarization"))
 
 
 @app.get("/health")
@@ -103,18 +117,18 @@ def main():
 
     try:
         # Load strongly-typed configuration from JSON schemas
-        config = get_config("summarization")
+        config = load_service_config()
         logger.info("Configuration loaded successfully")
 
         # Conditionally add JWT authentication middleware based on config
-        if config.service_settings.jwt_auth_enabled:
+        if bool(config.service_settings.jwt_auth_enabled):
             logger.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
 
                 auth_middleware = create_jwt_middleware(
-                    auth_service_url=config.service_settings.auth_service_url,
-                    audience=config.service_settings.service_audience,
+                    auth_service_url=str(config.service_settings.auth_service_url or "http://auth:8090"),
+                    audience=str(config.service_settings.service_audience or "copilot-for-consensus"),
                     required_roles=["processor"],
                     public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
                 )
@@ -141,24 +155,30 @@ def main():
         # Message bus identity:
         # - RabbitMQ: use a stable queue name per service.
         # - Azure Service Bus: use topic/subscription (do NOT use queue_name).
-        if str(config.message_bus.message_bus_type).lower() == "rabbitmq" and hasattr(
-            config.message_bus.driver, "queue_name"
-        ):
-            config.message_bus.driver = replace(config.message_bus.driver, queue_name=subscriber_queue_name)
-        elif str(config.message_bus.message_bus_type).lower() == "azure_service_bus":
-            if hasattr(config.message_bus.driver, "topic_name") and hasattr(config.message_bus.driver, "subscription_name"):
-                config.message_bus.driver = replace(
-                    config.message_bus.driver,
-                    topic_name="copilot.events",
-                    subscription_name=service_name,
-                    queue_name=None,
-                )
+        message_bus_type = str(config.message_bus.message_bus_type).lower()
+        if message_bus_type == "rabbitmq":
+            rabbitmq_cfg = cast(DriverConfig_MessageBus_Rabbitmq, config.message_bus.driver)
+            config.message_bus.driver = replace(rabbitmq_cfg, queue_name=subscriber_queue_name)
+        elif message_bus_type == "azure_service_bus":
+            asb_cfg = cast(DriverConfig_MessageBus_AzureServiceBus, config.message_bus.driver)
+            config.message_bus.driver = replace(
+                asb_cfg,
+                topic_name="copilot.events",
+                subscription_name=service_name,
+                queue_name=None,
+            )
 
         # Metrics identity: stamp per-service identifier onto driver config
-        if str(config.metrics.metrics_type).lower() == "pushgateway" and hasattr(config.metrics.driver, "job"):
-            config.metrics.driver = replace(config.metrics.driver, job=service_name, namespace=service_name)
-        elif hasattr(config.metrics.driver, "namespace"):
-            config.metrics.driver = replace(config.metrics.driver, namespace=service_name)
+        metrics_type = str(config.metrics.metrics_type).lower()
+        if metrics_type == "pushgateway":
+            pushgateway_cfg = cast(DriverConfig_Metrics_Pushgateway, config.metrics.driver)
+            config.metrics.driver = replace(pushgateway_cfg, job=service_name, namespace=service_name)
+        elif metrics_type == "prometheus":
+            prometheus_cfg = cast(DriverConfig_Metrics_Prometheus, config.metrics.driver)
+            config.metrics.driver = replace(prometheus_cfg, namespace=service_name)
+        elif metrics_type == "azure_monitor":
+            azure_monitor_cfg = cast(DriverConfig_Metrics_AzureMonitor, config.metrics.driver)
+            config.metrics.driver = replace(azure_monitor_cfg, namespace=service_name)
 
         # Refresh module-level service logger to use the current default
         from app import service as summarization_service_module
@@ -206,9 +226,11 @@ def main():
         logger.info("Creating vector store...")
         vector_store = create_vector_store(config.vector_store)
 
-        if hasattr(vector_store, "connect"):
+        # VectorStore.connect() may not exist for all implementations.
+        connect_fn = getattr(vector_store, "connect", None)
+        if callable(connect_fn):
             try:
-                result = vector_store.connect()
+                result = connect_fn()
                 if result is False and str(config.vector_store.vector_store_type).lower() != "inmemory":
                     logger.error("Failed to connect to vector store.")
                     raise ConnectionError("Vector store failed to connect")
