@@ -9,11 +9,14 @@ See docs/schemas/documents/sources.schema.json.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal, cast
 
 
 _ALLOWED_SOURCE_TYPES = {"local", "http", "rsync", "imap"}
+
+SourceType = Literal["local", "http", "rsync", "imap"]
 
 
 @dataclass
@@ -65,8 +68,18 @@ class SourceConfig:
                 f"Allowed: {sorted(_ALLOWED_SOURCE_TYPES)}"
             )
 
+    @property
+    def source_type_normalized(self) -> SourceType:
+        """Return the validated, normalized source type.
+
+        `__post_init__` guarantees the stored value is one of the allowed
+        source types.
+        """
+
+        return cast(SourceType, self.source_type)
+
     @classmethod
-    def from_mapping(cls, source: dict[str, Any]) -> "SourceConfig":
+    def from_mapping(cls, source: Mapping[str, Any]) -> "SourceConfig":
         """Create a SourceConfig from a raw mapping.
 
         Rejects unknown keys to keep source documents schema-coherent.
@@ -104,4 +117,4 @@ class SourceConfig:
         if missing:
             raise ValueError(f"Source configuration missing required fields: {sorted(missing)}")
 
-        return cls(**source)
+        return cls(**dict(source))

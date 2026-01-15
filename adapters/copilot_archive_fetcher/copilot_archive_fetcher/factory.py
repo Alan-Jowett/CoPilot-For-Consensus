@@ -3,6 +3,8 @@
 
 """Factory for creating archive fetchers."""
 
+from __future__ import annotations
+
 from .base import ArchiveFetcher
 from .exceptions import UnsupportedSourceTypeError
 from .http_fetcher import HTTPFetcher
@@ -24,7 +26,7 @@ def create_fetcher(source: SourceConfig) -> ArchiveFetcher:
     Raises:
         UnsupportedSourceTypeError: If source type is not supported
     """
-    source_type = source.source_type
+    source_type = source.source_type_normalized
 
     if source_type == "rsync":
         return RsyncFetcher.from_config(source)

@@ -323,6 +323,26 @@ jobs:
           # Do not fail the build on Pyright yet; report in summary instead
           exit 0
 
+      - name: Pyright (gating) - Archive fetcher typed source config safety
+        run: |
+          # This adapter uses a strict, schema-aligned SourceConfig model.
+          # Gate key modules so type mistakes in source_type dispatch are caught
+          # before merge.
+          pyright \
+            adapters/copilot_archive_fetcher/copilot_archive_fetcher/models.py \
+            adapters/copilot_archive_fetcher/copilot_archive_fetcher/factory.py \
+            --level error
+
+      - name: Pyright (gating) - Archive store typed config safety
+        run: |
+          # Archive store uses generated typed configs (AdapterConfig_ArchiveStore) and
+          # typed driver configs; gate the public factory and key drivers.
+          pyright \
+            adapters/copilot_archive_store/copilot_archive_store/archive_store.py \
+            adapters/copilot_archive_store/copilot_archive_store/azure_blob_archive_store.py \
+            adapters/copilot_archive_store/copilot_archive_store/local_volume_archive_store.py \
+            --level error
+
       - name: Pyright (gating) - Ingestion typed config safety
         run: |
           # This is the shift-left guardrail: catch missing/incorrect config attribute

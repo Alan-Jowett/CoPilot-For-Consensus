@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import os
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any
 
@@ -321,11 +322,19 @@ class AzureBlobArchiveStore(ArchiveStore):
                     metadata_json.encode("utf-8"), overwrite=True
                 )
 
-            # Refresh stored ETag from upload response when available, otherwise fall back to a properties call
-            if hasattr(result, "etag"):
-                self._metadata_etag = result.etag
-            elif isinstance(result, dict) and "etag" in result:
-                self._metadata_etag = result["etag"]
+            # Refresh stored ETag from upload response when available, otherwise fall back to a properties call.
+            # Azure SDK versions differ: sometimes an object attribute, sometimes a mapping key.
+            etag: str | None = None
+            etag_attr = getattr(result, "etag", None)
+            if isinstance(etag_attr, str) and etag_attr:
+                etag = etag_attr
+            elif isinstance(result, Mapping):
+                etag_key = result.get("etag")
+                if isinstance(etag_key, str) and etag_key:
+                    etag = etag_key
+
+            if etag is not None:
+                self._metadata_etag = etag
             else:
                 # Best-effort ETag refresh: metadata has already been uploaded successfully.
                 try:
