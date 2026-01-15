@@ -24,6 +24,28 @@ def _string_to_uuid(s: str) -> str:
     return str(uuid.uuid5(namespace, s))
 
 
+def _coerce_vector_struct(vector_struct: Any, fallback: list[float]) -> list[float]:
+    """Coerce Qdrant vector outputs into a plain list[float].
+
+    Qdrant can return either a single unnamed vector (list[float]) or a
+    named-vector mapping (dict[str, ...]). For this adapter, we always expose
+    a single list[float] vector.
+    """
+
+    if vector_struct is None:
+        return fallback
+
+    if isinstance(vector_struct, list):
+        return vector_struct
+
+    if isinstance(vector_struct, dict):
+        first_value = next(iter(vector_struct.values()), None)
+        if isinstance(first_value, list):
+            return first_value
+
+    return fallback
+
+
 class QdrantVectorStore(VectorStore):
     """Qdrant-based vector store implementation.
 
@@ -107,13 +129,20 @@ class QdrantVectorStore(VectorStore):
                 f"Failed to connect to Qdrant at {host}:{port}. Error: {e}"
             ) from e
 
-        # Ensure collection exists
-        self._ensure_collection()
+        # Lazily ensure the collection exists on first use.
+        # Unit tests instantiate stores without requiring a live Qdrant server.
+        self._collection_ready = False
 
         logger.info(
             f"Initialized Qdrant vector store: collection={collection_name}, "
             f"host={host}:{port}, vector_size={vector_size}, distance={distance}"
         )
+
+    def _ensure_collection_ready(self) -> None:
+        if self._collection_ready:
+            return
+        self._ensure_collection()
+        self._collection_ready = True
 
     @classmethod
     def from_config(cls, config: DriverConfig_VectorStore_Qdrant) -> "QdrantVectorStore":
@@ -146,11 +175,21 @@ class QdrantVectorStore(VectorStore):
 
         if collection_exists:
             # Verify collection configuration matches
-            collection_info = self._client.get_collection(self._collection_name)
-            if collection_info.config.params.vectors.size != self._vector_size:
+            collection_info: Any = self._client.get_collection(self._collection_name)
+
+            vectors: Any = collection_info.config.params.vectors
+            if vectors is None:
+                existing_size: Any = None
+            elif isinstance(vectors, dict):
+                first_params = next(iter(vectors.values()), None)
+                existing_size = getattr(first_params, "size", None)
+            else:
+                existing_size = getattr(vectors, "size", None)
+
+            if existing_size is not None and existing_size != self._vector_size:
                 raise ValueError(
                     f"Collection '{self._collection_name}' exists with different vector size: "
-                    f"expected {self._vector_size}, found {collection_info.config.params.vectors.size}"
+                    f"expected {self._vector_size}, found {existing_size}"
                 )
             logger.info(f"Using existing collection '{self._collection_name}'")
         else:
@@ -188,6 +227,8 @@ class QdrantVectorStore(VectorStore):
                 f"Vector dimension ({len(vector)}) doesn't match "
                 f"expected dimension ({self._vector_size})"
             )
+
+        self._ensure_collection_ready()
 
         # Add the point (upsert: create if new, update if exists)
         point = self._PointStruct(
@@ -235,6 +276,8 @@ class QdrantVectorStore(VectorStore):
         # Convert IDs to UUIDs for Qdrant compatibility
         uuid_ids = [_string_to_uuid(id_val) for id_val in ids]
 
+        self._ensure_collection_ready()
+
         # Create points (upsert: create if new, update if exists)
         points = [
             self._PointStruct(
@@ -272,14 +315,17 @@ class QdrantVectorStore(VectorStore):
                 f"expected dimension ({self._vector_size})"
             )
 
+        self._ensure_collection_ready()
+
         # Search in Qdrant
-        results = self._client.query_points(
+        points_result: Any = self._client.query_points(
             collection_name=self._collection_name,
             query=query_vector,
             limit=top_k,
             with_payload=True,
             with_vectors=True,
-        ).points
+        )
+        results = points_result.points
 
         # Convert to SearchResult objects
         search_results = []
@@ -288,10 +334,12 @@ class QdrantVectorStore(VectorStore):
             payload = result.payload.copy() if result.payload else {}
             original_id = payload.pop("_original_id", str(result.id))
 
+            result_vector = _coerce_vector_struct(result.vector, fallback=query_vector)
+
             search_results.append(SearchResult(
                 id=original_id,
                 score=float(result.score),
-                vector=result.vector if result.vector else query_vector,
+                vector=result_vector,
                 metadata=payload,
             ))
 
@@ -306,6 +354,8 @@ class QdrantVectorStore(VectorStore):
         Raises:
             KeyError: If id doesn't exist
         """
+        self._ensure_collection_ready()
+
         # Check if ID exists
         uuid_id = _string_to_uuid(id)
         existing = self._client.retrieve(
@@ -323,6 +373,8 @@ class QdrantVectorStore(VectorStore):
 
     def clear(self) -> None:
         """Remove all embeddings from the vector store."""
+        self._ensure_collection_ready()
+
         # Delete and recreate the collection
         try:
             self._client.delete_collection(collection_name=self._collection_name)
@@ -338,8 +390,10 @@ class QdrantVectorStore(VectorStore):
         Returns:
             Number of embeddings currently stored
         """
-        collection_info = self._client.get_collection(self._collection_name)
-        return collection_info.points_count
+        self._ensure_collection_ready()
+
+        collection_info: Any = self._client.get_collection(self._collection_name)
+        return int(collection_info.points_count or 0)
 
     def get(self, id: str) -> SearchResult:
         """Retrieve a specific embedding by ID.
@@ -353,6 +407,8 @@ class QdrantVectorStore(VectorStore):
         Raises:
             KeyError: If id doesn't exist
         """
+        self._ensure_collection_ready()
+
         points = self._client.retrieve(
             collection_name=self._collection_name,
             ids=[_string_to_uuid(id)],
@@ -370,6 +426,6 @@ class QdrantVectorStore(VectorStore):
         return SearchResult(
             id=id,  # Return original ID
             score=1.0,  # Perfect match with itself
-            vector=point.vector if point.vector else [],
+            vector=_coerce_vector_struct(point.vector, fallback=[]),
             metadata=payload,
         )

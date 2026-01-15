@@ -65,8 +65,19 @@ class AzureAISearchVectorStore(VectorStore):
             ImportError: If azure-search-documents is not installed
             RuntimeError: If cannot connect to Azure AI Search
         """
-        # Validation/defaults are handled by the schema-driven config system.
-        # This class assumes it is being constructed with validated parameters.
+        # Basic parameter validation.
+        # This adapter is often constructed directly in unit tests, so it should
+        # not rely solely on schema-level validation.
+        if not endpoint:
+            raise ValueError("endpoint parameter is required")
+        if not endpoint.startswith("https://"):
+            raise ValueError("Must start with 'https://'")
+        if vector_size <= 0:
+            raise ValueError("Vector size must be positive")
+        if not use_managed_identity and not api_key:
+            raise ValueError(
+                "Either api_key must be provided when not using managed identity"
+            )
 
         # Import Azure SDK components after parameter validation
         try:
@@ -141,13 +152,20 @@ class AzureAISearchVectorStore(VectorStore):
                 f"Failed to connect to Azure AI Search at {endpoint}. Error: {e}"
             ) from e
 
-        # Ensure index exists
-        self._ensure_index()
+        # Lazily ensure the index exists on first use.
+        # Unit tests may instantiate stores without requiring live Azure access.
+        self._index_ready = False
 
         logger.info(
             f"Initialized Azure AI Search vector store: endpoint={endpoint}, "
             f"index={index_name}, vector_size={vector_size}"
         )
+
+    def _ensure_index_ready(self) -> None:
+        if self._index_ready:
+            return
+        self._ensure_index()
+        self._index_ready = True
 
     @classmethod
     def from_config(cls, config: DriverConfig_VectorStore_AzureAiSearch) -> "AzureAISearchVectorStore":
@@ -249,12 +267,12 @@ class AzureAISearchVectorStore(VectorStore):
             try:
                 hnsw_config = self._HnswAlgorithmConfiguration(
                     name="hnsw-algorithm",
-                    parameters={
+                    parameters=cast(Any, {
                         "m": HNSW_M,
                         "efConstruction": HNSW_EF_CONSTRUCTION,
                         "efSearch": HNSW_EF_SEARCH,
                         "metric": "cosine",
-                    }
+                    })
                 )
             except TypeError:
                 # Fallback to basic configuration
@@ -303,6 +321,8 @@ class AzureAISearchVectorStore(VectorStore):
         Raises:
             ValueError: If vector dimension doesn't match
         """
+        self._ensure_index_ready()
+
         if len(vector) != self._vector_size:
             raise ValueError(
                 f"Vector dimension ({len(vector)}) doesn't match "
@@ -335,6 +355,8 @@ class AzureAISearchVectorStore(VectorStore):
         Raises:
             ValueError: If lengths don't match or vector dimensions are wrong
         """
+        self._ensure_index_ready()
+
         if not (len(ids) == len(vectors) == len(metadatas)):
             raise ValueError("ids, vectors, and metadatas must have the same length")
 
@@ -377,6 +399,8 @@ class AzureAISearchVectorStore(VectorStore):
         Raises:
             ValueError: If query_vector dimension doesn't match stored vectors
         """
+        self._ensure_index_ready()
+
         if len(query_vector) != self._vector_size:
             raise ValueError(
                 f"Query vector dimension ({len(query_vector)}) doesn't match "
@@ -440,6 +464,8 @@ class AzureAISearchVectorStore(VectorStore):
         Raises:
             KeyError: If id doesn't exist
         """
+        self._ensure_index_ready()
+
         # Check if document exists
         try:
             self._search_client.get_document(key=id)
@@ -460,6 +486,8 @@ class AzureAISearchVectorStore(VectorStore):
 
     def clear(self) -> None:
         """Remove all embeddings from the vector store."""
+        self._ensure_index_ready()
+
         # Delete and recreate the index
         try:
             self._index_client.delete_index(self._index_name)
@@ -476,6 +504,8 @@ class AzureAISearchVectorStore(VectorStore):
         Returns:
             Number of embeddings currently stored
         """
+        self._ensure_index_ready()
+
         # Azure AI Search doesn't have a direct count API
         # We need to search and count results
         results = self._search_client.search(
@@ -483,7 +513,8 @@ class AzureAISearchVectorStore(VectorStore):
             include_total_count=True,
             top=0,  # Don't return actual documents, just count
         )
-        count = results.get_count()
+        # Some SDK versions type this as `int`, but at runtime it can be `None`.
+        count = cast(Any, results).get_count()
         if count is None:
             logger.warning(
                 "Azure AI Search returned None for count, returning 0. "
@@ -504,6 +535,8 @@ class AzureAISearchVectorStore(VectorStore):
         Raises:
             KeyError: If id doesn't exist
         """
+        self._ensure_index_ready()
+
         try:
             result = self._search_client.get_document(key=id)
         except Exception as e:

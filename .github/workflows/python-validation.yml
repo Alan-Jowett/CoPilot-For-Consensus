@@ -486,6 +486,18 @@ jobs:
             adapters/copilot_summarization/copilot_summarization/llamacpp_summarizer.py \
             --level error
 
+      - name: Pyright (gating) - Vectorstore adapter typed config safety
+        run: |
+          # Vectorstore adapter consumes generated typed vector_store configs.
+          # Gate the factory and driver implementations that parse driver configs.
+          pyright \
+            adapters/copilot_vectorstore/copilot_vectorstore/factory.py \
+            adapters/copilot_vectorstore/copilot_vectorstore/qdrant_store.py \
+            adapters/copilot_vectorstore/copilot_vectorstore/azure_ai_search_store.py \
+            adapters/copilot_vectorstore/copilot_vectorstore/faiss_store.py \
+            adapters/copilot_vectorstore/copilot_vectorstore/inmemory.py \
+            --level error
+
       - name: Pyright (gating) - Message bus adapter typed config safety
         run: |
           # Message bus adapter consumes generated typed message_bus configs.

@@ -58,7 +58,10 @@ class FAISSVectorStore(VectorStore):
         self._dimension = dimension
         self._index_type = index_type
         self._persist_path = persist_path
-        self._faiss = faiss
+        # The FAISS Python bindings have inconsistent/partial type stubs across
+        # distributions. Treat the module and index objects as dynamic to avoid
+        # false-positive type errors while still validating our typed config.
+        self._faiss: Any = faiss
 
         # Maintain mapping from FAISS index to our IDs and metadata
         self._id_to_idx: dict[str, int] = {}
@@ -68,7 +71,7 @@ class FAISSVectorStore(VectorStore):
         self._next_idx = 0
 
         # Initialize FAISS index
-        self._index = self._create_index()
+        self._index: Any = self._create_index()
 
         logger.info(f"Initialized FAISS vector store with dimension={dimension}, type={index_type}")
 
@@ -90,7 +93,7 @@ class FAISSVectorStore(VectorStore):
             persist_path=persist_path,
         )
 
-    def _create_index(self):
+    def _create_index(self) -> Any:
         """Create a new FAISS index based on the configured type.
 
         Returns:
@@ -101,8 +104,8 @@ class FAISSVectorStore(VectorStore):
             return self._faiss.IndexFlatL2(self._dimension)
         else:
             # IVF index for approximate search
-            quantizer = self._faiss.IndexFlatL2(self._dimension)
-            index = self._faiss.IndexIVFFlat(quantizer, self._dimension, 100)
+            quantizer: Any = self._faiss.IndexFlatL2(self._dimension)
+            index: Any = self._faiss.IndexIVFFlat(quantizer, self._dimension, 100)
             # Train with deterministic random data for initialization
             # In production, this will be replaced by actual data during first batch add
             np.random.seed(42)
