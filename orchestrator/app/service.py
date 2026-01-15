@@ -428,7 +428,11 @@ class OrchestrationService:
             Hex string of SHA256 hash (64 characters)
         """
         # Extract and sort chunk IDs (_id field) to ensure consistent ordering
-        chunk_ids = sorted({chunk.get("_id") for chunk in chunks if chunk.get("_id")})
+        chunk_ids = sorted(
+            str(chunk_id)
+            for chunk_id in {chunk.get("_id") for chunk in chunks}
+            if chunk_id is not None
+        )
 
         # Combine thread_id and canonical _ids into a single string (matches summarization service)
         id_input = f"{thread_id}:{','.join(chunk_ids)}"

@@ -113,6 +113,13 @@ jobs:
             pip install -r embedding/requirements.txt
           fi
 
+      - name: Install orchestrator service dependencies (for pyright)
+        run: |
+          # Ensure third-party deps used by orchestrator entrypoints are available.
+          if [ -f "orchestrator/requirements.txt" ]; then
+            pip install -r orchestrator/requirements.txt
+          fi
+
       - name: Ruff - Fast Python Linter
         id: ruff
         run: |
@@ -319,6 +326,12 @@ jobs:
           # Embedding uses schema-driven config; this guards against config schema drift
           # and missing attribute access in the entrypoint and core service.
           pyright embedding/main.py embedding/app/service.py --level error
+
+      - name: Pyright (gating) - Orchestrator typed config safety
+        run: |
+          # Orchestrator uses schema-driven config; this guards against config schema drift
+          # and missing attribute access in the entrypoint and core service.
+          pyright orchestrator/main.py orchestrator/app/service.py --level error
 
       - name: Generate Validation Summary
         if: always()
