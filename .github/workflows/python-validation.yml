@@ -401,6 +401,17 @@ jobs:
             adapters/copilot_embedding/copilot_embedding/sentence_transformer_provider.py \
             --level error
 
+      - name: Pyright (gating) - Error reporting adapter typed config safety
+        run: |
+          # Error reporting adapter consumes generated typed error_reporter configs.
+          # Gate the adapter entrypoint and implementations so schema drift breaks CI.
+          pyright \
+            adapters/copilot_error_reporting/copilot_error_reporting/__init__.py \
+            adapters/copilot_error_reporting/copilot_error_reporting/console_error_reporter.py \
+            adapters/copilot_error_reporting/copilot_error_reporting/sentry_error_reporter.py \
+            adapters/copilot_error_reporting/copilot_error_reporting/silent_error_reporter.py \
+            --level error
+
       - name: Pyright (gating) - Ingestion typed config safety
         run: |
           # This is the shift-left guardrail: catch missing/incorrect config attribute

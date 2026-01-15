@@ -56,7 +56,7 @@ class SentryErrorReporter(ErrorReporter):
             pip install sentry-sdk
         """
         try:
-            import sentry_sdk
+            import sentry_sdk  # type: ignore[reportMissingImports]
             sentry_sdk.init(
                 dsn=self.dsn,
                 environment=self.environment,
@@ -81,7 +81,7 @@ class SentryErrorReporter(ErrorReporter):
             raise RuntimeError("Sentry reporter not initialized with a valid DSN")
 
         try:
-            import sentry_sdk
+            import sentry_sdk  # type: ignore[reportMissingImports]
 
             # Set context if provided
             if context:
@@ -118,7 +118,7 @@ class SentryErrorReporter(ErrorReporter):
             raise RuntimeError("Sentry reporter not initialized with a valid DSN")
 
         try:
-            import sentry_sdk
+            import sentry_sdk  # type: ignore[reportMissingImports]
 
             # Map our level names to Sentry level names
             level_map = {
