@@ -6,10 +6,15 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, TypeAlias
 
 from copilot_config.adapter_factory import create_adapter
-from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_AzureCosmosdb,
+    DriverConfig_DocumentStore_Inmemory,
+    DriverConfig_DocumentStore_Mongodb,
+)
 
 from .azure_cosmos_document_store import AzureCosmosDocumentStore
 from .document_store import DocumentStore
@@ -18,6 +23,30 @@ from .mongo_document_store import MongoDocumentStore
 from .validating_document_store import ValidatingDocumentStore
 
 logger = logging.getLogger(__name__)
+
+_DriverConfig: TypeAlias = (
+    DriverConfig_DocumentStore_Mongodb
+    | DriverConfig_DocumentStore_AzureCosmosdb
+    | DriverConfig_DocumentStore_Inmemory
+)
+
+
+def _build_mongodb(config: _DriverConfig) -> DocumentStore:
+    if not isinstance(config, DriverConfig_DocumentStore_Mongodb):
+        raise TypeError("driver config must be DriverConfig_DocumentStore_Mongodb")
+    return MongoDocumentStore.from_config(config)
+
+
+def _build_azure_cosmosdb(config: _DriverConfig) -> DocumentStore:
+    if not isinstance(config, DriverConfig_DocumentStore_AzureCosmosdb):
+        raise TypeError("driver config must be DriverConfig_DocumentStore_AzureCosmosdb")
+    return AzureCosmosDocumentStore.from_config(config)
+
+
+def _build_inmemory(config: _DriverConfig) -> DocumentStore:
+    if not isinstance(config, DriverConfig_DocumentStore_Inmemory):
+        raise TypeError("driver config must be DriverConfig_DocumentStore_Inmemory")
+    return InMemoryDocumentStore.from_config(config)
 
 
 def _get_schema_provider() -> Any:
@@ -77,9 +106,9 @@ def create_document_store(
         get_driver_type=lambda c: c.doc_store_type,
         get_driver_config=lambda c: c.driver,
         drivers={
-            "mongodb": MongoDocumentStore.from_config,
-            "azure_cosmosdb": AzureCosmosDocumentStore.from_config,
-            "inmemory": InMemoryDocumentStore.from_config,
+            "mongodb": _build_mongodb,
+            "azure_cosmosdb": _build_azure_cosmosdb,
+            "inmemory": _build_inmemory,
         },
     )
 

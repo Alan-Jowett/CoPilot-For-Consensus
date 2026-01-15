@@ -7,7 +7,7 @@ import copy
 import logging
 import re
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_AzureCosmosdb
 
@@ -21,11 +21,12 @@ from .document_store import (
 
 logger = logging.getLogger(__name__)
 
-# Import azure.cosmos at module level to avoid repeated imports in methods
+# Import azure.cosmos at module level to avoid repeated imports in methods.
+# This dependency is optional; when missing, connect() will raise a clear error.
+cosmos_exceptions: Any
 try:
     from azure.cosmos import exceptions as cosmos_exceptions
 except ImportError:
-    # Will be handled in connect() method
     cosmos_exceptions = None
 
 
@@ -101,9 +102,9 @@ class AzureCosmosDocumentStore(DocumentStore):
         self.container_name = container
         self.partition_key = partition_key
         self.client_options = kwargs
-        self.client = None
-        self.database = None
-        self.container = None
+        self.client: Any | None = None
+        self.database: Any | None = None
+        self.container: Any | None = None
 
     def _is_valid_field_name(self, field_name: str) -> bool:
         """Validate that a field name contains only safe characters.
@@ -163,7 +164,7 @@ class AzureCosmosDocumentStore(DocumentStore):
         """
         try:
             from azure.core.exceptions import AzureError
-            from azure.cosmos import CosmosClient
+            from azure.cosmos import CosmosClient, PartitionKey
         except ImportError as e:
             logger.error("AzureCosmosDocumentStore: azure-cosmos not installed")
             raise DocumentStoreConnectionError("azure-cosmos not installed") from e
@@ -193,7 +194,8 @@ class AzureCosmosDocumentStore(DocumentStore):
 
             # Get or create database
             try:
-                self.database = self.client.create_database_if_not_exists(id=self.database_name)
+                database = self.client.create_database_if_not_exists(id=self.database_name)
+                self.database = database
                 logger.info(f"AzureCosmosDocumentStore: using database '{self.database_name}'")
             except cosmos_exceptions.CosmosHttpResponseError as e:
                 logger.error(f"AzureCosmosDocumentStore: failed to create/access database - {e}")
@@ -201,9 +203,9 @@ class AzureCosmosDocumentStore(DocumentStore):
 
             # Get or create container with partition key
             try:
-                self.container = self.database.create_container_if_not_exists(
+                self.container = database.create_container_if_not_exists(
                     id=self.container_name,
-                    partition_key={"paths": [self.partition_key], "kind": "Hash"}
+                    partition_key=PartitionKey(path=self.partition_key)
                 )
                 logger.info(
                     f"AzureCosmosDocumentStore: using container '{self.container_name}' "
@@ -359,7 +361,7 @@ class AzureCosmosDocumentStore(DocumentStore):
         try:
             # Build SQL query for Cosmos DB
             query = "SELECT * FROM c WHERE c.collection = @collection"
-            parameters = [{"name": "@collection", "value": collection}]
+            parameters: list[dict[str, object]] = [{"name": "@collection", "value": collection}]
             param_counter = 0
 
             # Add filter conditions
@@ -432,7 +434,11 @@ class AzureCosmosDocumentStore(DocumentStore):
             query += f" OFFSET 0 LIMIT {limit}"
 
             # Execute query
-            items = list(self.container.query_items(
+            container = self.container
+            if container is None:
+                raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+
+            items = list(container.query_items(
                 query=query,
                 parameters=parameters,
                 enable_cross_partition_query=False,
@@ -620,8 +626,12 @@ class AzureCosmosDocumentStore(DocumentStore):
         Returns:
             List of documents from initial query
         """
+        container = self.container
+        if container is None:
+            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+
         query = "SELECT * FROM c WHERE c.collection = @collection"
-        parameters = [{"name": "@collection", "value": collection}]
+        parameters: list[dict[str, object]] = [{"name": "@collection", "value": collection}]
         param_counter = 0
         has_lookup = any(list(stage.keys())[0] == "$lookup" for stage in pipeline)
 
@@ -716,7 +726,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                     break
 
         # Execute query
-        items = list(self.container.query_items(
+        items = list(container.query_items(
             query=query,
             parameters=parameters,
             enable_cross_partition_query=False,
@@ -876,6 +886,12 @@ class AzureCosmosDocumentStore(DocumentStore):
                 f"$lookup requires non-empty values for {', '.join(empty_fields)}"
             )
 
+        # At this point, all required fields are non-empty strings.
+        from_collection = cast(str, from_collection)
+        local_field = cast(str, local_field)
+        foreign_field = cast(str, foreign_field)
+        as_field = cast(str, as_field)
+
         # Validate field names (nested access allowed via dot notation)
         for field_value, field_name in (
             (local_field, "localField"),
@@ -889,10 +905,14 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         # Query all documents from the foreign collection
         query = "SELECT * FROM c WHERE c.collection = @collection"
-        parameters = [{"name": "@collection", "value": from_collection}]
+        parameters: list[dict[str, object]] = [{"name": "@collection", "value": from_collection}]
+
+        container = self.container
+        if container is None:
+            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
 
         try:
-            foreign_docs = list(self.container.query_items(
+            foreign_docs = list(container.query_items(
                 query=query,
                 parameters=parameters,
                 enable_cross_partition_query=False,

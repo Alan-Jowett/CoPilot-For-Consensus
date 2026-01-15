@@ -464,6 +464,17 @@ jobs:
             adapters/copilot_startup/copilot_startup/startup_requeue.py \
             --level error
 
+      - name: Pyright (gating) - Storage adapter typed config safety
+        run: |
+          # Storage adapter consumes generated typed document_store configs.
+          # Gate the factory and key implementations so schema drift breaks CI.
+          pyright \
+            adapters/copilot_storage/copilot_storage/factory.py \
+            adapters/copilot_storage/copilot_storage/mongo_document_store.py \
+            adapters/copilot_storage/copilot_storage/azure_cosmos_document_store.py \
+            adapters/copilot_storage/copilot_storage/validating_document_store.py \
+            --level error
+
       - name: Pyright (gating) - Message bus adapter typed config safety
         run: |
           # Message bus adapter consumes generated typed message_bus configs.
