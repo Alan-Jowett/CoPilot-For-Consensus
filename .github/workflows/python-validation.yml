@@ -423,6 +423,18 @@ jobs:
             adapters/copilot_logging/copilot_logging/azure_monitor_logger.py \
             --level error
 
+      - name: Pyright (gating) - Message bus adapter typed config safety
+        run: |
+          # Message bus adapter consumes generated typed message_bus configs.
+          # Gate factory and key drivers so schema drift breaks CI.
+          pyright \
+            adapters/copilot_message_bus/copilot_message_bus/factory.py \
+            adapters/copilot_message_bus/copilot_message_bus/rabbitmq_publisher.py \
+            adapters/copilot_message_bus/copilot_message_bus/rabbitmq_subscriber.py \
+            adapters/copilot_message_bus/copilot_message_bus/azureservicebuspublisher.py \
+            adapters/copilot_message_bus/copilot_message_bus/azureservicebussubscriber.py \
+            --level error
+
       - name: Pyright (gating) - Ingestion typed config safety
         run: |
           # This is the shift-left guardrail: catch missing/incorrect config attribute

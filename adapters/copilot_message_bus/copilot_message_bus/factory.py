@@ -4,14 +4,73 @@
 """Factory functions for creating message bus publishers and subscribers."""
 
 import logging
-from typing import Any
+from typing import Any, TypeAlias
 
 from copilot_config.adapter_factory import create_adapter
-from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus
+from copilot_config.generated.adapters.message_bus import (
+    AdapterConfig_MessageBus,
+    DriverConfig_MessageBus_AzureServiceBus,
+    DriverConfig_MessageBus_Noop,
+    DriverConfig_MessageBus_Rabbitmq,
+)
 
 from .base import EventPublisher, EventSubscriber
 
 logger = logging.getLogger(__name__)
+
+_DriverConfig: TypeAlias = (
+    DriverConfig_MessageBus_Rabbitmq
+    | DriverConfig_MessageBus_AzureServiceBus
+    | DriverConfig_MessageBus_Noop
+)
+
+
+def _build_publisher_rabbitmq(config: _DriverConfig) -> EventPublisher:
+    from .rabbitmq_publisher import RabbitMQPublisher
+
+    if not isinstance(config, DriverConfig_MessageBus_Rabbitmq):
+        raise TypeError("driver config must be DriverConfig_MessageBus_Rabbitmq")
+    return RabbitMQPublisher.from_config(config)
+
+
+def _build_publisher_azure_service_bus(config: _DriverConfig) -> EventPublisher:
+    from .azureservicebuspublisher import AzureServiceBusPublisher
+
+    if not isinstance(config, DriverConfig_MessageBus_AzureServiceBus):
+        raise TypeError("driver config must be DriverConfig_MessageBus_AzureServiceBus")
+    return AzureServiceBusPublisher.from_config(config)
+
+
+def _build_publisher_noop(config: _DriverConfig) -> EventPublisher:
+    from .noop_publisher import NoopPublisher
+
+    if not isinstance(config, DriverConfig_MessageBus_Noop):
+        raise TypeError("driver config must be DriverConfig_MessageBus_Noop")
+    return NoopPublisher.from_config(config)
+
+
+def _build_subscriber_rabbitmq(config: _DriverConfig) -> EventSubscriber:
+    from .rabbitmq_subscriber import RabbitMQSubscriber
+
+    if not isinstance(config, DriverConfig_MessageBus_Rabbitmq):
+        raise TypeError("driver config must be DriverConfig_MessageBus_Rabbitmq")
+    return RabbitMQSubscriber.from_config(config)
+
+
+def _build_subscriber_azure_service_bus(config: _DriverConfig) -> EventSubscriber:
+    from .azureservicebussubscriber import AzureServiceBusSubscriber
+
+    if not isinstance(config, DriverConfig_MessageBus_AzureServiceBus):
+        raise TypeError("driver config must be DriverConfig_MessageBus_AzureServiceBus")
+    return AzureServiceBusSubscriber.from_config(config)
+
+
+def _build_subscriber_noop(config: _DriverConfig) -> EventSubscriber:
+    from .noop_subscriber import NoopSubscriber
+
+    if not isinstance(config, DriverConfig_MessageBus_Noop):
+        raise TypeError("driver config must be DriverConfig_MessageBus_Noop")
+    return NoopSubscriber.from_config(config)
 
 
 def _get_schema_provider() -> Any:
@@ -60,19 +119,15 @@ def create_publisher(
         ValueError: If config is missing or driver type is unknown
         ValueError: If required parameters are missing for the specified driver
     """
-    from .azureservicebuspublisher import AzureServiceBusPublisher
-    from .noop_publisher import NoopPublisher
-    from .rabbitmq_publisher import RabbitMQPublisher
-
     base_publisher = create_adapter(
         config,
         adapter_name="message_bus",
         get_driver_type=lambda c: c.message_bus_type,
         get_driver_config=lambda c: c.driver,
         drivers={
-            "rabbitmq": RabbitMQPublisher.from_config,
-            "azure_service_bus": AzureServiceBusPublisher.from_config,
-            "noop": NoopPublisher.from_config,
+            "rabbitmq": _build_publisher_rabbitmq,
+            "azure_service_bus": _build_publisher_azure_service_bus,
+            "noop": _build_publisher_noop,
         },
     )
 
@@ -116,19 +171,15 @@ def create_subscriber(
         ValueError: If config is missing or driver type is unknown
         ValueError: If required parameters are missing for the specified driver
     """
-    from .azureservicebussubscriber import AzureServiceBusSubscriber
-    from .noop_subscriber import NoopSubscriber
-    from .rabbitmq_subscriber import RabbitMQSubscriber
-
     base_subscriber = create_adapter(
         config,
         adapter_name="message_bus",
         get_driver_type=lambda c: c.message_bus_type,
         get_driver_config=lambda c: c.driver,
         drivers={
-            "rabbitmq": RabbitMQSubscriber.from_config,
-            "azure_service_bus": AzureServiceBusSubscriber.from_config,
-            "noop": NoopSubscriber.from_config,
+            "rabbitmq": _build_subscriber_rabbitmq,
+            "azure_service_bus": _build_subscriber_azure_service_bus,
+            "noop": _build_subscriber_noop,
         },
     )
 

@@ -97,14 +97,13 @@ class AzureServiceBusPublisher(EventPublisher):
             ImportError: If azure-servicebus or azure-identity library is not installed
             Exception: If connection fails
         """
-        if ServiceBusClient is None:
-            raise ImportError("azure-servicebus library is not installed")
-
-        if self.use_managed_identity and DefaultAzureCredential is None:
-            raise ImportError("azure-identity library is not installed")
-
         try:
             if self.use_managed_identity:
+                if ServiceBusClient is None:
+                    raise ImportError("azure-servicebus library is not installed")
+                if DefaultAzureCredential is None:
+                    raise ImportError("azure-identity library is not installed")
+
                 logger.info("Connecting to Azure Service Bus using managed identity")
                 if self.fully_qualified_namespace is None:
                     raise ValueError("fully_qualified_namespace is required when using managed identity")
@@ -114,6 +113,9 @@ class AzureServiceBusPublisher(EventPublisher):
                     credential=self._credential,
                 )
             elif self.connection_string:
+                if ServiceBusClient is None:
+                    raise ImportError("azure-servicebus library is not installed")
+
                 logger.info("Connecting to Azure Service Bus using connection string")
                 self.client = ServiceBusClient.from_connection_string(
                     conn_str=self.connection_string

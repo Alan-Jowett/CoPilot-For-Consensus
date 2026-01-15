@@ -15,6 +15,8 @@ try:
 except ImportError:
     pika = None
 
+pika_exceptions: Any = getattr(pika, "exceptions", None)
+
 from .base import EventPublisher
 
 logger = logging.getLogger(__name__)
@@ -371,11 +373,11 @@ class RabbitMQPublisher(EventPublisher):
                 f"Published event to {exchange}/{routing_key}: {event.get('event_type')}"
             )
         except (
-            pika.exceptions.ChannelWrongStateError,
-            pika.exceptions.ChannelClosedByBroker,
-            pika.exceptions.ConnectionClosedByBroker,
-            pika.exceptions.AMQPConnectionError,
-            pika.exceptions.StreamLostError,
+            pika_exceptions.ChannelWrongStateError,
+            pika_exceptions.ChannelClosedByBroker,
+            pika_exceptions.ConnectionClosedByBroker,
+            pika_exceptions.AMQPConnectionError,
+            pika_exceptions.StreamLostError,
         ) as e:
             # Connection/channel errors - attempt reconnection and retry once
             logger.warning(f"Connection error during publish: {e}, attempting reconnection...")
@@ -401,14 +403,14 @@ class RabbitMQPublisher(EventPublisher):
             else:
                 logger.error("Reconnection failed, cannot publish event")
                 raise ConnectionError(f"Failed to publish after connection error: {e}")
-        except pika.exceptions.UnroutableError:
+        except pika_exceptions.UnroutableError:
             error_msg = (
                 f"Message unroutable - no queue bound for {exchange}/{routing_key}. "
                 "Ensure queues are declared before publishing."
             )
             logger.error(error_msg)
             raise
-        except pika.exceptions.NackError:
+        except pika_exceptions.NackError:
             error_msg = f"Message rejected (NACK) by broker for {exchange}/{routing_key}"
             logger.error(error_msg)
             raise
