@@ -61,7 +61,9 @@ def _parse_bicep_container_envs(bicep_path: Path) -> dict[str, dict[str, str]]:
     in_env = False
     current_var: str | None = None
 
-    for raw_line in bicep_path.read_text(encoding="utf-8").splitlines():
+    for line_number, raw_line in enumerate(
+        bicep_path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
         line = raw_line.strip()
 
         # Detect container name: typically lowercase service name (e.g., 'reporting')
@@ -95,6 +97,16 @@ def _parse_bicep_container_envs(bicep_path: Path) -> dict[str, dict[str, str]]:
         if current_var and line.startswith("value:"):
             value_expr = line.removeprefix("value:").strip()
             envs[current_container][current_var] = value_expr
+
+            # Heuristic warning for multi-line expressions. This parser is simple on purpose;
+            # if a value continues onto the next line, our captured expression may be incomplete.
+            if not value_expr or value_expr.endswith(("(", "[", "{", "+", "?", ":", ",")):
+                print(
+                    f"Warning: {bicep_path}:{line_number}: multi-line env value for '{current_var}' "
+                    "is not supported; parsing may be incomplete.",
+                    file=sys.stderr,
+                )
+
             current_var = None
 
     return envs
@@ -115,12 +127,16 @@ def _scan_imported_adapters(service_dir: Path) -> set[str]:
     """Scan service Python code for imports of copilot_* adapters."""
     imported: set[str] = set()
 
+    def _is_excluded_python_file(path: Path) -> bool:
+        try:
+            rel_path = path.relative_to(service_dir)
+        except ValueError:
+            rel_path = path
+
+        return rel_path.match("**/tests/**") or rel_path.match("**/__pycache__/**")
+
     def iter_py_files() -> list[Path]:
-        return [
-            p
-            for p in service_dir.rglob("*.py")
-            if "tests" not in p.parts and "__pycache__" not in p.parts
-        ]
+        return [p for p in service_dir.rglob("*.py") if not _is_excluded_python_file(p)]
 
     for py_file in iter_py_files():
         for line in py_file.read_text(encoding="utf-8").splitlines():
@@ -207,6 +223,33 @@ def _parse_adapter_packaging(adapter_dir: Path) -> AdapterPackaging:
     return AdapterPackaging(install_requires=install_requires, extras_require=extras_require)
 
 
+def _check_adapter_has_packages(
+    *,
+    errors: list[str],
+    adapters_root: Path,
+    service_name: str,
+    adapter: str,
+    required_pkgs: list[str],
+    extra_hint: str | None = None,
+) -> None:
+    adapter_dir = adapters_root / adapter
+    if not adapter_dir.exists():
+        errors.append(f"{service_name}: adapter directory missing: adapters/{adapter}")
+        return
+
+    packaging = _parse_adapter_packaging(adapter_dir)
+    all_reqs = set(packaging.install_requires)
+    for reqs in packaging.extras_require.values():
+        all_reqs.update(reqs)
+
+    for pkg in required_pkgs:
+        if not _requirement_contains(all_reqs, pkg):
+            hint = f" (expected via extras '{extra_hint}')" if extra_hint else ""
+            errors.append(
+                f"{service_name}: adapters/{adapter}/setup.py does not declare required dependency '{pkg}'{hint}"
+            )
+
+
 def _requirement_contains(requirements: set[str], needle: str) -> bool:
     """Return True if any requirement line contains the given package name."""
     lower = needle.lower()
@@ -290,64 +333,62 @@ def validate_repo(repo_root: Path = REPO_ROOT, *, bicep_path: Path = BICEP_PATH)
 
         # Adapter packaging checks for known Azure driver types used by this service.
         # These checks ensure the adapter declares the required Azure SDK deps.
-        def check_adapter_has_packages(adapter: str, required_pkgs: list[str], extra_hint: str | None = None) -> None:
-            adapter_dir = adapters_root / adapter
-            if not adapter_dir.exists():
-                errors.append(f"{service_name}: adapter directory missing: adapters/{adapter}")
-                return
-
-            packaging = _parse_adapter_packaging(adapter_dir)
-            all_reqs = set(packaging.install_requires)
-            for reqs in packaging.extras_require.values():
-                all_reqs.update(reqs)
-
-            for pkg in required_pkgs:
-                if not _requirement_contains(all_reqs, pkg):
-                    hint = f" (expected via extras '{extra_hint}')" if extra_hint else ""
-                    errors.append(
-                        f"{service_name}: adapters/{adapter}/setup.py does not declare required dependency '{pkg}'{hint}"
-                    )
 
         # Secrets: Azure Key Vault
         if env.get("SECRET_PROVIDER_TYPE") and "azure_key_vault" in _get_env_driver_values(env["SECRET_PROVIDER_TYPE"]):
             if "copilot_secrets" in imported_adapters:
-                check_adapter_has_packages(
-                    "copilot_secrets",
-                    ["azure-keyvault-secrets", "azure-identity"],
+                _check_adapter_has_packages(
+                    errors=errors,
+                    adapters_root=adapters_root,
+                    service_name=service_name,
+                    adapter="copilot_secrets",
+                    required_pkgs=["azure-keyvault-secrets", "azure-identity"],
                     extra_hint="azure",
                 )
 
         # Document store: Cosmos DB
         if env.get("DOCUMENT_STORE_TYPE") and "azure_cosmosdb" in _get_env_driver_values(env["DOCUMENT_STORE_TYPE"]):
             if "copilot_storage" in imported_adapters:
-                check_adapter_has_packages(
-                    "copilot_storage",
-                    ["azure-cosmos", "azure-identity"],
+                _check_adapter_has_packages(
+                    errors=errors,
+                    adapters_root=adapters_root,
+                    service_name=service_name,
+                    adapter="copilot_storage",
+                    required_pkgs=["azure-cosmos", "azure-identity"],
                 )
 
         # Message bus: Azure Service Bus
         if env.get("MESSAGE_BUS_TYPE") and "azure_service_bus" in _get_env_driver_values(env["MESSAGE_BUS_TYPE"]):
             if "copilot_message_bus" in imported_adapters:
-                check_adapter_has_packages(
-                    "copilot_message_bus",
-                    ["azure-servicebus", "azure-identity"],
+                _check_adapter_has_packages(
+                    errors=errors,
+                    adapters_root=adapters_root,
+                    service_name=service_name,
+                    adapter="copilot_message_bus",
+                    required_pkgs=["azure-servicebus", "azure-identity"],
                 )
 
         # Metrics: Azure Monitor
         if env.get("METRICS_TYPE") and "azure_monitor" in _get_env_driver_values(env["METRICS_TYPE"]):
             if "copilot_metrics" in imported_adapters:
-                check_adapter_has_packages(
-                    "copilot_metrics",
-                    ["azure-monitor-opentelemetry-exporter"],
+                _check_adapter_has_packages(
+                    errors=errors,
+                    adapters_root=adapters_root,
+                    service_name=service_name,
+                    adapter="copilot_metrics",
+                    required_pkgs=["azure-monitor-opentelemetry-exporter"],
                     extra_hint="azure",
                 )
 
         # Vector store: Azure AI Search
         if env.get("VECTOR_STORE_TYPE") and "azure_ai_search" in _get_env_driver_values(env["VECTOR_STORE_TYPE"]):
             if "copilot_vectorstore" in imported_adapters:
-                check_adapter_has_packages(
-                    "copilot_vectorstore",
-                    ["azure-search-documents", "azure-identity"],
+                _check_adapter_has_packages(
+                    errors=errors,
+                    adapters_root=adapters_root,
+                    service_name=service_name,
+                    adapter="copilot_vectorstore",
+                    required_pkgs=["azure-search-documents", "azure-identity"],
                     extra_hint="azure",
                 )
 

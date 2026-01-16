@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from scripts.validate_azure_dependency_coverage import validate_repo
 
 
