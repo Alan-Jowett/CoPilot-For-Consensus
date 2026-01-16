@@ -133,12 +133,14 @@ def _extract_keyvault_created_secret_names(bicep_content: str, vault_name_var: s
     secret_names: set[str] = set()
 
     # 1) Interpolated string: name: "${<vaultVar>/secret-name}"
+    # Matches: name: '${keyVaultName}/jwt-private-key' and name: "${keyVaultName}/jwt-private-key"
     pattern_interpolated = rf"name:\s*['\"]\$\{{{re.escape(vault_name_var)}\}}/([^'\"]+)['\"]"
     for match in re.finditer(pattern_interpolated, bicep_content):
         secret_names.add(match.group(1))
 
     # 2) concat() form: name: concat(<vaultVar>, '/secret-name')
     # We capture the portion after the leading slash in the literal.
+    # Matches: name: concat(keyVaultName, '/jwt-private-key')
     pattern_concat = rf"name:\s*concat\(\s*{re.escape(vault_name_var)}\s*,\s*['\"]/+([^'\"/]+)['\"]\s*\)"
     for match in re.finditer(pattern_concat, bicep_content):
         secret_names.add(match.group(1))
@@ -597,7 +599,9 @@ def _validate_required_secrets_created_by_iac(env_vars: dict, required_secrets: 
         kv_secret = _normalize_secret_name_for_key_vault(schema_secret)
         if kv_secret not in created:
             issues.append(
-                f"Missing REQUIRED secret '{kv_secret}' in {kv_scope} Key Vault IaC (service uses AZURE_KEY_VAULT_NAME={env_vars.get('AZURE_KEY_VAULT_NAME')})."
+                f"Missing REQUIRED secret '{kv_secret}' in {kv_scope} Key Vault IaC. "
+                "Update your infrastructure-as-code (for example, the Key Vault secret resources in "
+                "infra/azure/main.bicep or infra/azure/core.bicep) to create this secret before deployment."
             )
 
     return issues

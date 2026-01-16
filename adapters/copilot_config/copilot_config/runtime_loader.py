@@ -237,19 +237,22 @@ def _instantiate_driver_config(driver_class: Any, driver_config_dict: dict[str, 
 
     if origin is Union:
         discriminant_key: str | None = None
-        auth_type_keys = sorted([key for key in driver_config_dict if key.endswith("_auth_type")])
-        type_keys = sorted(
-            [
-                key
-                for key in driver_config_dict
-                if key.endswith("_type") and not key.endswith("_auth_type")
-            ]
-        )
+        auth_type_key: str | None = None
+        type_key: str | None = None
 
-        if auth_type_keys:
-            discriminant_key = auth_type_keys[0]
-        elif type_keys:
-            discriminant_key = type_keys[0]
+        # Select the lexicographically smallest *_auth_type or *_type key in a single pass.
+        for key in driver_config_dict:
+            if key.endswith("_auth_type"):
+                if auth_type_key is None or key < auth_type_key:
+                    auth_type_key = key
+            elif key.endswith("_type"):
+                if type_key is None or key < type_key:
+                    type_key = key
+
+        if auth_type_key is not None:
+            discriminant_key = auth_type_key
+        elif type_key is not None:
+            discriminant_key = type_key
 
         selected_discriminant = (
             driver_config_dict.get(discriminant_key) if discriminant_key else None
@@ -271,17 +274,30 @@ def _instantiate_driver_config(driver_class: Any, driver_config_dict: dict[str, 
             if narrowed:
                 candidates = narrowed
 
-        last_error: Exception | None = None
+        errors: list[TypeError] = []
         for candidate in candidates:
             try:
                 return candidate(**driver_config_dict)
             except TypeError as exc:
-                last_error = exc
+                errors.append(exc)
                 continue
 
-        details = f" (discriminant {discriminant_key}={selected_discriminant})" if discriminant_key else ""
+        details = (
+            f" (discriminant {discriminant_key}={selected_discriminant})"
+            if discriminant_key
+            else ""
+        )
+
+        if errors:
+            error_details = "; ".join(f"{type(err).__name__}: {err}" for err in errors)
+            reason = f" All instantiation attempts failed: {error_details}"
+        elif not candidates:
+            reason = " No instantiable candidates were found for the union."
+        else:
+            reason = ""
+
         raise TypeError(
-            f"Unable to instantiate driver config union {driver_class}{details}: {last_error}"
+            f"Unable to instantiate driver config union {driver_class}{details}.{reason}"
         )
 
     # Unknown typing construct; fall back to direct call for a clearer exception.

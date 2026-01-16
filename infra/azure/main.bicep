@@ -370,14 +370,18 @@ resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
 // Store Azure OpenAI API key in Env Key Vault for services using env secret_provider
 // NOTE: Core infrastructure also stores this in Core Key Vault. Env services currently use env Key Vault
 // for secret_provider (JWT/App Insights/etc), so we replicate the API key here.
-resource envOpenaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps && azureOpenAIEndpoint != '' && effectiveAoaiAccountName != '' && length(effectiveAoaiAccountName) >= 3 && length(effectiveAoaiAccountName) <= 24) {
+var cognitiveServicesApiVersion = '2023-05-01'
+
+var shouldCreateEnvOpenaiSecret = deployContainerApps && azureOpenAIEndpoint != '' && effectiveAoaiAccountName != '' && length(effectiveAoaiAccountName) >= 3 && length(effectiveAoaiAccountName) <= 24
+
+resource envOpenaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (shouldCreateEnvOpenaiSecret) {
   name: '${keyVaultName}/azure-openai-api-key'
   properties: {
     // IMPORTANT: The identity executing this deployment must have management-plane access
     // (e.g. 'Cognitive Services Contributor' or equivalent) on the Azure OpenAI account
     // referenced by coreKvSubscriptionId/coreKvResourceGroupName/effectiveAoaiAccountName,
     // otherwise this listKeys() call will fail at deployment time.
-    value: listKeys(resourceId(coreKvSubscriptionId, coreKvResourceGroupName, 'Microsoft.CognitiveServices/accounts', effectiveAoaiAccountName), '2023-05-01').key1
+    value: listKeys(resourceId(coreKvSubscriptionId, coreKvResourceGroupName, 'Microsoft.CognitiveServices/accounts', effectiveAoaiAccountName), cognitiveServicesApiVersion).key1
     contentType: 'text/plain'
   }
   dependsOn: [

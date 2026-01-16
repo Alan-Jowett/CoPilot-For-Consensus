@@ -95,20 +95,17 @@ def test_archive_azureblob_managed_identity_allows_account_name_present():
 def test_archive_azureblob_invalid_auth_type_is_flagged():
     v = _load_validator_module()
 
-    driver_schema_path = (
-        Path(__file__).resolve().parent.parent
-        / "docs"
-        / "schemas"
-        / "configs"
-        / "adapters"
-        / "drivers"
-        / "archive"
-        / "archive_azureblob.json"
-    )
-    driver_schema = json.loads(driver_schema_path.read_text(encoding="utf-8"))
+    service_schema = {
+        "adapters": {
+            "archive_store": {"$ref": "../adapters/archive_store.json"},
+        }
+    }
 
-    env_vars = {"AZUREBLOB_AUTH_TYPE": "totally_not_real"}
+    env_vars = {
+        "ARCHIVE_STORE_TYPE": "azureblob",
+        "AZUREBLOB_AUTH_TYPE": "totally_not_real",
+    }
 
-    issues = v._validate_schema_discriminant(env_vars, driver_schema, context="test")
+    issues = v.validate_config(env_vars, service_schema, service_name="test")
     assert issues
     assert any("Invalid discriminant value" in issue for issue in issues)
