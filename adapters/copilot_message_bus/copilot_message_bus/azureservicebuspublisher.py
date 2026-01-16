@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Any
 
-from copilot_config.models import DriverConfig
+from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_AzureServiceBus
 
 try:
     from azure.identity import DefaultAzureCredential
@@ -46,19 +46,8 @@ class AzureServiceBusPublisher(EventPublisher):
             use_managed_identity: Use Azure managed identity for authentication
 
         Raises:
-            ValueError: If neither connection_string nor fully_qualified_namespace is provided
-            ValueError: If use_managed_identity is True but fully_qualified_namespace is not provided
+            ValueError: If required parameters are missing (enforced by schema validation)
         """
-        if not connection_string and not fully_qualified_namespace:
-            raise ValueError(
-                "Either connection_string or fully_qualified_namespace must be provided"
-            )
-
-        if use_managed_identity and not fully_qualified_namespace:
-            raise ValueError(
-                "fully_qualified_namespace is required when using managed identity"
-            )
-
         self.connection_string = connection_string
         self.fully_qualified_namespace = fully_qualified_namespace
         self.queue_name = queue_name
@@ -69,7 +58,7 @@ class AzureServiceBusPublisher(EventPublisher):
         self._credential: Any = None  # DefaultAzureCredential if using managed identity
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "AzureServiceBusPublisher":
+    def from_config(cls, driver_config: DriverConfig_MessageBus_AzureServiceBus) -> "AzureServiceBusPublisher":
         """Create publisher from DriverConfig.
 
         Args:
@@ -108,14 +97,13 @@ class AzureServiceBusPublisher(EventPublisher):
             ImportError: If azure-servicebus or azure-identity library is not installed
             Exception: If connection fails
         """
-        if ServiceBusClient is None:
-            raise ImportError("azure-servicebus library is not installed")
-
-        if self.use_managed_identity and DefaultAzureCredential is None:
-            raise ImportError("azure-identity library is not installed")
-
         try:
             if self.use_managed_identity:
+                if ServiceBusClient is None:
+                    raise ImportError("azure-servicebus library is not installed")
+                if DefaultAzureCredential is None:
+                    raise ImportError("azure-identity library is not installed")
+
                 logger.info("Connecting to Azure Service Bus using managed identity")
                 if self.fully_qualified_namespace is None:
                     raise ValueError("fully_qualified_namespace is required when using managed identity")
@@ -125,6 +113,9 @@ class AzureServiceBusPublisher(EventPublisher):
                     credential=self._credential,
                 )
             elif self.connection_string:
+                if ServiceBusClient is None:
+                    raise ImportError("azure-servicebus library is not installed")
+
                 logger.info("Connecting to Azure Service Bus using connection string")
                 self.client = ServiceBusClient.from_connection_string(
                     conn_str=self.connection_string

@@ -35,10 +35,19 @@ pip install copilot-storage
 ### Using Document Stores
 
 ```python
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
 from copilot_storage import create_document_store
 
 # Create in-memory store for testing/local dev
-store = create_document_store(store_type="inmemory")
+store = create_document_store(
+    AdapterConfig_DocumentStore(
+        doc_store_type="inmemory",
+        driver=DriverConfig_DocumentStore_Inmemory(),
+    )
+)
 store.connect()
 
 # Insert document
@@ -68,16 +77,24 @@ store.disconnect()
 
 ```python
 import os
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Mongodb,
+)
 from copilot_storage import create_document_store
 
 # Create MongoDB store using environment variables for credentials
 store = create_document_store(
-    store_type="mongodb",
-    host="mongodb",
-    port=27017,
-    username=os.getenv("MONGODB_USERNAME"),
-    password=os.getenv("MONGODB_PASSWORD"),
-    database="copilot_db"
+    AdapterConfig_DocumentStore(
+        doc_store_type="mongodb",
+        driver=DriverConfig_DocumentStore_Mongodb(
+            host="mongodb",
+            port=27017,
+            username=os.getenv("MONGODB_USERNAME"),
+            password=os.getenv("MONGODB_PASSWORD"),
+            database="copilot_db",
+        ),
+    )
 )
 
 # Connect and use
@@ -94,16 +111,24 @@ if store.connect():
 
 ```python
 import os
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_AzureCosmosdb,
+)
 from copilot_storage import create_document_store
 
 # Create Azure Cosmos DB store using environment variables for credentials
 store = create_document_store(
-    store_type="azurecosmos",
-    endpoint=os.getenv("COSMOS_ENDPOINT"),  # e.g., https://myaccount.documents.azure.com:443/
-    key=os.getenv("COSMOS_KEY"),
-    database="copilot_db",
-    container="documents",
-    partition_key="/collection"
+    AdapterConfig_DocumentStore(
+        doc_store_type="azure_cosmosdb",
+        driver=DriverConfig_DocumentStore_AzureCosmosdb(
+            endpoint=os.getenv("COSMOS_ENDPOINT"),  # e.g., https://myaccount.documents.azure.com:443/
+            key=os.getenv("COSMOS_KEY"),
+            database="copilot_db",
+            container="documents",
+            partition_key="/collection",
+        ),
+    )
 )
 
 # Connect and use
@@ -123,10 +148,20 @@ store.disconnect()
 The `ValidatingDocumentStore` wrapper enforces schema validation on document operations:
 
 ```python
-from copilot_storage import create_document_store, ValidatingDocumentStore
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_storage import ValidatingDocumentStore, create_document_store
 
 # Create base store
-base_store = create_document_store("inmemory")
+base_store = create_document_store(
+    AdapterConfig_DocumentStore(
+        doc_store_type="inmemory",
+        driver=DriverConfig_DocumentStore_Inmemory(),
+    ),
+    enable_validation=False,
+)
 base_store.connect()
 
 # Create a simple schema provider

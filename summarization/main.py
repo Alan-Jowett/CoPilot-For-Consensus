@@ -6,15 +6,32 @@
 import os
 import sys
 import threading
-from pathlib import Path
+from dataclasses import replace
+from typing import cast
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from copilot_config import load_service_config, load_driver_config
+from copilot_config.runtime_loader import get_config
+from copilot_config.generated.services.summarization import ServiceConfig_Summarization
+from copilot_config.generated.adapters.message_bus import (
+    DriverConfig_MessageBus_AzureServiceBus,
+    DriverConfig_MessageBus_Rabbitmq,
+)
+from copilot_config.generated.adapters.metrics import (
+    DriverConfig_Metrics_AzureMonitor,
+    DriverConfig_Metrics_Prometheus,
+    DriverConfig_Metrics_Pushgateway,
+)
 from copilot_message_bus import create_publisher, create_subscriber
-from copilot_logging import create_logger, create_uvicorn_log_config, get_logger, set_default_logger
+from copilot_logging import (
+    create_logger,
+    create_stdout_logger,
+    create_uvicorn_log_config,
+    get_logger,
+    set_default_logger,
+)
 from copilot_metrics import create_metrics_collector
 from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider
@@ -23,9 +40,8 @@ from copilot_summarization import create_llm_backend
 from copilot_vectorstore import create_vector_store
 from fastapi import FastAPI
 
-# Configure structured JSON logging
-bootstrap_logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"level": "INFO", "name": "summarization-bootstrap"})
-bootstrap_logger = create_logger("stdout", bootstrap_logger_config)
+# Bootstrap logger before configuration is loaded
+bootstrap_logger = create_stdout_logger(level="INFO", name="summarization")
 set_default_logger(bootstrap_logger)
 logger = bootstrap_logger
 
@@ -37,6 +53,10 @@ app = FastAPI(title="Summarization Service", version=__version__)
 
 # Global service instance
 summarization_service = None
+
+
+def load_service_config() -> ServiceConfig_Summarization:
+    return cast(ServiceConfig_Summarization, get_config("summarization"))
 
 
 @app.get("/health")
@@ -91,171 +111,152 @@ def start_subscriber_thread(service: SummarizationService):
 def main():
     """Main entry point for the summarization service."""
     global summarization_service
+    global logger
 
-    log = bootstrap_logger
-    log.info(f"Starting Summarization Service (version {__version__})")
+    logger.info(f"Starting Summarization Service (version {__version__})")
 
     try:
-        config = load_service_config("summarization")
+        # Load strongly-typed configuration from JSON schemas
+        config = load_service_config()
+        logger.info("Configuration loaded successfully")
+
+        # Conditionally add JWT authentication middleware based on config
+        if bool(config.service_settings.jwt_auth_enabled):
+            logger.info("JWT authentication is enabled")
+            try:
+                from copilot_auth import create_jwt_middleware
+
+                auth_middleware = create_jwt_middleware(
+                    auth_service_url=str(config.service_settings.auth_service_url or "http://auth:8090"),
+                    audience=str(config.service_settings.service_audience or "copilot-for-consensus"),
+                    required_roles=["processor"],
+                    public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
+                )
+                try:
+                    app.add_middleware(auth_middleware)
+                except RuntimeError as exc:
+                    logger.warning(
+                        f"JWT middleware could not be added (app already started): {exc}"
+                    )
+            except ImportError:
+                logger.debug("copilot_auth module not available - JWT authentication disabled")
+        else:
+            logger.warning("JWT authentication is DISABLED - all endpoints are public")
 
         # Replace bootstrap logger with config-based logger
-        logger_adapter = config.get_adapter("logger")
-        if logger_adapter is not None:
-            service_logger = create_logger(
-                driver_name=logger_adapter.driver_name,
-                driver_config=logger_adapter.driver_config
+        logger = create_logger(config.logger)
+        set_default_logger(logger)
+        logger.info("Logger initialized from service configuration")
+
+        # Service-owned identity constants (not deployment settings)
+        service_name = "summarization"
+        subscriber_queue_name = "summarization.requested"
+
+        # Message bus identity:
+        # - RabbitMQ: use a stable queue name per service.
+        # - Azure Service Bus: use topic/subscription (do NOT use queue_name).
+        message_bus_type = str(config.message_bus.message_bus_type).lower()
+        if message_bus_type == "rabbitmq":
+            rabbitmq_cfg = cast(DriverConfig_MessageBus_Rabbitmq, config.message_bus.driver)
+            config.message_bus.driver = replace(rabbitmq_cfg, queue_name=subscriber_queue_name)
+        elif message_bus_type == "azure_service_bus":
+            asb_cfg = cast(DriverConfig_MessageBus_AzureServiceBus, config.message_bus.driver)
+            config.message_bus.driver = replace(
+                asb_cfg,
+                topic_name="copilot.events",
+                subscription_name=service_name,
+                queue_name=None,
             )
-            logger = service_logger
-            log = service_logger
-            set_default_logger(service_logger)
-            log.info("Logger initialized from service configuration")
-        else:
-            logger = log
-            set_default_logger(bootstrap_logger)
-            log.warning("No logger adapter found, keeping bootstrap logger")
+
+        # Metrics identity: stamp per-service identifier onto driver config
+        metrics_type = str(config.metrics.metrics_type).lower()
+        if metrics_type == "pushgateway":
+            pushgateway_cfg = cast(DriverConfig_Metrics_Pushgateway, config.metrics.driver)
+            config.metrics.driver = replace(pushgateway_cfg, job=service_name, namespace=service_name)
+        elif metrics_type == "prometheus":
+            prometheus_cfg = cast(DriverConfig_Metrics_Prometheus, config.metrics.driver)
+            config.metrics.driver = replace(prometheus_cfg, namespace=service_name)
+        elif metrics_type == "azure_monitor":
+            azure_monitor_cfg = cast(DriverConfig_Metrics_AzureMonitor, config.metrics.driver)
+            config.metrics.driver = replace(azure_monitor_cfg, namespace=service_name)
 
         # Refresh module-level service logger to use the current default
         from app import service as summarization_service_module
         summarization_service_module.logger = get_logger(summarization_service_module.__name__)
 
-        # Conditionally add JWT authentication middleware based on config
-        if config.jwt_auth_enabled:
-            log.info("JWT authentication is enabled")
-            try:
-                from copilot_auth import create_jwt_middleware
-                auth_service_url = getattr(config, 'auth_service_url', None)
-                audience = getattr(config, 'service_audience', None)
-                auth_middleware = create_jwt_middleware(
-                    auth_service_url=auth_service_url,
-                    audience=audience,
-                    required_roles=["processor"],
-                    public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
-                )
-                app.add_middleware(auth_middleware)
-            except ImportError:
-                log.debug("copilot_auth module not available - JWT authentication disabled")
-        else:
-            log.warning("JWT authentication is DISABLED - all endpoints are public")
-
-        log.info("Creating message bus publisher from adapter configuration...")
-        message_bus_adapter = config.get_adapter("message_bus")
-        if message_bus_adapter is None:
-            raise ValueError("message_bus adapter is required")
-
+        logger.info("Creating message bus publisher...")
         publisher = create_publisher(
-            driver_name=message_bus_adapter.driver_name,
-            driver_config=message_bus_adapter.driver_config,
-        )
-        try:
-            publisher.connect()
-        except Exception as e:
-            if str(config.message_bus_type).lower() != "noop":
-                log.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
-                raise ConnectionError("Publisher failed to connect to message bus")
-            log.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
-
-        log.info("Creating message bus subscriber from adapter configuration...")
-        # Add queue_name to subscriber config
-        from copilot_config import DriverConfig
-        subscriber_config = {**message_bus_adapter.driver_config.config, "queue_name": "summarization.requested"}
-        subscriber_driver_config = DriverConfig(
-            driver_name=message_bus_adapter.driver_name,
-            config=subscriber_config,
-            allowed_keys=message_bus_adapter.driver_config.allowed_keys
-        )
-        subscriber = create_subscriber(
-            driver_name=message_bus_adapter.driver_name,
-            driver_config=subscriber_driver_config,
-        )
-        try:
-            subscriber.connect()
-        except Exception as e:
-            log.error(f"Failed to connect subscriber to message bus: {e}")
-            raise ConnectionError("Subscriber failed to connect to message bus")
-
-        log.info("Creating document store from adapter configuration...")
-        document_store_adapter = config.get_adapter("document_store")
-        if document_store_adapter is None:
-            raise ValueError("document_store adapter is required")
-
-        document_store = create_document_store(
-            driver_name=document_store_adapter.driver_name,
-            driver_config=document_store_adapter.driver_config,
+            config.message_bus,
             enable_validation=True,
             strict_validation=True,
         )
         try:
+            publisher.connect()
+        except Exception as e:
+            if str(config.message_bus.message_bus_type).lower() != "noop":
+                logger.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
+                raise ConnectionError("Publisher failed to connect to message bus")
+            logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
+
+        logger.info("Creating message bus subscriber...")
+        subscriber = create_subscriber(
+            config.message_bus,
+            enable_validation=True,
+            strict_validation=True,
+        )
+        try:
+            subscriber.connect()
+        except Exception as e:
+            logger.error(f"Failed to connect subscriber to message bus: {e}")
+            raise ConnectionError("Subscriber failed to connect to message bus")
+
+        logger.info("Creating document store...")
+        document_store = create_document_store(
+            config.document_store,
+            enable_validation=True,
+            strict_validation=True,
+            schema_provider=create_schema_provider(schema_type="documents"),
+        )
+        try:
             document_store.connect()
         except DocumentStoreConnectionError as e:
-            log.error(f"Failed to connect to document store: {e}")
+            logger.error(f"Failed to connect to document store: {e}")
             raise
 
-        log.info("Creating vector store from adapter configuration...")
-        vector_store_adapter = config.get_adapter("vector_store")
-        if vector_store_adapter is None:
-            raise ValueError("vector_store adapter is required")
+        logger.info("Creating vector store...")
+        vector_store = create_vector_store(config.vector_store)
 
-        vector_store = create_vector_store(
-            driver_name=vector_store_adapter.driver_name,
-            driver_config=vector_store_adapter.driver_config,
-        )
-
-        if hasattr(vector_store, "connect"):
+        # VectorStore.connect() may not exist for all implementations.
+        connect_fn = getattr(vector_store, "connect", None)
+        if callable(connect_fn):
             try:
-                result = vector_store.connect()
-                if result is False and str(config.vector_store_type).lower() != "inmemory":
-                    log.error("Failed to connect to vector store.")
+                result = connect_fn()
+                if result is False and str(config.vector_store.vector_store_type).lower() != "inmemory":
+                    logger.error("Failed to connect to vector store.")
                     raise ConnectionError("Vector store failed to connect")
             except Exception as e:
-                if str(config.vector_store_type).lower() != "inmemory":
-                    log.error(f"Failed to connect to vector store: {e}")
+                if str(config.vector_store.vector_store_type).lower() != "inmemory":
+                    logger.error(f"Failed to connect to vector store: {e}")
                     raise ConnectionError("Vector store failed to connect")
 
-        log.info("Creating summarizer from adapter configuration...")
-        llm_backend_adapter = config.get_adapter("llm_backend")
-        if llm_backend_adapter is None:
-            raise ValueError("llm_backend adapter is required")
+        logger.info("Creating LLM backend...")
+        summarizer = create_llm_backend(config.llm_backend)
 
-        summarizer = create_llm_backend(
-            driver_name=llm_backend_adapter.driver_name,
-            driver_config=llm_backend_adapter.driver_config,
+        # Resolve human-readable model name for event metadata / startup requeue
+        llm_driver = config.llm_backend.driver
+        llm_model = (
+            getattr(llm_driver, "local_llm_model", None)
+            or getattr(llm_driver, "llamacpp_model", None)
+            or getattr(llm_driver, "openai_model", None)
+            or getattr(llm_driver, "azure_openai_model", None)
+            or "mistral"
         )
 
-        log.info("Creating metrics collector...")
-        metrics_adapter = config.get_adapter("metrics")
-        if metrics_adapter is not None:
-            from copilot_config import DriverConfig
-            metrics_driver_config = DriverConfig(
-                driver_name=metrics_adapter.driver_name,
-                config={**metrics_adapter.driver_config.config, "job": "summarization"},
-                allowed_keys=metrics_adapter.driver_config.allowed_keys
-            )
-            metrics_collector = create_metrics_collector(
-                driver_name=metrics_adapter.driver_name,
-                driver_config=metrics_driver_config,
-            )
-        else:
-            from copilot_config import DriverConfig
-            metrics_collector = create_metrics_collector(
-                driver_name="noop",
-                driver_config=DriverConfig(driver_name="noop")
-            )
+        logger.info("Creating metrics collector...")
+        metrics_collector = create_metrics_collector(config.metrics)
 
-        log.info("Creating error reporter...")
-        error_reporter_adapter = config.get_adapter("error_reporter")
-        if error_reporter_adapter is not None:
-            error_reporter = create_error_reporter(
-                driver_name=error_reporter_adapter.driver_name,
-                driver_config=error_reporter_adapter.driver_config,
-            )
-        else:
-            error_reporter = create_error_reporter(
-                driver_name="silent",
-                driver_config=DriverConfig(
-                    driver_name="silent",
-                    config={"logger_name": config.logger_name}
-                ),
-            )
+        logger.info("Creating error reporter...")
+        error_reporter = create_error_reporter(config.error_reporter)
 
         summarization_service = SummarizationService(
             document_store=document_store,
@@ -263,16 +264,16 @@ def main():
             publisher=publisher,
             subscriber=subscriber,
             summarizer=summarizer,
-            top_k=config.top_k,
-            citation_count=config.citation_count,
-            retry_max_attempts=config.max_retries,
-            retry_backoff_seconds=config.retry_delay_seconds,
+            top_k=int(config.service_settings.top_k or 12),
+            citation_count=int(config.service_settings.citation_count or 12),
+            retry_max_attempts=int(config.service_settings.max_retries or 3),
+            retry_backoff_seconds=int(config.service_settings.retry_delay_seconds or 5),
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
-            llm_backend=llm_backend_adapter.driver_name,
-            llm_model=llm_backend_adapter.driver_config.config.get("local_llm_model", "mistral"),
-            context_window_tokens=llm_backend_adapter.driver_config.config.get("context_window_tokens", 4096),
-            prompt_template=llm_backend_adapter.driver_config.config.get("prompt_template", ""),
+            llm_backend=str(config.llm_backend.llm_backend_type),
+            llm_model=str(llm_model),
+            context_window_tokens=4096,
+            prompt_template="",
         )
 
         subscriber_thread = threading.Thread(
@@ -281,21 +282,18 @@ def main():
             daemon=False,
         )
         subscriber_thread.start()
-        log.info("Subscriber thread started")
+        logger.info("Subscriber thread started")
 
-        log.info(f"Starting HTTP server on port {config.http_port}...")
+        http_port = int(config.service_settings.http_port or 8000)
+        logger.info(f"Starting HTTP server on port {http_port}...")
 
         # Get log level from logger adapter config
-        log_level = "INFO"
-        for adapter in config.adapters:
-            if adapter.adapter_type == "logger":
-                log_level = adapter.driver_config.config.get("level", "INFO")
-                break
+        log_level = getattr(config.logger.driver, "level", "INFO")
         log_config = create_uvicorn_log_config(service_name="summarization", log_level=log_level)
-        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
+        uvicorn.run(app, host="0.0.0.0", port=http_port, log_config=log_config, access_log=False)
 
     except Exception as e:
-        log.error(f"Failed to start summarization service: {e}", exc_info=True)
+        logger.error(f"Failed to start summarization service: {e}", exc_info=True)
         sys.exit(1)
 
 

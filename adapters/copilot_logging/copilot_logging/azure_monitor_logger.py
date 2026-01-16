@@ -5,9 +5,9 @@
 
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.logger import DriverConfig_Logger_AzureMonitor
 
 from .logger import Logger
 
@@ -89,7 +89,7 @@ class AzureMonitorLogger(Logger):
             self._configure_fallback()
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "AzureMonitorLogger":
+    def from_config(cls, driver_config: DriverConfig_Logger_AzureMonitor) -> "AzureMonitorLogger":
         """Create an AzureMonitorLogger from driver configuration.
 
         Args:
@@ -102,19 +102,12 @@ class AzureMonitorLogger(Logger):
         Raises:
             TypeError: If driver_config is not a DriverConfig instance
         """
-        # Required field with schema default
-        level = driver_config.level
-
-        # Optional fields
-        name = driver_config.name
-        instrumentation_key = driver_config.instrumentation_key
-        console_log = driver_config.console_log
-
+        level = cast(str, driver_config.level)
         return cls(
             level=level,
-            name=name,
-            instrumentation_key=instrumentation_key,
-            console_log=console_log
+            name=driver_config.name,
+            instrumentation_key=driver_config.instrumentation_key,
+            console_log=bool(driver_config.console_log),
         )
 
     def _configure_azure_monitor(

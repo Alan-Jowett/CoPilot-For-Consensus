@@ -1,64 +1,121 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Factory for creating identity providers based on configuration.
+"""Factory for creating identity providers from typed configuration.
 
-This module provides a factory function to create identity provider instances
-based on driver configuration, enabling easy switching between authentication
-strategies.
+copilot_auth has migrated to schema-driven typed configuration.
+The supported providers are defined by the oidc_providers adapter schema:
+
+- github
+- google
+- microsoft
+
+This adapter intentionally does not provide backward compatibility with the old
+"driver_name + DriverConfig" pattern.
 """
 
-from copilot_config import DriverConfig
+from __future__ import annotations
 
-from .datatracker_provider import DatatrackerIdentityProvider
+from dataclasses import replace
+from typing import Literal
+
+from copilot_config.generated.adapters.oidc_providers import (
+    AdapterConfig_OidcProviders,
+    DriverConfig_OidcProviders_Github,
+    DriverConfig_OidcProviders_Google,
+    DriverConfig_OidcProviders_Microsoft,
+)
+
 from .github_provider import GitHubIdentityProvider
 from .google_provider import GoogleIdentityProvider
 from .microsoft_provider import MicrosoftIdentityProvider
-from .mock_provider import MockIdentityProvider
 from .provider import IdentityProvider
 
 
+ProviderName = Literal["github", "google", "microsoft"]
+
+
 def create_identity_provider(
-    driver_name: str,
-    driver_config: DriverConfig
+    provider_name: ProviderName,
+    driver_config: DriverConfig_OidcProviders_Github
+    | DriverConfig_OidcProviders_Google
+    | DriverConfig_OidcProviders_Microsoft,
+    *,
+    issuer: str | None = None,
 ) -> IdentityProvider:
-    """Create an identity provider from DriverConfig.
+    """Create a single identity provider from typed driver config.
 
     Args:
-        driver_name: Type of provider ("mock", "github", "google", "microsoft", "datatracker")
-        driver_config: DriverConfig object with provider configuration
+        provider_name: Provider name ("github", "google", "microsoft")
+        driver_config: Generated driver config dataclass for that provider
+        issuer: Optional service issuer used to default redirect URI to "{issuer}/callback"
 
     Returns:
         IdentityProvider instance
-
-    Raises:
-        ValueError: If driver_name is unknown
-
-    Examples:
-        >>> from copilot_config import load_driver_config
-        >>> driver_config = load_driver_config("auth", "identity_provider", "github", {...})
-        >>> provider = create_identity_provider("github", driver_config)
     """
-    if not driver_name:
+    name = provider_name.lower()
+    if name not in ("github", "google", "microsoft"):
         raise ValueError(
-            "driver_name parameter is required. "
-            "Must be one of: mock, github, google, microsoft, datatracker"
+            f"Unknown identity provider: {provider_name}. Supported types: github, google, microsoft"
         )
 
-    driver_name = driver_name.lower()
+    default_redirect_uri = f"{issuer.rstrip('/')}/callback" if issuer else None
 
-    if driver_name == "mock":
-        return MockIdentityProvider.from_config(driver_config)
-    elif driver_name == "github":
+    if name == "github":
+        if not isinstance(driver_config, DriverConfig_OidcProviders_Github):
+            raise TypeError("github provider requires DriverConfig_OidcProviders_Github")
+        if default_redirect_uri and not driver_config.github_redirect_uri:
+            driver_config = replace(driver_config, github_redirect_uri=default_redirect_uri)
         return GitHubIdentityProvider.from_config(driver_config)
-    elif driver_name == "google":
+    if name == "google":
+        if not isinstance(driver_config, DriverConfig_OidcProviders_Google):
+            raise TypeError("google provider requires DriverConfig_OidcProviders_Google")
+        if default_redirect_uri and not driver_config.google_redirect_uri:
+            driver_config = replace(driver_config, google_redirect_uri=default_redirect_uri)
         return GoogleIdentityProvider.from_config(driver_config)
-    elif driver_name == "microsoft":
+    if name == "microsoft":
+        if not isinstance(driver_config, DriverConfig_OidcProviders_Microsoft):
+            raise TypeError("microsoft provider requires DriverConfig_OidcProviders_Microsoft")
+        if default_redirect_uri and not driver_config.microsoft_redirect_uri:
+            driver_config = replace(driver_config, microsoft_redirect_uri=default_redirect_uri)
         return MicrosoftIdentityProvider.from_config(driver_config)
-    elif driver_name == "datatracker":
-        return DatatrackerIdentityProvider.from_config(driver_config)
-    else:
-        raise ValueError(
-            f"Unknown identity provider driver: {driver_name}. "
-            f"Supported types: mock, github, google, microsoft, datatracker"
+
+    raise ValueError(
+        f"Unknown identity provider: {provider_name}. Supported types: github, google, microsoft"
+    )
+
+
+def create_identity_providers(
+    config: AdapterConfig_OidcProviders,
+    *,
+    issuer: str | None = None,
+) -> dict[str, IdentityProvider]:
+    """Create all configured identity providers from a composite adapter config.
+
+    This matches the oidc_providers schema, which allows multiple concurrent providers.
+    """
+    composite = config.oidc_providers
+    if composite is None:
+        return {}
+
+    providers: dict[str, IdentityProvider] = {}
+    if composite.github is not None:
+        providers["github"] = create_identity_provider(
+            "github",
+            composite.github,
+            issuer=issuer,
         )
+    if composite.google is not None:
+        providers["google"] = create_identity_provider(
+            "google",
+            composite.google,
+            issuer=issuer,
+        )
+    if composite.microsoft is not None:
+        providers["microsoft"] = create_identity_provider(
+            "microsoft",
+            composite.microsoft,
+            issuer=issuer,
+        )
+
+    return providers

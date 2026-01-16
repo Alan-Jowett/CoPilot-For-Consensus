@@ -12,13 +12,22 @@ and debugging.
 
 Example:
     >>> from copilot_logging import create_logger
+    >>> from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Stdout
     >>>
     >>> # Create a logger with structured output
-    >>> logger = create_logger("stdout", {"level": "INFO", "name": "my-service"})
+    >>> logger = create_logger(
+    ...     AdapterConfig_Logger(
+    ...         logger_type="stdout",
+    ...         driver=DriverConfig_Logger_Stdout(level="INFO", name="my-service"),
+    ...     )
+    ... )
     >>> logger.info("Service started", service="ingestion", version="1.0.0")
     >>>
     >>> # Create a silent logger for testing
-    >>> test_logger = create_logger("silent")
+    >>> from copilot_config.generated.adapters.logger import DriverConfig_Logger_Silent
+    >>> test_logger = create_logger(
+    ...     AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent())
+    ... )
     >>> test_logger.info("Test message")
 """
 

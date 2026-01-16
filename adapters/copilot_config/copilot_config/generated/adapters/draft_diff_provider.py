@@ -8,22 +8,22 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
 class DriverConfig_DraftDiffProvider_Datatracker:
     """Configuration for draft_diff_provider adapter using datatracker driver."""
-    base_url: Optional[str] = 'https://datatracker.ietf.org'
+    base_url: str = 'https://datatracker.ietf.org'
     # Base URL for the Datatracker service
-    diff_format: Optional[str] = 'html'
+    diff_format: str = 'html'
     # Default format for diffs
 
 
 @dataclass
 class DriverConfig_DraftDiffProvider_Mock:
     """Configuration for draft_diff_provider adapter using mock driver."""
-    default_format: Optional[str] = 'text'
+    default_format: str = 'text'
     # Default format for auto-generated mock diffs
     mock_diffs: Optional[Dict[str, Any]] = None
     # Predefined mock diffs as a mapping (not fully schematized here)

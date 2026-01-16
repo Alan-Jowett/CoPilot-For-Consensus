@@ -8,6 +8,9 @@
             "type": "string",
             "source": "env",
             "env_var": "AZURE_SEARCH_ENDPOINT",
+            "minLength": 1,
+            "pattern": "^https://",
+            "format": "uri",
             "description": "Azure AI Search endpoint URL"
         },
         "index_name": {
@@ -15,6 +18,7 @@
             "source": "env",
             "env_var": "AZURE_SEARCH_INDEX_NAME",
             "default": "embeddings",
+            "minLength": 1,
             "description": "Azure AI Search index name for embeddings"
         },
         "api_key": {
@@ -22,6 +26,7 @@
             "source": "secret",
             "secret_name": "azure_search_api_key",
             "required": false,
+            "minLength": 1,
             "description": "Azure AI Search API key (alternative to managed identity)"
         },
         "use_managed_identity": {
@@ -31,13 +36,28 @@
             "default": false,
             "description": "Use managed identity instead of API key"
         },
+        "managed_identity_client_id": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZURE_CLIENT_ID",
+            "required": false,
+            "minLength": 1,
+            "description": "Client ID for user-assigned managed identity (optional; if omitted, DefaultAzureCredential will use system-assigned identity or default chain)"
+        },
         "vector_size": {
             "type": "int",
             "source": "env",
             "env_var": "EMBEDDING_DIMENSION",
             "default": 384,
+            "minimum": 1,
             "description": "Embedding vector dimension"
         }
     },
+    "x-conditional_required": [
+        {
+            "if": {"field": "use_managed_identity", "equals": false},
+            "then_required": ["api_key"]
+        }
+    ],
     "required": ["endpoint", "index_name", "vector_size"]
 }

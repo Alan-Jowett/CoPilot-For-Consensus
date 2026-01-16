@@ -7,7 +7,14 @@ from unittest.mock import Mock
 
 import pytest
 
-from copilot_config.load_driver_config import load_driver_config
+from copilot_config.generated.adapters.llm_backend import (
+    AdapterConfig_LlmBackend,
+    DriverConfig_LlmBackend_AzureOpenaiGpt,
+    DriverConfig_LlmBackend_Llamacpp,
+    DriverConfig_LlmBackend_Local,
+    DriverConfig_LlmBackend_Mock,
+    DriverConfig_LlmBackend_Openai,
+)
 
 
 @pytest.fixture
@@ -29,9 +36,47 @@ def mock_openai_module():
 
 @pytest.fixture
 def llm_driver_config():
-    """Create schema-validated DriverConfig for llm_backend drivers."""
+    """Create typed driver config for llm_backend drivers."""
 
     def _make(driver: str, fields: dict | None = None):
-        return load_driver_config(service=None, adapter="llm_backend", driver=driver, fields=fields or {})
+        fields = fields or {}
+
+        if driver == "openai":
+            payload = {"openai_api_key": "test-key", "openai_model": "gpt-4"}
+            payload.update(fields)
+            return DriverConfig_LlmBackend_Openai(**payload)
+
+        if driver == "azure_openai_gpt":
+            payload = {
+                "azure_openai_api_key": "azure-key",
+                "azure_openai_endpoint": "https://test.openai.azure.com",
+                "azure_openai_model": "gpt-4",
+            }
+            payload.update(fields)
+            return DriverConfig_LlmBackend_AzureOpenaiGpt(**payload)
+
+        if driver == "local":
+            return DriverConfig_LlmBackend_Local(**fields)
+
+        if driver == "llamacpp":
+            return DriverConfig_LlmBackend_Llamacpp(**fields)
+
+        if driver == "mock":
+            return DriverConfig_LlmBackend_Mock(**fields)
+
+        raise ValueError(f"Unknown llm_backend driver for tests: {driver}")
+
+    return _make
+
+
+@pytest.fixture
+def llm_backend_config(llm_driver_config):
+    """Create typed AdapterConfig_LlmBackend for llm_backend drivers."""
+
+    def _make(driver: str, fields: dict | None = None):
+        return AdapterConfig_LlmBackend(
+            llm_backend_type=driver,
+            driver=llm_driver_config(driver, fields=fields),
+        )
 
     return _make

@@ -6,9 +6,17 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TypeAlias
 
-from copilot_config import DriverConfig
+from copilot_config.adapter_factory import create_adapter
+from copilot_config.generated.adapters.llm_backend import (
+    AdapterConfig_LlmBackend,
+    DriverConfig_LlmBackend_AzureOpenaiGpt,
+    DriverConfig_LlmBackend_Llamacpp,
+    DriverConfig_LlmBackend_Local,
+    DriverConfig_LlmBackend_Mock,
+    DriverConfig_LlmBackend_Openai,
+)
 
 from .llamacpp_summarizer import LlamaCppSummarizer
 from .local_llm_summarizer import LocalLLMSummarizer
@@ -19,9 +27,46 @@ from .summarizer import Summarizer
 logger = logging.getLogger(__name__)
 
 
+_DriverConfig: TypeAlias = (
+    DriverConfig_LlmBackend_AzureOpenaiGpt
+    | DriverConfig_LlmBackend_Llamacpp
+    | DriverConfig_LlmBackend_Local
+    | DriverConfig_LlmBackend_Mock
+    | DriverConfig_LlmBackend_Openai
+)
+
+
+def _build_openai(driver_config: _DriverConfig) -> Summarizer:
+    if isinstance(
+        driver_config,
+        (DriverConfig_LlmBackend_Openai, DriverConfig_LlmBackend_AzureOpenaiGpt),
+    ):
+        return OpenAISummarizer.from_config(driver_config)
+    raise TypeError(
+        f"Expected openai/azure_openai_gpt config, got {type(driver_config).__name__}"
+    )
+
+
+def _build_local(driver_config: _DriverConfig) -> Summarizer:
+    if isinstance(driver_config, DriverConfig_LlmBackend_Local):
+        return LocalLLMSummarizer.from_config(driver_config)
+    raise TypeError(f"Expected local config, got {type(driver_config).__name__}")
+
+
+def _build_llamacpp(driver_config: _DriverConfig) -> Summarizer:
+    if isinstance(driver_config, DriverConfig_LlmBackend_Llamacpp):
+        return LlamaCppSummarizer.from_config(driver_config)
+    raise TypeError(f"Expected llamacpp config, got {type(driver_config).__name__}")
+
+
+def _build_mock(driver_config: _DriverConfig) -> Summarizer:
+    if isinstance(driver_config, DriverConfig_LlmBackend_Mock):
+        return MockSummarizer.from_config(driver_config)
+    raise TypeError(f"Expected mock config, got {type(driver_config).__name__}")
+
+
 def create_llm_backend(
-    driver_name: str,
-    driver_config: DriverConfig,
+    config: AdapterConfig_LlmBackend,
 ) -> Summarizer:
     """Create an LLM backend (summarizer) instance.
 
@@ -31,32 +76,26 @@ def create_llm_backend(
     language models, hence they are referred to as 'LLM backends'.
 
     Args:
-        driver_name: Backend type (required). Options: "openai", "azure", "local", "llamacpp", "mock".
-        driver_config: Backend configuration as DriverConfig instance.
+        config: Typed AdapterConfig_LlmBackend instance.
 
     Returns:
         Summarizer instance.
 
     Raises:
-        ValueError: If driver_name is unknown.
+        ValueError: If config is missing or llm_backend_type is unknown.
     """
-    driver_lower = driver_name.lower()
+    logger.info("Creating LLM backend with driver: %s", config.llm_backend_type)
 
-    logger.info("Creating LLM backend with driver: %s", driver_lower)
-
-    if driver_lower == "openai":
-        return OpenAISummarizer.from_config(driver_config)
-
-    if driver_lower == "azure_openai_gpt":
-        return OpenAISummarizer.from_config(driver_config)
-
-    if driver_lower == "local":
-        return LocalLLMSummarizer.from_config(driver_config)
-
-    if driver_lower == "llamacpp":
-        return LlamaCppSummarizer.from_config(driver_config)
-
-    if driver_lower == "mock":
-        return MockSummarizer.from_config(driver_config)
-
-    raise ValueError(f"Unknown LLM backend driver: {driver_name}")
+    return create_adapter(
+        config,
+        adapter_name="llm_backend",
+        get_driver_type=lambda c: c.llm_backend_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "openai": _build_openai,
+            "azure_openai_gpt": _build_openai,
+            "local": _build_local,
+            "llamacpp": _build_llamacpp,
+            "mock": _build_mock,
+        },
+    )

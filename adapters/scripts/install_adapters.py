@@ -56,7 +56,7 @@ ADAPTER_DEPENDENCIES = {
     "copilot_archive_fetcher": [],  # Archive fetcher has no adapter dependencies
     "copilot_archive_store": [],  # Archive store has no adapter dependencies
     "copilot_auth": ["copilot_config", "copilot_logging"],  # Auth depends on config and logging
-    "copilot_draft_diff": [],  # Draft diff has no adapter dependencies
+    "copilot_draft_diff": ["copilot_config"],  # Draft diff depends on copilot-config
     "copilot_consensus": ["copilot_config"],  # Consensus depends on copilot-config
 }
 

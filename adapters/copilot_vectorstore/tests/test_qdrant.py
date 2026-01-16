@@ -9,6 +9,7 @@ import pytest
 
 # Check if qdrant-client is available
 try:
+    import qdrant_client  # type: ignore[import]  # noqa: F401
     from copilot_vectorstore.qdrant_store import QdrantVectorStore
     QDRANT_AVAILABLE = True
 except ImportError:
@@ -26,7 +27,7 @@ class TestQdrantVectorStore:
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
 
-        QdrantVectorStore(
+        store = QdrantVectorStore(
             host="testhost",
             port=6334,
             collection_name="test_collection",
@@ -42,7 +43,11 @@ class TestQdrantVectorStore:
             timeout=30,
         )
 
-        # Verify collection creation was attempted
+        # Collection checks are lazy; __init__ must not require a live server.
+        mock_client.get_collections.assert_not_called()
+
+        # First operation should trigger collection ensure.
+        store.add_embedding("doc1", [0.0] * 128, {})
         mock_client.get_collections.assert_called()
 
     @patch('qdrant_client.QdrantClient')

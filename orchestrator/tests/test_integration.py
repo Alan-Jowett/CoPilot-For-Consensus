@@ -8,8 +8,9 @@ from pathlib import Path
 import pytest
 from app.service import OrchestrationService
 from copilot_message_bus import create_publisher, create_subscriber
-from copilot_schema_validation import create_schema_provider
 from copilot_storage import create_document_store
+from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
+from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
 
 pytestmark = pytest.mark.integration
 
@@ -57,9 +58,11 @@ def create_query_with_in_support(original_query):
 @pytest.fixture
 def document_store():
     """Create an in-memory document store with schema validation for testing."""
-    from copilot_config import DriverConfig
     # Create base in-memory store using factory
-    base_store = create_document_store(driver_name="inmemory", driver_config=DriverConfig(driver_name="inmemory"), strict_validation=False)
+    base_store = create_document_store(
+        AdapterConfig_DocumentStore(doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()),
+        enable_validation=False,
+    )
     base_store.connect()
 
     # Override query_documents to support $in operator
@@ -93,8 +96,10 @@ def prompt_files(tmp_path_factory):
 @pytest.fixture
 def publisher():
     """Create a noop publisher for testing."""
-    from copilot_config import DriverConfig
-    pub = create_publisher(driver_name="noop", driver_config=DriverConfig(driver_name="noop"))
+    pub = create_publisher(
+        AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+        enable_validation=False,
+    )
     pub.connect()
     return pub
 
@@ -102,8 +107,10 @@ def publisher():
 @pytest.fixture
 def subscriber():
     """Create a noop subscriber for testing."""
-    from copilot_config import DriverConfig
-    sub = create_subscriber(driver_name="noop", driver_config=DriverConfig(driver_name="noop"))
+    sub = create_subscriber(
+        AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+        enable_validation=False,
+    )
     sub.connect()
     return sub
 

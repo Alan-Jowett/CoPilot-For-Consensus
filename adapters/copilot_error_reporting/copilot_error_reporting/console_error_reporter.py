@@ -7,7 +7,7 @@ import logging
 import traceback
 from typing import Any
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.error_reporter import DriverConfig_ErrorReporter_Console
 
 from .error_reporter import ErrorReporter
 
@@ -30,17 +30,17 @@ class ConsoleErrorReporter(ErrorReporter):
         self.logger = logging.getLogger(logger_name) if logger_name else logger
 
     @classmethod
-    def from_config(cls, config: DriverConfig) -> "ConsoleErrorReporter":
-        """Create ConsoleErrorReporter from DriverConfig.
+    def from_config(cls, config: DriverConfig_ErrorReporter_Console) -> "ConsoleErrorReporter":
+        """Create ConsoleErrorReporter from driver configuration.
 
         Args:
-            config: DriverConfig with optional logger_name attribute.
+            config: Driver config with optional logger_name attribute.
 
         Returns:
             ConsoleErrorReporter instance
         """
         # ConsoleErrorReporter has optional logger_name configuration
-        logger_name = getattr(config, "logger_name", None)
+        logger_name = config.logger_name
         return cls(logger_name=logger_name)
 
     def report(self, error: Exception, context: dict[str, Any] | None = None) -> None:

@@ -8,9 +8,13 @@ from unittest.mock import Mock
 
 import pytest
 
-from copilot_config import load_driver_config
 from app.service import ChunkingService
 from copilot_chunking import Thread, create_chunker
+from copilot_config.generated.adapters.chunker import (
+    AdapterConfig_Chunker,
+    DriverConfig_Chunker_Semantic,
+    DriverConfig_Chunker_TokenWindow,
+)
 from copilot_schema_validation import generate_message_doc_id
 
 
@@ -19,13 +23,14 @@ def test_end_to_end_chunking(document_store):
     """Test end-to-end chunking with real chunker."""
     # Create real chunker
     chunker = create_chunker(
-        "token_window",
-        load_driver_config(
-            "chunking",
-            "chunker",
-            "token_window",
-            fields={"chunk_size": 100, "overlap": 20, "min_chunk_size": 50},
-        ),
+        AdapterConfig_Chunker(
+            chunking_strategy="token_window",
+            driver=DriverConfig_Chunker_TokenWindow(
+                chunk_size=100,
+                overlap=20,
+                min_chunk_size=50,
+            ),
+        )
     )
 
     # Create mocks for publisher/subscriber
@@ -111,11 +116,27 @@ def test_different_chunking_strategies(document_store):
 
     for strategy_name, params in strategies:
         # Create chunker with strategy
-        # Use the adapter driver schema defaults, overriding only what the test specifies.
-        chunker = create_chunker(
-            strategy_name,
-            load_driver_config("chunking", "chunker", strategy_name, fields=params),
-        )
+        if strategy_name == "token_window":
+            chunker = create_chunker(
+                AdapterConfig_Chunker(
+                    chunking_strategy="token_window",
+                    driver=DriverConfig_Chunker_TokenWindow(
+                        chunk_size=params.get("chunk_size", 384),
+                        overlap=params.get("overlap", 50),
+                    ),
+                )
+            )
+        elif strategy_name == "semantic":
+            chunker = create_chunker(
+                AdapterConfig_Chunker(
+                    chunking_strategy="semantic",
+                    driver=DriverConfig_Chunker_Semantic(
+                        target_chunk_size=params.get("target_chunk_size", 400),
+                    ),
+                )
+            )
+        else:
+            raise ValueError(f"Unsupported strategy in test: {strategy_name}")
 
         # Create mocks for publisher/subscriber
         mock_publisher = Mock()
@@ -186,13 +207,14 @@ def test_oversize_message_handling(document_store):
     """Test handling of very large messages."""
     # Create chunker with small chunk size to force many chunks
     chunker = create_chunker(
-        "token_window",
-        load_driver_config(
-            "chunking",
-            "chunker",
-            "token_window",
-            fields={"chunk_size": 50, "overlap": 10, "min_chunk_size": 20},
-        ),
+        AdapterConfig_Chunker(
+            chunking_strategy="token_window",
+            driver=DriverConfig_Chunker_TokenWindow(
+                chunk_size=50,
+                overlap=10,
+                min_chunk_size=20,
+            ),
+        )
     )
 
     # Create mocks for publisher/subscriber

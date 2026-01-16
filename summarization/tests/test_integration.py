@@ -8,7 +8,14 @@ from unittest.mock import Mock
 
 import pytest
 from app.service import SummarizationService
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.llm_backend import (
+    AdapterConfig_LlmBackend,
+    DriverConfig_LlmBackend_Mock,
+)
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import create_document_store
 from copilot_summarization import create_llm_backend
@@ -24,12 +31,16 @@ def in_memory_document_store():
     # Create in-memory store with schema validation using factory
     schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
     schema_provider = create_schema_provider(schema_dir=str(schema_dir))
+    doc_store_config = AdapterConfig_DocumentStore(
+        doc_store_type="inmemory",
+        driver=DriverConfig_DocumentStore_Inmemory(),
+    )
     validating_store = create_document_store(
-        driver_name="inmemory",
-        driver_config={"schema_provider": schema_provider},
+        doc_store_config,
         enable_validation=True,
         strict_validation=True,
         validate_reads=False,
+        schema_provider=schema_provider,
     )
     validating_store.connect()
 
@@ -94,8 +105,10 @@ def mock_subscriber():
 def summarizer():
     """Create a mock summarizer with realistic latency."""
     return create_llm_backend(
-        driver_name="mock",
-        driver_config=DriverConfig(driver_name="mock", config={"mock_latency_ms": 100})
+        AdapterConfig_LlmBackend(
+            llm_backend_type="mock",
+            driver=DriverConfig_LlmBackend_Mock(mock_latency_ms=100),
+        )
     )
 
 

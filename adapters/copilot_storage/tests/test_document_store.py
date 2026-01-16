@@ -4,7 +4,12 @@
 """Tests for document stores."""
 
 import pytest
-from copilot_config import load_driver_config
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_AzureCosmosdb,
+    DriverConfig_DocumentStore_Inmemory,
+    DriverConfig_DocumentStore_Mongodb,
+)
 from copilot_storage import DocumentNotFoundError, DocumentStore, DocumentStoreConnectionError, create_document_store
 from copilot_storage.azure_cosmos_document_store import AzureCosmosDocumentStore
 from copilot_storage.inmemory_document_store import InMemoryDocumentStore
@@ -17,8 +22,11 @@ class TestDocumentStoreFactory:
 
     def test_create_inmemory_store(self):
         """Test creating an in-memory document store."""
-        config = load_driver_config(service=None, adapter="document_store", driver="inmemory")
-        store = create_document_store(driver_name="inmemory", driver_config=config)
+        config = AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        )
+        store = create_document_store(config)
 
         assert isinstance(store, ValidatingDocumentStore)
         assert isinstance(store, DocumentStore)
@@ -26,10 +34,12 @@ class TestDocumentStoreFactory:
 
     def test_create_inmemory_store_without_validation(self):
         """Test creating an in-memory store without validation wrapper."""
-        config = load_driver_config(service=None, adapter="document_store", driver="inmemory")
+        config = AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        )
         store = create_document_store(
-            driver_name="inmemory",
-            driver_config=config,
+            config,
             enable_validation=False,
         )
 
@@ -37,16 +47,15 @@ class TestDocumentStoreFactory:
 
     def test_create_mongodb_store(self):
         """Test creating a MongoDB document store."""
-        config = load_driver_config(
-            service=None,
-            adapter="document_store",
-            driver="mongodb",
-            fields={"host": "localhost", "port": 27017, "database": "test_db"},
+        config = AdapterConfig_DocumentStore(
+            doc_store_type="mongodb",
+            driver=DriverConfig_DocumentStore_Mongodb(
+                host="localhost",
+                port=27017,
+                database="test_db",
+            ),
         )
-        store = create_document_store(
-            driver_name="mongodb",
-            driver_config=config,
-        )
+        store = create_document_store(config)
 
         assert isinstance(store, ValidatingDocumentStore)
         assert isinstance(store, DocumentStore)
@@ -57,15 +66,16 @@ class TestDocumentStoreFactory:
 
     def test_create_mongodb_store_without_validation(self):
         """Test creating a MongoDB document store without validation wrapper."""
-        config = load_driver_config(
-            service=None,
-            adapter="document_store",
-            driver="mongodb",
-            fields={"host": "localhost", "port": 27017, "database": "test_db"},
+        config = AdapterConfig_DocumentStore(
+            doc_store_type="mongodb",
+            driver=DriverConfig_DocumentStore_Mongodb(
+                host="localhost",
+                port=27017,
+                database="test_db",
+            ),
         )
         store = create_document_store(
-            driver_name="mongodb",
-            driver_config=config,
+            config,
             enable_validation=False,
         )
 
@@ -76,25 +86,28 @@ class TestDocumentStoreFactory:
 
     def test_create_unknown_store_type(self):
         """Test that unknown store type raises ValueError."""
-        config = load_driver_config(service=None, adapter="document_store", driver="inmemory")
-        with pytest.raises(ValueError, match="Unknown document store driver"):
-            create_document_store(driver_name="invalid", driver_config=config)
+        config = AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        )
+        with pytest.raises(ValueError, match="Unknown document_store driver"):
+            create_document_store(
+                AdapterConfig_DocumentStore(
+                    doc_store_type="invalid",
+                    driver=config.driver,
+                )
+            )
 
     def test_create_azurecosmos_store(self):
         """Test creating Azure Cosmos DB document store."""
-        config = load_driver_config(
-            service=None,
-            adapter="document_store",
-            driver="azure_cosmosdb",
-            fields={
-                "endpoint": "https://test.documents.azure.com:443/",
-                "key": "test_key",
-            },
+        config = AdapterConfig_DocumentStore(
+            doc_store_type="azure_cosmosdb",
+            driver=DriverConfig_DocumentStore_AzureCosmosdb(
+                endpoint="https://test.documents.azure.com:443/",
+                key="test_key",
+            ),
         )
-        store = create_document_store(
-            driver_name="azure_cosmosdb",
-            driver_config=config,
-        )
+        store = create_document_store(config)
 
         assert isinstance(store, ValidatingDocumentStore)
         assert isinstance(store, DocumentStore)

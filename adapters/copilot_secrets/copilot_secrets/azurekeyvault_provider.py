@@ -6,7 +6,7 @@
 import logging
 import os
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.secret_provider import DriverConfig_SecretProvider_AzureKeyVault
 
 from .exceptions import SecretNotFoundError, SecretProviderError
 from .provider import SecretProvider
@@ -86,7 +86,10 @@ class AzureKeyVaultProvider(SecretProvider):
             raise SecretProviderError(f"Azure Key Vault client error: {e}") from e
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "AzureKeyVaultProvider":
+    def from_config(
+        cls,
+        driver_config: DriverConfig_SecretProvider_AzureKeyVault,
+    ) -> "AzureKeyVaultProvider":
         """Create AzureKeyVaultProvider from driver_config.
 
         Args:
@@ -99,9 +102,7 @@ class AzureKeyVaultProvider(SecretProvider):
         Raises:
             AttributeError: If both vault_url and vault_name are missing
         """
-        vault_url = getattr(driver_config, "vault_url", None)
-        vault_name = getattr(driver_config, "vault_name", None)
-        return cls(vault_url=vault_url, vault_name=vault_name)
+        return cls(vault_url=driver_config.vault_url, vault_name=driver_config.vault_name)
 
     def close(self) -> None:
         """Close the Azure Key Vault client and credential connections.

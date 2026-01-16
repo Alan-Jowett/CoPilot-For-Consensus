@@ -6,7 +6,7 @@
 import logging
 from typing import Any
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_Mongodb
 
 from .document_store import (
     DocumentNotFoundError,
@@ -23,7 +23,7 @@ class MongoDocumentStore(DocumentStore):
     """MongoDB document store implementation."""
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "MongoDocumentStore":
+    def from_config(cls, driver_config: DriverConfig_DocumentStore_Mongodb) -> "MongoDocumentStore":
         """Create a MongoDocumentStore from configuration.
 
         Args:
@@ -35,11 +35,11 @@ class MongoDocumentStore(DocumentStore):
         Raises:
             AttributeError: If required config attributes are missing
         """
-        host = getattr(driver_config, "host", None)
-        port = getattr(driver_config, "port", None)
-        username = getattr(driver_config, "username", None)
-        password = getattr(driver_config, "password", None)
-        database = getattr(driver_config, "database", None)
+        host = driver_config.host
+        port = driver_config.port
+        username = driver_config.username
+        password = driver_config.password
+        database = driver_config.database
 
         return cls(
             host=host,

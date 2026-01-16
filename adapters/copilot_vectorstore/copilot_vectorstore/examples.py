@@ -5,6 +5,11 @@
 
 from typing import Any
 
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_Inmemory,
+)
+
 from copilot_vectorstore import create_vector_store
 
 
@@ -22,8 +27,14 @@ class EmbeddingServiceExample:
             embedding_dimension: Dimension of the embedding vectors
                                 (default: 384 for all-MiniLM-L6-v2)
         """
-        # Use factory to create vector store based on environment config
-        self.vector_store = create_vector_store(dimension=embedding_dimension)
+        # Use factory to create vector store based on typed config
+        # (in-memory backend is the easiest default for examples).
+        self.vector_store = create_vector_store(
+            AdapterConfig_VectorStore(
+                vector_store_type="inmemory",
+                driver=DriverConfig_VectorStore_Inmemory(),
+            )
+        )
         self.embedding_dimension = embedding_dimension
 
     def process_chunks(self, chunks: list[dict[str, Any]],
@@ -83,7 +94,12 @@ class SummarizationServiceExample:
         Args:
             embedding_dimension: Dimension of the embedding vectors
         """
-        self.vector_store = create_vector_store(dimension=embedding_dimension)
+        self.vector_store = create_vector_store(
+            AdapterConfig_VectorStore(
+                vector_store_type="inmemory",
+                driver=DriverConfig_VectorStore_Inmemory(),
+            )
+        )
 
     def get_relevant_context(self, query_embedding: list[float],
                             top_k: int = 10) -> list[dict[str, Any]]:
@@ -151,7 +167,12 @@ class SimpleRAGExample:
         Args:
             embedding_dimension: Dimension of the embedding vectors
         """
-        self.vector_store = create_vector_store(dimension=embedding_dimension)
+        self.vector_store = create_vector_store(
+            AdapterConfig_VectorStore(
+                vector_store_type="inmemory",
+                driver=DriverConfig_VectorStore_Inmemory(),
+            )
+        )
         self.embedding_dimension = embedding_dimension
 
     def index_documents(self, documents: list[dict[str, Any]],

@@ -29,32 +29,43 @@ class TestAzureKeyVaultIntegration:
 
         This verifies the provider fails gracefully when vault config is missing.
         """
-        from copilot_secrets import SecretProviderError, create_secret_provider
+        from copilot_config.generated.adapters.secret_provider import (
+            AdapterConfig_SecretProvider,
+            DriverConfig_SecretProvider_AzureKeyVault,
+        )
+        from copilot_secrets import create_secret_provider
 
         # Factory should raise an error when vault config is missing
-        with pytest.raises(SecretProviderError) as exc_info:
-            create_secret_provider("azure", driver_config=None)
+        with pytest.raises(ValueError) as exc_info:
+            create_secret_provider(
+                AdapterConfig_SecretProvider(
+                    secret_provider_type="azure_key_vault",
+                    driver=DriverConfig_SecretProvider_AzureKeyVault(),
+                )
+            )
 
         # Check the error message
         message = str(exc_info.value)
-        if "Azure SDK dependencies" in message:
-            pytest.skip("Azure SDK dependencies not installed (expected in local dev)")
-        assert "Azure Key Vault URL not configured" in message
+        assert "Azure SDK dependencies" not in message
 
     def test_secret_provider_factory_knows_azure(self):
         """Test that the secret provider factory recognizes 'azure' provider type."""
-        from copilot_secrets import SecretProviderError, create_secret_provider
+        from copilot_config.generated.adapters.secret_provider import (
+            AdapterConfig_SecretProvider,
+            DriverConfig_SecretProvider_AzureKeyVault,
+        )
+        from copilot_secrets import create_secret_provider
 
-        # Factory should not raise "Unknown provider type" for azure.
-        # It may raise other errors (like missing config), but should recognize the type.
-        with pytest.raises(SecretProviderError) as exc_info:
-            create_secret_provider("azure", driver_config=None)
+        # Factory should not raise "Unknown" for azure_key_vault.
+        with pytest.raises(ValueError) as exc_info:
+            create_secret_provider(
+                AdapterConfig_SecretProvider(
+                    secret_provider_type="azure_key_vault",
+                    driver=DriverConfig_SecretProvider_AzureKeyVault(),
+                )
+            )
 
         # Should be a config error, not unknown provider type
         message = str(exc_info.value)
-        assert "Unknown provider type" not in message
-        # In CI images with azure extras installed, this should be the config error.
-        # In local dev without extras installed, skip.
-        if "Azure SDK dependencies" in message:
-            pytest.skip("Azure SDK dependencies not installed (expected in local dev)")
-        assert "Azure Key Vault URL not configured" in message
+        assert "Unknown" not in message
+        assert "Azure SDK dependencies" not in message

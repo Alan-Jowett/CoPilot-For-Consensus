@@ -8,21 +8,21 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
 class DriverConfig_DocumentStore_AzureCosmosdb:
     """Configuration for document_store adapter using azure_cosmosdb driver."""
-    container: Optional[str] = 'documents'
-    # Cosmos DB container name
-    database: Optional[str] = 'copilot'
-    # Cosmos DB database name
-    endpoint: Optional[str] = None
+    endpoint: str
     # Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
+    container: str = 'documents'
+    # Cosmos DB container name
+    database: str = 'copilot'
+    # Cosmos DB database name
     key: Optional[str] = None
     # Cosmos DB account key (optional if using managed identity)
-    partition_key: Optional[str] = '/collection'
+    partition_key: str = '/collection'
     # Cosmos DB partition key path
 
 
@@ -35,13 +35,13 @@ class DriverConfig_DocumentStore_Inmemory:
 @dataclass
 class DriverConfig_DocumentStore_Mongodb:
     """Configuration for document_store adapter using mongodb driver."""
-    database: Optional[str] = 'copilot'
+    database: str = 'copilot'
     # MongoDB database name
-    host: Optional[str] = 'documentdb'
+    host: str = 'documentdb'
     # MongoDB hostname
     password: Optional[str] = None
     # MongoDB password
-    port: Optional[int] = 27017
+    port: int = 27017
     # MongoDB port
     username: Optional[str] = None
     # MongoDB username

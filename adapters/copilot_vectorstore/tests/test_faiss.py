@@ -8,6 +8,7 @@ import random
 import pytest
 
 try:
+    import faiss  # type: ignore[import]  # noqa: F401
     from copilot_vectorstore.faiss_store import FAISSVectorStore
     from copilot_vectorstore.interface import SearchResult
     FAISS_AVAILABLE = True

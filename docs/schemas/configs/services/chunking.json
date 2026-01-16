@@ -30,14 +30,6 @@
             "default": "token_window",
             "description": "Chunking strategy (token_window, recursive, sentence)"
         },
-        "error_reporter_type": {
-            "type": "string",
-            "source": "env",
-            "env_var": "CHUNK_ERROR_REPORTER_TYPE",
-            "default": "console",
-            "required": false,
-            "description": "Error reporter type"
-        },
         "http_port": {
             "type": "int",
             "source": "env",
@@ -90,19 +82,32 @@
     },
     "adapters": {
         "chunker": {
-            "$ref": "../adapters/chunker.json"
+            "$ref": "../adapters/chunker.json",
+            "required": true
         },
         "document_store": {
-            "$ref": "../adapters/document_store.json"
+            "$ref": "../adapters/document_store.json",
+            "required": true
+        },
+        "error_reporter": {
+            "$ref": "../adapters/error_reporter.json",
+            "required": true
+        },
+        "logger": {
+            "$ref": "../adapters/logger.json",
+            "required": true
         },
         "message_bus": {
-            "$ref": "../adapters/message_bus.json"
+            "$ref": "../adapters/message_bus.json",
+            "required": true
         },
         "metrics": {
-            "$ref": "../adapters/metrics.json"
+            "$ref": "../adapters/metrics.json",
+            "required": true
         },
         "secret_provider": {
-            "$ref": "../adapters/secret_provider.json"
+            "$ref": "../adapters/secret_provider.json",
+            "required": true
         }
     }
 }

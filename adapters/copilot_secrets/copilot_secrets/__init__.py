@@ -8,7 +8,16 @@ backends including local file systems, Docker volumes, and cloud secret stores.
 
 Example:
     >>> from copilot_secrets import create_secret_provider
-    >>> provider = create_secret_provider("local", {"base_path": "/app/secrets"})
+    >>> from copilot_config.generated.adapters.secret_provider import (
+    ...     AdapterConfig_SecretProvider,
+    ...     DriverConfig_SecretProvider_Local,
+    ... )
+    >>> provider = create_secret_provider(
+    ...     AdapterConfig_SecretProvider(
+    ...         secret_provider_type="local",
+    ...         driver=DriverConfig_SecretProvider_Local(base_path="/app/secrets"),
+    ...     )
+    ... )
     >>> jwt_key = provider.get_secret("jwt_private_key")
 """
 

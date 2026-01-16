@@ -5,47 +5,34 @@
 
 import os
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
-from copilot_config.models import AdapterConfig, DriverConfig, ServiceConfig
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.logger import (
+    AdapterConfig_Logger,
+    DriverConfig_Logger_Stdout,
+)
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_Noop,
+)
+from copilot_config.generated.adapters.oidc_providers import (
+    AdapterConfig_OidcProviders,
+    CompositeConfig_OidcProviders,
+)
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_Local,
+)
+from copilot_config.generated.services.auth import ServiceConfig_Auth, ServiceSettings_Auth
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-
-def _make_service_config(
-    *,
-    document_store_driver: str = "mongodb",
-    http_port: int = 8087,
-) -> ServiceConfig:
-    return ServiceConfig(
-        service_name="auth",
-        service_settings={
-            "http_port": http_port,
-        },
-        adapters=[
-            AdapterConfig(
-                adapter_type="document_store",
-                driver_name=document_store_driver,
-                driver_config=DriverConfig(
-                    driver_name=document_store_driver,
-                    config={
-                        "mongodb_host": "localhost",
-                        "mongodb_port": 27017,
-                        "mongodb_database": "test_db",
-                    },
-                ),
-            ),
-            AdapterConfig(
-                adapter_type="metrics",
-                driver_name="noop",
-                driver_config=DriverConfig(driver_name="noop", config={}),
-            ),
-        ],
-    )
-
 
 def test_main_imports_successfully():
     """Test that main.py imports successfully without errors."""
@@ -54,17 +41,43 @@ def test_main_imports_successfully():
     assert auth_main is not None
 
 
-def test_service_starts_with_valid_config():
-    """Test that auth service can be initialized with valid config."""
-    with patch("main.load_auth_config") as mock_config:
-        # Mock minimal auth config
-        mock_auth_config = Mock()
-        mock_auth_config.jwt_secret_key = "test-secret-key"
-        mock_auth_config.jwt_algorithm = "HS256"
-        mock_auth_config.jwt_access_token_expire_minutes = 30
-        mock_auth_config.providers = []
-        mock_config.return_value = mock_auth_config
+@pytest.mark.anyio
+async def test_lifespan_starts_with_minimal_typed_config():
+    """Ensure FastAPI lifespan starts with a minimal typed config."""
+    import main as auth_main
 
-        # Just verify imports work - auth service doesn't use standard document_store pattern
-        import main as auth_main
-        assert auth_main is not None
+    minimal = ServiceConfig_Auth(
+        service_settings=ServiceSettings_Auth(
+            issuer="http://localhost:8090",
+            jwt_algorithm="HS256",
+            jwt_secret_key="test-secret-key",
+        ),
+        document_store=AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        ),
+        logger=AdapterConfig_Logger(
+            logger_type="stdout",
+            driver=DriverConfig_Logger_Stdout(),
+        ),
+        metrics=AdapterConfig_Metrics(
+            metrics_type="noop",
+            driver=DriverConfig_Metrics_Noop(),
+        ),
+        oidc_providers=AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(),
+        ),
+        secret_provider=AdapterConfig_SecretProvider(
+            secret_provider_type="local",
+            driver=DriverConfig_SecretProvider_Local(),
+        ),
+    )
+
+    class DummyAuthService:
+        def __init__(self, config):
+            self.config = config
+
+    with patch.object(auth_main, "load_auth_config", return_value=minimal):
+        with patch.object(auth_main, "AuthService", DummyAuthService):
+            async with auth_main.lifespan(auth_main.app):
+                assert True

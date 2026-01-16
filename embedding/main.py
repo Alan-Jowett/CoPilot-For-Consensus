@@ -6,13 +6,13 @@
 import os
 import sys
 import threading
-from pathlib import Path
+from dataclasses import replace
+from typing import cast
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from copilot_config import load_service_config
 from copilot_embedding import create_embedding_provider
 from copilot_message_bus import create_publisher, create_subscriber
 from copilot_logging import (
@@ -35,12 +35,34 @@ set_default_logger(logger)
 
 from app import __version__
 from app.service import EmbeddingService
+from copilot_config.runtime_loader import get_config
+from copilot_config.generated.adapters.embedding_backend import (
+    DriverConfig_EmbeddingBackend_AzureOpenai,
+    DriverConfig_EmbeddingBackend_Huggingface,
+    DriverConfig_EmbeddingBackend_Openai,
+    DriverConfig_EmbeddingBackend_Sentencetransformers,
+)
+from copilot_config.generated.adapters.message_bus import (
+    DriverConfig_MessageBus_AzureServiceBus,
+    DriverConfig_MessageBus_Rabbitmq,
+)
+from copilot_config.generated.adapters.metrics import (
+    DriverConfig_Metrics_AzureMonitor,
+    DriverConfig_Metrics_Prometheus,
+    DriverConfig_Metrics_Pushgateway,
+)
+from copilot_config.generated.adapters.vector_store import (
+    DriverConfig_VectorStore_AzureAiSearch,
+    DriverConfig_VectorStore_Faiss,
+    DriverConfig_VectorStore_Qdrant,
+)
+from copilot_config.generated.services.embedding import ServiceConfig_Embedding
 
 # Create FastAPI app
 app = FastAPI(title="Embedding Service", version=__version__)
 
 # Global service instance (consistent with other services in the codebase)
-embedding_service = None
+embedding_service: EmbeddingService | None = None
 
 
 @app.get("/health")
@@ -102,27 +124,53 @@ def main():
     logger.info(f"Starting Embedding Service (version {__version__})")
 
     try:
-        # Load configuration using schema-driven service config
-        config = load_service_config("embedding")
+        # Load strongly-typed configuration from JSON schemas
+        config = cast(ServiceConfig_Embedding, get_config("embedding"))
         logger.info("Configuration loaded successfully")
 
         # Replace bootstrap logger with config-based logger
-        logger_adapter = config.get_adapter("logger")
-        if logger_adapter is not None:
-            logger = create_logger(
-                driver_name=logger_adapter.driver_name,
-                driver_config=logger_adapter.driver_config
+        logger = create_logger(config.logger)
+        set_default_logger(logger)
+        logger.info("Logger initialized from service configuration")
+
+        # Service-owned identity constants (not deployment settings)
+        service_name = "embedding"
+        subscriber_queue_name = "chunks.prepared"
+
+        # Message bus: keep publisher routing driven by (exchange, routing_key).
+        # - RabbitMQ: set a stable queue name for subscribers.
+        # - Azure Service Bus: use topic/subscription (do NOT set queue_name on shared config).
+        if config.message_bus.message_bus_type == "rabbitmq":
+            driver = cast(DriverConfig_MessageBus_Rabbitmq, config.message_bus.driver)
+            config.message_bus.driver = replace(driver, queue_name=subscriber_queue_name)
+        elif config.message_bus.message_bus_type == "azure_service_bus":
+            # Topic-based fanout; each service gets its own subscription.
+            driver = cast(DriverConfig_MessageBus_AzureServiceBus, config.message_bus.driver)
+            config.message_bus.driver = replace(
+                driver,
+                topic_name="copilot.events",
+                subscription_name=service_name,
+                queue_name=None,
             )
-            set_default_logger(logger)
-            logger.info("Logger initialized from service configuration")
+
+        # Metrics: stamp per-service identifier onto driver config
+        if config.metrics.metrics_type == "pushgateway":
+            driver = cast(DriverConfig_Metrics_Pushgateway, config.metrics.driver)
+            config.metrics.driver = replace(driver, job=service_name, namespace=service_name)
+        elif config.metrics.metrics_type == "prometheus":
+            driver = cast(DriverConfig_Metrics_Prometheus, config.metrics.driver)
+            config.metrics.driver = replace(driver, namespace=service_name)
+        elif config.metrics.metrics_type == "azure_monitor":
+            driver = cast(DriverConfig_Metrics_AzureMonitor, config.metrics.driver)
+            config.metrics.driver = replace(driver, namespace=service_name)
 
         # Conditionally add JWT authentication middleware based on config
-        if config.jwt_auth_enabled:
+        if bool(config.service_settings.jwt_auth_enabled):
             logger.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
-                auth_service_url = getattr(config, 'auth_service_url', None)
-                audience = getattr(config, 'service_audience', None)
+                auth_service_url = config.service_settings.auth_service_url or "http://auth:8090"
+                audience = config.service_settings.service_audience or "copilot-for-consensus"
                 auth_middleware = create_jwt_middleware(
                     auth_service_url=auth_service_url,
                     audience=audience,
@@ -139,22 +187,17 @@ def main():
         from app import service as embedding_service_module
         embedding_service_module.logger = get_logger(embedding_service_module.__name__)
 
-        # Create adapters
-        # Create adapters
-        message_bus_adapter = config.get_adapter("message_bus")
-        if message_bus_adapter is None:
-            raise ValueError("message_bus adapter is required")
-
         logger.info("Creating message bus publisher...")
 
         publisher = create_publisher(
-            driver_name=message_bus_adapter.driver_name,
-            driver_config=message_bus_adapter.driver_config,
+            config.message_bus,
+            enable_validation=True,
+            strict_validation=True,
         )
         try:
             publisher.connect()
         except Exception as e:
-            if str(message_bus_adapter.driver_name).lower() != "noop":
+            if str(config.message_bus.message_bus_type).lower() != "noop":
                 logger.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
@@ -162,15 +205,10 @@ def main():
 
         logger.info("Creating message bus subscriber...")
 
-        from copilot_config import DriverConfig
-        subscriber_driver_config = DriverConfig(
-            driver_name=message_bus_adapter.driver_name,
-            config={**message_bus_adapter.driver_config.config, "queue_name": "chunks.prepared"},
-            allowed_keys=message_bus_adapter.driver_config.allowed_keys
-        )
         subscriber = create_subscriber(
-            driver_name=message_bus_adapter.driver_name,
-            driver_config=subscriber_driver_config,
+            config.message_bus,
+            enable_validation=True,
+            strict_validation=True,
         )
         try:
             subscriber.connect()
@@ -179,117 +217,83 @@ def main():
             raise ConnectionError("Subscriber failed to connect to message bus")
 
         logger.info("Creating document store...")
-        document_store_adapter = config.get_adapter("document_store")
-        if document_store_adapter is None:
-            raise ValueError("document_store adapter is required")
-
         document_schema_provider = create_schema_provider(schema_type="documents")
-
-        from copilot_config import DriverConfig
-        document_store_driver_config = DriverConfig(
-            driver_name=document_store_adapter.driver_name,
-            config={**document_store_adapter.driver_config.config, "schema_provider": document_schema_provider},
-            allowed_keys=document_store_adapter.driver_config.allowed_keys
-        )
         document_store = create_document_store(
-            driver_name=document_store_adapter.driver_name,
-            driver_config=document_store_driver_config,
+            config.document_store,
             enable_validation=True,
             strict_validation=True,
+            schema_provider=document_schema_provider,
         )
         logger.info("Connecting to document store...")
         document_store.connect()
 
-        logger.info("Creating embedding provider from adapter configuration...")
-        embedding_adapter = config.get_adapter("embedding_backend")
-        if embedding_adapter is None:
-            raise ValueError("embedding_backend adapter is required")
-
-        backend_name = str(embedding_adapter.driver_name).lower()
-        provider_driver_name = backend_name
-
-        embedding_provider = create_embedding_provider(
-            driver_name=provider_driver_name,
-            driver_config=embedding_adapter.driver_config,
-        )
+        logger.info("Creating embedding provider from typed configuration...")
+        backend_name = str(config.embedding_backend.embedding_backend_type).lower()
+        embedding_provider = create_embedding_provider(config.embedding_backend)
 
         # Get embedding configuration for service setup
         # For providers that expose dimension property (like mock), use it
         # Otherwise, determine dimension by creating a sample embedding
-        if hasattr(embedding_provider, "dimension"):
-            embedding_dimension = embedding_provider.dimension
+        dimension_value = getattr(embedding_provider, "dimension", None)
+        if isinstance(dimension_value, int):
+            embedding_dimension = dimension_value
         else:
             # Get dimension from a sample embedding
             sample_embedding = embedding_provider.embed("test")
             embedding_dimension = len(sample_embedding)
 
-        embedding_model = getattr(embedding_adapter.driver_config, "model_name", provider_driver_name)
+        embedding_model = backend_name
+        if config.embedding_backend.embedding_backend_type == "sentencetransformers":
+            driver = cast(DriverConfig_EmbeddingBackend_Sentencetransformers, config.embedding_backend.driver)
+            embedding_model = driver.model_name
+        elif config.embedding_backend.embedding_backend_type == "huggingface":
+            driver = cast(DriverConfig_EmbeddingBackend_Huggingface, config.embedding_backend.driver)
+            embedding_model = driver.model_name
+        elif config.embedding_backend.embedding_backend_type == "openai":
+            driver = cast(DriverConfig_EmbeddingBackend_Openai, config.embedding_backend.driver)
+            embedding_model = driver.model
+        elif config.embedding_backend.embedding_backend_type == "azure_openai":
+            driver = cast(DriverConfig_EmbeddingBackend_AzureOpenai, config.embedding_backend.driver)
+            embedding_model = driver.model or driver.deployment_name
+        elif config.embedding_backend.embedding_backend_type == "mock":
+            embedding_model = "mock"
+
         embedding_backend_label = backend_name
-        embedding_driver_config = embedding_adapter.driver_config
 
         logger.info("Creating vector store from adapter configuration...")
-        vector_store_adapter = config.get_adapter("vector_store")
-        if vector_store_adapter is None:
-            raise ValueError("vector_store adapter is required")
 
-        from copilot_config import DriverConfig
-        vector_store_driver_config = DriverConfig(
-            driver_name=vector_store_adapter.driver_name,
-            config={**vector_store_adapter.driver_config.config, "embedding_dimension": embedding_dimension},
-            allowed_keys=vector_store_adapter.driver_config.allowed_keys
-        )
-        vector_store = create_vector_store(
-            driver_name=vector_store_adapter.driver_name,
-            driver_config=vector_store_driver_config,
-        )
+        # Ensure vector store dimension matches embedding provider.
+        if config.vector_store.vector_store_type == "qdrant":
+            driver = cast(DriverConfig_VectorStore_Qdrant, config.vector_store.driver)
+            config.vector_store.driver = replace(driver, vector_size=embedding_dimension)
+        elif config.vector_store.vector_store_type == "azure_ai_search":
+            driver = cast(DriverConfig_VectorStore_AzureAiSearch, config.vector_store.driver)
+            config.vector_store.driver = replace(driver, vector_size=embedding_dimension)
+        elif config.vector_store.vector_store_type == "faiss":
+            driver = cast(DriverConfig_VectorStore_Faiss, config.vector_store.driver)
+            config.vector_store.driver = replace(driver, dimension=embedding_dimension)
 
-        if hasattr(vector_store, "connect"):
+        vector_store = create_vector_store(config.vector_store)
+
+        connect = getattr(vector_store, "connect", None)
+        if callable(connect):
             try:
-                result = vector_store.connect()
-                if result is False and str(vector_store_adapter.driver_name).lower() != "inmemory":
+                result = connect()
+                if result is False and config.vector_store.vector_store_type != "inmemory":
                     logger.error("Failed to connect to vector store.")
                     raise ConnectionError("Vector store failed to connect")
             except Exception as e:
-                if str(vector_store_adapter.driver_name).lower() != "inmemory":
+                if config.vector_store.vector_store_type != "inmemory":
                     logger.error(f"Failed to connect to vector store: {e}")
                     raise ConnectionError("Vector store failed to connect")
 
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
-        metrics_adapter = config.get_adapter("metrics")
-        if metrics_adapter is not None:
-            from copilot_config import DriverConfig
-            metrics_driver_config = DriverConfig(
-                driver_name=metrics_adapter.driver_name,
-                config={**metrics_adapter.driver_config.config, "job": "embedding"},
-                allowed_keys=metrics_adapter.driver_config.allowed_keys
-            )
-            metrics_collector = create_metrics_collector(
-                driver_name=metrics_adapter.driver_name,
-                driver_config=metrics_driver_config,
-            )
-        else:
-            from copilot_config import DriverConfig
-            metrics_collector = create_metrics_collector(
-                driver_name="noop",
-                driver_config=DriverConfig(driver_name="noop")
-            )
+        metrics_collector = create_metrics_collector(config.metrics)
 
         # Create error reporter - fail fast on errors
         logger.info("Creating error reporter...")
-        error_reporter_adapter = config.get_adapter("error_reporter")
-        if error_reporter_adapter is not None:
-            error_reporter = create_error_reporter(
-                driver_name=error_reporter_adapter.driver_name,
-                driver_config=error_reporter_adapter.driver_config,
-            )
-        else:
-            # Fallback to console reporter with empty config
-            from copilot_config import DriverConfig
-            error_reporter = create_error_reporter(
-                driver_name="console",
-                driver_config=DriverConfig(driver_name="console", config={}, allowed_keys=set()),
-            )
+        error_reporter = create_error_reporter(config.error_reporter)
 
         # Create embedding service
         embedding_service = EmbeddingService(
@@ -302,18 +306,22 @@ def main():
             error_reporter=error_reporter,
             embedding_model=embedding_model,
             embedding_backend=embedding_backend_label,
-            embedding_dimension=(
-                vector_store_driver_config.get("dimension")
-                or vector_store_driver_config.get("vector_size")
-                or embedding_driver_config.get("embedding_dimension")
+            embedding_dimension=embedding_dimension,
+            batch_size=config.service_settings.batch_size if config.service_settings.batch_size is not None else 32,
+            max_retries=config.service_settings.max_retries if config.service_settings.max_retries is not None else 3,
+            retry_backoff_seconds=(
+                config.service_settings.retry_backoff_seconds
+                if config.service_settings.retry_backoff_seconds is not None
+                else 5
             ),
-            batch_size=config.batch_size,
-            max_retries=config.max_retries,
-            retry_backoff_seconds=config.retry_backoff_seconds,
             vector_store_collection=(
-                vector_store_driver_config.get("collection_name")
-                or vector_store_driver_config.get("index_name")
-                or "message_embeddings"
+                cast(DriverConfig_VectorStore_Qdrant, config.vector_store.driver).collection_name
+                if config.vector_store.vector_store_type == "qdrant"
+                else (
+                    cast(DriverConfig_VectorStore_AzureAiSearch, config.vector_store.driver).index_name
+                    if config.vector_store.vector_store_type == "azure_ai_search"
+                    else "message_embeddings"
+                )
             ),
         )
 
@@ -327,11 +335,13 @@ def main():
         logger.info("Subscriber thread started")
 
         # Start FastAPI server
-        logger.info(f"Starting HTTP server on port {config.http_port}...")
+        http_port = config.service_settings.http_port if config.service_settings.http_port is not None else 8000
+        http_host = config.service_settings.http_host or "0.0.0.0"
+        logger.info(f"Starting HTTP server on port {http_port}...")
 
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="embedding", log_level="INFO")
-        uvicorn.run(app, host=config.http_host, port=config.http_port, log_config=log_config, access_log=False)
+        uvicorn.run(app, host=http_host, port=http_port, log_config=log_config, access_log=False)
 
     except Exception as e:
         logger.error(f"Failed to start embedding service: {e}")

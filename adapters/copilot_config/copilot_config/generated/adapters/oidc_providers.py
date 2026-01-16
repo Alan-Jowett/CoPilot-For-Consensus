@@ -8,13 +8,13 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
 class DriverConfig_OidcProviders_Github:
     """Configuration for oidc_providers adapter using github driver."""
-    github_api_base_url: Optional[str] = 'https://api.github.com'
+    github_api_base_url: str = 'https://api.github.com'
     # GitHub API base URL
     github_client_id: Optional[str] = None
     # GitHub OAuth client ID
@@ -44,7 +44,7 @@ class DriverConfig_OidcProviders_Microsoft:
     # Microsoft OAuth client secret
     microsoft_redirect_uri: Optional[str] = None
     # Microsoft OAuth callback URL (defaults to {issuer}/callback)
-    microsoft_tenant: Optional[str] = 'common'
+    microsoft_tenant: str = 'common'
     # Microsoft tenant ID
 
 

@@ -55,7 +55,7 @@ def test_generate_driver_dataclass_required_first_and_description_comment():
     assert class_name == "DriverConfig_Metrics_Pushgateway"
 
     required_line = "    required_no_default: str"
-    optional_line = "    optional_with_default: Optional[int] = 7"
+    optional_line = "    optional_with_default: int = 7"
 
     assert required_line in code
     assert optional_line in code

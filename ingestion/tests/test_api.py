@@ -6,7 +6,12 @@
 import pytest
 from app.api import create_api_router
 from app.service import IngestionService
-from copilot_config import load_driver_config
+from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
+from copilot_config.generated.adapters.error_reporter import AdapterConfig_ErrorReporter, DriverConfig_ErrorReporter_Silent
+from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Silent
+from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
+from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
+from copilot_error_reporting import create_error_reporter
 from copilot_message_bus import create_publisher
 from copilot_logging import create_logger
 from copilot_metrics import create_metrics_collector
@@ -20,10 +25,10 @@ from .test_helpers import make_config
 @pytest.fixture
 def document_store():
     """Create in-memory document store for testing."""
-    store_config = load_driver_config(
-        service=None, adapter="document_store", driver="inmemory", fields={}
+    store = create_document_store(
+        AdapterConfig_DocumentStore(doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()),
+        enable_validation=False,
     )
-    store = create_document_store(driver_name="inmemory", driver_config=store_config)
     store.connect()
     return store
 
@@ -33,27 +38,34 @@ def service(document_store, tmp_path):
     """Create ingestion service for testing."""
     from .test_helpers import make_archive_store
 
+    sources: list[dict] = []
     config = make_config(
-        sources=[],
         storage_path=str(tmp_path / "raw_archives"),
     )
 
-    publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-    publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
+    publisher = create_publisher(
+        AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+        enable_validation=False,
+    )
     publisher.connect()
 
-    logger_config = load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"})
-    logger = create_logger(driver_name="silent", driver_config=logger_config)
-    metrics_config = load_driver_config(service=None, adapter="metrics", driver="noop", fields={})
-    metrics = create_metrics_collector(driver_name="noop", driver_config=metrics_config)
-    archive_store = make_archive_store(base_path=config.storage_path)
+    logger = create_logger(
+        AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"))
+    )
+    metrics = create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
+    error_reporter = create_error_reporter(
+        AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
+    )
+    archive_store = make_archive_store(base_path=config.service_settings.storage_path or str(tmp_path / "raw_archives"))
 
     service = IngestionService(
         config,
         publisher,
+        sources=sources,
         document_store=document_store,
         logger=logger,
         metrics=metrics,
+        error_reporter=error_reporter,
         archive_store=archive_store,
     )
     service.version = "test-1.0.0"
@@ -64,8 +76,9 @@ def service(document_store, tmp_path):
 @pytest.fixture
 def client(service):
     """Create test client for API."""
-    logger_config = load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "api-test"})
-    logger = create_logger(driver_name="silent", driver_config=logger_config)
+    logger = create_logger(
+        AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="api-test"))
+    )
 
     app = FastAPI()
     api_router = create_api_router(service, logger)

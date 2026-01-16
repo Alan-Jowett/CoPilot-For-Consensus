@@ -6,12 +6,15 @@
     "properties": {
         "model_name": {
             "type": "string",
+            "minLength": 1,
             "source": "env",
             "env_var": "HUGGINGFACE_MODEL_NAME",
             "description": "HuggingFace model name (e.g., 'sentence-transformers/all-MiniLM-L6-v2')"
         },
         "device": {
             "type": "string",
+            "minLength": 1,
+            "pattern": "^(cpu|mps|cuda(:\\d+)?)$",
             "source": "env",
             "env_var": "HUGGINGFACE_DEVICE",
             "description": "Device to use (cpu, cuda, mps)"

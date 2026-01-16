@@ -5,7 +5,7 @@
 
 from typing import Any
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.error_reporter import DriverConfig_ErrorReporter_Silent
 
 from .error_reporter import ErrorReporter
 
@@ -23,11 +23,11 @@ class SilentErrorReporter(ErrorReporter):
         self.captured_messages: list[dict[str, Any]] = []
 
     @classmethod
-    def from_config(cls, config: DriverConfig) -> "SilentErrorReporter":
-        """Create SilentErrorReporter from DriverConfig.
+    def from_config(cls, config: DriverConfig_ErrorReporter_Silent) -> "SilentErrorReporter":
+        """Create SilentErrorReporter from driver configuration.
 
         Args:
-            config: DriverConfig (ignored, no configuration needed)
+            config: Driver config (ignored, no configuration needed)
 
         Returns:
             SilentErrorReporter instance

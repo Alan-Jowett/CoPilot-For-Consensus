@@ -476,7 +476,7 @@ class TestAzureAISearchVectorStore:
     @patch('azure.search.documents.indexes.SearchIndexClient')
     @patch('azure.identity.DefaultAzureCredential')
     def test_managed_identity_with_client_id(self, mock_credential_class, mock_index_client_class, mock_search_client_class):
-        """Test that managed identity uses client ID from AZURE_CLIENT_ID env var."""
+        """Test that managed identity uses the provided client ID."""
         mock_index_client = Mock()
         mock_search_client = Mock()
         mock_credential = Mock()
@@ -489,19 +489,18 @@ class TestAzureAISearchVectorStore:
         mock_index.fields = [Mock(name="embedding", vector_search_dimensions=128)]
         mock_index_client.get_index.return_value = mock_index
 
-        # Set AZURE_CLIENT_ID environment variable
         test_client_id = "test-client-id-12345"
-        with patch.dict(os.environ, {'AZURE_CLIENT_ID': test_client_id}):
-            store = AzureAISearchVectorStore(
-                endpoint="https://test.search.windows.net",
-                index_name="test_index",
-                vector_size=128,
-                use_managed_identity=True,
-            )
+        store = AzureAISearchVectorStore(
+            endpoint="https://test.search.windows.net",
+            index_name="test_index",
+            vector_size=128,
+            use_managed_identity=True,
+            managed_identity_client_id=test_client_id,
+        )
 
-            # Verify DefaultAzureCredential was called with managed_identity_client_id
-            mock_credential_class.assert_called_once_with(managed_identity_client_id=test_client_id)
-            assert store._endpoint == "https://test.search.windows.net"
+        # Verify DefaultAzureCredential was called with managed_identity_client_id
+        mock_credential_class.assert_called_once_with(managed_identity_client_id=test_client_id)
+        assert store._endpoint == "https://test.search.windows.net"
 
     @patch('azure.search.documents.SearchClient')
     @patch('azure.search.documents.indexes.SearchIndexClient')

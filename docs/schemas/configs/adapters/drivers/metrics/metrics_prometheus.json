@@ -13,6 +13,7 @@
             "type": "string",
             "required": false,
             "default": "copilot",
+            "minLength": 1,
             "description": "Namespace prefix for all metrics"
         },
         "raise_on_error": {

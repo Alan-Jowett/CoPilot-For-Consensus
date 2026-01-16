@@ -24,10 +24,11 @@ def set_test_environment():
     os.environ["DOCUMENT_STORE_TYPE"] = "inmemory"
     os.environ["EMBEDDING_BACKEND_TYPE"] = "mock"
     os.environ["ERROR_REPORTER_TYPE"] = "console"
+    os.environ["LOGGER_TYPE"] = "stdout"
     os.environ["MESSAGE_BUS_TYPE"] = "noop"
     os.environ["METRICS_TYPE"] = "noop"
     os.environ["SECRET_PROVIDER_TYPE"] = "local"
-    os.environ["VECTOR_STORE_TYPE"] = "qdrant"
+    os.environ["VECTOR_STORE_TYPE"] = "inmemory"
 
     yield
 
@@ -36,6 +37,7 @@ def set_test_environment():
     os.environ.pop("DOCUMENT_STORE_TYPE", None)
     os.environ.pop("EMBEDDING_BACKEND_TYPE", None)
     os.environ.pop("ERROR_REPORTER_TYPE", None)
+    os.environ.pop("LOGGER_TYPE", None)
     os.environ.pop("MESSAGE_BUS_TYPE", None)
     os.environ.pop("METRICS_TYPE", None)
     os.environ.pop("SECRET_PROVIDER_TYPE", None)

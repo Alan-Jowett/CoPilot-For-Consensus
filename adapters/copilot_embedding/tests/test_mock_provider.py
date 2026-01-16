@@ -4,7 +4,7 @@
 """Tests for MockEmbeddingProvider."""
 
 import pytest
-from copilot_config.load_driver_config import load_driver_config
+from copilot_config.generated.adapters.embedding_backend import DriverConfig_EmbeddingBackend_Mock
 from copilot_embedding.mock_provider import MockEmbeddingProvider
 
 
@@ -18,7 +18,7 @@ class TestMockEmbeddingProvider:
 
     def test_default_dimension(self):
         """Test default dimension is 384."""
-        cfg = load_driver_config("embedding", "embedding_backend", "mock")
+        cfg = DriverConfig_EmbeddingBackend_Mock()
         provider = MockEmbeddingProvider.from_config(cfg)
         assert provider.dimension == 384
 

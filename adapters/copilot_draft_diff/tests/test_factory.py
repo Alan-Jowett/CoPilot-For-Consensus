@@ -4,14 +4,20 @@
 """Tests for draft diff provider factory."""
 
 import pytest
+from copilot_config.generated.adapters.draft_diff_provider import (
+    AdapterConfig_DraftDiffProvider,
+    DriverConfig_DraftDiffProvider_Datatracker,
+    DriverConfig_DraftDiffProvider_Mock,
+)
 from copilot_draft_diff.datatracker_provider import DatatrackerDiffProvider
-from copilot_draft_diff.factory import DiffProviderFactory, create_diff_provider
+from copilot_draft_diff.factory import DiffProviderFactory, create_diff_provider, create_draft_diff_provider
 from copilot_draft_diff.mock_provider import MockDiffProvider
 from copilot_draft_diff.provider import DraftDiffProvider
 
 
 class SimpleConfig:
-    """Simple config object for testing."""
+    """Simple config object for testing custom providers."""
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -22,7 +28,10 @@ class TestDiffProviderFactory:
 
     def test_create_datatracker_provider(self):
         """Test creating datatracker provider."""
-        config = SimpleConfig(base_url="https://datatracker.ietf.org", diff_format="html")
+        config = DriverConfig_DraftDiffProvider_Datatracker(
+            base_url="https://datatracker.ietf.org",
+            diff_format="html",
+        )
         provider = DiffProviderFactory.create("datatracker", config)
 
         assert isinstance(provider, DatatrackerDiffProvider)
@@ -30,7 +39,7 @@ class TestDiffProviderFactory:
 
     def test_create_datatracker_provider_with_config(self):
         """Test creating datatracker provider with custom config."""
-        config = SimpleConfig(
+        config = DriverConfig_DraftDiffProvider_Datatracker(
             base_url="https://custom.example.com",
             diff_format="text"
         )
@@ -42,7 +51,7 @@ class TestDiffProviderFactory:
 
     def test_create_mock_provider(self):
         """Test creating mock provider."""
-        config = SimpleConfig(default_format="text")
+        config = DriverConfig_DraftDiffProvider_Mock(default_format="text")
         provider = DiffProviderFactory.create("mock", config)
 
         assert isinstance(provider, MockDiffProvider)
@@ -50,7 +59,7 @@ class TestDiffProviderFactory:
 
     def test_create_mock_provider_with_config(self):
         """Test creating mock provider with custom config."""
-        config = SimpleConfig(default_format="html")
+        config = DriverConfig_DraftDiffProvider_Mock(default_format="html")
         provider = DiffProviderFactory.create("mock", config)
 
         assert isinstance(provider, MockDiffProvider)
@@ -101,14 +110,14 @@ class TestCreateDiffProvider:
 
     def test_create_with_type(self):
         """Test creating provider with explicit type."""
-        config = SimpleConfig(default_format="text")
+        config = DriverConfig_DraftDiffProvider_Mock(default_format="text")
         provider = create_diff_provider("mock", config)
 
         assert isinstance(provider, MockDiffProvider)
 
     def test_create_with_type_and_config(self):
         """Test creating provider with type and config."""
-        config = SimpleConfig(default_format="html")
+        config = DriverConfig_DraftDiffProvider_Mock(default_format="html")
         provider = create_diff_provider("mock", config)
 
         assert isinstance(provider, MockDiffProvider)
@@ -118,3 +127,15 @@ class TestCreateDiffProvider:
         """Test that creating provider requires provider_type parameter."""
         with pytest.raises(ValueError, match="driver_name parameter is required"):
             create_diff_provider(None)
+
+
+class TestCreateDraftDiffProvider:
+    """Tests for create_draft_diff_provider typed entrypoint."""
+
+    def test_create_typed_mock(self):
+        config = AdapterConfig_DraftDiffProvider(
+            draft_diff_provider_type="mock",
+            driver=DriverConfig_DraftDiffProvider_Mock(default_format="text"),
+        )
+        provider = create_draft_diff_provider(config)
+        assert isinstance(provider, MockDiffProvider)

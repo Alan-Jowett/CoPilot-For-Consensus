@@ -12,6 +12,8 @@ from typing import Optional
 
 from ..adapters.chunker import AdapterConfig_Chunker
 from ..adapters.document_store import AdapterConfig_DocumentStore
+from ..adapters.error_reporter import AdapterConfig_ErrorReporter
+from ..adapters.logger import AdapterConfig_Logger
 from ..adapters.message_bus import AdapterConfig_MessageBus
 from ..adapters.metrics import AdapterConfig_Metrics
 from ..adapters.secret_provider import AdapterConfig_SecretProvider
@@ -24,7 +26,6 @@ class ServiceSettings_Chunking:
     chunk_overlap: Optional[int] = 50
     chunk_size: Optional[int] = 384
     chunking_strategy: Optional[str] = 'token_window'
-    error_reporter_type: Optional[str] = 'console'
     http_port: Optional[int] = 8000
     jwt_auth_enabled: Optional[bool] = True
     max_chunk_size: Optional[int] = 512
@@ -37,8 +38,10 @@ class ServiceSettings_Chunking:
 class ServiceConfig_Chunking:
     """Top-level configuration for chunking service."""
     service_settings: ServiceSettings_Chunking
-    chunker: Optional[AdapterConfig_Chunker] = None
-    document_store: Optional[AdapterConfig_DocumentStore] = None
-    message_bus: Optional[AdapterConfig_MessageBus] = None
-    metrics: Optional[AdapterConfig_Metrics] = None
-    secret_provider: Optional[AdapterConfig_SecretProvider] = None
+    chunker: AdapterConfig_Chunker
+    document_store: AdapterConfig_DocumentStore
+    error_reporter: AdapterConfig_ErrorReporter
+    logger: AdapterConfig_Logger
+    message_bus: AdapterConfig_MessageBus
+    metrics: AdapterConfig_Metrics
+    secret_provider: AdapterConfig_SecretProvider

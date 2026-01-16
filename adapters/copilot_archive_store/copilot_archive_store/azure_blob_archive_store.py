@@ -7,12 +7,19 @@ import hashlib
 import json
 import logging
 import os
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any
 
 from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.archive_store import (
+    DriverConfig_ArchiveStore_Azureblob,
+    DriverConfig_ArchiveStore_Azureblob_AccountKey,
+    DriverConfig_ArchiveStore_Azureblob_ConnectionString,
+    DriverConfig_ArchiveStore_Azureblob_ManagedIdentity,
+    DriverConfig_ArchiveStore_Azureblob_SasToken,
+)
 
 from .archive_store import (
     ArchiveStore,
@@ -202,8 +209,10 @@ class AzureBlobArchiveStore(ArchiveStore):
         self._load_metadata()
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "AzureBlobArchiveStore":
-        """Create AzureBlobArchiveStore from DriverConfig.
+    def from_config(
+        cls, driver_config: DriverConfig_ArchiveStore_Azureblob
+    ) -> "AzureBlobArchiveStore":
+        """Create AzureBlobArchiveStore from typed driver config.
 
         Args:
             driver_config: DriverConfig object containing archive store configuration
@@ -216,30 +225,40 @@ class AzureBlobArchiveStore(ArchiveStore):
         Raises:
             ValueError: If required configuration is missing or invalid
         """
-        # Extract authentication settings (one of these must be present)
-        connection_string = driver_config.connection_string
-        account_name = driver_config.account_name
+        container_name = driver_config.azureblob_container_name or "archives"
+        prefix = driver_config.azureblob_prefix or ""
 
-        if not connection_string and not account_name:
-            raise ValueError(
-                "AzureBlobArchiveStore requires either 'connection_string' or 'account_name' "
-                "in driver configuration"
+        if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob_ConnectionString):
+            return cls(
+                connection_string=driver_config.azureblob_connection_string,
+                container_name=container_name,
+                prefix=prefix,
             )
 
-        # Extract optional credentials and container settings
-        account_key = driver_config.account_key
-        sas_token = driver_config.sas_token
-        container_name = driver_config.container_name or "raw-archives"
-        prefix = driver_config.prefix
+        if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob_AccountKey):
+            return cls(
+                account_name=driver_config.azureblob_account_name,
+                account_key=driver_config.azureblob_account_key,
+                container_name=container_name,
+                prefix=prefix,
+            )
 
-        return cls(
-            connection_string=connection_string,
-            account_name=account_name,
-            account_key=account_key,
-            sas_token=sas_token,
-            container_name=container_name,
-            prefix=prefix,
-        )
+        if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob_SasToken):
+            return cls(
+                account_name=driver_config.azureblob_account_name,
+                sas_token=driver_config.azureblob_sas_token,
+                container_name=container_name,
+                prefix=prefix,
+            )
+
+        if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob_ManagedIdentity):
+            return cls(
+                account_name=driver_config.azureblob_account_name,
+                container_name=container_name,
+                prefix=prefix,
+            )
+
+        raise ValueError(f"Unsupported azureblob driver config type: {type(driver_config)}")
 
     def _load_metadata(self) -> None:
         """Load metadata index from Azure Blob Storage."""
@@ -303,11 +322,19 @@ class AzureBlobArchiveStore(ArchiveStore):
                     metadata_json.encode("utf-8"), overwrite=True
                 )
 
-            # Refresh stored ETag from upload response when available, otherwise fall back to a properties call
-            if hasattr(result, "etag"):
-                self._metadata_etag = result.etag
-            elif isinstance(result, dict) and "etag" in result:
-                self._metadata_etag = result["etag"]
+            # Refresh stored ETag from upload response when available, otherwise fall back to a properties call.
+            # Azure SDK versions differ: sometimes an object attribute, sometimes a mapping key.
+            etag: str | None = None
+            etag_attr = getattr(result, "etag", None)
+            if isinstance(etag_attr, str) and etag_attr:
+                etag = etag_attr
+            elif isinstance(result, Mapping):
+                etag_key = result.get("etag")
+                if isinstance(etag_key, str) and etag_key:
+                    etag = etag_key
+
+            if etag is not None:
+                self._metadata_etag = etag
             else:
                 # Best-effort ETag refresh: metadata has already been uploaded successfully.
                 try:

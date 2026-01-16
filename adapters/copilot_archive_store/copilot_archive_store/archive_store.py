@@ -4,9 +4,33 @@
 """Abstract archive store interface for archive storage backends."""
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, TypeAlias
 
-from copilot_config import DriverConfig
+from copilot_config.adapter_factory import create_adapter
+from copilot_config.generated.adapters.archive_store import (
+    AdapterConfig_ArchiveStore,
+    DriverConfig_ArchiveStore_Azureblob,
+    DriverConfig_ArchiveStore_Local,
+)
+
+
+_DriverConfig: TypeAlias = DriverConfig_ArchiveStore_Azureblob | DriverConfig_ArchiveStore_Local
+
+
+def _build_local(driver_config: _DriverConfig) -> "ArchiveStore":
+    from .local_volume_archive_store import LocalVolumeArchiveStore
+
+    if isinstance(driver_config, DriverConfig_ArchiveStore_Local):
+        return LocalVolumeArchiveStore.from_config(driver_config)
+    raise TypeError(f"Expected local driver config, got {type(driver_config).__name__}")
+
+
+def _build_azureblob(driver_config: _DriverConfig) -> "ArchiveStore":
+    from .azure_blob_archive_store import AzureBlobArchiveStore
+
+    if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob):
+        return AzureBlobArchiveStore.from_config(driver_config)
+    raise TypeError(f"Expected azureblob driver config, got {type(driver_config).__name__}")
 
 
 class ArchiveStoreError(Exception):
@@ -139,40 +163,25 @@ class ArchiveStore(ABC):
         pass
 
 
-def create_archive_store(driver_name: str, driver_config: DriverConfig) -> ArchiveStore:
-    """Factory function to create an archive store instance from DriverConfig.
+def create_archive_store(config: AdapterConfig_ArchiveStore) -> ArchiveStore:
+    """Factory function to create an archive store instance from typed config.
 
     Args:
-        driver_name: Type of archive store ("local", "mongodb", "azure_blob")
-        driver_config: DriverConfig object with archive store configuration
+        config: Typed adapter configuration for archive_store.
 
     Returns:
         ArchiveStore instance
 
     Raises:
-        ValueError: If driver_name is not recognized
-        ValueError: If required configuration is missing
-
-    Examples:
-        >>> from copilot_config import load_service_config
-        >>> config = load_service_config("parsing")
-        >>> archive_adapter = config.get_adapter("archive_store")
-        >>> store = create_archive_store(archive_adapter.driver_name, archive_adapter.driver_config)
+        ValueError: If config is missing or archive_store_type is not recognized
     """
-    if not driver_name:
-        raise ValueError("driver_name is required for create_archive_store (choose: 'local', 'mongodb', 'azure_blob')")
-
-    if driver_name == "local":
-        from .local_volume_archive_store import LocalVolumeArchiveStore
-        return LocalVolumeArchiveStore.from_config(driver_config)
-    elif driver_name == "mongodb":
-        from .mongodb_archive_store import MongoDBArchiveStore
-        return MongoDBArchiveStore.from_config(driver_config)
-    elif driver_name == "azure_blob":
-        from .azure_blob_archive_store import AzureBlobArchiveStore
-        return AzureBlobArchiveStore.from_config(driver_config)
-    elif driver_name == "s3":
-        # Future implementation
-        raise NotImplementedError("S3 backend not yet implemented")
-    else:
-        raise ValueError(f"Unknown archive store driver: {driver_name}")
+    return create_adapter(
+        config,
+        adapter_name="archive_store",
+        get_driver_type=lambda c: str(c.archive_store_type).lower(),
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "local": _build_local,
+            "azureblob": _build_azureblob,
+        },
+    )

@@ -14,6 +14,8 @@ This document defines the documentation standards and conventions for the Copilo
 4. **Use Clear, Concise Language**: Avoid jargon where possible; explain technical terms when necessary.
 5. **Provide Examples**: Include code snippets, command examples, and sample configurations.
 
+For configuration work specifically, follow the principles in [docs/SCHEMA_DRIVEN_CONFIGURATION.md](SCHEMA_DRIVEN_CONFIGURATION.md).
+
 ***
 
 ## File Organization

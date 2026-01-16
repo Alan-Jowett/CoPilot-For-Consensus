@@ -3,6 +3,20 @@
     "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
     "title": "Azure Service Bus driver settings",
     "type": "object",
+    "x-conditional_required": [
+        {
+            "if": {
+                "field": "servicebus_use_managed_identity",
+                "equals": true
+            },
+            "then_required": [
+                "servicebus_fully_qualified_namespace"
+            ],
+            "else_required": [
+                "connection_string"
+            ]
+        }
+    ],
     "properties": {
         "connection_string": {
             "type": "string",
@@ -12,6 +26,7 @@
                 "SERVICEBUS_CONNECTION_STRING"
             ],
             "required": false,
+            "minLength": 1,
             "description": "Azure Service Bus connection string (used when not using managed identity)"
         },
         "servicebus_fully_qualified_namespace": {
@@ -22,6 +37,7 @@
                 "SERVICEBUS_FULLY_QUALIFIED_NAMESPACE"
             ],
             "required": false,
+            "minLength": 1,
             "description": "Azure Service Bus fully qualified namespace"
         },
         "servicebus_use_managed_identity": {
@@ -37,16 +53,19 @@
         "queue_name": {
             "type": "string",
             "required": false,
+            "minLength": 1,
             "description": "Azure Service Bus queue name (optional)"
         },
         "topic_name": {
             "type": "string",
             "required": false,
+            "minLength": 1,
             "description": "Azure Service Bus topic name (optional)"
         },
         "subscription_name": {
             "type": "string",
             "required": false,
+            "minLength": 1,
             "description": "Azure Service Bus subscription name (optional, required if topic_name is set)"
         },
         "auto_complete": {

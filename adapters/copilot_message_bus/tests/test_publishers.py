@@ -4,7 +4,11 @@
 """Tests for event publishers."""
 
 import pytest
-from copilot_config import load_driver_config
+from copilot_config.generated.adapters.message_bus import (
+    AdapterConfig_MessageBus,
+    DriverConfig_MessageBus_Noop,
+    DriverConfig_MessageBus_Rabbitmq,
+)
 from copilot_message_bus import EventPublisher, create_publisher
 from copilot_message_bus.noop_publisher import NoopPublisher
 from copilot_message_bus.rabbitmq_publisher import RabbitMQPublisher
@@ -15,20 +19,17 @@ class TestPublisherFactory:
 
     def test_create_rabbitmq_publisher(self):
         """Test creating a RabbitMQ publisher."""
-        driver_config = load_driver_config(
-            None,
-            "message_bus",
-            "rabbitmq",
-            fields={
-                "rabbitmq_host": "localhost",
-                "rabbitmq_port": 5672,
-                "rabbitmq_username": "guest",
-                "rabbitmq_password": "guest",
-            },
+        config = AdapterConfig_MessageBus(
+            message_bus_type="rabbitmq",
+            driver=DriverConfig_MessageBus_Rabbitmq(
+                rabbitmq_host="localhost",
+                rabbitmq_port=5672,
+                rabbitmq_username="guest",
+                rabbitmq_password="guest",
+            ),
         )
         publisher = create_publisher(
-            driver_name="rabbitmq",
-            driver_config=driver_config,
+            config,
             enable_validation=False,
         )
 
@@ -39,10 +40,12 @@ class TestPublisherFactory:
 
     def test_create_noop_publisher(self):
         """Test creating a no-op publisher."""
-        driver_config = load_driver_config(None, "message_bus", "noop")
+        config = AdapterConfig_MessageBus(
+            message_bus_type="noop",
+            driver=DriverConfig_MessageBus_Noop(),
+        )
         publisher = create_publisher(
-            driver_name="noop",
-            driver_config=driver_config,
+            config,
             enable_validation=False,
         )
 
@@ -51,15 +54,27 @@ class TestPublisherFactory:
 
     def test_create_unknown_publisher_type(self):
         """Test that unknown publisher type raises ValueError."""
-        with pytest.raises(ValueError, match="does not support driver"):
-            load_driver_config(None, "message_bus", "invalid")
+        config = AdapterConfig_MessageBus(
+            message_bus_type="invalid",  # type: ignore[arg-type]
+            driver=DriverConfig_MessageBus_Noop(),
+        )
+        with pytest.raises(ValueError, match=r"Unknown message_bus driver: invalid"):
+            create_publisher(config, enable_validation=False)
+
+    def test_missing_config_raises(self):
+        """Test that missing config raises a standardized error."""
+        with pytest.raises(ValueError, match=r"message_bus config is required"):
+            create_publisher(None, enable_validation=False)  # type: ignore[arg-type]
 
     def test_validation_enabled_by_default(self):
         """Test that publishers are wrapped in ValidatingEventPublisher by default."""
         from copilot_message_bus.validating_publisher import ValidatingEventPublisher
 
-        driver_config = load_driver_config(None, "message_bus", "noop")
-        publisher = create_publisher(driver_name="noop", driver_config=driver_config)
+        config = AdapterConfig_MessageBus(
+            message_bus_type="noop",
+            driver=DriverConfig_MessageBus_Noop(),
+        )
+        publisher = create_publisher(config)
 
         assert isinstance(publisher, ValidatingEventPublisher)
         # The underlying publisher should be NoopPublisher
@@ -168,7 +183,7 @@ class TestRabbitMQPublisher:
     def test_missing_required_parameters(self):
         """Test initialization requires explicit connection parameters."""
         import pytest
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             RabbitMQPublisher()
 
     def test_publisher_confirms_disabled(self):
