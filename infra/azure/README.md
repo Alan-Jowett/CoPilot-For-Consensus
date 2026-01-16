@@ -251,9 +251,12 @@ cd infra\azure
 - `coreKvResourceId`
 - `coreKvName`
 - `aoaiEndpoint`
+- `aoaiAccountName`
 - `aoaiGptDeploymentName`
 - `aoaiEmbeddingDeploymentName`
 - `kvSecretUris.aoaiKey`
+
+**Note**: The Azure OpenAI API key is generated from the Azure OpenAI resource during Core deployment and stored as `azure-openai-api-key` in the **Core Key Vault**. During the Env deployment, the same API key is mirrored into the **Env Key Vault** (the vault referenced by `AZURE_KEY_VAULT_NAME` in the Container Apps) so services can load it via `secret_provider`.
 
 ### Step 2: Update Environment Parameters
 
@@ -264,6 +267,9 @@ Edit `parameters.dev.json`, `parameters.staging.json`, or `parameters.prod.json`
   "parameters": {
     "azureOpenAIEndpoint": {
       "value": "https://copilot-oai-core-abc123.openai.azure.com/"
+    },
+    "coreAoaiAccountName": {
+      "value": "copilot-oai-core-abc12"
     },
     "azureOpenAIGptDeploymentName": {
       "value": "gpt-4o-deployment"
@@ -309,6 +315,8 @@ cd infra\azure
 # Deploy environment for staging
 .\deploy.env.ps1 -ResourceGroup rg-env-staging -Environment staging -Location eastus -ImageTag v1.2.3
 ```
+
+**Prereq**: The identity running the Env deployment must be able to call `listKeys()` on the Azure OpenAI account (management-plane permission) so the `azure-openai-api-key` secret can be created in the Env Key Vault.
 
 ### Step 4: Verify Deployment
 

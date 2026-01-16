@@ -19,6 +19,182 @@ import sys
 from pathlib import Path
 
 
+def _is_bicep_conditional(value: object) -> bool:
+    if value is None:
+        return False
+    text = str(value)
+    return "?" in text
+
+
+def _validate_schema_discriminant(env_vars: dict, schema: dict, context: str) -> list[str]:
+    """Validate a schema-level discriminant (if present).
+
+    Some driver schemas have a root-level 'discriminant' (not inside 'properties').
+    Example: archive_azureblob.json requires AZUREBLOB_AUTH_TYPE.
+    """
+
+    issues: list[str] = []
+    discriminant = schema.get("discriminant")
+    if not isinstance(discriminant, dict):
+        return issues
+
+    if discriminant.get("source") != "env":
+        return issues
+
+    env_var = discriminant.get("env_var")
+    if not isinstance(env_var, str) or not env_var:
+        return issues
+
+    required = bool(discriminant.get("required", False))
+    enum_values = discriminant.get("enum", [])
+
+    if env_var not in env_vars:
+        if required:
+            issues.append(f"Missing REQUIRED discriminant: {env_var} ({context})")
+        else:
+            issues.append(f"Missing discriminant: {env_var} ({context})")
+        return issues
+
+    value = env_vars.get(env_var)
+    if value is None or _is_bicep_conditional(value):
+        # Can't evaluate; skip enum validation.
+        return issues
+
+    if isinstance(enum_values, list) and enum_values and value not in enum_values:
+        issues.append(f"Invalid discriminant value for {env_var}: '{value}' not in {enum_values} ({context})")
+
+    return issues
+
+
+def _select_oneof_variant_by_discriminant(env_vars: dict, schema: dict) -> dict:
+    """Best-effort selection of a oneOf variant using schema.discriminant.
+
+    Returns the selected variant schema, or the original schema if no selection is possible.
+    """
+
+    one_of = schema.get("oneOf")
+    if not isinstance(one_of, list) or not one_of:
+        return schema
+
+    discriminant = schema.get("discriminant")
+    if not isinstance(discriminant, dict):
+        return schema
+
+    env_var = discriminant.get("env_var")
+    field = discriminant.get("field")
+    if not isinstance(env_var, str) or not env_var:
+        return schema
+    if not isinstance(field, str) or not field:
+        return schema
+
+    value = env_vars.get(env_var)
+    if value is None or _is_bicep_conditional(value):
+        return schema
+
+    for variant in one_of:
+        if not isinstance(variant, dict):
+            continue
+        props = variant.get("properties")
+        if not isinstance(props, dict):
+            continue
+        field_spec = props.get(field)
+        if not isinstance(field_spec, dict):
+            continue
+        const_value = field_spec.get("const")
+        if const_value == value:
+            return variant
+
+    return schema
+
+
+def _normalize_secret_name_for_key_vault(schema_secret_name: str) -> str:
+    """Convert schema secret_name to Azure Key Vault secret resource name.
+
+    Convention: schema uses snake_case; Key Vault secret names use hyphens.
+    """
+
+    return schema_secret_name.replace("_", "-")
+
+
+def _extract_keyvault_created_secret_names(bicep_content: str, vault_name_var: str) -> set[str]:
+    """Extract KV secret names created in a given vault variable context.
+
+    This is a best-effort helper that recognizes a small set of common
+    Bicep patterns. Supported single-line forms include:
+
+      name: '${keyVaultName}/jwt-private-key'
+      name: "${keyVaultName}/jwt-private-key"
+      name: concat(keyVaultName, '/jwt-private-key')
+
+    More complex or multi-line expressions (for example, `name` built across
+    multiple `concat` calls or interpolations) are intentionally ignored.
+    """
+
+    secret_names: set[str] = set()
+
+    # 1) Interpolated string: name: "${<vaultVar>/secret-name}"
+    # Matches: name: '${keyVaultName}/jwt-private-key' and name: "${keyVaultName}/jwt-private-key"
+    pattern_interpolated = rf"name:\s*['\"]\$\{{{re.escape(vault_name_var)}\}}/([^'\"]+)['\"]"
+    for match in re.finditer(pattern_interpolated, bicep_content):
+        secret_names.add(match.group(1))
+
+    # 2) concat() form: name: concat(<vaultVar>, '/secret-name')
+    # We capture the portion after the (single) leading slash in the literal.
+    # Matches: name: concat(keyVaultName, '/jwt-private-key')
+    pattern_concat = rf"name:\s*concat\(\s*{re.escape(vault_name_var)}\s*,\s*['\"]/([^'\"/]+)['\"]\s*\)"
+    for match in re.finditer(pattern_concat, bicep_content):
+        secret_names.add(match.group(1))
+
+    return secret_names
+
+
+def _load_iac_keyvault_secret_inventory() -> dict[str, set[str]]:
+    """Load a best-effort inventory of Key Vault secrets created by IaC.
+
+    Returns:
+      {
+        'env': {<secret-names>},
+        'core': {<secret-names>},
+      }
+    """
+
+    repo_root = Path(__file__).parent.parent
+    env_main = repo_root / "infra" / "azure" / "main.bicep"
+    core_main = repo_root / "infra" / "azure" / "core.bicep"
+
+    inventory: dict[str, set[str]] = {"env": set(), "core": set()}
+
+    if env_main.exists():
+        content = env_main.read_text(encoding="utf-8")
+        inventory["env"] = _extract_keyvault_created_secret_names(content, "keyVaultName")
+
+    if core_main.exists():
+        content = core_main.read_text(encoding="utf-8")
+        inventory["core"] = _extract_keyvault_created_secret_names(content, "coreKeyVaultName")
+
+    return inventory
+
+
+def _kv_scope_from_env(env_vars: dict) -> str:
+    """Return which KV scope the service is configured to use.
+
+    This is a heuristic used for static validation.
+    - In Container Apps module, AZURE_KEY_VAULT_NAME is usually set to the env param 'keyVaultName'.
+    """
+
+    name = env_vars.get("AZURE_KEY_VAULT_NAME")
+    if not name:
+        return "unknown"
+
+    # Common patterns in the Bicep module (static, not evaluated).
+    if str(name).strip() == "keyVaultName":
+        return "env"
+    if str(name).strip() == "coreKeyVaultName":
+        return "core"
+
+    return "unknown"
+
+
 def extract_env_vars(bicep_content: str, service_name: str) -> dict:
     """
     Extract environment variables for a service from Bicep file content.
@@ -176,6 +352,7 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
     Returns list of issues found (empty if valid).
     """
     issues = []
+    required_secrets: set[str] = set()
     
     # Get service settings from schema
     service_settings = schema.get("service_settings", {})
@@ -291,12 +468,30 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
             with open(driver_schema_path, "r", encoding="utf-8") as f:
                 driver_schema = json.load(f)
 
-            driver_props = driver_schema.get("properties", {})
+            # Some driver schemas use a root-level discriminant + oneOf variants.
+            # Validate that discriminant env var is present (if required), then
+            # select a variant (if possible) so we can validate required env vars.
+            issues.extend(
+                _validate_schema_discriminant(
+                    env_vars,
+                    driver_schema,
+                    context=f"adapter '{adapter_name}' driver '{selected_driver}'",
+                )
+            )
+            effective_driver_schema = _select_oneof_variant_by_discriminant(env_vars, driver_schema)
+            driver_props = effective_driver_schema.get("properties", {})
 
             # Support schemas that express "at least one of" requirements.
             # Example: Azure Key Vault secret provider driver needs one of
             # AZURE_KEY_VAULT_URI or AZURE_KEY_VAULT_NAME.
-            required_one_of = driver_schema.get("x-required_one_of", [])
+            # Combine parent-level and variant-level one-of requirements (if any).
+            required_one_of: list = []
+            parent_required_one_of = driver_schema.get("x-required_one_of")
+            if isinstance(parent_required_one_of, list):
+                required_one_of.extend(parent_required_one_of)
+            variant_required_one_of = effective_driver_schema.get("x-required_one_of")
+            if isinstance(variant_required_one_of, list):
+                required_one_of.extend(variant_required_one_of)
             if isinstance(required_one_of, list):
                 for group in required_one_of:
                     if not isinstance(group, list) or not group:
@@ -342,8 +537,16 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
                     # Secrets should be loaded via secret_provider, not via env vars
                     # Check if any env var references this secret (which is wrong)
                     secret_name = prop_spec.get("secret_name")
+                    required_prop = prop_spec.get("required", False)
                     if secret_name:
                         secret_candidates = secret_name if isinstance(secret_name, list) else [secret_name]
+
+                        # Track required secrets for IaC coverage validation
+                        if required_prop:
+                            for candidate in secret_candidates:
+                                if isinstance(candidate, str) and candidate:
+                                    required_secrets.add(candidate)
+
                         # Check if any env var has a KeyVault reference to this secret
                         for env_var_name, referenced_secret in keyvault_refs.items():
                             if referenced_secret in secret_candidates:
@@ -358,6 +561,49 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
         except Exception as e:
             issues.append(f"Error validating adapter '{adapter_name}': {e}")
     
+    issues.extend(_validate_required_secrets_created_by_iac(env_vars, required_secrets))
+    return issues
+
+
+def _validate_required_secrets_created_by_iac(env_vars: dict, required_secrets: set[str]) -> list[str]:
+    """Static check: required schema secrets must be created by IaC in the selected Key Vault."""
+
+    issues: list[str] = []
+
+    if not required_secrets:
+        return issues
+
+    if env_vars.get("SECRET_PROVIDER_TYPE") != "azure_key_vault":
+        return issues
+
+    kv_scope = _kv_scope_from_env(env_vars)
+    if kv_scope == "unknown":
+        # Can't confidently map to env/core based on static values.
+        return issues
+
+    inventory = _load_iac_keyvault_secret_inventory()
+    created = inventory.get(kv_scope, set())
+
+    # Some secrets are documented as out-of-band/manual (OAuth). Don't enforce these.
+    manual_prefixes = (
+        "github_oauth_",
+        "google_oauth_",
+        "microsoft_oauth_",
+        "entra_oauth_",
+    )
+
+    for schema_secret in sorted(required_secrets):
+        if schema_secret.startswith(manual_prefixes):
+            continue
+
+        kv_secret = _normalize_secret_name_for_key_vault(schema_secret)
+        if kv_secret not in created:
+            issues.append(
+                f"Missing REQUIRED secret '{kv_secret}' in {kv_scope} Key Vault IaC. "
+                "Update your infrastructure-as-code (for example, the Key Vault secret resources in "
+                "infra/azure/main.bicep or infra/azure/core.bicep) to create this secret before deployment."
+            )
+
     return issues
 
 

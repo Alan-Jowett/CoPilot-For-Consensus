@@ -161,8 +161,9 @@ DOCUMENT_DATABASE_PORT=10255
 DOCUMENT_DATABASE_NAME=copilot
 
 # Use Azure Service Bus instead of local RabbitMQ
-MESSAGE_BUS_TYPE=servicebus
-MESSAGE_BUS_HOST=your-servicebus.servicebus.windows.net
+MESSAGE_BUS_TYPE=azure_service_bus
+SERVICEBUS_USE_MANAGED_IDENTITY=true
+SERVICEBUS_FULLY_QUALIFIED_NAMESPACE=your-namespace.servicebus.windows.net
 
 # Use Azure Blob Storage instead of local filesystem
 ARCHIVE_STORE_TYPE=azure_blob

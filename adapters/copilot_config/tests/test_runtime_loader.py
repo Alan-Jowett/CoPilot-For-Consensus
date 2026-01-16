@@ -216,3 +216,32 @@ def test_get_config_auth_hs256_missing_jwt_secret_key_raises(monkeypatch, tmp_pa
 
     with pytest.raises(ValueError, match=r"jwt_secret_key parameter is required"):
         get_config("auth")
+
+
+def test_get_config_parsing_archive_store_azureblob_oneof(monkeypatch):
+    """Ensure parsing config can instantiate oneOf-generated driver unions.
+
+    The archive_store azureblob driver is generated as a TypeAlias Union of concrete
+    dataclass variants. The runtime loader must pick and instantiate the correct
+    variant based on the schema discriminant (AZUREBLOB_AUTH_TYPE).
+    """
+    from copilot_config.generated.adapters.archive_store import (
+        DriverConfig_ArchiveStore_Azureblob_ManagedIdentity,
+    )
+
+    monkeypatch.setenv("LOG_TYPE", "stdout")
+    monkeypatch.setenv("METRICS_TYPE", "noop")
+    monkeypatch.setenv("MESSAGE_BUS_TYPE", "noop")
+    monkeypatch.setenv("DOCUMENT_STORE_TYPE", "inmemory")
+    monkeypatch.setenv("ERROR_REPORTER_TYPE", "silent")
+    monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
+
+    # Required adapter for parsing: archive_store
+    monkeypatch.setenv("ARCHIVE_STORE_TYPE", "azureblob")
+    monkeypatch.setenv("AZUREBLOB_AUTH_TYPE", "managed_identity")
+    monkeypatch.setenv("AZUREBLOB_ACCOUNT_NAME", "testaccount")
+
+    config = get_config("parsing")
+
+    assert config.archive_store.archive_store_type == "azureblob"
+    assert isinstance(config.archive_store.driver, DriverConfig_ArchiveStore_Azureblob_ManagedIdentity)

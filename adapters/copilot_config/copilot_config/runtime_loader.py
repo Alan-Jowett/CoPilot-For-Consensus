@@ -11,7 +11,7 @@ import importlib
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, Union, get_args, get_origin, overload
 
 from .models import ServiceConfig
 from .schema_validation import validate_config_against_schema_dict
@@ -218,6 +218,100 @@ def _load_and_populate_driver_config(
 
     validate_config_against_schema_dict(schema=driver_schema, config=config_dict)
     return config_dict
+
+
+def _instantiate_driver_config(driver_class: Any, driver_config_dict: dict[str, Any]) -> Any:
+    """Instantiate a generated driver config.
+
+    Generated driver configs may be dataclasses, or (for discriminated oneOf schemas)
+    a typing Union TypeAlias like:
+
+        DriverConfig_Foo_Bar: TypeAlias = Union[VariantA, VariantB]
+
+    In that case, we must select the concrete variant dataclass before instantiating.
+    """
+
+    origin = get_origin(driver_class)
+    if origin is None:
+        return driver_class(**driver_config_dict)
+
+    if origin is Union:
+        discriminant_key: str | None = None
+        auth_type_key: str | None = None
+        type_key: str | None = None
+
+        # Select the lexicographically smallest *_auth_type or *_type key in a single pass.
+        # Note: if multiple keys match, this is a deterministic heuristic only.
+        # The key is used to *narrow* candidates when possible; we still fall back
+        # to attempting all union variants if narrowing doesn't apply.
+        for key in driver_config_dict:
+            if key.endswith("_auth_type"):
+                if auth_type_key is None or key < auth_type_key:
+                    auth_type_key = key
+            elif key.endswith("_type"):
+                if type_key is None or key < type_key:
+                    type_key = key
+
+        if auth_type_key is not None:
+            discriminant_key = auth_type_key
+        elif type_key is not None:
+            discriminant_key = type_key
+
+        selected_discriminant = (
+            driver_config_dict.get(discriminant_key) if discriminant_key else None
+        )
+
+        # Generated config unions are expected to contain dataclass types.
+        # We ignore non-type args and explicitly exclude NoneType to avoid
+        # Optional[T] unions accidentally instantiating to None.
+        candidates = [
+            arg
+            for arg in get_args(driver_class)
+            if isinstance(arg, type) and arg is not type(None)
+        ]
+
+        if discriminant_key and isinstance(selected_discriminant, str):
+            narrowed: list[type] = []
+            for candidate in candidates:
+                fields = getattr(candidate, "__dataclass_fields__", None)
+                if not isinstance(fields, dict):
+                    continue
+                if discriminant_key not in fields:
+                    continue
+                default_value = fields[discriminant_key].default
+                if default_value == selected_discriminant:
+                    narrowed.append(candidate)
+            if narrowed:
+                candidates = narrowed
+
+        errors: list[TypeError] = []
+        for candidate in candidates:
+            try:
+                return candidate(**driver_config_dict)
+            except TypeError as exc:
+                errors.append(exc)
+                continue
+
+        details = (
+            f" (discriminant {discriminant_key}={selected_discriminant})"
+            if discriminant_key
+            else ""
+        )
+
+        if errors:
+            error_details = "; ".join(f"{type(err).__name__}: {err}" for err in errors)
+            reason = f" All instantiation attempts failed: {error_details}"
+        elif not candidates:
+            reason = " No instantiable candidates were found for the union."
+        else:
+            reason = ""
+
+        raise TypeError(
+            f"Unable to instantiate driver config union {driver_class}{details}.{reason}"
+        )
+
+    # Unknown typing construct; fall back to direct call for a clearer exception.
+    return driver_class(**driver_config_dict)
 
 
 def _load_adapter_config(
@@ -616,7 +710,7 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
                     if driver_class is None:
                         continue
 
-                    composite_kwargs[child_name] = driver_class(**child_config_dict)
+                    composite_kwargs[child_name] = _instantiate_driver_config(driver_class, child_config_dict)
 
                 if composite_kwargs:
                     composite_config = composite_class(**composite_kwargs)
@@ -680,7 +774,7 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
             continue
 
         # Create driver config instance
-        driver_config = driver_class(**driver_config_dict)
+        driver_config = _instantiate_driver_config(driver_class, driver_config_dict)
 
         # Fail fast on misconfiguration using schema-driven validation.
         # This keeps adapters simple by centralizing validation in copilot_config.

@@ -30,7 +30,7 @@ class DriverConfig_EmbeddingBackend_AzureOpenai:
 class DriverConfig_EmbeddingBackend_Huggingface:
     """Configuration for embedding_backend adapter using huggingface driver."""
     device: str
-    # Device to use (cpu, cuda, mps)
+    # Device to use (e.g., "cpu", "mps", "cuda", "cuda:0", "cuda:1")
     model_name: str
     # HuggingFace model name (e.g., 'sentence-transformers/all-MiniLM-L6-v2')
     cache_dir: Optional[str] = None
@@ -63,7 +63,7 @@ class DriverConfig_EmbeddingBackend_Sentencetransformers:
     cache_dir: Optional[str] = None
     # Cache folder for model files
     device: str = 'cpu'
-    # Device to use (cpu, cuda, mps)
+    # Device to use (supported: 'cpu', 'mps', 'cuda', 'cuda:N' like 'cuda:0')
     model_name: str = 'all-MiniLM-L6-v2'
     # SentenceTransformers model name to use
 

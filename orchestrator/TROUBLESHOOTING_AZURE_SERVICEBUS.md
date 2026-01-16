@@ -19,16 +19,16 @@ This error typically occurs due to one of the following issues:
 **For Managed Identity Mode (Recommended for Azure deployments):**
 
 Required environment variables:
-- `MESSAGE_BUS_TYPE=azureservicebus`
-- `MESSAGE_BUS_USE_MANAGED_IDENTITY=true`
-- `MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE=<namespace>.servicebus.windows.net`
+- `MESSAGE_BUS_TYPE=azure_service_bus`
+- `SERVICEBUS_USE_MANAGED_IDENTITY=true`
+- `SERVICEBUS_FULLY_QUALIFIED_NAMESPACE=<namespace>.servicebus.windows.net`
 
 **For Connection String Mode (Local development or legacy deployments):**
 
 Required environment variables:
-- `MESSAGE_BUS_TYPE=azureservicebus`
-- `MESSAGE_BUS_USE_MANAGED_IDENTITY=false` (or omit this variable)
-- `MESSAGE_BUS_CONNECTION_STRING=Endpoint=sb://...`
+- `MESSAGE_BUS_TYPE=azure_service_bus`
+- `SERVICEBUS_USE_MANAGED_IDENTITY=false` (or omit this variable)
+- `SERVICEBUS_CONNECTION_STRING=Endpoint=sb://...`
 
 **Verification:**
 
@@ -106,18 +106,25 @@ Azure RBAC role assignments are not instantaneous. After assigning roles:
 
 ### 4. Queue Does Not Exist or Cannot Be Created
 
-The orchestrator subscribes to the pre-created `embeddings.generated` queue. All input queues (e.g., `embeddings.generated`, `summarization.requested`, `chunks.prepared`) are pre-created by the Bicep infrastructure during deployment.
+In Azure deployments, the system uses a shared topic (`copilot.events`) with per-service subscriptions. The orchestrator consumes from the `orchestrator` subscription.
 
 **Verification:**
 ```bash
-# List queues in the Service Bus namespace
-az servicebus queue list \
-  --namespace-name copilot-sb-dev-ej3rgjyh \
-  --resource-group cfc-dev-rg \
+# List topics in the Service Bus namespace
+az servicebus topic list \
+  --namespace-name <namespace> \
+  --resource-group <rg> \
+  --query "[].name"
+
+# List subscriptions for the shared topic
+az servicebus topic subscription list \
+  --namespace-name <namespace> \
+  --resource-group <rg> \
+  --topic-name copilot.events \
   --query "[].name"
 ```
 
-Ensure the `embeddings.generated` queue exists in the output. If it's missing, re-run the Bicep infrastructure deployment:
+Ensure the `copilot.events` topic exists and the `orchestrator` subscription exists. If either is missing, re-run the Bicep infrastructure deployment:
 
 ```bash
 # Redeploy Service Bus infrastructure
@@ -128,6 +135,7 @@ az deployment group create \
 ```
 
 **Note:** All queue names follow a uniform queue-per-event pattern across both Azure Service Bus and Docker Compose (RabbitMQ) deployments. The orchestrator always subscribes to `embeddings.generated` regardless of the message bus type.
+**Note:** Services publish with stable routing keys (stored as `subject` on Service Bus messages). Delivery is by subscription; the orchestrator processes only the event types it subscribes to.
 
 ### 5. Malformed Connection String
 
