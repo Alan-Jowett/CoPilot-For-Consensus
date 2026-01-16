@@ -10,7 +10,7 @@ threads before embedding or summarization.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any, TypeAlias
 
 from copilot_config.adapter_factory import create_adapter
 from copilot_config.generated.adapters.chunker import (
@@ -22,11 +22,11 @@ from copilot_config.generated.adapters.chunker import (
 from copilot_schema_validation import generate_chunk_id
 
 
-ChunkerDriverConfig = Union[
-    DriverConfig_Chunker_FixedSize,
-    DriverConfig_Chunker_Semantic,
-    DriverConfig_Chunker_TokenWindow,
-]
+ChunkerDriverConfig: TypeAlias = (
+    DriverConfig_Chunker_FixedSize
+    | DriverConfig_Chunker_Semantic
+    | DriverConfig_Chunker_TokenWindow
+)
 
 
 @dataclass
@@ -304,6 +304,11 @@ class FixedSizeChunker(ThreadChunker):
         Returns:
             List of chunks
         """
+        if thread.message_doc_id is None:
+            raise ValueError("Thread message_doc_id must be provided before chunking")
+
+        message_doc_id = thread.message_doc_id
+
         chunks = []
         messages = thread.messages or []
 
@@ -340,8 +345,8 @@ class FixedSizeChunker(ThreadChunker):
 
             chunk_idx = i // self.messages_per_chunk
             chunk = Chunk(
-                chunk_id=generate_chunk_id(thread.message_doc_id, chunk_idx),
-                message_doc_id=thread.message_doc_id,
+                chunk_id=generate_chunk_id(message_doc_id, chunk_idx),
+                message_doc_id=message_doc_id,
                 thread_id=thread.thread_id,
                 text=chunk_text,
                 chunk_index=chunk_idx,
@@ -497,15 +502,33 @@ def create_chunker(
     Raises:
         ValueError: If config is missing or chunking_strategy is not recognized.
     """
+
+    def _build_token_window(driver_config: ChunkerDriverConfig) -> ThreadChunker:
+        if isinstance(driver_config, DriverConfig_Chunker_TokenWindow):
+            return TokenWindowChunker.from_config(driver_config)
+        raise TypeError(
+            f"Expected token_window config, got {type(driver_config).__name__}"
+        )
+
+    def _build_fixed_size(driver_config: ChunkerDriverConfig) -> ThreadChunker:
+        if isinstance(driver_config, DriverConfig_Chunker_FixedSize):
+            return FixedSizeChunker.from_config(driver_config)
+        raise TypeError(f"Expected fixed_size config, got {type(driver_config).__name__}")
+
+    def _build_semantic(driver_config: ChunkerDriverConfig) -> ThreadChunker:
+        if isinstance(driver_config, DriverConfig_Chunker_Semantic):
+            return SemanticChunker.from_config(driver_config)
+        raise TypeError(f"Expected semantic config, got {type(driver_config).__name__}")
+
     return create_adapter(
         config,
         adapter_name="chunker",
-        get_driver_type=lambda c: c.chunking_strategy,
+        get_driver_type=lambda c: str(c.chunking_strategy).lower(),
         get_driver_config=lambda c: c.driver,
         drivers={
-            "token_window": TokenWindowChunker.from_config,
-            "fixed_size": FixedSizeChunker.from_config,
-            "semantic": SemanticChunker.from_config,
+            "token_window": _build_token_window,
+            "fixed_size": _build_fixed_size,
+            "semantic": _build_semantic,
         },
     )
 
