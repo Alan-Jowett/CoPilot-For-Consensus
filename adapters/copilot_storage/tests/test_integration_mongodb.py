@@ -7,6 +7,7 @@ import os
 import time
 
 import pytest
+from copilot_config import load_driver_config
 from copilot_config.generated.adapters.document_store import (
     AdapterConfig_DocumentStore,
     DriverConfig_DocumentStore_Mongodb,
