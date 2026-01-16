@@ -952,6 +952,16 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'CHUNK_LOG_LEVEL'
               value: 'INFO'
             }
+            // Logger adapter
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            // Error reporter adapter
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
@@ -1093,6 +1103,11 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'EMBEDDING_LOG_LEVEL'
               value: 'INFO'
+            }
+            // Logger adapter
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
             }
             // Message Bus adapter (Azure Service Bus)
             {
