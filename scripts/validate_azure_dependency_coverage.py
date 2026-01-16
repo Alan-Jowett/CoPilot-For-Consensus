@@ -68,12 +68,14 @@ def _parse_bicep_container_envs(bicep_path: Path) -> dict[str, dict[str, str]]:
 
         # Detect container name: typically lowercase service name (e.g., 'reporting')
         # Avoid env var names (UPPER_SNAKE_CASE) and interpolated resource names.
-        m_container = re.search(r"\bname:\s*'([a-z0-9-]+)'", line)
-        if m_container and "_" not in m_container.group(1):
+        m_container = re.search(r"\bname:\s*'([A-Za-z0-9_-]+)'", line)
+        if m_container:
             candidate = m_container.group(1)
-            # Ignore common non-container names that can appear in other contexts
-            if candidate not in {"Consumption"}:
-                current_container = candidate
+            # Skip obvious env-var-style names (UPPER_SNAKE_CASE), which are not containers.
+            if not re.fullmatch(r"[A-Z0-9_]+", candidate):
+                # Ignore common non-container names that can appear in other contexts
+                if candidate not in {"Consumption"}:
+                    current_container = candidate
 
         if line.startswith("env:") and line.endswith("[") and current_container:
             in_env = True
@@ -133,7 +135,8 @@ def _scan_imported_adapters(service_dir: Path) -> set[str]:
         except ValueError:
             rel_path = path
 
-        return rel_path.match("**/tests/**") or rel_path.match("**/__pycache__/**")
+        parts = rel_path.parts
+        return "tests" in parts or "__pycache__" in parts
 
     def iter_py_files() -> list[Path]:
         return [p for p in service_dir.rglob("*.py") if not _is_excluded_python_file(p)]
@@ -297,17 +300,17 @@ def validate_repo(repo_root: Path = REPO_ROOT, *, bicep_path: Path = BICEP_PATH)
                 if "azure_ai_search" in drivers:
                     required_extras.add("azure")
 
-                # Accept [all] as covering all extras.
                 declared = extras_by_adapter.get("copilot_vectorstore", set())
-                if "all" in declared:
-                    declared = {"qdrant", "azure"}
 
-                missing_extras = sorted(required_extras - declared)
-                if missing_extras:
-                    errors.append(
-                        f"{service_name}: {SERVICE_DOCKERFILE} should install copilot_vectorstore with extras "
-                        f"covering VECTOR_STORE_TYPE={expr} (missing: {', '.join(missing_extras)})"
-                    )
+                # Treat [all] as covering any required extras, without hardcoding
+                # the full set of available extras for copilot_vectorstore.
+                if "all" not in declared:
+                    missing_extras = sorted(required_extras - declared)
+                    if missing_extras:
+                        errors.append(
+                            f"{service_name}: {SERVICE_DOCKERFILE} should install copilot_vectorstore with extras "
+                            f"covering VECTOR_STORE_TYPE={expr} (missing: {', '.join(missing_extras)})"
+                        )
 
         # Embedding backend coverage (azure_openai requires openai extra)
         if "copilot_embedding" in imported_adapters:
