@@ -49,6 +49,14 @@ Configuration loaders must:
 - Apply schema defaults.
 - Fail fast on missing schema-required fields with **clear errors** that tell operators what variable/secret is missing.
 
+#### Secret naming convention (schemas vs Azure Key Vault)
+
+- In JSON Schemas, `secret_name` values use `snake_case` (underscores), e.g. `azure_openai_api_key`.
+- Azure Key Vault secret resource names must be hyphenated (and are created as such by the Azure IaC), e.g. `azure-openai-api-key`.
+- The Azure Key Vault secret provider in [adapters/copilot_secrets/copilot_secrets/azurekeyvault_provider.py](adapters/copilot_secrets/copilot_secrets/azurekeyvault_provider.py) **normalizes** secret names by replacing `_` with `-`.
+
+Rule of thumb: keep `secret_name` in schemas as underscores; let the Key Vault provider map to hyphens.
+
 This avoids partially-initialized configs and late failures inside providers.
 
 ### 5) Providers map config → implementation (no policy)

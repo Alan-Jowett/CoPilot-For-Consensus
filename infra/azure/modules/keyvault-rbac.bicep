@@ -40,22 +40,22 @@ resource jwtPublicKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' exist
 
 // Auth service needs private key to sign tokens
 resource authJwtPrivateKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization && contains(servicePrincipalIds, 'auth')) {
-  name: guid(jwtPrivateKeySecret.id, servicePrincipalIds['auth'], keyVaultSecretsUserRoleId)
+  name: guid(jwtPrivateKeySecret.id, servicePrincipalIds.auth, keyVaultSecretsUserRoleId)
   scope: jwtPrivateKeySecret
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: servicePrincipalIds['auth']
+    principalId: servicePrincipalIds.auth
     principalType: 'ServicePrincipal'
   }
 }
 
 // Auth service needs public key to verify tokens
 resource authJwtPublicKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization && contains(servicePrincipalIds, 'auth')) {
-  name: guid(jwtPublicKeySecret.id, servicePrincipalIds['auth'], keyVaultSecretsUserRoleId)
+  name: guid(jwtPublicKeySecret.id, servicePrincipalIds.auth, keyVaultSecretsUserRoleId)
   scope: jwtPublicKeySecret
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: servicePrincipalIds['auth']
+    principalId: servicePrincipalIds.auth
     principalType: 'ServicePrincipal'
   }
 }
@@ -111,15 +111,27 @@ resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' exist
   name: 'azure-openai-api-key'
 }
 
-resource openaiServiceApiKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization && deployAzureOpenAI && contains(servicePrincipalIds, 'openai')) {
-  name: guid(openaiApiKeySecret.id, servicePrincipalIds['openai'], keyVaultSecretsUserRoleId)
-  scope: openaiApiKeySecret
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: servicePrincipalIds['openai']
-    principalType: 'ServicePrincipal'
+var openaiKeyReaderServices = [
+  // Historical/optional service name
+  'openai'
+  // Services that call Azure OpenAI in this deployment
+  'embedding'
+  'orchestrator'
+  'summarization'
+  'reporting'
+]
+
+resource openaiApiKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for service in openaiKeyReaderServices: if (enableRbacAuthorization && deployAzureOpenAI && contains(servicePrincipalIds, service)) {
+    name: guid(openaiApiKeySecret.id, servicePrincipalIds[service], keyVaultSecretsUserRoleId)
+    scope: openaiApiKeySecret
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
+      principalId: servicePrincipalIds[service]
+      principalType: 'ServicePrincipal'
+    }
   }
-}
+]
 
 // ============================================================================
 // OAUTH SECRETS - Auth service only
@@ -172,12 +184,12 @@ output deployedRbacRoleAssignments array = enableRbacAuthorization ? concat(
     }
   ] : [],
   // OpenAI key assignment
-  (deployAzureOpenAI && contains(servicePrincipalIds, 'openai')) ? [
+  deployAzureOpenAI ? [
     {
-      service: 'openai'
+      service: 'openai-key-readers'
       secret: 'azure-openai-api-key'
       scope: 'secret'
-      roleAssignmentId: openaiServiceApiKeyAccess.id
+      roleAssignmentId: 'multiple (conditional per servicePrincipalIds)'
     }
   ] : [],
   // App Insights assignments summary (not listing all 22 individual assignments)
@@ -202,7 +214,7 @@ output summary string = enableRbacAuthorization ? '''
 - JWT private key: auth service only (secret-scoped)
 - JWT public key: auth service only (secret-scoped)
 - App Insights secrets: all ${length(allServices)} services (secret-scoped for telemetry)
-${deployAzureOpenAI ? '- Azure OpenAI API key: openai service only (secret-scoped)' : '- Azure OpenAI: not deployed, no assignments created'}
+${deployAzureOpenAI ? '- Azure OpenAI API key: embedding/orchestrator/summarization/reporting (and optional openai) (secret-scoped)' : '- Azure OpenAI: not deployed, no assignments created'}
 - OAuth secrets: NOT CONFIGURED - must be manually assigned post-deployment (see KEYVAULT_RBAC.md)
 - Grafana credentials: accessed via Container Apps platform (no service access needed)
 
