@@ -18,8 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 def mock_auth_service():
     """Create a mock auth service."""
     service = MagicMock()
-    service.config.audiences = "copilot-for-consensus"
-    service.config.jwt_default_expiry = 1800  # 30 minutes
+    service.config.service_settings.audiences = "copilot-for-consensus"
+    service.config.service_settings.jwt_default_expiry = 1800  # 30 minutes
 
     # Mock handle_callback to return a JWT token
     service.handle_callback.return_value = "mock.jwt.token"
@@ -116,7 +116,7 @@ def test_cookie_secure_flag_from_env(mock_auth_service):
             import main
 
             # Configure mock to return cookie_secure=True
-            mock_auth_service.config.cookie_secure = True
+            mock_auth_service.config.service_settings.cookie_secure = True
             main.auth_service = mock_auth_service
             client = TestClient(main.app)
 
@@ -136,7 +136,7 @@ def test_cookie_secure_flag_from_env(mock_auth_service):
             importlib.reload(main)
 
             # Configure mock to return cookie_secure=False
-            mock_auth_service.config.cookie_secure = False
+            mock_auth_service.config.service_settings.cookie_secure = False
             main.auth_service = mock_auth_service
             client = TestClient(main.app)
 

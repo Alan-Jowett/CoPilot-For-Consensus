@@ -2,91 +2,37 @@
   Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Service Bus Managed Identity Integration Guide
 
-This guide explains how to update services to use Azure Managed Identity for Service Bus authentication when deployed with the ARM template's `useManagedIdentityForServiceBus` parameter set to `true`.
+This guide explains how services authenticate to Azure Service Bus using managed identity, and how the deployment config maps into the `azure_service_bus` driver.
 
 ## Background
 
-The Azure Service Bus publisher and subscriber classes (`AzureServiceBusPublisher` and `AzureServiceBusSubscriber` in `adapters/copilot_message_bus`) already support managed identity authentication using `DefaultAzureCredential`. The ARM template now supports two authentication modes:
+The Azure Service Bus publisher and subscriber classes (`AzureServiceBusPublisher` and `AzureServiceBusSubscriber` in `adapters/copilot_message_bus`) support managed identity authentication using `DefaultAzureCredential`.
 
-1. **Connection String Mode** (default): Uses `MESSAGE_BUS_CONNECTION_STRING` environment variable
-2. **Managed Identity Mode**: Uses `MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE` and `MESSAGE_BUS_USE_MANAGED_IDENTITY` environment variables
+1. **Connection String Mode**: Uses `SERVICEBUS_CONNECTION_STRING` (or `MESSAGE_BUS_CONNECTION_STRING`)
+2. **Managed Identity Mode** (recommended): Uses `SERVICEBUS_FULLY_QUALIFIED_NAMESPACE` and `SERVICEBUS_USE_MANAGED_IDENTITY=true`
 
 ## Environment Variables Set by ARM Template
 
-When `useManagedIdentityForServiceBus: false` (default):
-- `MESSAGE_BUS_TYPE=azureservicebus`
-- `MESSAGE_BUS_CONNECTION_STRING` (from secret)
+Azure deployments in this repo typically set:
 
-When `useManagedIdentityForServiceBus: true`:
-- `MESSAGE_BUS_TYPE=azureservicebus`
-- `MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE` (e.g., `mynamespace.servicebus.windows.net`)
-- `MESSAGE_BUS_USE_MANAGED_IDENTITY=true`
+- `MESSAGE_BUS_TYPE=azure_service_bus`
+- `SERVICEBUS_USE_MANAGED_IDENTITY=true`
+- `SERVICEBUS_FULLY_QUALIFIED_NAMESPACE=<namespace>.servicebus.windows.net`
+
+Connection strings are supported by the driver for non-Azure scenarios, but the Azure Container Apps deployment is designed around managed identity.
 
 ## Service Code Updates Required
 
-Services need to read these environment variables and pass them to `create_publisher` and `create_subscriber` factory functions.
+Services do not need to manually parse these environment variables. They are loaded via the schema-driven config system and passed into `create_publisher` / `create_subscriber`.
 
-### Example: Updated Service Initialization
+For Azure Service Bus, the deployment provisions a shared topic (`copilot.events`) plus a subscription per service. Services set `topic_name="copilot.events"` and `subscription_name=<service>` in code as service-owned constants.
 
-Here's how to update a service (e.g., `parsing/main.py`) to support both modes:
+### Example: How Services Select Topic/Subscription
 
-```python
-import os
-from copilot_message_bus import create_publisher, create_subscriber
+Service `main.py` files typically do something like:
 
-# Load configuration
-config = load_typed_config("parsing")
-
-# Prepare Azure Service Bus specific parameters
-message_bus_kwargs = {}
-if config.message_bus_type == "azureservicebus":
-    # Check if using managed identity mode
-    use_managed_identity = os.getenv("MESSAGE_BUS_USE_MANAGED_IDENTITY", "false").lower() == "true"
-
-    if use_managed_identity:
-        # Managed Identity mode
-        fully_qualified_namespace = os.getenv("MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE")
-        if not fully_qualified_namespace:
-            raise ValueError("MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE is required when using managed identity")
-
-        message_bus_kwargs = {
-            "fully_qualified_namespace": fully_qualified_namespace,
-            "use_managed_identity": True,
-            "queue_name": "archive.ingested",  # Or appropriate queue/topic name
-        }
-        logger.info(f"Using Azure Service Bus with managed identity: {fully_qualified_namespace}")
-    else:
-        # Connection String mode
-        connection_string = os.getenv("MESSAGE_BUS_CONNECTION_STRING")
-        if not connection_string:
-            raise ValueError("MESSAGE_BUS_CONNECTION_STRING is required when not using managed identity")
-
-        message_bus_kwargs = {
-            "connection_string": connection_string,
-            "queue_name": "archive.ingested",  # Or appropriate queue/topic name
-        }
-        logger.info("Using Azure Service Bus with connection string")
-
-# Create publisher
-base_publisher = create_publisher(
-    message_bus_type=config.message_bus_type,
-    host=config.message_bus_host,  # Ignored for Azure Service Bus
-    port=config.message_bus_port,  # Ignored for Azure Service Bus
-    username=config.message_bus_user,  # Ignored for Azure Service Bus
-    password=config.message_bus_password,  # Ignored for Azure Service Bus
-    **message_bus_kwargs  # Pass Azure Service Bus specific parameters
-)
-
-# Create subscriber
-base_subscriber = create_subscriber(
-    message_bus_type=config.message_bus_type,
-    host=config.message_bus_host,  # Ignored for Azure Service Bus
-    port=config.message_bus_port,  # Ignored for Azure Service Bus
-    username=config.message_bus_user,  # Ignored for Azure Service Bus
-    password=config.message_bus_password,  # Ignored for Azure Service Bus
-    **message_bus_kwargs  # Pass Azure Service Bus specific parameters
-)
-```
+- For RabbitMQ: set a durable `queue_name` per service input
+- For Azure Service Bus: set `topic_name="copilot.events"` and `subscription_name=<service_name>`
 
 ### Simplified Helper Function
 
@@ -140,13 +86,11 @@ publisher = create_publisher(
 
 ## Services That Need Updates
 
-The following services use the message bus and need to be updated:
+The following services use the message bus:
 
 1. **ingestion** (`ingestion/main.py`) - Producer only
-   - Needs: `queue_name` or `topic_name` parameter
 
 2. **parsing** (`parsing/main.py`) - Consumer + Producer
-   - Needs: `queue_name="archive.ingested"` for subscriber
 
 3. **chunking** (`chunking/main.py`) - Consumer + Producer
    - Needs: `queue_name` parameter for subscriber
@@ -171,9 +115,9 @@ To test managed identity mode locally:
 
 ```bash
 # Set environment variables
-export MESSAGE_BUS_TYPE=azureservicebus
-export MESSAGE_BUS_USE_MANAGED_IDENTITY=true
-export MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE=mynamespace.servicebus.windows.net
+export MESSAGE_BUS_TYPE=azure_service_bus
+export SERVICEBUS_USE_MANAGED_IDENTITY=true
+export SERVICEBUS_FULLY_QUALIFIED_NAMESPACE=mynamespace.servicebus.windows.net
 
 # Use Azure CLI to authenticate (DefaultAzureCredential will use this)
 az login
@@ -191,7 +135,7 @@ When deployed via the ARM template with `useManagedIdentityForServiceBus: true`:
 
 ## RBAC Roles
 
-The ARM template automatically assigns these roles when managed identity is enabled:
+The infrastructure assigns these roles to service identities:
 
 - **Azure Service Bus Data Sender** (for producers)
   - Role ID: `69a216fc-b8fb-44d4-bc22-1f3c7cd27a98`

@@ -8,12 +8,14 @@ import logging
 import time
 from typing import Any
 
-from copilot_config.models import DriverConfig
+from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_Rabbitmq
 
 try:
     import pika
 except ImportError:
     pika = None
+
+pika_exceptions: Any = getattr(pika, "exceptions", None)
 
 from .base import EventPublisher
 
@@ -25,10 +27,10 @@ class RabbitMQPublisher(EventPublisher):
 
     def __init__(
         self,
-        host: str | None = None,
-        port: int | None = None,
-        username: str | None = None,
-        password: str | None = None,
+        host: str,
+        port: int,
+        username: str,
+        password: str,
         exchange: str = "copilot.events",
         exchange_type: str = "topic",
         enable_publisher_confirms: bool = True,
@@ -49,29 +51,8 @@ class RabbitMQPublisher(EventPublisher):
             reconnect_delay: Delay between reconnection attempts in seconds
 
         Raises:
-            ValueError: If required parameters (host, port, username, password) are not provided
+            ValueError: For invalid initialization parameters
         """
-        if not host:
-            raise ValueError(
-                "RabbitMQ host is required. "
-                "Provide the RabbitMQ server hostname or IP address."
-            )
-        if port is None:
-            raise ValueError(
-                "RabbitMQ port is required. "
-                "Provide the RabbitMQ server port number."
-            )
-        if not username:
-            raise ValueError(
-                "RabbitMQ username is required. "
-                "Provide the username for authentication."
-            )
-        if not password:
-            raise ValueError(
-                "RabbitMQ password is required. "
-                "Provide the password for authentication."
-            )
-
         self.host = host
         self.port = port
         self.username = username
@@ -88,7 +69,7 @@ class RabbitMQPublisher(EventPublisher):
         self._reconnect_count = 0
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "RabbitMQPublisher":
+    def from_config(cls, driver_config: DriverConfig_MessageBus_Rabbitmq) -> "RabbitMQPublisher":
         """Create publisher from DriverConfig.
 
         Args:
@@ -392,11 +373,11 @@ class RabbitMQPublisher(EventPublisher):
                 f"Published event to {exchange}/{routing_key}: {event.get('event_type')}"
             )
         except (
-            pika.exceptions.ChannelWrongStateError,
-            pika.exceptions.ChannelClosedByBroker,
-            pika.exceptions.ConnectionClosedByBroker,
-            pika.exceptions.AMQPConnectionError,
-            pika.exceptions.StreamLostError,
+            pika_exceptions.ChannelWrongStateError,
+            pika_exceptions.ChannelClosedByBroker,
+            pika_exceptions.ConnectionClosedByBroker,
+            pika_exceptions.AMQPConnectionError,
+            pika_exceptions.StreamLostError,
         ) as e:
             # Connection/channel errors - attempt reconnection and retry once
             logger.warning(f"Connection error during publish: {e}, attempting reconnection...")
@@ -422,14 +403,14 @@ class RabbitMQPublisher(EventPublisher):
             else:
                 logger.error("Reconnection failed, cannot publish event")
                 raise ConnectionError(f"Failed to publish after connection error: {e}")
-        except pika.exceptions.UnroutableError:
+        except pika_exceptions.UnroutableError:
             error_msg = (
                 f"Message unroutable - no queue bound for {exchange}/{routing_key}. "
                 "Ensure queues are declared before publishing."
             )
             logger.error(error_msg)
             raise
-        except pika.exceptions.NackError:
+        except pika_exceptions.NackError:
             error_msg = f"Message rejected (NACK) by broker for {exchange}/{routing_key}"
             logger.error(error_msg)
             raise

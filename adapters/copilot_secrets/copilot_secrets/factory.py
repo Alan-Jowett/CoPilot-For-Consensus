@@ -3,64 +3,56 @@
 
 """Factory for creating secret providers."""
 
-import logging
+from typing import TypeAlias
 
-from copilot_config import DriverConfig
+from copilot_config.adapter_factory import create_adapter
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_AzureKeyVault,
+    DriverConfig_SecretProvider_Local,
+)
 
 from .azurekeyvault_provider import AzureKeyVaultProvider
-from .exceptions import SecretProviderError
 from .local_provider import LocalFileSecretProvider
 from .provider import SecretProvider
 
-logger = logging.getLogger(__name__)
+_DriverConfig: TypeAlias = DriverConfig_SecretProvider_Local | DriverConfig_SecretProvider_AzureKeyVault
+
+
+def _build_local(config: _DriverConfig) -> SecretProvider:
+    if not isinstance(config, DriverConfig_SecretProvider_Local):
+        raise TypeError("driver config must be DriverConfig_SecretProvider_Local")
+    return LocalFileSecretProvider.from_config(config)
+
+
+def _build_azure_key_vault(config: _DriverConfig) -> SecretProvider:
+    if not isinstance(config, DriverConfig_SecretProvider_AzureKeyVault):
+        raise TypeError("driver config must be DriverConfig_SecretProvider_AzureKeyVault")
+    return AzureKeyVaultProvider.from_config(config)
 
 
 def create_secret_provider(
-    driver_name: str,
-    driver_config: DriverConfig
+    config: AdapterConfig_SecretProvider,
 ) -> SecretProvider:
     """Create a secret provider based on driver type and configuration.
 
-    This factory requires a DriverConfig object to ensure consistent configuration
-    handling throughout the codebase. Configuration validation and defaults are
-    applied by the DriverConfig object before being passed to this factory.
-
     Args:
-        driver_name: Type of provider to create ("local", "azure", "azurekeyvault")
-        driver_config: DriverConfig instance with provider-specific attributes:
-                      - local: base_path (optional)
-                      - azure/azurekeyvault: vault_url or vault_name (at least one required)
+        config: Typed AdapterConfig_SecretProvider instance.
 
     Returns:
         SecretProvider instance
 
     Raises:
-        SecretProviderError: If driver_name is unknown
-        SecretProviderError: If driver_config is not a DriverConfig instance
-        AttributeError: If required config attributes are missing
+        ValueError: If config is missing or driver type is unknown
+        ValueError: If driver config is invalid against schema
     """
-    if not driver_name:
-        raise SecretProviderError(
-            "driver_name parameter is required. "
-            "Must be one of: local, azure, azurekeyvault"
-        )
-
-    if not isinstance(driver_config, DriverConfig):
-        raise SecretProviderError(
-            f"driver_config must be a DriverConfig instance, "
-            f"got {type(driver_config).__name__}"
-        )
-
-    driver_lower = driver_name.lower()
-
-    if driver_lower == "local":
-        return LocalFileSecretProvider.from_config(driver_config)
-
-    elif driver_lower == "azure_key_vault":
-        return AzureKeyVaultProvider.from_config(driver_config)
-
-    else:
-        raise SecretProviderError(
-            f"Unknown secret provider driver: {driver_name}. "
-            f"Supported drivers: local, azure_key_vault"
-        )
+    return create_adapter(
+        config,
+        adapter_name="secret_provider",
+        get_driver_type=lambda c: c.secret_provider_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "local": _build_local,
+            "azure_key_vault": _build_azure_key_vault,
+        },
+    )

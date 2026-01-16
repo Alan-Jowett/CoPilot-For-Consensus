@@ -69,12 +69,10 @@ class TestFetcherFactory:
         assert isinstance(fetcher, HTTPFetcher)
 
     def test_create_fetcher_unsupported_type(self):
-        """Test that unsupported source type raises error."""
-        config = SourceConfig(
-            name="unknown-source",
-            source_type="ftp",
-            url="ftp://example.com/archive"
-        )
-        with pytest.raises(UnsupportedSourceTypeError) as exc_info:
-            create_fetcher(config)
-        assert "Unsupported source type" in str(exc_info.value)
+        """Test that unsupported source type is rejected by SourceConfig."""
+        with pytest.raises(ValueError, match="Unsupported source_type"):
+            SourceConfig(
+                name="unknown-source",
+                source_type="ftp",
+                url="ftp://example.com/archive"
+            )

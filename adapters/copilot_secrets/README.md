@@ -31,9 +31,18 @@ Store secrets as individual files in a directory:
 
 ```python
 from copilot_secrets import create_secret_provider
+from copilot_config.generated.adapters.secret_provider import (
+  AdapterConfig_SecretProvider,
+  DriverConfig_SecretProvider_Local,
+)
 
 # Initialize provider
-provider = create_secret_provider("local", base_path="/run/secrets")
+provider = create_secret_provider(
+  AdapterConfig_SecretProvider(
+    secret_provider_type="local",
+    driver=DriverConfig_SecretProvider_Local(base_path="/run/secrets"),
+  )
+)
 
 # Retrieve text secrets
 api_key = provider.get_secret("api_key")
@@ -66,9 +75,18 @@ Service code:
 ```python
 import os
 from copilot_secrets import create_secret_provider
+from copilot_config.generated.adapters.secret_provider import (
+  AdapterConfig_SecretProvider,
+  DriverConfig_SecretProvider_Local,
+)
 
 base_path = os.getenv("SECRETS_BASE_PATH", "/run/secrets")
-secrets = create_secret_provider("local", base_path=base_path)
+secrets = create_secret_provider(
+  AdapterConfig_SecretProvider(
+    secret_provider_type="local",
+    driver=DriverConfig_SecretProvider_Local(base_path=base_path),
+  )
+)
 
 jwt_key = secrets.get_secret("jwt_private_key")
 ```
@@ -79,14 +97,27 @@ Store and retrieve secrets from Azure Key Vault with managed identity support:
 
 ```python
 from copilot_secrets import create_secret_provider
+from copilot_config.generated.adapters.secret_provider import (
+  AdapterConfig_SecretProvider,
+  DriverConfig_SecretProvider_AzureKeyVault,
+)
 
 # Using vault name (simplest for Azure-hosted services)
-provider = create_secret_provider("azure", vault_name="my-production-vault")
+provider = create_secret_provider(
+  AdapterConfig_SecretProvider(
+    secret_provider_type="azure_key_vault",
+    driver=DriverConfig_SecretProvider_AzureKeyVault(vault_name="my-production-vault"),
+  )
+)
 
 # Or using full vault URL
 provider = create_secret_provider(
-    "azure",
-    vault_url="https://my-vault.vault.azure.net/"
+  AdapterConfig_SecretProvider(
+    secret_provider_type="azure_key_vault",
+    driver=DriverConfig_SecretProvider_AzureKeyVault(
+      vault_url="https://my-vault.vault.azure.net/",
+    ),
+  )
 )
 
 # Retrieve secrets
@@ -103,18 +134,9 @@ if provider.secret_exists("optional-feature-key"):
 
 #### Configuration via Environment Variables
 
-```python
-import os
-from copilot_secrets import create_secret_provider
-
-# Option 1: Set vault name
-os.environ["AZURE_KEY_VAULT_NAME"] = "my-vault"
-provider = create_secret_provider("azure")
-
-# Option 2: Set full vault URI
-os.environ["AZURE_KEY_VAULT_URI"] = "https://my-vault.vault.azure.net/"
-provider = create_secret_provider("azure")
-```
+Set `AZURE_KEY_VAULT_NAME` or `AZURE_KEY_VAULT_URI` and let `copilot_config` load the
+`secret_provider` adapter config from schema/env. If you are constructing configs manually,
+pass the values explicitly via `DriverConfig_SecretProvider_AzureKeyVault`.
 
 #### Authentication Methods
 

@@ -8,8 +8,6 @@ for testing and local development without requiring external authentication
 services.
 """
 
-from copilot_config import DriverConfig
-
 from .models import User
 from .provider import AuthenticationError, IdentityProvider
 
@@ -29,11 +27,11 @@ class MockIdentityProvider(IdentityProvider):
         self.users: dict[str, User] = {}
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "MockIdentityProvider":
-        """Create MockIdentityProvider from DriverConfig.
+    def from_config(cls, driver_config: object | None = None) -> "MockIdentityProvider":
+        """Create MockIdentityProvider from config.
 
         Args:
-            driver_config: DriverConfig object (unused for mock provider)
+            driver_config: Optional configuration object (unused for mock provider)
 
         Returns:
             MockIdentityProvider instance

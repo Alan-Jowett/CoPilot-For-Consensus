@@ -9,7 +9,41 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from copilot_config.models import AdapterConfig, DriverConfig, ServiceConfig
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+    DriverConfig_DocumentStore_Mongodb,
+)
+from copilot_config.generated.adapters.embedding_backend import (
+    AdapterConfig_EmbeddingBackend,
+    DriverConfig_EmbeddingBackend_Mock,
+)
+from copilot_config.generated.adapters.error_reporter import (
+    AdapterConfig_ErrorReporter,
+    DriverConfig_ErrorReporter_Console,
+)
+from copilot_config.generated.adapters.logger import (
+    AdapterConfig_Logger,
+    DriverConfig_Logger_Stdout,
+)
+from copilot_config.generated.adapters.message_bus import (
+    AdapterConfig_MessageBus,
+    DriverConfig_MessageBus_Rabbitmq,
+)
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_Noop,
+)
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_Local,
+)
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_Inmemory,
+    DriverConfig_VectorStore_Qdrant,
+)
+from copilot_config.generated.services.embedding import ServiceConfig_Embedding, ServiceSettings_Embedding
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -20,68 +54,62 @@ def _make_service_config(
     message_bus_driver: str = "rabbitmq",
     document_store_driver: str = "mongodb",
     vectorstore_driver: str = "qdrant",
-    embedding_driver: str = "ollama",
     http_port: int = 8082,
-) -> ServiceConfig:
-    return ServiceConfig(
-        service_name="embedding",
-        service_settings={
-            "http_port": http_port,
-        },
-        adapters=[
-            AdapterConfig(
-                adapter_type="message_bus",
-                driver_name=message_bus_driver,
-                driver_config=DriverConfig(
-                    driver_name=message_bus_driver,
-                    config={
-                        "rabbitmq_host": "localhost",
-                        "rabbitmq_port": 5672,
-                        "rabbitmq_username": "guest",
-                        "rabbitmq_password": "guest",
-                    },
-                ),
+) -> ServiceConfig_Embedding:
+    # Use jwt_auth_enabled=False to avoid importing/initializing auth middleware in unit tests.
+    return ServiceConfig_Embedding(
+        service_settings=ServiceSettings_Embedding(
+            http_port=http_port,
+            jwt_auth_enabled=False,
+        ),
+        logger=AdapterConfig_Logger(
+            logger_type="stdout",
+            driver=DriverConfig_Logger_Stdout(level="INFO", name="embedding"),
+        ),
+        message_bus=AdapterConfig_MessageBus(
+            message_bus_type=message_bus_driver,
+            driver=DriverConfig_MessageBus_Rabbitmq(
+                rabbitmq_username="guest",
+                rabbitmq_password="guest",
+                rabbitmq_host="localhost",
+                rabbitmq_port=5672,
             ),
-            AdapterConfig(
-                adapter_type="document_store",
-                driver_name=document_store_driver,
-                driver_config=DriverConfig(
-                    driver_name=document_store_driver,
-                    config={
-                        "mongodb_host": "localhost",
-                        "mongodb_port": 27017,
-                        "mongodb_database": "test_db",
-                    },
-                ),
+        ),
+        document_store=AdapterConfig_DocumentStore(
+            doc_store_type="inmemory" if document_store_driver == "inmemory" else "mongodb",
+            driver=(
+                DriverConfig_DocumentStore_Inmemory()
+                if document_store_driver == "inmemory"
+                else DriverConfig_DocumentStore_Mongodb(host="localhost", port=27017, database="test_db")
             ),
-            AdapterConfig(
-                adapter_type="vectorstore",
-                driver_name=vectorstore_driver,
-                driver_config=DriverConfig(
-                    driver_name=vectorstore_driver,
-                    config={"qdrant_host": "localhost", "qdrant_port": 6333},
-                ),
+        ),
+        vector_store=AdapterConfig_VectorStore(
+            vector_store_type="inmemory" if vectorstore_driver == "inmemory" else "qdrant",
+            driver=(
+                DriverConfig_VectorStore_Inmemory()
+                if vectorstore_driver == "inmemory"
+                else DriverConfig_VectorStore_Qdrant(host="localhost", port=6333, collection_name="embeddings")
             ),
-            AdapterConfig(
-                adapter_type="embedding",
-                driver_name=embedding_driver,
-                driver_config=DriverConfig(
-                    driver_name=embedding_driver,
-                    config={"model_name": "nomic-embed-text"},
-                ),
-            ),
-            AdapterConfig(
-                adapter_type="metrics",
-                driver_name="noop",
-                driver_config=DriverConfig(driver_name="noop", config={}),
-            ),
-        ],
+        ),
+        embedding_backend=AdapterConfig_EmbeddingBackend(
+            embedding_backend_type="mock",
+            driver=DriverConfig_EmbeddingBackend_Mock(dimension=384),
+        ),
+        metrics=AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()),
+        error_reporter=AdapterConfig_ErrorReporter(
+            error_reporter_type="console",
+            driver=DriverConfig_ErrorReporter_Console(logger_name="embedding"),
+        ),
+        secret_provider=AdapterConfig_SecretProvider(
+            secret_provider_type="local",
+            driver=DriverConfig_SecretProvider_Local(base_path="/run/secrets"),
+        ),
     )
 
 
 def test_main_imports_successfully():
     """Test that main.py imports successfully without errors."""
-    with patch("main.load_service_config"):
+    with patch("main.get_config"):
         with patch("main.create_publisher"):
             with patch("main.create_subscriber"):
                 with patch("main.create_document_store"):
@@ -96,7 +124,7 @@ def test_main_imports_successfully():
 
 def test_service_fails_when_publisher_connection_fails():
     """Test that service fails fast when publisher cannot connect."""
-    with patch("main.load_service_config") as mock_config:
+    with patch("main.get_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             mock_config.return_value = _make_service_config(message_bus_driver="rabbitmq")
 
@@ -118,7 +146,7 @@ def test_service_fails_when_publisher_connection_fails():
 
 def test_service_fails_when_subscriber_connection_fails():
     """Test that service fails fast when subscriber cannot connect."""
-    with patch("main.load_service_config") as mock_config:
+    with patch("main.get_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 mock_config.return_value = _make_service_config(message_bus_driver="rabbitmq")
@@ -146,13 +174,14 @@ def test_service_fails_when_subscriber_connection_fails():
 
 def test_service_fails_when_document_store_connection_fails():
     """Test that service fails fast when document store cannot connect."""
-    with patch("main.load_service_config") as mock_config:
+    with patch("main.get_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 with patch("main.create_document_store") as mock_create_store:
-                    with patch("threading.Thread.start"):
-                        with patch("uvicorn.run"):
-                            mock_config.return_value = _make_service_config()
+                    with patch("main.create_schema_provider"):
+                        with patch("threading.Thread.start"):
+                            with patch("uvicorn.run"):
+                                mock_config.return_value = _make_service_config()
 
                             # Setup mocks that connect successfully
                             mock_publisher = Mock()

@@ -4,9 +4,6 @@
 """Tests for schema loader and related functionality."""
 
 import json
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
 from copilot_config.schema_loader import (

@@ -23,7 +23,6 @@ from copilot_error_reporting import ErrorReporter
 from copilot_schema_validation import generate_message_doc_id
 from copilot_storage import DocumentStore
 from copilot_storage.validating_document_store import DocumentValidationError
-from pymongo.errors import DuplicateKeyError
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
@@ -33,6 +32,14 @@ logger = get_logger(__name__)
 
 # Valid source types for ArchiveIngested events (must match schema enum)
 VALID_SOURCE_TYPES = ["rsync", "imap", "http", "local"]
+
+
+def _is_duplicate_key_error(exc: BaseException) -> bool:
+    return (
+        type(exc).__name__ == "DuplicateKeyError"
+        or "duplicate key" in str(exc).lower()
+        or "e11000" in str(exc).lower()
+    )
 
 class ParsingService:
     """Main parsing service for converting mbox archives to structured JSON."""
@@ -490,44 +497,48 @@ class ParsingService:
 
                 self.document_store.insert_document("messages", message)
                 stored_count += 1
-            except (DuplicateKeyError, DocumentValidationError) as e:
+            except DocumentValidationError as e:
                 # Permanent errors - skip but log it
                 message_id = message.get("message_id", "unknown")
-                error_type = type(e).__name__
-                logger.info(f"Skipping message {message_id} ({error_type}): {e}")
+                logger.info(f"Skipping message {message_id} (DocumentValidationError): {e}")
                 skipped_count += 1
 
                 # Collect metrics for skipped messages
                 if self.metrics_collector:
-                    if isinstance(e, DuplicateKeyError):
-                        skip_reason = "duplicate"
-                    elif isinstance(e, DocumentValidationError):
-                        # Check if it's an empty body validation error by examining the errors list
-                        # Look for validation errors on body_normalized field with minLength/non-empty constraints
-                        is_empty_body = any(
-                            "body_normalized" in error and ("non-empty" in error or "minLength" in error)
-                            for error in e.errors
+                    # Check if it's an empty body validation error by examining the errors list
+                    is_empty_body = any(
+                        "body_normalized" in error and ("non-empty" in error or "minLength" in error)
+                        for error in e.errors
+                    )
+                    if is_empty_body:
+                        skip_reason = "empty_body"
+                        body_raw = message.get("body_raw", "")
+                        has_attachments = bool(message.get("attachments"))
+                        logger.debug(
+                            f"Empty body for {message_id}: "
+                            f"raw_length={len(body_raw)}, "
+                            f"has_attachments={has_attachments}"
                         )
-                        if is_empty_body:
-                            skip_reason = "empty_body"
-                            # Add debug logging for empty body messages
-                            body_raw = message.get("body_raw", "")
-                            has_attachments = bool(message.get("attachments"))
-                            logger.debug(
-                                f"Empty body for {message_id}: "
-                                f"raw_length={len(body_raw)}, "
-                                f"has_attachments={has_attachments}"
-                            )
-                        else:
-                            skip_reason = "validation_error"
                     else:
-                        skip_reason = "unknown"
+                        skip_reason = "validation_error"
 
                     self.metrics_collector.increment(
                         "parsing_messages_skipped_total",
-                        tags={"reason": skip_reason}
+                        tags={"reason": skip_reason},
                     )
             except Exception as e:
+                if _is_duplicate_key_error(e):
+                    message_id = message.get("message_id", "unknown")
+                    logger.info(f"Skipping message {message_id} (DuplicateKeyError): {e}")
+                    skipped_count += 1
+
+                    if self.metrics_collector:
+                        self.metrics_collector.increment(
+                            "parsing_messages_skipped_total",
+                            tags={"reason": "duplicate"},
+                        )
+                    continue
+
                 # Other errors are transient failures - re-raise
                 logger.error(f"Error storing message: {e}")
                 raise
@@ -553,27 +564,30 @@ class ParsingService:
             try:
                 self.document_store.insert_document("threads", thread)
                 stored_count += 1
-            except (DuplicateKeyError, DocumentValidationError) as e:
+            except DocumentValidationError as e:
                 # Permanent errors - skip but log it
                 thread_id = thread.get("thread_id", "unknown")
-                error_type = type(e).__name__
-                logger.info(f"Skipping thread {thread_id} ({error_type}): {e}")
+                logger.info(f"Skipping thread {thread_id} (DocumentValidationError): {e}")
                 skipped_count += 1
 
-                # Collect metrics for skipped threads
                 if self.metrics_collector:
-                    if isinstance(e, DuplicateKeyError):
-                        skip_reason = "duplicate"
-                    elif isinstance(e, DocumentValidationError):
-                        skip_reason = "validation_error"
-                    else:
-                        skip_reason = "unknown"
-
                     self.metrics_collector.increment(
                         "parsing_threads_skipped_total",
-                        tags={"reason": skip_reason}
+                        tags={"reason": "validation_error"},
                     )
             except Exception as e:
+                if _is_duplicate_key_error(e):
+                    thread_id = thread.get("thread_id", "unknown")
+                    logger.info(f"Skipping thread {thread_id} (DuplicateKeyError): {e}")
+                    skipped_count += 1
+
+                    if self.metrics_collector:
+                        self.metrics_collector.increment(
+                            "parsing_threads_skipped_total",
+                            tags={"reason": "duplicate"},
+                        )
+                    continue
+
                 # Other errors are transient failures - re-raise
                 logger.error(f"Error storing thread: {e}")
                 raise

@@ -15,16 +15,20 @@ from copilot_archive_store import ArchiveStore
 from copilot_message_bus import ArchiveIngestedEvent, ArchiveIngestionFailedEvent, EventPublisher
 from copilot_schema_validation import ArchiveMetadata
 from copilot_logging import Logger, get_logger
-from copilot_metrics import MetricsCollector, create_metrics_collector
-from copilot_error_reporting import ErrorReporter, create_error_reporter
+from copilot_metrics import MetricsCollector
+from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
-from copilot_config import load_driver_config
+
+from copilot_config.generated.services.ingestion import ServiceConfig_Ingestion
 
 from .exceptions import (
     FetchError,
     IngestionError,
     SourceConfigurationError,
 )
+
+
+logger: Logger = get_logger(__name__)
 
 
 def _expand(value: str | None) -> str | None:
@@ -43,24 +47,14 @@ def _source_from_mapping(source: dict[str, Any]) -> SourceConfig:
     Raises:
         SourceConfigurationError: If source is empty or missing required fields
     """
-    if not source:
-        raise SourceConfigurationError("Source configuration is empty")
-    required = {"name", "source_type", "url"}
-    if not required.issubset(source):
-        missing = required - set(source.keys())
-        raise SourceConfigurationError(
-            f"Source configuration missing required fields: {missing}"
-        )
-
-    return SourceConfig(
-        name=source["name"],
-        source_type=source["source_type"],
-        url=_expand(source.get("url")),
-        port=source.get("port"),
-        username=_expand(source.get("username")),
-        password=_expand(source.get("password")),
-        folder=source.get("folder"),
-    )
+    try:
+        expanded = dict(source)
+        expanded["url"] = _expand(expanded.get("url"))
+        expanded["username"] = _expand(expanded.get("username"))
+        expanded["password"] = _expand(expanded.get("password"))
+        return SourceConfig.from_mapping(expanded)
+    except ValueError as e:
+        raise SourceConfigurationError(str(e)) from e
 
 
 def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
@@ -74,7 +68,9 @@ def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
     return sanitized
 
 
-def _enabled_sources(raw_sources: Iterable[Any]) -> list[SourceConfig]:
+def _enabled_sources(
+    raw_sources: Iterable[SourceConfig | dict[str, Any]]
+) -> list[SourceConfig]:
     """Normalize and filter enabled sources.
 
     Args:
@@ -83,42 +79,19 @@ def _enabled_sources(raw_sources: Iterable[Any]) -> list[SourceConfig]:
     Returns:
         List of enabled SourceConfig objects
     """
-    logger = get_logger(__name__)
     enabled_sources: list[SourceConfig] = []
 
-    for raw in raw_sources or []:
+    for raw in raw_sources:
         try:
-            enabled = True
-            if isinstance(raw, dict):
-                enabled = raw.get("enabled", True)
-                source_cfg = _source_from_mapping(raw)
-            elif isinstance(raw, SourceConfig):
-                enabled = getattr(raw, "enabled", True)
-                source_cfg = SourceConfig(
-                    name=raw.name,
-                    source_type=raw.source_type,
-                    url=_expand(raw.url),
-                    port=getattr(raw, "port", None),
-                    username=_expand(getattr(raw, "username", None)),
-                    password=_expand(getattr(raw, "password", None)),
-                    folder=getattr(raw, "folder", None),
-                )
+            if isinstance(raw, SourceConfig):
+                source_cfg = raw
             else:
-                enabled = getattr(raw, "enabled", True)
-                source_cfg = SourceConfig(
-                    name=getattr(raw, "name", None),
-                    source_type=getattr(raw, "source_type", None),
-                    url=_expand(getattr(raw, "url", None)),
-                    port=getattr(raw, "port", None),
-                    username=_expand(getattr(raw, "username", None)),
-                    password=_expand(getattr(raw, "password", None)),
-                    folder=getattr(raw, "folder", None),
-                )
+                # At this point raw must be a dict[str, Any] per type contract.
+                source_cfg = _source_from_mapping(raw)
 
-            if enabled:
+            if source_cfg.enabled:
                 enabled_sources.append(source_cfg)
         except SourceConfigurationError as e:
-            # Log but skip invalid source configurations
             logger.warning("Skipping invalid source configuration", error=str(e))
             continue
 
@@ -128,10 +101,13 @@ def _enabled_sources(raw_sources: Iterable[Any]) -> list[SourceConfig]:
 class IngestionService:
     """Main ingestion service for fetching and ingesting archives."""
 
+    document_store: DocumentStore | None
+
     def __init__(
         self,
-        config: object,
+        config: ServiceConfig_Ingestion,
         publisher: EventPublisher,
+        sources: Iterable[SourceConfig | dict[str, Any]] | None = None,
         document_store: DocumentStore | None = None,
         error_reporter: ErrorReporter | None = None,
         logger: Logger | None = None,
@@ -143,6 +119,7 @@ class IngestionService:
         Args:
             config: Ingestion configuration
             publisher: Event publisher for publishing ingestion events
+            sources: Optional list of source configurations loaded at startup
             document_store: Document store for persisting archive metadata (optional)
             error_reporter: Error reporter for structured error reporting (optional)
             logger: Structured logger for observability (optional)
@@ -150,60 +127,31 @@ class IngestionService:
             archive_store: Archive store for storing raw archives (optional, will be created if None)
         """
         self.config = config
+        self._startup_sources: list[SourceConfig | dict[str, Any]] = list(sources or [])
+        self.version: str = ""
         self.publisher = publisher
-        self.document_store = document_store
+        self.document_store: DocumentStore | None = document_store
         if logger is None:
             raise ValueError("logger is required and must be provided by the caller")
         self.logger = logger
         if metrics is None:
-            metrics_config = load_driver_config(service=None, adapter="metrics", driver="noop", fields={})
-            metrics = create_metrics_collector(driver_name="noop", driver_config=metrics_config)
+            raise ValueError("metrics is required and must be provided by the caller")
         self.metrics = metrics
 
         # Get storage path from config or use default (store as instance variable for use throughout service)
-        self.storage_path = config.storage_path
+        settings = config.service_settings
+        self.storage_path = settings.storage_path or "/data/ingestion"
         self._ensure_storage_path(self.storage_path)
 
-        # Initialize error reporter from adapter if not provided
         if error_reporter is None:
-            try:
-                error_reporter_adapter = config.get_adapter("error_reporter")
-                if error_reporter_adapter is not None:
-                    adapter_driver_config = getattr(error_reporter_adapter, "driver_config", None)
-                    if adapter_driver_config is None:
-                        fields: dict[str, Any] = {}
-                    elif hasattr(adapter_driver_config, "config"):
-                        fields = dict(getattr(adapter_driver_config, "config"))  # type: ignore[arg-type]
-                    else:
-                        fields = dict(adapter_driver_config)  # type: ignore[arg-type]
-
-                    # Use load_driver_config to create proper DriverConfig
-                    driver_config = load_driver_config(
-                        service=None,
-                        adapter="error_reporter",
-                        driver=error_reporter_adapter.driver_name,
-                        fields=fields,
-                    )
-                    self.error_reporter = create_error_reporter(
-                        driver_name=error_reporter_adapter.driver_name,
-                        driver_config=driver_config,
-                    )
-                else:
-                    # No error_reporter adapter in config, use silent with empty config
-                    silent_config = load_driver_config(service=None, adapter="error_reporter", driver="silent", fields={})
-                    self.error_reporter = create_error_reporter(driver_name="silent", driver_config=silent_config)
-            except Exception:
-                # Exception during error_reporter creation, fallback to silent
-                silent_config = load_driver_config(service=None, adapter="error_reporter", driver="silent", fields={})
-                self.error_reporter = create_error_reporter(driver_name="silent", driver_config=silent_config)
-        else:
-            self.error_reporter = error_reporter
+            raise ValueError("error_reporter is required and must be provided by the caller")
+        self.error_reporter = error_reporter
 
         if archive_store is None:
             raise ValueError("archive_store is required and must be provided by the caller")
         self.archive_store = archive_store
         # Capture backend type once from schema-driven config; fallback to store driver when present
-        self.archive_store_type = getattr(config, "archive_store_type", None) or getattr(
+        self.archive_store_type = settings.archive_store_type or getattr(
             archive_store, "driver_name", archive_store.__class__.__name__
         )
 
@@ -239,7 +187,7 @@ class IngestionService:
         """
         deleted_count = 0
 
-        if self.document_store:
+        if self.document_store is not None:
             try:
                 # Query all archives for this source
                 archives = self.document_store.query_documents(
@@ -279,7 +227,7 @@ class IngestionService:
 
     def ingest_archive(
         self,
-        source: object,
+        source: SourceConfig | dict[str, Any],
         max_retries: int | None = None,
     ) -> None:
         """Ingest archives from a source.
@@ -295,21 +243,18 @@ class IngestionService:
             ArchivePublishError: If publishing archive events fails
         """
         # Normalize source into fetcher SourceConfig
-        try:
-            if isinstance(source, dict):
-                source = _source_from_mapping(source)
-            elif not isinstance(source, SourceConfig):
-                source = _source_from_mapping(getattr(source, "__dict__", {}))
-        except SourceConfigurationError:
-            # Re-raise configuration errors directly
-            raise
+        source_cfg = source if isinstance(source, SourceConfig) else _source_from_mapping(source)
 
         if max_retries is None:
-            max_retries = self.config.max_retries
+            max_retries = (
+                self.config.service_settings.max_retries
+                if self.config.service_settings.max_retries is not None
+                else 3
+            )
 
         ingestion_started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         started_monotonic = time.monotonic()
-        metric_tags = self._metric_tags(source)
+        metric_tags = self._metric_tags(source_cfg)
 
         retry_count = 0
         last_error = None
@@ -318,30 +263,38 @@ class IngestionService:
             try:
                 self.logger.info(
                     "Ingesting from source",
-                    source_name=source.name,
-                    source_type=source.source_type,
+                    source_name=source_cfg.name,
+                    source_type=source_cfg.source_type,
                     attempt=attempt + 1,
                     max_attempts=max_retries + 1,
                 )
 
                 # Create fetcher
-                fetcher = create_fetcher(source)
+                fetcher = create_fetcher(source_cfg)
 
                 # Create output directory
-                output_dir = os.path.join(self.storage_path, source.name)
+                output_dir = os.path.join(self.storage_path, source_cfg.name)
 
                 # Fetch archives
                 success, file_paths, error_message = fetcher.fetch(output_dir)
+
+                if file_paths is None:
+                    file_paths = []
 
                 if not success:
                     last_error = error_message or "Unknown error"
                     retry_count += 1
 
                     if attempt < max_retries:
-                        wait_time = self.config.request_timeout_seconds * (2 ** attempt)
+                        request_timeout = (
+                            self.config.service_settings.request_timeout_seconds
+                            if self.config.service_settings.request_timeout_seconds is not None
+                            else 60
+                        )
+                        wait_time = request_timeout * (2 ** attempt)
                         self.logger.warning(
                             "Fetch attempt failed",
-                            source_name=source.name,
+                            source_name=source_cfg.name,
                             attempt=attempt + 1,
                             wait_time_seconds=wait_time,
                             error=last_error,
@@ -352,7 +305,7 @@ class IngestionService:
                         # All retries exhausted - raise exception
                         try:
                             self._publish_failure_event(
-                                source,
+                                source_cfg,
                                 last_error,
                                 "FetchError",
                                 retry_count,
@@ -363,26 +316,26 @@ class IngestionService:
                             # Log both errors to ensure visibility
                             self.logger.error(
                                 "Failed to publish ingestion failure event",
-                                source_name=source.name,
+                                source_name=source_cfg.name,
                                 original_error=last_error,
                                 publish_error=str(publish_error),
                             )
                             # Wrap both errors in FetchError
                             raise FetchError(
                                 f"Fetch failed: {last_error}. Event publish also failed: {publish_error}",
-                                source_name=source.name,
+                                source_name=source_cfg.name,
                                 retry_count=retry_count
                             )
                         self._record_failure_metrics(metric_tags, started_monotonic)
                         # Update source status tracking
                         self._update_source_status(
-                            source.name,
+                            source_cfg.name,
                             status="failed",
                             error=last_error,
                         )
                         raise FetchError(
                             last_error,
-                            source_name=source.name,
+                            source_name=source_cfg.name,
                             retry_count=retry_count
                         )
 
@@ -405,7 +358,7 @@ class IngestionService:
                             "File already ingested",
                             file_path=file_path,
                             file_hash=file_hash,
-                            source_name=source.name,
+                            source_name=source_cfg.name,
                         )
                         files_skipped += 1
                         self.metrics.increment(
@@ -417,14 +370,14 @@ class IngestionService:
                     # Store archive via ArchiveStore
                     try:
                         archive_id = self.archive_store.store_archive(
-                            source_name=source.name,
+                            source_name=source_cfg.name,
                             file_path=file_path,
                             content=file_content,
                         )
                         self.logger.info(
                             "Stored archive via ArchiveStore",
                             archive_id=archive_id,
-                            source_name=source.name,
+                            source_name=source_cfg.name,
                             file_path=file_path,
                             file_size=file_size,
                         )
@@ -433,7 +386,7 @@ class IngestionService:
                             "Failed to store archive via ArchiveStore",
                             error=str(e),
                             file_path=file_path,
-                            source_name=source.name,
+                            source_name=source_cfg.name,
                             exc_info=True,
                         )
                         self.error_reporter.report(
@@ -441,7 +394,7 @@ class IngestionService:
                             context={
                                 "operation": "store_archive",
                                 "file_path": file_path,
-                                "source_name": source.name,
+                                "source_name": source_cfg.name,
                             }
                         )
                         # Skip this file and continue with others
@@ -452,9 +405,9 @@ class IngestionService:
 
                     metadata = ArchiveMetadata(
                         archive_id=archive_id,
-                        source_name=source.name,
-                        source_type=source.source_type,
-                        source_url=source.url,
+                        source_name=source_cfg.name,
+                        source_type=source_cfg.source_type,
+                        source_url=source_cfg.url,
                         file_path=file_path,
                         file_size_bytes=file_size,
                         file_hash_sha256=file_hash,
@@ -469,7 +422,7 @@ class IngestionService:
                     # Write to archives collection in document store
                     self._write_archive_record(
                         archive_id,
-                        source,
+                        source_cfg,
                         file_hash,
                         ingestion_completed_at,
                     )
@@ -496,7 +449,7 @@ class IngestionService:
                 duration_seconds = time.monotonic() - started_monotonic
                 self.logger.info(
                     "Ingestion completed",
-                    source_name=source.name,
+                    source_name=source_cfg.name,
                     files_processed=files_processed,
                     files_skipped=files_skipped,
                     duration_seconds=duration_seconds,
@@ -510,7 +463,7 @@ class IngestionService:
 
                 # Update source status tracking
                 self._update_source_status(
-                    source.name,
+                    source_cfg.name,
                     status="success",
                     files_processed=files_processed,
                     files_skipped=files_skipped,
@@ -529,7 +482,7 @@ class IngestionService:
                     "Ingestion error",
                     error=last_error,
                     attempt=attempt + 1,
-                    source_name=source.name,
+                    source_name=source_cfg.name,
                 )
 
                 # Report error with context
@@ -537,20 +490,25 @@ class IngestionService:
                     e,
                     context={
                         "operation": "ingest_archive",
-                        "source_name": source.name,
-                        "source_type": source.source_type,
+                        "source_name": source_cfg.name,
+                        "source_type": source_cfg.source_type,
                         "attempt": attempt + 1,
                         "max_retries": max_retries,
                     }
                 )
 
                 if attempt < max_retries:
-                    wait_time = self.config.request_timeout_seconds * (2 ** attempt)
+                    request_timeout = (
+                        self.config.service_settings.request_timeout_seconds
+                        if self.config.service_settings.request_timeout_seconds is not None
+                        else 60
+                    )
+                    wait_time = request_timeout * (2 ** attempt)
                     self.logger.warning(
                         "Retrying after error",
                         wait_time_seconds=wait_time,
                         attempt=attempt + 1,
-                        source_name=source.name,
+                        source_name=source_cfg.name,
                     )
                     time.sleep(wait_time)
                     continue
@@ -558,7 +516,7 @@ class IngestionService:
                     # All retries exhausted - raise IngestionError
                     try:
                         self._publish_failure_event(
-                            source,
+                            source_cfg,
                             last_error,
                             "UnexpectedError",
                             retry_count,
@@ -569,7 +527,7 @@ class IngestionService:
                         # Log both errors to ensure visibility
                         self.logger.error(
                             "Failed to publish ingestion failure event",
-                            source_name=source.name,
+                            source_name=source_cfg.name,
                             original_error=last_error,
                             publish_error=str(publish_error),
                         )
@@ -581,14 +539,14 @@ class IngestionService:
                     self._record_failure_metrics(metric_tags, started_monotonic)
                     # Update source status tracking
                     self._update_source_status(
-                        source.name,
+                        source_cfg.name,
                         status="failed",
                         error=last_error,
                     )
                     raise IngestionError(last_error) from e
 
         # Should never reach here due to loop structure, but add safety
-        raise IngestionError(f"Ingestion failed for unknown reason (source: {source.name})")
+        raise IngestionError(f"Ingestion failed for unknown reason (source: {source_cfg.name})")
 
     def ingest_all_enabled_sources(self) -> dict[str, Exception | None]:
         """Ingest from all enabled sources.
@@ -603,7 +561,7 @@ class IngestionService:
         """
         results = {}
 
-        for source in _enabled_sources(getattr(self.config, "sources", [])):
+        for source in _enabled_sources(self._startup_sources):
             self.logger.info("Starting source ingestion", source_name=source.name)
             try:
                 self.ingest_archive(source)
@@ -771,36 +729,40 @@ class IngestionService:
             )
             return
 
+        def _refresh_archive_metadata_cache(source_name: str) -> dict[str, dict[str, Any]]:
+            if not self.archive_store:
+                self._archive_metadata_cache[source_name] = {}
+                return {}
+
+            archives = self.archive_store.list_archives(source_name)
+            lookup: dict[str, dict[str, Any]] = {}
+            for archive in archives:
+                archive_id_value = archive.get("archive_id")
+                if isinstance(archive_id_value, str) and archive_id_value:
+                    lookup[archive_id_value] = archive
+
+            self._archive_metadata_cache[source_name] = lookup
+            return lookup
+
         try:
             # Get archive metadata from ArchiveStore
             archive_metadata = None
             if self.archive_store:
                 # Use per-source in-memory cache (initialized in __init__) to avoid repeated
                 # list_archives calls when processing multiple archives for a source.
-                archive_lookup = self._archive_metadata_cache.get(source.name)
-                if archive_lookup is None:
-                    archives = self.archive_store.list_archives(source.name)
-                    archive_lookup = {
-                        archive.get("archive_id"): archive
-                        for archive in archives
-                        if archive.get("archive_id") is not None
-                    }
-                    self._archive_metadata_cache[source.name] = archive_lookup
+                cached_archive_lookup: dict[str, dict[str, Any]] | None = self._archive_metadata_cache.get(
+                    source.name
+                )
+                if cached_archive_lookup is None:
+                    cached_archive_lookup = _refresh_archive_metadata_cache(source.name)
 
-                archive_metadata = archive_lookup.get(archive_id)
+                archive_metadata = cached_archive_lookup.get(archive_id)
                 
                 # If metadata not found in cache, refresh the cache in case new archives
                 # were just stored by store_archive() and not yet in the cache
                 if not archive_metadata:
-                    # Reload list_archives to get newly stored archives
-                    archives = self.archive_store.list_archives(source.name)
-                    archive_lookup = {
-                        archive.get("archive_id"): archive
-                        for archive in archives
-                        if archive.get("archive_id") is not None
-                    }
-                    self._archive_metadata_cache[source.name] = archive_lookup
-                    archive_metadata = archive_lookup.get(archive_id)
+                    cached_archive_lookup = _refresh_archive_metadata_cache(source.name)
+                    archive_metadata = cached_archive_lookup.get(archive_id)
 
             # Determine archive format from stored metadata or default to mbox
             archive_format = "mbox"
@@ -1036,10 +998,10 @@ class IngestionService:
         Returns:
             Dictionary with service statistics
         """
-        sources = _enabled_sources(getattr(self.config, "sources", []))
+        sources = _enabled_sources(self._startup_sources)
 
         return {
-            "sources_configured": len(getattr(self.config, "sources", [])),
+            "sources_configured": len(self._startup_sources),
             "sources_enabled": len(sources),
             "total_files_ingested": self._stats.get("total_files_ingested", 0),
             "last_ingestion_at": self._stats.get("last_ingestion_at"),
@@ -1063,21 +1025,7 @@ class IngestionService:
 
         result = []
         for source in sources:
-            if isinstance(source, dict):
-                source_dict = _sanitize_source_dict(source)
-            else:
-                source_dict = {
-                    "name": getattr(source, "name", None),
-                    "source_type": getattr(source, "source_type", None),
-                    "url": getattr(source, "url", None),
-                    "port": getattr(source, "port", None),
-                    "username": getattr(source, "username", None),
-                    # Do not expose passwords; represent as None when present
-                    "password": None,
-                    "folder": getattr(source, "folder", None),
-                    "enabled": getattr(source, "enabled", True),
-                    "schedule": getattr(source, "schedule", None),
-                }
+            source_dict = _sanitize_source_dict(source)
 
             # Ensure password is not exposed
             if "password" in source_dict and source_dict["password"]:
@@ -1135,6 +1083,9 @@ class IngestionService:
         if "enabled" not in source_data:
             source_data["enabled"] = True
 
+        if self.document_store is None:
+            raise ValueError("Document store is not configured")
+
         # Store in document store
         try:
             self.document_store.insert_document("sources", source_data)
@@ -1162,6 +1113,9 @@ class IngestionService:
         Raises:
             ValueError: If source document exists but has no id field
         """
+        if self.document_store is None:
+            raise ValueError("Document store is not configured")
+
         docs = self.document_store.query_documents("sources", {"name": source_name}, limit=1)
         if not docs:
             return None

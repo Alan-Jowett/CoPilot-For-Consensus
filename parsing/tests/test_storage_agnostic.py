@@ -16,21 +16,37 @@ from copilot_storage import create_document_store
 
 def create_test_archive_store():
     """Create a test archive store with automatic temporary directory cleanup."""
-    from copilot_config import DriverConfig
+    from copilot_config.generated.adapters.archive_store import (
+        AdapterConfig_ArchiveStore,
+        DriverConfig_ArchiveStore_Local,
+    )
     tmpdir = tempfile.TemporaryDirectory()
-    archive_store = create_archive_store("local", DriverConfig(driver_name="local", config={"archive_base_path": tmpdir.name}))
+    archive_store = create_archive_store(
+        AdapterConfig_ArchiveStore(
+            archive_store_type="local",
+            driver=DriverConfig_ArchiveStore_Local(archive_base_path=tmpdir.name),
+        )
+    )
     archive_store._tmpdir = tmpdir  # keep tempdir alive for store lifetime
     return archive_store
 
 
 def create_validating_document_store():
     """Create an in-memory document store with document schema validation."""
+    from copilot_config.generated.adapters.document_store import (
+        AdapterConfig_DocumentStore,
+        DriverConfig_DocumentStore_Inmemory,
+    )
+
     schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
     schema_provider = create_schema_provider(schema_dir=schema_dir, schema_type="documents")
     store = create_document_store(
-        driver_name="inmemory",
-        driver_config={"schema_provider": schema_provider},
+        AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        ),
         enable_validation=True,
+        schema_provider=schema_provider,
     )
     store.connect()
     return store
@@ -38,16 +54,28 @@ def create_validating_document_store():
 
 def create_tracking_publisher():
     """Create a noop publisher that records published events."""
-    publisher = create_publisher(driver_name="noop", driver_config={}, enable_validation=False)
+    from copilot_config.generated.adapters.message_bus import (
+        AdapterConfig_MessageBus,
+        DriverConfig_MessageBus_Noop,
+    )
+
+    publisher = create_publisher(
+        AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+        enable_validation=False,
+    )
     publisher.connect()
     return publisher
 
 
 def create_noop_subscriber():
     """Create a noop subscriber using the factory API."""
+    from copilot_config.generated.adapters.message_bus import (
+        AdapterConfig_MessageBus,
+        DriverConfig_MessageBus_Noop,
+    )
+
     subscriber = create_subscriber(
-        driver_name="noop",
-        driver_config={"queue_name": "json.parsed"},
+        AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
         enable_validation=False,
     )
     subscriber.connect()

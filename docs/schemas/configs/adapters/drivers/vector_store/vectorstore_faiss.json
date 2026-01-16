@@ -9,6 +9,7 @@
             "source": "env",
             "env_var": "EMBEDDING_DIMENSION",
             "default": 384,
+            "minimum": 1,
             "description": "Embedding vector dimension"
         },
         "index_type": {
@@ -16,6 +17,7 @@
             "source": "env",
             "env_var": "VECTOR_STORE_INDEX_TYPE",
             "default": "flat",
+            "enum": ["flat", "ivf"],
             "description": "FAISS index type (flat, ivf)"
         },
         "persist_path": {
@@ -23,6 +25,7 @@
             "source": "env",
             "env_var": "VECTOR_STORE_PERSIST_PATH",
             "required": false,
+            "minLength": 1,
             "description": "Optional path to persist the index"
         }
     },

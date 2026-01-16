@@ -4,6 +4,7 @@
 """Tests for load_driver_config module."""
 
 import json
+from pathlib import Path
 
 import pytest
 from copilot_config.load_driver_config import (
@@ -79,7 +80,7 @@ class TestGetAdapterSchema:
         schema, schema_path = _get_adapter_schema(None, "message_bus", str(schema_dir))
 
         assert schema == adapter_schema
-        assert schema_path == str(adapter_file)
+        assert Path(schema_path).resolve() == adapter_file.resolve()
 
     def test_get_adapter_schema_with_service_validation(self, tmp_path):
         """Test loading adapter schema with service validation."""
@@ -118,7 +119,7 @@ class TestGetAdapterSchema:
         schema, schema_path = _get_adapter_schema("chunking", "message_bus", str(schema_dir))
 
         assert schema == adapter_schema
-        assert schema_path == str(adapter_file)
+        assert Path(schema_path).resolve() == adapter_file.resolve()
 
     def test_get_adapter_schema_with_properties_structure(self, tmp_path):
         """Test loading adapter schema when service uses properties structure."""
@@ -161,7 +162,7 @@ class TestGetAdapterSchema:
         schema, schema_path = _get_adapter_schema("test-service", "logger", str(schema_dir))
 
         assert schema == adapter_schema
-        assert schema_path == str(adapter_file)
+        assert Path(schema_path).resolve() == adapter_file.resolve()
 
     def test_get_adapter_schema_not_found_without_service(self, tmp_path):
         """Test that missing adapter schema raises FileNotFoundError when service is None."""
@@ -271,7 +272,7 @@ class TestGetDriverSchema:
         schema, schema_path = _get_driver_schema(None, "message_bus", "rabbitmq", str(schema_dir))
 
         assert schema == driver_schema
-        assert schema_path == str(driver_file)
+        assert Path(schema_path).resolve() == driver_file.resolve()
 
     def test_get_driver_schema_not_supported_by_adapter(self, tmp_path):
         """Test that driver not supported by adapter raises ValueError."""

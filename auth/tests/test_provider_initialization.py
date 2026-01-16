@@ -9,6 +9,31 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from copilot_config.generated.adapters.oidc_providers import (
+    AdapterConfig_OidcProviders,
+    CompositeConfig_OidcProviders,
+    DriverConfig_OidcProviders_Github,
+    DriverConfig_OidcProviders_Google,
+    DriverConfig_OidcProviders_Microsoft,
+)
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.logger import (
+    AdapterConfig_Logger,
+    DriverConfig_Logger_Stdout,
+)
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_Noop,
+)
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_Local,
+)
+from copilot_config.generated.services.auth import ServiceConfig_Auth, ServiceSettings_Auth
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -20,37 +45,46 @@ class TestProviderInitialization:
 
     @pytest.fixture
     def mock_config(self):
-        """Create a mock configuration."""
-        config = MagicMock()
-        config.issuer = "http://localhost:8090"
-        config.audiences = "copilot-for-consensus"
-        config.jwt_algorithm = "RS256"
-        config.jwt_key_id = "default"
-        config.jwt_default_expiry = 1800
-        config.max_skew_seconds = 90
-        # Provide dummy keys so AuthService can initialize.
-        config.jwt_private_key = "-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n"
-        config.jwt_public_key = "-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----\n"
-        config.jwt_secret_key = None
-        config.role_store_schema_dir = None
-        config.auto_approve_roles = ""
-        config.auto_approve_enabled = False
-        config.first_user_auto_promotion_enabled = False
+        """Create a typed configuration."""
+        settings = ServiceSettings_Auth(
+            issuer="http://localhost:8090",
+            audiences="copilot-for-consensus",
+            jwt_algorithm="RS256",
+            jwt_key_id="default",
+            jwt_default_expiry=1800,
+            max_skew_seconds=90,
+            # Provide dummy keys so AuthService can initialize.
+            jwt_private_key="-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n",
+            jwt_public_key="-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----\n",
+            jwt_secret_key=None,
+            role_store_schema_dir=None,
+            auto_approve_roles="",
+            auto_approve_enabled=False,
+            first_user_auto_promotion_enabled=False,
+        )
 
-        # Configure providers via the composite adapter
-        oidc_adapter = MagicMock()
-        oidc_adapter.driver_name = "multi"
-        oidc_adapter.driver_config = MagicMock()
-        oidc_adapter.driver_config.config = {}
-        config._oidc_adapter = oidc_adapter
-
-        def get_adapter(adapter_type: str):
-            if adapter_type == "oidc_providers":
-                return config._oidc_adapter
-            return None
-
-        config.get_adapter = get_adapter
-        return config
+        return ServiceConfig_Auth(
+            service_settings=settings,
+            document_store=AdapterConfig_DocumentStore(
+                doc_store_type="inmemory",
+                driver=DriverConfig_DocumentStore_Inmemory(),
+            ),
+            logger=AdapterConfig_Logger(
+                logger_type="stdout",
+                driver=DriverConfig_Logger_Stdout(),
+            ),
+            metrics=AdapterConfig_Metrics(
+                metrics_type="noop",
+                driver=DriverConfig_Metrics_Noop(),
+            ),
+            oidc_providers=AdapterConfig_OidcProviders(
+                oidc_providers=CompositeConfig_OidcProviders()
+            ),
+            secret_provider=AdapterConfig_SecretProvider(
+                secret_provider_type="local",
+                driver=DriverConfig_SecretProvider_Local(),
+            ),
+        )
 
     def _create_mock_identity_provider(self):
         """Create a mock identity provider with all required methods."""
@@ -89,13 +123,15 @@ class TestProviderInitialization:
         service.JWTManager = MockJWTManager
 
         # Configure GitHub provider
-        mock_config._oidc_adapter.driver_config.config = {
-            "github": {
-                "github_client_id": "test_client_id",
-                "github_client_secret": "test_client_secret",
-                "github_redirect_uri": "http://localhost:8090/callback",
-            }
-        }
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                github=DriverConfig_OidcProviders_Github(
+                    github_client_id="test_client_id",
+                    github_client_secret="test_client_secret",
+                    github_redirect_uri="http://localhost:8090/callback",
+                )
+            )
+        )
 
         # Mock create_identity_provider
         mock_provider = self._create_mock_identity_provider()
@@ -123,13 +159,15 @@ class TestProviderInitialization:
         service.JWTManager = MockJWTManager
 
         # Configure Google provider
-        mock_config._oidc_adapter.driver_config.config = {
-            "google": {
-                "google_client_id": "test_client_id.apps.googleusercontent.com",
-                "google_client_secret": "test_client_secret",
-                "google_redirect_uri": "http://localhost:8090/callback",
-            }
-        }
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                google=DriverConfig_OidcProviders_Google(
+                    google_client_id="test_client_id.apps.googleusercontent.com",
+                    google_client_secret="test_client_secret",
+                    google_redirect_uri="http://localhost:8090/callback",
+                )
+            )
+        )
 
         mock_provider = self._create_mock_identity_provider()
         with patch("app.service.create_identity_provider", return_value=mock_provider):
@@ -154,13 +192,15 @@ class TestProviderInitialization:
         service.JWTManager = MockJWTManager
 
         # Configure Microsoft provider
-        mock_config._oidc_adapter.driver_config.config = {
-            "microsoft": {
-                "microsoft_client_id": "test_client_id",
-                "microsoft_client_secret": "test_client_secret",
-                "microsoft_redirect_uri": "http://localhost:8090/callback",
-            }
-        }
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                microsoft=DriverConfig_OidcProviders_Microsoft(
+                    microsoft_client_id="test_client_id",
+                    microsoft_client_secret="test_client_secret",
+                    microsoft_redirect_uri="http://localhost:8090/callback",
+                )
+            )
+        )
 
         mock_provider = self._create_mock_identity_provider()
         with patch("app.service.create_identity_provider", return_value=mock_provider):
@@ -185,21 +225,23 @@ class TestProviderInitialization:
         service.JWTManager = MockJWTManager
 
         # Configure multiple providers
-        mock_config._oidc_adapter.driver_config.config = {
-            "github": {
-                "github_client_id": "github_id",
-                "github_client_secret": "github_secret",
-                "github_redirect_uri": "http://localhost:8090/callback",
-            },
-            "google": {
-                "google_client_id": "google_id",
-                "google_client_secret": "google_secret",
-                "google_redirect_uri": "http://localhost:8090/callback",
-            },
-        }
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                github=DriverConfig_OidcProviders_Github(
+                    github_client_id="github_id",
+                    github_client_secret="github_secret",
+                    github_redirect_uri="http://localhost:8090/callback",
+                ),
+                google=DriverConfig_OidcProviders_Google(
+                    google_client_id="google_id",
+                    google_client_secret="google_secret",
+                    google_redirect_uri="http://localhost:8090/callback",
+                ),
+            )
+        )
 
         call_count = 0
-        def mock_create_provider(driver_name, driver_config):
+        def mock_create_provider(provider_name, driver_config, *, issuer=None):
             nonlocal call_count
             call_count += 1
             return self._create_mock_identity_provider()
@@ -212,6 +254,51 @@ class TestProviderInitialization:
             assert "github" in auth_svc.providers
             assert "google" in auth_svc.providers
             assert call_count == 2
+
+        service.JWTManager = original_jwt_manager
+
+    def test_service_starts_with_partial_provider_init_failure(self, mock_config, monkeypatch):
+        """Service should start with providers that initialize successfully."""
+        monkeypatch.setattr(Path, "write_text", lambda self, content: None)
+        monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
+
+        class MockJWTManager:
+            def __init__(self, **kwargs):
+                pass
+
+        from app import service
+
+        original_jwt_manager = service.JWTManager
+        service.JWTManager = MockJWTManager
+
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                github=DriverConfig_OidcProviders_Github(
+                    github_client_id="test_client_id",
+                    github_client_secret="test_client_secret",
+                    github_redirect_uri="http://localhost:8090/callback",
+                ),
+                google=DriverConfig_OidcProviders_Google(
+                    google_client_id="test_client_id.apps.googleusercontent.com",
+                    google_client_secret="test_client_secret",
+                    google_redirect_uri="http://localhost:8090/callback",
+                ),
+            )
+        )
+
+        good_provider = self._create_mock_identity_provider()
+
+        def _create_provider(provider_type: str, *_args, **_kwargs):
+            if provider_type == "github":
+                raise RuntimeError("boom")
+            return good_provider
+
+        with patch("app.service.create_identity_provider", side_effect=_create_provider):
+            auth_svc = AuthService(config=mock_config)
+
+            assert "google" in auth_svc.providers
+            assert auth_svc.providers["google"] is good_provider
+            assert "github" not in auth_svc.providers
 
         service.JWTManager = original_jwt_manager
 
@@ -229,17 +316,19 @@ class TestProviderInitialization:
         service.JWTManager = MockJWTManager
 
         custom_redirect = "https://custom.redirect.example.com/callback"
-        mock_config._oidc_adapter.driver_config.config = {
-            "github": {
-                "github_client_id": "test_id",
-                "github_client_secret": "test_secret",
-                "github_redirect_uri": custom_redirect,
-            }
-        }
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                github=DriverConfig_OidcProviders_Github(
+                    github_client_id="test_id",
+                    github_client_secret="test_secret",
+                    github_redirect_uri=custom_redirect,
+                )
+            )
+        )
 
         captured_config = {}
-        def capture_create_provider(driver_name, driver_config):
-            captured_config[driver_name] = driver_config
+        def capture_create_provider(provider_name, driver_config, *, issuer=None):
+            captured_config[provider_name] = driver_config
             return self._create_mock_identity_provider()
 
         with patch("app.service.create_identity_provider", side_effect=capture_create_provider):
@@ -247,7 +336,7 @@ class TestProviderInitialization:
 
             # Verify custom redirect URI was passed to the factory
             assert "github" in captured_config
-            assert captured_config["github"]["redirect_uri"] == custom_redirect
+            assert captured_config["github"].github_redirect_uri == custom_redirect
 
         service.JWTManager = original_jwt_manager
 
@@ -265,16 +354,18 @@ class TestProviderInitialization:
         service.JWTManager = MockJWTManager
 
         # Provider config without explicit redirect_uri
-        mock_config._oidc_adapter.driver_config.config = {
-            "github": {
-                "github_client_id": "test_id",
-                "github_client_secret": "test_secret",
-            }
-        }
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                github=DriverConfig_OidcProviders_Github(
+                    github_client_id="test_id",
+                    github_client_secret="test_secret",
+                )
+            )
+        )
 
         captured_config = {}
-        def capture_create_provider(driver_name, driver_config):
-            captured_config[driver_name] = driver_config
+        def capture_create_provider(provider_name, driver_config, *, issuer=None):
+            captured_config[provider_name] = driver_config
             return self._create_mock_identity_provider()
 
         with patch("app.service.create_identity_provider", side_effect=capture_create_provider):
@@ -282,7 +373,10 @@ class TestProviderInitialization:
 
             # Verify default redirect URI uses service issuer
             assert "github" in captured_config
-            assert captured_config["github"]["redirect_uri"] == f"{mock_config.issuer}/callback"
+            assert (
+                captured_config["github"].github_redirect_uri
+                == f"{mock_config.service_settings.issuer}/callback"
+            )
 
         service.JWTManager = original_jwt_manager
 
@@ -299,15 +393,17 @@ class TestProviderInitialization:
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
-        mock_config._oidc_adapter.driver_config.config = {
-            "github": {
-                "github_client_id": "test_id",
-                "github_client_secret": "test_secret",
-            }
-        }
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                github=DriverConfig_OidcProviders_Github(
+                    github_client_id="test_id",
+                    github_client_secret="test_secret",
+                )
+            )
+        )
 
         # Make factory raise an exception
-        def raise_error(driver_name, driver_config):
+        def raise_error(provider_name, driver_config, *, issuer=None):
             raise ValueError("Invalid configuration")
 
         with patch("app.service.create_identity_provider", side_effect=raise_error):
@@ -334,15 +430,15 @@ class TestProviderInitialization:
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
-        provider_config = {
-            "github_client_id": "test_id",
-            "github_client_secret": "test_secret",
-            "github_redirect_uri": "http://localhost:8090/callback",
-        }
-
-        mock_config._oidc_adapter.driver_config.config = {
-            "github": provider_config
-        }
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                github=DriverConfig_OidcProviders_Github(
+                    github_client_id="test_id",
+                    github_client_secret="test_secret",
+                    github_redirect_uri="http://localhost:8090/callback",
+                )
+            )
+        )
 
         with patch("app.service.create_identity_provider") as mock_create:
             mock_create.return_value = self._create_mock_identity_provider()
@@ -353,12 +449,10 @@ class TestProviderInitialization:
             mock_create.assert_called()
             call_args = mock_create.call_args
 
-            # Check keyword arguments
-            assert call_args.kwargs.get("driver_name") == "github"
-            assert "driver_config" in call_args.kwargs
-            # driver_config should include all the provider config plus redirect_uri
-            driver_cfg = call_args.kwargs.get("driver_config")
-            assert driver_cfg["github_client_id"] == "test_id"
-            assert driver_cfg["redirect_uri"] == "http://localhost:8090/callback"
+            assert call_args.args[0] == "github"
+            driver_cfg = call_args.args[1]
+            assert driver_cfg.github_client_id == "test_id"
+            assert driver_cfg.github_redirect_uri == "http://localhost:8090/callback"
+            assert call_args.kwargs.get("issuer") == "http://localhost:8090"
 
         service.JWTManager = original_jwt_manager

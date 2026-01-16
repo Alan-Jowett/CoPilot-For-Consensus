@@ -60,6 +60,12 @@ param cosmosDocumentsDatabaseName string = 'copilot'
 @description('Cosmos DB container name for documents')
 param cosmosContainerName string = 'documents'
 
+@description('Cosmos DB container name for auth service (must exist in cosmosAuthDatabaseName)')
+param cosmosAuthContainerName string = 'documents'
+
+@description('Cosmos DB partition key path for auth service container (must match provisioned container)')
+param cosmosAuthPartitionKeyPath string = '/collection'
+
 @description('Storage Account name for blob storage')
 param storageAccountName string = ''
 
@@ -265,11 +271,11 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: 'user_roles'
+              value: cosmosAuthContainerName
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: '/id'
+              value: cosmosAuthPartitionKeyPath
             }
             // Metrics adapter (Azure Monitor)
             {
@@ -516,6 +522,10 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azure_key_vault'
             }
             {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
+            }
+            {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.reporting
             }
@@ -646,6 +656,10 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureblob'
             }
             {
+              name: 'AZUREBLOB_AUTH_TYPE'
+              value: 'managed_identity'
+            }
+            {
               name: 'AZUREBLOB_ACCOUNT_NAME'
               value: storageAccountName
             }
@@ -674,6 +688,10 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -836,6 +854,10 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureblob'
             }
             {
+              name: 'AZUREBLOB_AUTH_TYPE'
+              value: 'managed_identity'
+            }
+            {
               name: 'AZUREBLOB_ACCOUNT_NAME'
               value: storageAccountName
             }
@@ -859,6 +881,10 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -952,6 +978,16 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'CHUNK_LOG_LEVEL'
               value: 'INFO'
             }
+            // Logger adapter
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            // Error reporter adapter
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
@@ -997,6 +1033,10 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -1093,6 +1133,11 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'EMBEDDING_LOG_LEVEL'
               value: 'INFO'
+            }
+            // Logger adapter
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
             }
             // Message Bus adapter (Azure Service Bus)
             {
@@ -1195,6 +1240,10 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -1346,6 +1395,10 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -1630,6 +1683,10 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'

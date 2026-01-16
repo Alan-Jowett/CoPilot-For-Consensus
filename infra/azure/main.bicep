@@ -40,6 +40,19 @@ param coreKeyVaultName string
 @description('Secret URI for Azure OpenAI API key in Core Key Vault')
 param coreKvSecretUriAoaiKey string
 
+@minLength(3)
+@maxLength(24)
+@description('Azure OpenAI account name from Core deployment outputs (aoaiAccountName). Prefer passing this explicitly rather than deriving it from the endpoint.')
+param coreAoaiAccountName string
+
+// Back-compat: best-effort derivation from endpoint. Prefer coreAoaiAccountName parameter.
+// Expected Azure OpenAI endpoint host format: <account-name>.openai.azure.com
+// If the endpoint does not match the expected pattern (ports/paths/custom hosts), we leave this empty.
+var aoaiEndpointNoProto = azureOpenAIEndpoint != '' ? toLower(replace(replace(azureOpenAIEndpoint, 'https://', ''), 'http://', '')) : ''
+var aoaiEndpointHost = aoaiEndpointNoProto != '' ? split(aoaiEndpointNoProto, '/')[0] : ''
+var derivedAoaiAccountName = (aoaiEndpointHost != '' && endsWith(aoaiEndpointHost, '.openai.azure.com')) ? split(aoaiEndpointHost, '.')[0] : ''
+var effectiveAoaiAccountName = coreAoaiAccountName != '' ? toLower(coreAoaiAccountName) : derivedAoaiAccountName
+
 // ========================================
 // End Core RG Integration Parameters
 // ========================================
@@ -357,6 +370,33 @@ resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
   ]
 }
 
+// Store Azure OpenAI API key in Env Key Vault for services using env secret_provider
+// NOTE: Core infrastructure also stores this in Core Key Vault. Env services currently use env Key Vault
+// for secret_provider (JWT/App Insights/etc), so we replicate the API key here.
+var cognitiveServicesApiVersion = '2023-05-01'
+
+// Azure Cognitive Services / Azure OpenAI account name length constraints.
+// These mirror platform resource naming rules and are used to guard secret creation.
+var cognitiveServicesAccountNameMinLength = 3
+var cognitiveServicesAccountNameMaxLength = 24
+
+var shouldCreateEnvOpenaiSecret = deployContainerApps && azureOpenAIEndpoint != '' && effectiveAoaiAccountName != '' && length(effectiveAoaiAccountName) >= cognitiveServicesAccountNameMinLength && length(effectiveAoaiAccountName) <= cognitiveServicesAccountNameMaxLength
+
+resource envOpenaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (shouldCreateEnvOpenaiSecret) {
+  name: '${keyVaultName}/azure-openai-api-key'
+  properties: {
+    // IMPORTANT: The identity executing this deployment must have management-plane access
+    // (e.g. 'Cognitive Services Contributor' or equivalent) on the Azure OpenAI account
+    // referenced by coreKvSubscriptionId/coreKvResourceGroupName/effectiveAoaiAccountName,
+    // otherwise this listKeys() call will fail at deployment time.
+    value: listKeys(resourceId(coreKvSubscriptionId, coreKvResourceGroupName, 'Microsoft.CognitiveServices/accounts', effectiveAoaiAccountName), cognitiveServicesApiVersion).key1
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
+
 // Module: Generate per-deployment JWT keys and store in Key Vault
 module jwtKeysModule 'modules/jwtkeys.bicep' = if (deployContainerApps) {
   name: 'jwtKeysDeployment'
@@ -448,13 +488,14 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
     keyVaultName: keyVaultModule.outputs.keyVaultName
     servicePrincipalIds: identitiesModule.outputs.identityPrincipalIdsByName
     enableRbacAuthorization: enableRbacAuthorization
-    deployAzureOpenAI: false  // OpenAI is in Core RG; env services access Core KV directly
+    deployAzureOpenAI: azureOpenAIEndpoint != ''
   }
   dependsOn: [
     keyVaultModule
     jwtKeysModule  // Ensure JWT secrets exist before assigning access
     appInsightsInstrKeySecret
     appInsightsConnectionStringSecret
+    envOpenaiApiKeySecret
     coreKvRbacModule  // Ensure Core KV access is granted before RBAC module runs
   ]
 }
@@ -504,6 +545,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     cosmosAuthDatabaseName: cosmosModule.outputs.authDatabaseName
     cosmosDocumentsDatabaseName: cosmosModule.outputs.documentsDatabaseName
     cosmosContainerName: cosmosModule.outputs.containerName
+    cosmosAuthContainerName: cosmosModule.outputs.authContainerName
+    cosmosAuthPartitionKeyPath: cosmosModule.outputs.authPartitionKeyPath
     storageAccountName: storageModule!.outputs.accountName
     storageBlobEndpoint: storageModule!.outputs.blobEndpoint
     subnetId: vnetModule!.outputs.containerAppsSubnetId
@@ -518,6 +561,7 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
   }
   dependsOn: [
     jwtKeysModule  // Ensure JWT keys are generated before auth service starts
+    envOpenaiApiKeySecret
     keyVaultRbacModule  // Ensure RBAC assignments are complete before services access secrets
     coreKvRbacModule  // Ensure Core KV access is granted before Container Apps start
   ]
@@ -552,7 +596,8 @@ output keyVaultName string = keyVaultModule.outputs.keyVaultName
 output managedIdentities array = identitiesModule.outputs.identities
 output serviceBusNamespace string = serviceBusModule.outputs.namespaceName
 output serviceBusNamespaceId string = serviceBusModule.outputs.namespaceResourceId
-output serviceBusQueues array = serviceBusModule.outputs.queueNames
+output serviceBusTopic string = serviceBusModule.outputs.topicName
+output serviceBusSubscriptions array = serviceBusModule.outputs.subscriptionNames
 output cosmosAccountName string = cosmosModule.outputs.accountName
 output cosmosAccountEndpoint string = cosmosModule.outputs.accountEndpoint
 output cosmosAuthDatabaseName string = cosmosModule.outputs.authDatabaseName

@@ -9,6 +9,7 @@
             "source": "env",
             "env_var": "QDRANT_HOST",
             "default": "vectorstore",
+            "minLength": 1,
             "description": "Qdrant server hostname"
         },
         "port": {
@@ -16,6 +17,8 @@
             "source": "env",
             "env_var": "QDRANT_PORT",
             "default": 6333,
+            "minimum": 1,
+            "maximum": 65535,
             "description": "Qdrant server port"
         },
         "collection_name": {
@@ -23,6 +26,7 @@
             "source": "env",
             "env_var": "QDRANT_COLLECTION",
             "default": "embeddings",
+            "minLength": 1,
             "description": "Qdrant collection name for embeddings"
         },
         "api_key": {
@@ -30,6 +34,7 @@
             "source": "secret",
             "secret_name": "qdrant_api_key",
             "required": false,
+            "minLength": 1,
             "description": "Qdrant API key (optional)"
         },
         "vector_size": {
@@ -37,6 +42,7 @@
             "source": "env",
             "env_var": "EMBEDDING_DIMENSION",
             "default": 384,
+            "minimum": 1,
             "description": "Embedding vector dimension"
         },
         "distance": {
@@ -44,13 +50,15 @@
             "source": "env",
             "env_var": "QDRANT_DISTANCE",
             "default": "cosine",
-            "description": "Distance metric (cosine, euclid)"
+            "enum": ["cosine", "euclidean", "euclid"],
+            "description": "Distance metric (cosine, euclidean). The value 'euclid' is accepted as a backward-compatible alias."
         },
         "upsert_batch_size": {
             "type": "int",
             "source": "env",
             "env_var": "QDRANT_UPSERT_BATCH_SIZE",
             "default": 100,
+            "minimum": 1,
             "description": "Batch size for upsert operations"
         }
     },

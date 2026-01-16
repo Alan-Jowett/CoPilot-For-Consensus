@@ -11,10 +11,15 @@ import pytest
 from app.service import IngestionService
 from copilot_archive_store import create_archive_store
 from copilot_message_bus import create_publisher
-from copilot_schema_validation import create_schema_provider
 from copilot_storage import create_document_store
 from copilot_logging import create_logger
-from copilot_config import load_driver_config
+from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
+from copilot_config.generated.adapters.error_reporter import AdapterConfig_ErrorReporter, DriverConfig_ErrorReporter_Silent
+from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Silent
+from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
+from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
+from copilot_error_reporting import create_error_reporter
+from copilot_metrics import create_metrics_collector
 
 from .test_helpers import make_config, make_source
 
@@ -27,10 +32,21 @@ class TestIngestionIntegration:
     @pytest.fixture
     def test_logger(self):
         """Create a test logger."""
-        logger_config = load_driver_config(
-            service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}
+        return create_logger(
+            AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"))
         )
-        return create_logger(driver_name="silent", driver_config=logger_config)
+
+    @pytest.fixture
+    def test_metrics(self):
+        """Create a no-op metrics collector."""
+        return create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
+
+    @pytest.fixture
+    def test_error_reporter(self):
+        """Create a silent error reporter."""
+        return create_error_reporter(
+            AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
+        )
 
     @pytest.fixture
     def temp_environment(self):
@@ -79,39 +95,52 @@ class TestIngestionIntegration:
 
         return sources
 
-    def test_end_to_end_ingestion(self, temp_environment, test_sources, test_logger):
+    def test_end_to_end_ingestion(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
         """Test complete end-to-end ingestion workflow."""
-        from pathlib import Path
-
         # Create configuration
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources,
-            retry_max_attempts=1,
+            max_retries=1,
         )
 
         # Create publisher and service
-        schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "events"
         publisher = create_publisher(
-            driver_name="noop",
-            driver_config={
-                "schema_provider": create_schema_provider(schema_dir=str(schema_dir)),
-                "validation_enabled": True,
-                "strict": True,
-            },
+            AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+            enable_validation=False,
         )
+        publisher.connect()
 
         # Create in-memory document store for testing
-        store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
-        document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
+        document_store = create_document_store(
+            AdapterConfig_DocumentStore(doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()),
+            enable_validation=False,
+        )
         document_store.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
+
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
 
         service = IngestionService(
-            config, publisher, document_store=document_store, archive_store=archive_store, logger=test_logger
+            config,
+            publisher,
+            sources=test_sources,
+            document_store=document_store,
+            archive_store=archive_store,
+            logger=test_logger,
+            metrics=test_metrics,
+            error_reporter=test_error_reporter,
         )
 
         # Ingest all sources
@@ -153,28 +182,49 @@ class TestIngestionIntegration:
         for event_wrapper in publisher.published_events:
             assert event_wrapper["event"]["event_type"] == "ArchiveIngested"
 
-    def test_ingestion_with_duplicates(self, temp_environment, test_sources, test_logger):
+    def test_ingestion_with_duplicates(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
         """Test ingestion handling of duplicate archives."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources,
         )
 
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
+        publisher = create_publisher(
+            AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+            enable_validation=False,
+        )
         publisher.connect()
 
         # Create document store for deduplication
-        store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
-        document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
+        document_store = create_document_store(
+            AdapterConfig_DocumentStore(doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()),
+            enable_validation=False,
+        )
         document_store.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
+
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
 
         service = IngestionService(
-            config, publisher, document_store=document_store, archive_store=archive_store, logger=test_logger
+            config,
+            publisher,
+            sources=test_sources,
+            document_store=document_store,
+            archive_store=archive_store,
+            logger=test_logger,
+            metrics=test_metrics,
+            error_reporter=test_error_reporter,
         )
 
         # First ingestion
@@ -193,7 +243,7 @@ class TestIngestionIntegration:
         # Deduplication via document store prevents re-ingestion
         assert len(publisher.published_events) == initial_event_count
 
-    def test_ingestion_with_mixed_sources(self, temp_environment, test_sources, test_logger):
+    def test_ingestion_with_mixed_sources(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
         """Test ingestion with mix of enabled and disabled sources."""
         # Mix enabled and disabled
         test_sources[1]["enabled"] = False
@@ -201,18 +251,38 @@ class TestIngestionIntegration:
 
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources,
         )
 
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
+        publisher = create_publisher(
+            AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+            enable_validation=False,
+        )
         publisher.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
 
-        service = IngestionService(config, publisher, archive_store=archive_store, logger=test_logger)
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
+
+        service = IngestionService(
+            config,
+            publisher,
+            sources=test_sources,
+            archive_store=archive_store,
+            logger=test_logger,
+            metrics=test_metrics,
+            error_reporter=test_error_reporter,
+        )
 
         results = service.ingest_all_enabled_sources()
 
@@ -221,26 +291,45 @@ class TestIngestionIntegration:
         # Result should be None (success), not an exception
         assert results["test-list-0"] is None
 
-    def test_deduplication_persists_across_instances(self, temp_environment, test_sources, test_logger):
+    def test_deduplication_persists_across_instances(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
         """Test that deduplication via document store works across service instances."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources[:1],  # Just first source
         )
 
         # Create shared document store
-        store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
-        document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
+        document_store = create_document_store(
+            AdapterConfig_DocumentStore(doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()),
+            enable_validation=False,
+        )
         document_store.connect()
 
         # First service instance
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher1 = create_publisher(driver_name="noop", driver_config=publisher_config)
+        publisher_config = AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop())
+        publisher1 = create_publisher(publisher_config, enable_validation=False)
         publisher1.connect()
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
+
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
         service1 = IngestionService(
-            config, publisher1, document_store=document_store, archive_store=archive_store, logger=test_logger
+            config,
+            publisher1,
+            sources=test_sources[:1],
+            document_store=document_store,
+            archive_store=archive_store,
+            logger=test_logger,
+            metrics=test_metrics,
+            error_reporter=test_error_reporter,
         )
         service1.ingest_all_enabled_sources()
 
@@ -249,10 +338,17 @@ class TestIngestionIntegration:
         assert len(archives) > 0
 
         # Second service instance with same document store
-        publisher2 = create_publisher(driver_name="noop", driver_config=publisher_config)
+        publisher2 = create_publisher(publisher_config, enable_validation=False)
         publisher2.connect()
         service2 = IngestionService(
-            config, publisher2, document_store=document_store, archive_store=archive_store, logger=test_logger
+            config,
+            publisher2,
+            sources=test_sources[:1],
+            document_store=document_store,
+            archive_store=archive_store,
+            logger=test_logger,
+            metrics=test_metrics,
+            error_reporter=test_error_reporter,
         )
 
         # Ingest again - should skip because hash exists in document store
@@ -262,22 +358,42 @@ class TestIngestionIntegration:
         archives_after = document_store.query_documents("archives", {})
         assert len(archives_after) == len(archives)
 
-    def test_ingestion_log_format(self, temp_environment, test_sources, test_logger):
+    def test_ingestion_log_format(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
         """Test that ingestion log has correct format."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources[:1],
         )
 
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
+        publisher = create_publisher(
+            AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+            enable_validation=False,
+        )
         publisher.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
 
-        service = IngestionService(config, publisher, archive_store=archive_store, logger=test_logger)
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
+
+        service = IngestionService(
+            config,
+            publisher,
+            sources=test_sources[:1],
+            archive_store=archive_store,
+            logger=test_logger,
+            metrics=test_metrics,
+            error_reporter=test_error_reporter,
+        )
         service.ingest_all_enabled_sources()
 
         log_path = os.path.join(
@@ -300,22 +416,42 @@ class TestIngestionIntegration:
                 assert "ingestion_completed_at" in entry
                 assert "status" in entry
 
-    def test_published_event_format(self, temp_environment, test_sources, test_logger):
+    def test_published_event_format(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
         """Test that published events have correct format."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources[:1],
         )
 
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
+        publisher = create_publisher(
+            AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+            enable_validation=False,
+        )
         publisher.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
 
-        service = IngestionService(config, publisher, archive_store=archive_store, logger=test_logger)
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
+
+        service = IngestionService(
+            config,
+            publisher,
+            sources=test_sources[:1],
+            archive_store=archive_store,
+            logger=test_logger,
+            metrics=test_metrics,
+            error_reporter=test_error_reporter,
+        )
         service.ingest_all_enabled_sources()
 
         # Get published events
@@ -344,22 +480,42 @@ class TestIngestionIntegration:
                 assert "ingestion_started_at" in data
                 assert "ingestion_completed_at" in data
 
-    def test_storage_directory_structure(self, temp_environment, test_sources, test_logger):
+    def test_storage_directory_structure(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
         """Test that storage directory structure is correct."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
-            sources=test_sources[:2],
         )
 
-        publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
-        publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
+        publisher = create_publisher(
+            AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
+            enable_validation=False,
+        )
         publisher.connect()
 
         # Create archive store for local file operations
-        archive_config = load_driver_config(service=None, adapter="archive_store", driver="local", fields={"archive_base_path": temp_environment["storage_path"]})
-        archive_store = create_archive_store(driver_name="local", driver_config=archive_config)
+        from copilot_config.generated.adapters.archive_store import (
+            AdapterConfig_ArchiveStore,
+            DriverConfig_ArchiveStore_Local,
+        )
 
-        service = IngestionService(config, publisher, archive_store=archive_store, logger=test_logger)
+        archive_store = create_archive_store(
+            AdapterConfig_ArchiveStore(
+                archive_store_type="local",
+                driver=DriverConfig_ArchiveStore_Local(
+                    archive_base_path=temp_environment["storage_path"],
+                ),
+            )
+        )
+
+        service = IngestionService(
+            config,
+            publisher,
+            sources=test_sources[:2],
+            archive_store=archive_store,
+            logger=test_logger,
+            metrics=test_metrics,
+            error_reporter=test_error_reporter,
+        )
         service.ingest_all_enabled_sources()
 
         storage_path = temp_environment["storage_path"]

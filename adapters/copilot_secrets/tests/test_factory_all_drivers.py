@@ -11,7 +11,12 @@ import json
 import tempfile
 from pathlib import Path
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_AzureKeyVault,
+    DriverConfig_SecretProvider_Local,
+)
+from copilot_secrets import SecretProviderError
 from copilot_secrets.factory import create_secret_provider
 
 
@@ -93,12 +98,25 @@ class TestSecretProviderAllDrivers:
                 # Get all allowed keys from schema
                 allowed_keys = set(driver_schema.get("properties", {}).keys())
                 
-                config = DriverConfig(
-                    driver_name=driver,
-                    config=config_dict,
-                    allowed_keys=allowed_keys
-                )
-                
-                # Should not raise any exceptions
-                provider = create_secret_provider(driver_name=driver, driver_config=config)
+                if driver == "local":
+                    driver_config = DriverConfig_SecretProvider_Local(**config_dict)
+                elif driver == "azure_key_vault":
+                    driver_config = DriverConfig_SecretProvider_AzureKeyVault(**config_dict)
+                else:
+                    raise AssertionError(f"Unexpected secret provider driver in schema: {driver}")
+
+                try:
+                    provider = create_secret_provider(
+                        AdapterConfig_SecretProvider(
+                            secret_provider_type=driver,
+                            driver=driver_config,
+                        )
+                    )
+                except SecretProviderError as e:
+                    if driver == "azure_key_vault" and "Azure SDK dependencies" in str(e):
+                        import pytest
+
+                        pytest.skip("Azure Key Vault dependencies not installed")
+                    raise
+
                 assert provider is not None, f"Failed to create secret provider for driver: {driver}"

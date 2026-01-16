@@ -20,7 +20,11 @@ import logging
 from copilot_auth.models import User
 from copilot_auth.provider import AuthenticationError
 from copilot_schema_validation import create_schema_provider
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.services.auth import ServiceConfig_Auth
 from copilot_storage import DocumentStore, create_document_store
 
 logger = logging.getLogger(__name__)
@@ -33,29 +37,11 @@ class RoleStore:
     # This is a security measure to prevent arbitrary role assignment
     VALID_ROLES = {"admin", "contributor", "reviewer", "reader"}
 
-    def __init__(self, config: object):
-        self.collection = config.role_store_collection
+    def __init__(self, config: ServiceConfig_Auth):
+        settings = config.service_settings
+        self.collection = settings.role_store_collection or "user_roles"
 
-        document_store_adapter = None
-        get_adapter = getattr(config, "get_adapter", None)
-        if callable(get_adapter):
-            document_store_adapter = get_adapter("document_store")
-
-        driver_name = getattr(document_store_adapter, "driver_name", None) if document_store_adapter else None
-        driver_config = (
-            getattr(getattr(document_store_adapter, "driver_config", None), "config", None)
-            if document_store_adapter
-            else None
-        )
-        if not isinstance(driver_config, dict):
-            driver_config = {}
-
-        driver_config = dict(driver_config)
-
-        if not driver_name:
-            driver_name = "inmemory"
-
-        schema_dir = getattr(config, "role_store_schema_dir", None)
+        schema_dir = settings.role_store_schema_dir
         if schema_dir is None:
             # Try to find schema directory relative to this file
             # In container: /app/app/role_store.py -> parents[1] is /app
@@ -78,20 +64,12 @@ class RoleStore:
         except Exception as e:
             logger.warning("RoleStore schema probe failed: %s", e)
 
-        # Wrap config in DriverConfig so factory can access attributes
-        allowed_keys = set(driver_config.keys()) | {"schema_provider"}
-        driver_cfg = DriverConfig(
-            driver_name=driver_name,
-            config={**driver_config, "schema_provider": schema_provider},
-            allowed_keys=allowed_keys,
-        )
-
         self.store = create_document_store(
-            driver_name=driver_name,
-            driver_config=driver_cfg,
+            config=config.document_store,
             enable_validation=True,
             strict_validation=True,
             validate_reads=False,
+            schema_provider=schema_provider,
         )
 
         connect = getattr(self.store, "connect", None)
@@ -393,16 +371,15 @@ class RoleStore:
                 # Update using the document's _id
                 self.store.update_document(self.collection, record["_id"], update_doc)
             else:
-                # If no _id, try to update with query filter (may not work with all stores)
-                # This is a fallback for stores that support filter-based updates
+                # Fallback: Some stores/tests may not return _id. Use user_id as the document
+                # ID for update, and insert if the store reports it doesn't exist.
                 from copilot_storage.document_store import DocumentNotFoundError
 
                 try:
-                    self.store.update_document(self.collection, {"user_id": user_id}, update_doc)
-                except (DocumentNotFoundError, TypeError):
-                    # If update by query fails, this store requires _id
-                    # Shouldn't happen since record came from _find_user_record which queries
-                    raise ValueError(f"Cannot update document for user {user_id} without _id")
+                    self.store.update_document(self.collection, user_id, update_doc)
+                except DocumentNotFoundError:
+                    insert_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+                    self.store.insert_document(self.collection, insert_doc)
 
             # Log audit event
             logger.info(

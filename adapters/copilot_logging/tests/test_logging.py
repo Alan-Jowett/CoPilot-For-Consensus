@@ -8,7 +8,11 @@ from io import StringIO
 from unittest.mock import patch
 
 import pytest
-from copilot_config import load_driver_config
+from copilot_config.generated.adapters.logger import (
+    AdapterConfig_Logger,
+    DriverConfig_Logger_Silent,
+    DriverConfig_Logger_Stdout,
+)
 
 from copilot_logging.factory import create_logger
 from copilot_logging.logger import Logger
@@ -21,8 +25,12 @@ class TestLoggerFactory:
 
     def test_create_stdout_logger(self):
         """Test creating a stdout logger."""
-        config = load_driver_config(None, "logger", "stdout", fields={"level": "INFO"})
-        logger = create_logger("stdout", config)
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="stdout",
+                driver=DriverConfig_Logger_Stdout(level="INFO"),
+            )
+        )
 
         assert isinstance(logger, StdoutLogger)
         assert isinstance(logger, Logger)
@@ -30,43 +38,68 @@ class TestLoggerFactory:
 
     def test_create_silent_logger(self):
         """Test creating a silent logger."""
-        config = load_driver_config(None, "logger", "silent", fields={"level": "INFO"})
-        logger = create_logger("silent", config)
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="silent",
+                driver=DriverConfig_Logger_Silent(level="INFO"),
+            )
+        )
 
         assert isinstance(logger, SilentLogger)
         assert isinstance(logger, Logger)
 
     def test_create_logger_with_name(self):
         """Test creating a logger with a custom name."""
-        config = load_driver_config(None, "logger", "stdout", fields={"level": "INFO", "name": "test-service"})
-        logger = create_logger("stdout", config)
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="stdout",
+                driver=DriverConfig_Logger_Stdout(level="INFO", name="test-service"),
+            )
+        )
 
         assert isinstance(logger, StdoutLogger)
         assert logger.name == "test-service"
 
     def test_create_logger_with_debug_level(self):
         """Test creating a logger with DEBUG level."""
-        config = load_driver_config(None, "logger", "stdout", fields={"level": "DEBUG"})
-        logger = create_logger("stdout", config)
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="stdout",
+                driver=DriverConfig_Logger_Stdout(level="DEBUG"),
+            )
+        )
 
         assert isinstance(logger, StdoutLogger)
         assert logger.level == "DEBUG"
 
     def test_create_unknown_logger_type(self):
         """Test that unknown logger type raises ValueError."""
-        config = load_driver_config(None, "logger", "stdout", fields={"level": "INFO"})
-        with pytest.raises(ValueError, match="Unknown logger driver"):
-            create_logger("invalid", config)
+        with pytest.raises(ValueError, match=r"Unknown logger driver: invalid"):
+            create_logger(
+                AdapterConfig_Logger(
+                    logger_type="invalid",  # type: ignore[arg-type]
+                    driver=DriverConfig_Logger_Stdout(level="INFO"),
+                )
+            )
+
+    def test_create_logger_missing_config(self):
+        """Test that config is required."""
+        with pytest.raises(ValueError, match="logger config is required"):
+            create_logger(None)
 
     def test_create_logger_from_env_defaults(self):
-        """Test that driver_name and driver_config are required."""
-        with pytest.raises(TypeError, match="missing 2 required positional arguments"):
+        """Test that config is required by signature."""
+        with pytest.raises(TypeError, match="missing 1 required positional argument"):
             create_logger()
 
     def test_create_logger_with_config_dict(self):
         """Test creating logger with explicit config."""
-        config = load_driver_config(None, "logger", "silent", fields={"level": "WARNING", "name": "env-service"})
-        logger = create_logger("silent", config)
+        logger = create_logger(
+            AdapterConfig_Logger(
+                logger_type="silent",
+                driver=DriverConfig_Logger_Silent(level="WARNING", name="env-service"),
+            )
+        )
 
         assert isinstance(logger, SilentLogger)
         assert logger.level == "WARNING"

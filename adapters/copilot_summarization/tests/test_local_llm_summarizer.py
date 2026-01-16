@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
+from copilot_summarization.factory import create_llm_backend
 from copilot_summarization.local_llm_summarizer import LocalLLMSummarizer
 from copilot_summarization.models import Thread
 
@@ -32,16 +33,16 @@ class TestLocalLLMSummarizer:
         assert summarizer.base_url == "http://custom:8080"
         assert summarizer.timeout == 60
 
-    def test_local_llm_summarizer_invalid_timeout(self):
-        """Test creating a local LLM summarizer with invalid timeout raises ValueError."""
-        with pytest.raises(ValueError, match="timeout must be a positive integer"):
-            LocalLLMSummarizer(model="mistral", base_url="http://test:8080", timeout=0)
+    def test_local_llm_summarizer_invalid_timeout(self, llm_backend_config):
+        """Test invalid timeout is rejected by schema validation."""
+        with pytest.raises(ValueError, match="local_llm_timeout_seconds parameter is invalid"):
+            create_llm_backend(llm_backend_config("local", fields={"local_llm_timeout_seconds": 0}))
 
-        with pytest.raises(ValueError, match="timeout must be a positive integer"):
-            LocalLLMSummarizer(model="mistral", base_url="http://test:8080", timeout=-1)
+        with pytest.raises(ValueError, match="local_llm_timeout_seconds parameter is invalid"):
+            create_llm_backend(llm_backend_config("local", fields={"local_llm_timeout_seconds": -1}))
 
-        with pytest.raises(ValueError, match="timeout must be a positive integer"):
-            LocalLLMSummarizer(model="mistral", base_url="http://test:8080", timeout="120")  # type: ignore
+        with pytest.raises(ValueError, match="local_llm_timeout_seconds parameter is invalid"):
+            create_llm_backend(llm_backend_config("local", fields={"local_llm_timeout_seconds": "120"}))  # type: ignore[arg-type]
 
     @patch('copilot_summarization.local_llm_summarizer.requests.post')
     def test_local_llm_summarize_success(self, mock_post, llm_driver_config):

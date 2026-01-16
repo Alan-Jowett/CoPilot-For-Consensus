@@ -22,14 +22,14 @@
             "type": "string",
             "source": "secret",
             "secret_name": "rabbitmq_user",
-            "required": false,
+            "required": true,
             "description": "RabbitMQ username"
         },
         "rabbitmq_password": {
             "type": "string",
             "source": "secret",
             "secret_name": "rabbitmq_password",
-            "required": false,
+            "required": true,
             "description": "RabbitMQ password"
         },
         "exchange": {
@@ -64,5 +64,5 @@
             "description": "Automatically acknowledge messages after processing"
         }
     },
-    "required": ["rabbitmq_host", "rabbitmq_port"]
+    "required": ["rabbitmq_host", "rabbitmq_port", "rabbitmq_username", "rabbitmq_password"]
 }

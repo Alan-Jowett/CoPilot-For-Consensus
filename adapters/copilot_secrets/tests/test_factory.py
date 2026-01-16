@@ -3,24 +3,15 @@
 
 """Tests for secret provider factory."""
 
-import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock
-
 import pytest
 
-# Mock Azure modules for Azure provider tests
-mock_secret_client = MagicMock()
-mock_default_credential = MagicMock()
-sys.modules['azure'] = MagicMock()
-sys.modules['azure.keyvault'] = MagicMock()
-sys.modules['azure.keyvault.secrets'] = MagicMock(SecretClient=mock_secret_client)
-sys.modules['azure.identity'] = MagicMock(DefaultAzureCredential=mock_default_credential)
-sys.modules['azure.core'] = MagicMock()
-sys.modules['azure.core.exceptions'] = MagicMock()
-
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_AzureKeyVault,
+    DriverConfig_SecretProvider_Local,
+)
 from copilot_secrets import (
     SecretProviderError,
     create_secret_provider,
@@ -33,8 +24,12 @@ class TestFactory:
     def test_create_local_provider(self):
         """Test creation of local file provider."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            config = DriverConfig(driver_name="local", config={"base_path": tmpdir})
-            provider = create_secret_provider("local", config)
+            provider = create_secret_provider(
+                AdapterConfig_SecretProvider(
+                    secret_provider_type="local",
+                    driver=DriverConfig_SecretProvider_Local(base_path=tmpdir),
+                )
+            )
             from copilot_secrets.local_provider import LocalFileSecretProvider
             assert isinstance(provider, LocalFileSecretProvider)
             assert provider.base_path == Path(tmpdir)
@@ -42,47 +37,53 @@ class TestFactory:
     def test_create_local_provider_empty_config(self):
         """Test creation of local file provider with explicit path in config."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            config = DriverConfig(driver_name="local", config={"base_path": tmpdir})
-            provider = create_secret_provider("local", config)
+            provider = create_secret_provider(
+                AdapterConfig_SecretProvider(
+                    secret_provider_type="local",
+                    driver=DriverConfig_SecretProvider_Local(base_path=tmpdir),
+                )
+            )
             from copilot_secrets.local_provider import LocalFileSecretProvider
             assert isinstance(provider, LocalFileSecretProvider)
             assert provider.base_path == Path(tmpdir)
 
     def test_create_unknown_provider(self):
         """Test creation with unknown provider type."""
-        config = DriverConfig(driver_name="unknown_type", config={})
-        with pytest.raises(SecretProviderError, match="Unknown secret provider driver"):
-            create_secret_provider("unknown_type", config)
+        with pytest.raises(ValueError, match="Unknown secret_provider driver"):
+            create_secret_provider(
+                AdapterConfig_SecretProvider(  # type: ignore[arg-type]
+                    secret_provider_type="unknown_type",
+                    driver=DriverConfig_SecretProvider_Local(base_path="/run/secrets"),
+                )
+            )
 
     def test_create_provider_missing_driver_name(self):
         """Test that driver_name is required."""
-        config = DriverConfig(driver_name="local", config={})
-        with pytest.raises(SecretProviderError, match="driver_name parameter is required"):
-            create_secret_provider(None, config)
+        with pytest.raises(ValueError, match="secret_provider config is required"):
+            create_secret_provider(None)  # type: ignore[arg-type]
 
     def test_factory_forwards_config_to_provider(self):
         """Test that factory forwards config to provider.from_config()."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            config = DriverConfig(driver_name="local", config={"base_path": tmpdir})
-            provider = create_secret_provider("local", config)
+            provider = create_secret_provider(
+                AdapterConfig_SecretProvider(
+                    secret_provider_type="local",
+                    driver=DriverConfig_SecretProvider_Local(base_path=tmpdir),
+                )
+            )
             from copilot_secrets.local_provider import LocalFileSecretProvider
             assert isinstance(provider, LocalFileSecretProvider)
             assert provider.base_path == Path(tmpdir)
 
-    def test_create_azure_provider(self):
+    def test_create_azure_provider(self, azure_sdk_mocks):
         """Test creation of Azure Key Vault provider."""
         vault_url = "https://test-vault.vault.azure.net/"
-        config = DriverConfig(driver_name="azure", config={"vault_url": vault_url})
-        provider = create_secret_provider("azure", config)
-        from copilot_secrets.azurekeyvault_provider import AzureKeyVaultProvider
-        assert isinstance(provider, AzureKeyVaultProvider)
-        assert provider.vault_url == vault_url
-
-    def test_create_azurekeyvault_provider_alias(self):
-        """Test that 'azurekeyvault' is an alias for 'azure'."""
-        vault_url = "https://test-vault.vault.azure.net/"
-        config = DriverConfig(driver_name="azurekeyvault", config={"vault_url": vault_url})
-        provider = create_secret_provider("azurekeyvault", config)
+        provider = create_secret_provider(
+            AdapterConfig_SecretProvider(
+                secret_provider_type="azure_key_vault",
+                driver=DriverConfig_SecretProvider_AzureKeyVault(vault_url=vault_url),
+            )
+        )
         from copilot_secrets.azurekeyvault_provider import AzureKeyVaultProvider
         assert isinstance(provider, AzureKeyVaultProvider)
         assert provider.vault_url == vault_url

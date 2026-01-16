@@ -6,7 +6,7 @@
 import logging
 from pathlib import Path
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.secret_provider import DriverConfig_SecretProvider_Local
 
 from .exceptions import SecretNotFoundError, SecretProviderError
 from .provider import SecretProvider
@@ -54,7 +54,10 @@ class LocalFileSecretProvider(SecretProvider):
         logger.info("Initialized local secret provider")
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "LocalFileSecretProvider":
+    def from_config(
+        cls,
+        driver_config: DriverConfig_SecretProvider_Local,
+    ) -> "LocalFileSecretProvider":
         """Create LocalFileSecretProvider from driver_config.
 
         Args:
@@ -67,8 +70,7 @@ class LocalFileSecretProvider(SecretProvider):
         Raises:
             AttributeError: If base_path attribute is missing
         """
-        base_path = getattr(driver_config, "base_path", None)
-        return cls(base_path=base_path)
+        return cls(base_path=driver_config.base_path)
 
     def _get_secret_path(self, key_name: str) -> Path:
         """Get the resolved path for a secret, validating against path traversal.

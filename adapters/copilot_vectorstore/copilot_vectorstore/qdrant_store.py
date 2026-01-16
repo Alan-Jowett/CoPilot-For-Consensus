@@ -3,9 +3,12 @@
 
 """Qdrant-based vector store implementation."""
 
+import importlib
 import logging
 import uuid
 from typing import Any
+
+from copilot_config.generated.adapters.vector_store import DriverConfig_VectorStore_Qdrant
 
 from .interface import SearchResult, VectorStore
 
@@ -22,6 +25,56 @@ def _string_to_uuid(s: str) -> str:
     return str(uuid.uuid5(namespace, s))
 
 
+def _coerce_vector_struct(vector_struct: Any, fallback: list[float]) -> list[float]:
+    """Coerce Qdrant vector outputs into a plain list[float].
+
+        Qdrant can return either a single unnamed vector (list[float]) or a
+        named-vector mapping (dict[str, ...]). For this adapter, we always expose
+        a single list[float] vector.
+
+        If Qdrant returns multiple named vectors, this adapter selects a single
+        vector to expose:
+        - Prefer a vector named "default" when present.
+        - Otherwise, fall back to the first entry in iteration order and log a
+            warning to avoid silently masking unexpected formats.
+    """
+
+    if vector_struct is None:
+        return fallback
+
+    if isinstance(vector_struct, list):
+        return vector_struct
+
+    if isinstance(vector_struct, dict):
+        if not vector_struct:
+            return fallback
+
+        if len(vector_struct) > 1:
+            keys = list(vector_struct.keys())
+            logger.warning(
+                "Multiple named vectors returned by Qdrant (%s); selecting one to expose.",
+                keys,
+            )
+
+        if "default" in vector_struct:
+            selected_name = "default"
+            selected_value = vector_struct.get("default")
+        else:
+            selected_name, selected_value = next(iter(vector_struct.items()))
+
+        if isinstance(selected_value, list):
+            return selected_value
+
+        logger.warning(
+            "Unexpected vector structure format for named vectors: "
+            "expected '%s' value to be list, got %s; returning fallback vector.",
+            selected_name,
+            type(selected_value).__name__ if selected_value is not None else "None",
+        )
+
+    return fallback
+
+
 class QdrantVectorStore(VectorStore):
     """Qdrant-based vector store implementation.
 
@@ -34,7 +87,7 @@ class QdrantVectorStore(VectorStore):
         api_key: Optional API key for authentication
         collection_name: Name of the collection to use (default: "embeddings")
         vector_size: Dimension of embedding vectors (default: 384)
-        distance: Distance metric ("cosine" or "euclid", default: "cosine")
+        distance: Distance metric ("cosine" or "euclidean"; "euclid" accepted, default: "cosine")
         upsert_batch_size: Batch size for upsert operations (default: 100)
     """
 
@@ -56,24 +109,32 @@ class QdrantVectorStore(VectorStore):
             api_key: Optional API key for authentication
             collection_name: Name of the collection to use
             vector_size: Dimension of embedding vectors
-            distance: Distance metric ("cosine" or "euclid")
+            distance: Distance metric ("cosine" or "euclidean"; "euclid" accepted)
             upsert_batch_size: Batch size for upsert operations
 
         Raises:
             ImportError: If qdrant-client is not installed
-            ValueError: If distance is not "cosine" or "euclid"
+            ValueError: If distance is not "cosine", "euclid", or "euclidean"
             ConnectionError: If cannot connect to Qdrant server
         """
         try:
-            from qdrant_client import QdrantClient
-            from qdrant_client.models import Distance, PointIdsList, PointStruct, VectorParams
+            qdrant_client_module = importlib.import_module("qdrant_client")
+            qdrant_models_module = importlib.import_module("qdrant_client.models")
+
+            QdrantClient = getattr(qdrant_client_module, "QdrantClient")
+            Distance = getattr(qdrant_models_module, "Distance")
+            PointIdsList = getattr(qdrant_models_module, "PointIdsList")
+            PointStruct = getattr(qdrant_models_module, "PointStruct")
+            VectorParams = getattr(qdrant_models_module, "VectorParams")
         except ImportError as e:
             raise ImportError(
                 "qdrant-client is not installed. Install it with: pip install qdrant-client"
             ) from e
 
-        if distance not in ["cosine", "euclid"]:
-            raise ValueError(f"Invalid distance metric '{distance}'. Must be 'cosine' or 'euclid'")
+        if distance not in ["cosine", "euclid", "euclidean"]:
+            raise ValueError(
+                f"Invalid distance metric '{distance}'. Must be 'cosine' or 'euclidean' (alias: 'euclid')"
+            )
 
         if vector_size <= 0:
             raise ValueError(f"Vector size must be positive, got {vector_size}")
@@ -87,10 +148,10 @@ class QdrantVectorStore(VectorStore):
         self._upsert_batch_size = upsert_batch_size
 
         # Store imports for later use
-        self._Distance = Distance
-        self._VectorParams = VectorParams
-        self._PointStruct = PointStruct
-        self._PointIdsList = PointIdsList
+        self._Distance: Any = Distance
+        self._VectorParams: Any = VectorParams
+        self._PointStruct: Any = PointStruct
+        self._PointIdsList: Any = PointIdsList
 
         # Initialize Qdrant client
         try:
@@ -105,16 +166,23 @@ class QdrantVectorStore(VectorStore):
                 f"Failed to connect to Qdrant at {host}:{port}. Error: {e}"
             ) from e
 
-        # Ensure collection exists
-        self._ensure_collection()
+        # Lazily ensure the collection exists on first use.
+        # Unit tests instantiate stores without requiring a live Qdrant server.
+        self._collection_ready = False
 
         logger.info(
             f"Initialized Qdrant vector store: collection={collection_name}, "
             f"host={host}:{port}, vector_size={vector_size}, distance={distance}"
         )
 
+    def _ensure_collection_ready(self) -> None:
+        if self._collection_ready:
+            return
+        self._ensure_collection()
+        self._collection_ready = True
+
     @classmethod
-    def from_config(cls, config: Any) -> "QdrantVectorStore":
+    def from_config(cls, config: DriverConfig_VectorStore_Qdrant) -> "QdrantVectorStore":
         """Create a QdrantVectorStore from configuration.
 
         Args:
@@ -125,71 +193,15 @@ class QdrantVectorStore(VectorStore):
         Returns:
             Configured QdrantVectorStore instance
 
-        Raises:
-            ValueError: If required attributes are missing or invalid
-            AttributeError: If required config attributes are missing
         """
-        host = config.host
-        if not host:
-            raise ValueError(
-                "host is required for Qdrant backend. "
-                "Provide 'host' in driver_config (e.g., 'localhost')."
-            )
-
-        port = config.port
-        if port is None:
-            raise ValueError(
-                "port is required for Qdrant backend. "
-                "Provide 'port' in driver_config (e.g., 6333)."
-            )
-
-        try:
-            port_int = int(port)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"Invalid value for port: '{port}'. Must be an integer.") from exc
-
-        collection_name = config.collection_name
-        if not collection_name:
-            raise ValueError(
-                "collection_name is required for Qdrant backend. "
-                "Provide 'collection_name' in driver_config."
-            )
-
-        # Try vector_size first, fall back to dimension for backward compatibility
-        vector_size = getattr(config, "vector_size", None) or getattr(config, "dimension", None)
-        if vector_size is None:
-            raise ValueError(
-                "vector_size is required for Qdrant backend. "
-                "Provide 'vector_size' (or 'dimension') in driver_config."
-            )
-
-        try:
-            vector_size_int = int(vector_size)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"Invalid value for vector_size: '{vector_size}'. Must be an integer."
-            ) from exc
-
-        distance = config.distance
-        upsert_batch_size = config.upsert_batch_size
-
-        try:
-            upsert_batch_size_int = int(upsert_batch_size)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"Invalid value for upsert_batch_size: '{upsert_batch_size}'. Must be an integer."
-            ) from exc
-
-        api_key = getattr(config, "api_key", None)
-
         return cls(
-            host=str(host),
-            port=port_int,
-            api_key=api_key,
-            collection_name=str(collection_name),
-            vector_size=vector_size_int,
-            distance=str(distance),
-            upsert_batch_size=upsert_batch_size_int,
+            host=config.host,
+            port=config.port,
+            api_key=config.api_key,
+            collection_name=config.collection_name,
+            vector_size=config.vector_size,
+            distance=config.distance,
+            upsert_batch_size=config.upsert_batch_size,
         )
 
     def _ensure_collection(self) -> None:
@@ -200,11 +212,21 @@ class QdrantVectorStore(VectorStore):
 
         if collection_exists:
             # Verify collection configuration matches
-            collection_info = self._client.get_collection(self._collection_name)
-            if collection_info.config.params.vectors.size != self._vector_size:
+            collection_info: Any = self._client.get_collection(self._collection_name)
+
+            vectors: Any = collection_info.config.params.vectors
+            if vectors is None:
+                existing_size: Any = None
+            elif isinstance(vectors, dict):
+                first_params = next(iter(vectors.values()), None)
+                existing_size = getattr(first_params, "size", None)
+            else:
+                existing_size = getattr(vectors, "size", None)
+
+            if existing_size is not None and existing_size != self._vector_size:
                 raise ValueError(
                     f"Collection '{self._collection_name}' exists with different vector size: "
-                    f"expected {self._vector_size}, found {collection_info.config.params.vectors.size}"
+                    f"expected {self._vector_size}, found {existing_size}"
                 )
             logger.info(f"Using existing collection '{self._collection_name}'")
         else:
@@ -212,6 +234,7 @@ class QdrantVectorStore(VectorStore):
             distance_map = {
                 "cosine": self._Distance.COSINE,
                 "euclid": self._Distance.EUCLID,
+                "euclidean": self._Distance.EUCLID,
             }
 
             self._client.create_collection(
@@ -242,6 +265,8 @@ class QdrantVectorStore(VectorStore):
                 f"Vector dimension ({len(vector)}) doesn't match "
                 f"expected dimension ({self._vector_size})"
             )
+
+        self._ensure_collection_ready()
 
         # Add the point (upsert: create if new, update if exists)
         point = self._PointStruct(
@@ -289,6 +314,8 @@ class QdrantVectorStore(VectorStore):
         # Convert IDs to UUIDs for Qdrant compatibility
         uuid_ids = [_string_to_uuid(id_val) for id_val in ids]
 
+        self._ensure_collection_ready()
+
         # Create points (upsert: create if new, update if exists)
         points = [
             self._PointStruct(
@@ -326,14 +353,17 @@ class QdrantVectorStore(VectorStore):
                 f"expected dimension ({self._vector_size})"
             )
 
+        self._ensure_collection_ready()
+
         # Search in Qdrant
-        results = self._client.query_points(
+        points_result: Any = self._client.query_points(
             collection_name=self._collection_name,
             query=query_vector,
             limit=top_k,
             with_payload=True,
             with_vectors=True,
-        ).points
+        )
+        results = points_result.points
 
         # Convert to SearchResult objects
         search_results = []
@@ -342,10 +372,12 @@ class QdrantVectorStore(VectorStore):
             payload = result.payload.copy() if result.payload else {}
             original_id = payload.pop("_original_id", str(result.id))
 
+            result_vector = _coerce_vector_struct(result.vector, fallback=query_vector)
+
             search_results.append(SearchResult(
                 id=original_id,
                 score=float(result.score),
-                vector=result.vector if result.vector else query_vector,
+                vector=result_vector,
                 metadata=payload,
             ))
 
@@ -360,6 +392,8 @@ class QdrantVectorStore(VectorStore):
         Raises:
             KeyError: If id doesn't exist
         """
+        self._ensure_collection_ready()
+
         # Check if ID exists
         uuid_id = _string_to_uuid(id)
         existing = self._client.retrieve(
@@ -377,6 +411,8 @@ class QdrantVectorStore(VectorStore):
 
     def clear(self) -> None:
         """Remove all embeddings from the vector store."""
+        self._ensure_collection_ready()
+
         # Delete and recreate the collection
         try:
             self._client.delete_collection(collection_name=self._collection_name)
@@ -392,8 +428,10 @@ class QdrantVectorStore(VectorStore):
         Returns:
             Number of embeddings currently stored
         """
-        collection_info = self._client.get_collection(self._collection_name)
-        return collection_info.points_count
+        self._ensure_collection_ready()
+
+        collection_info: Any = self._client.get_collection(self._collection_name)
+        return int(collection_info.points_count or 0)
 
     def get(self, id: str) -> SearchResult:
         """Retrieve a specific embedding by ID.
@@ -407,6 +445,8 @@ class QdrantVectorStore(VectorStore):
         Raises:
             KeyError: If id doesn't exist
         """
+        self._ensure_collection_ready()
+
         points = self._client.retrieve(
             collection_name=self._collection_name,
             ids=[_string_to_uuid(id)],
@@ -424,6 +464,6 @@ class QdrantVectorStore(VectorStore):
         return SearchResult(
             id=id,  # Return original ID
             score=1.0,  # Perfect match with itself
-            vector=point.vector if point.vector else [],
+            vector=_coerce_vector_struct(point.vector, fallback=[]),
             metadata=payload,
         )

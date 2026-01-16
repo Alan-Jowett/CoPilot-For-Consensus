@@ -3,7 +3,7 @@
 
 # Azure-optimized Dockerfile for reporting service
 # Uses Azure services instead of local equivalents
-FROM python:3.14-slim@sha256:3955a7dd66ccf92b68d0232f7f86d892eaf75255511dc7e98961bdc990dc6c9b
+FROM python:3.14-slim@sha256:1f741aef81d09464251f4c52c83a02f93ece0a636db125d411bd827bf381a763
 
 WORKDIR /app
 
@@ -13,6 +13,7 @@ COPY adapters/ /app/adapters/
 RUN --mount=type=cache,target=/root/.cache/pip \
     python /app/adapters/scripts/install_adapters.py \
     copilot_config \
+    copilot_auth \
     copilot_message_bus \
     copilot_storage \
     copilot_vectorstore \

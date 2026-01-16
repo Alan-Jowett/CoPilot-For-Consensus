@@ -34,9 +34,18 @@ class SecretConfigProvider(ConfigProvider):
 
     Example:
         >>> from copilot_secrets import create_secret_provider
+        >>> from copilot_config.generated.adapters.secret_provider import (
+        ...     AdapterConfig_SecretProvider,
+        ...     DriverConfig_SecretProvider_Local,
+        ... )
         >>> from copilot_config import SecretConfigProvider
         >>>
-        >>> secrets = create_secret_provider("local", base_path="/run/secrets")
+        >>> secrets = create_secret_provider(
+        ...     AdapterConfig_SecretProvider(
+        ...         secret_provider_type="local",
+        ...         driver=DriverConfig_SecretProvider_Local(base_path="/run/secrets"),
+        ...     )
+        ... )
         >>> config = SecretConfigProvider(secret_provider=secrets)
         >>>
         >>> jwt_key = config.get("jwt_private_key")

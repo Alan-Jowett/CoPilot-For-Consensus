@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.archive_store import DriverConfig_ArchiveStore_Local
 
 from .archive_store import (
     ArchiveStore,
@@ -65,8 +65,10 @@ class LocalVolumeArchiveStore(ArchiveStore):
         self._load_metadata()
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "LocalVolumeArchiveStore":
-        """Create LocalVolumeArchiveStore from DriverConfig.
+    def from_config(
+        cls, driver_config: DriverConfig_ArchiveStore_Local
+    ) -> "LocalVolumeArchiveStore":
+        """Create LocalVolumeArchiveStore from typed driver config.
 
         Args:
             driver_config: DriverConfig object containing archive store configuration

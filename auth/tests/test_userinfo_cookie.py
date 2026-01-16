@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 def mock_auth_service():
     """Create a mock auth service."""
     service = MagicMock()
-    service.config.audiences = "copilot-for-consensus"
+    service.config.service_settings.audiences = "copilot-for-consensus"
 
     # Mock validate_token to return user claims
     def validate_token_mock(token, audience):

@@ -3,8 +3,11 @@
 
 """FAISS-based vector store implementation."""
 
+import importlib
 import logging
 from typing import Any
+
+from copilot_config.generated.adapters.vector_store import DriverConfig_VectorStore_Faiss
 
 import numpy as np
 
@@ -41,7 +44,7 @@ class FAISSVectorStore(VectorStore):
             ValueError: If dimension <= 0 or index_type is invalid
         """
         try:
-            import faiss
+            faiss = importlib.import_module("faiss")
         except ImportError as e:
             raise ImportError(
                 "FAISS is not installed. Install it with: pip install faiss-cpu"
@@ -56,7 +59,10 @@ class FAISSVectorStore(VectorStore):
         self._dimension = dimension
         self._index_type = index_type
         self._persist_path = persist_path
-        self._faiss = faiss
+        # The FAISS Python bindings have inconsistent/partial type stubs across
+        # distributions. Treat the module and index objects as dynamic to avoid
+        # false-positive type errors while still validating our typed config.
+        self._faiss: Any = faiss
 
         # Maintain mapping from FAISS index to our IDs and metadata
         self._id_to_idx: dict[str, int] = {}
@@ -66,12 +72,12 @@ class FAISSVectorStore(VectorStore):
         self._next_idx = 0
 
         # Initialize FAISS index
-        self._index = self._create_index()
+        self._index: Any = self._create_index()
 
         logger.info(f"Initialized FAISS vector store with dimension={dimension}, type={index_type}")
 
     @classmethod
-    def from_config(cls, config: Any) -> "FAISSVectorStore":
+    def from_config(cls, config: DriverConfig_VectorStore_Faiss) -> "FAISSVectorStore":
         """Create a FAISSVectorStore from configuration.
 
         Args:
@@ -80,33 +86,15 @@ class FAISSVectorStore(VectorStore):
         Returns:
             Configured FAISSVectorStore instance
 
-        Raises:
-            ValueError: If required attributes are missing or invalid
-            AttributeError: If required config attributes are missing
         """
-        # Try dimension first, fall back to vector_size for backward compatibility
-        dimension = getattr(config, "dimension", None) or getattr(config, "vector_size", None)
-        if dimension is None:
-            raise ValueError(
-                "dimension is required for FAISS backend. "
-                "Provide 'dimension' (or 'vector_size') in driver_config."
-            )
-
-        index_type = config.index_type
-        if index_type is None:
-            raise ValueError(
-                "index_type is required for FAISS backend. "
-                "Provide 'index_type' in driver_config (e.g., 'flat', 'ivf')."
-            )
-
-        persist_path = getattr(config, "persist_path", None)
+        persist_path = config.persist_path
         return cls(
-            dimension=int(dimension),
-            index_type=str(index_type),
+            dimension=config.dimension,
+            index_type=config.index_type,
             persist_path=persist_path,
         )
 
-    def _create_index(self):
+    def _create_index(self) -> Any:
         """Create a new FAISS index based on the configured type.
 
         Returns:
@@ -117,12 +105,14 @@ class FAISSVectorStore(VectorStore):
             return self._faiss.IndexFlatL2(self._dimension)
         else:
             # IVF index for approximate search
-            quantizer = self._faiss.IndexFlatL2(self._dimension)
-            index = self._faiss.IndexIVFFlat(quantizer, self._dimension, 100)
+            quantizer: Any = self._faiss.IndexFlatL2(self._dimension)
+            index: Any = self._faiss.IndexIVFFlat(quantizer, self._dimension, 100)
             # Train with deterministic random data for initialization
             # In production, this will be replaced by actual data during first batch add
             np.random.seed(42)
-            index.train(np.random.rand(1000, self._dimension).astype('float32'))
+            training_data = np.random.rand(1000, self._dimension).astype("float32")
+            train = getattr(index, "train")
+            train(training_data)
             return index
 
     def add_embedding(self, id: str, vector: list[float], metadata: dict[str, Any]) -> None:

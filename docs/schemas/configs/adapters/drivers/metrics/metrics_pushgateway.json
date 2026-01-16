@@ -9,6 +9,7 @@
             "source": "env",
             "env_var": ["PUSHGATEWAY_GATEWAY", "PROMETHEUS_PUSHGATEWAY"],
             "required": true,
+            "minLength": 1,
             "description": "Pushgateway address (e.g., pushgateway:9091 or http://pushgateway:9091)"
         },
         "job": {
@@ -16,6 +17,8 @@
             "source": "env",
             "env_var": "PUSHGATEWAY_JOB",
             "required": false,
+            "default": "copilot",
+            "minLength": 1,
             "description": "Prometheus job name for this service (can be set programmatically)"
         },
         "grouping_key": {
@@ -25,10 +28,9 @@
         },
         "namespace": {
             "type": "string",
-            "source": "env",
-            "env_var": "PUSHGATEWAY_NAMESPACE",
             "required": false,
             "default": "copilot",
+            "minLength": 1,
             "description": "Metric namespace prefix"
         },
         "raise_on_error": {

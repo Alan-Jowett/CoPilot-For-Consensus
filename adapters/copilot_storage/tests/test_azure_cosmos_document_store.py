@@ -6,7 +6,10 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from copilot_config import load_driver_config
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_AzureCosmosdb,
+)
 from copilot_storage import (
     DocumentNotFoundError,
     DocumentStore,
@@ -24,20 +27,17 @@ class TestDocumentStoreFactoryAzureCosmos:
 
     def test_create_azurecosmos_store(self):
         """Test creating an Azure Cosmos DB document store."""
-        config = load_driver_config(
-            service=None,
-            adapter="document_store",
-            driver="azure_cosmosdb",
-            fields={
-                "endpoint": "https://test.documents.azure.com:443/",
-                "key": "test_key",
-                "database": "test_db",
-                "container": "test_container",
-            },
+        config = AdapterConfig_DocumentStore(
+            doc_store_type="azure_cosmosdb",
+            driver=DriverConfig_DocumentStore_AzureCosmosdb(
+                endpoint="https://test.documents.azure.com:443/",
+                key="test_key",
+                database="test_db",
+                container="test_container",
+            ),
         )
         store = create_document_store(
-            driver_name="azure_cosmosdb",
-            driver_config=config,
+            config,
         )
 
         assert isinstance(store, ValidatingDocumentStore)

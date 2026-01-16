@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 def mock_auth_service():
     """Create a mock auth service with JWT manager."""
     service = MagicMock()
-    service.config.audiences = "copilot-for-consensus"
+    service.config.service_settings.audiences = "copilot-for-consensus"
 
     # Mock JWT manager with public key
     jwt_manager = MagicMock()

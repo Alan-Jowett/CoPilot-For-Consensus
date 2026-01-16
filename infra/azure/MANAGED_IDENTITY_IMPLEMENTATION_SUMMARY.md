@@ -4,7 +4,7 @@
 
 ## Overview
 
-This implementation adds support for Azure Managed Identity authentication as an alternative to connection string-based authentication for Azure Service Bus in the ARM deployment template. This aligns with Azure security best practices for passwordless authentication and eliminates the need to manage and rotate Service Bus connection strings.
+This implementation uses Azure Managed Identity authentication for Azure Service Bus. This aligns with Azure security best practices for passwordless authentication and eliminates the need to manage and rotate Service Bus connection strings.
 
 > Update: The Container Apps module no longer accepts Service Bus or Cosmos DB connection strings; managed identity is the default path for these services. Connection string parameters were removed from the module interface to prevent secret propagation.
 
@@ -12,22 +12,13 @@ This implementation adds support for Azure Managed Identity authentication as an
 
 ### 1. Bicep Template (`infra/azure/main.bicep`)
 
-#### New Parameters
-- **`useManagedIdentityForServiceBus`** (bool, default: false)
-  - Toggles between connection string and managed identity authentication modes
+#### Service Bus Configuration
 
-- **`serviceBusNamespace`** (string, default: "")
-  - Fully qualified Service Bus namespace (e.g., `mynamespace.servicebus.windows.net`)
-  - Required when `useManagedIdentityForServiceBus` is true
+The Container Apps deployment configures Service Bus via schema-backed environment variables:
 
-- **`serviceBusResourceId`** (string, default: "")
-  - Azure Service Bus namespace resource ID for RBAC role assignments
-  - Required when `useManagedIdentityForServiceBus` is true
-  - Format: `/subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.ServiceBus/namespaces/{namespace}`
-
-- **`serviceBusConnectionString`** (securestring, default: "")
-  - Made optional (was required before)
-  - Only needed when `useManagedIdentityForServiceBus` is false
+- `MESSAGE_BUS_TYPE=azure_service_bus`
+- `SERVICEBUS_USE_MANAGED_IDENTITY=true`
+- `SERVICEBUS_FULLY_QUALIFIED_NAMESPACE=<namespace>.servicebus.windows.net`
 
 #### Role Definitions
 Added two new Service Bus RBAC role definitions to the `roleDefinitions` variable:
@@ -57,16 +48,7 @@ Added conditional nested deployment for Service Bus role assignments:
 - Handles both new and existing managed identities
 
 #### Environment Variables
-Updated container environment variables to conditionally set:
-
-**When `useManagedIdentityForServiceBus` is false (connection string mode):**
-- `MESSAGE_BUS_TYPE=azureservicebus`
-- `MESSAGE_BUS_CONNECTION_STRING` (from secret)
-
-**When `useManagedIdentityForServiceBus` is true (managed identity mode):**
-- `MESSAGE_BUS_TYPE=azureservicebus`
-- `MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE` (value from parameter)
-- `MESSAGE_BUS_USE_MANAGED_IDENTITY=true`
+Updated container environment variables to use managed identity by default.
 
 #### Secrets
 Modified secrets array to conditionally exclude Service Bus connection string when using managed identity mode.

@@ -176,6 +176,9 @@ def validate_against_schema(service_name: str, env_vars: Dict[str, str | None], 
     for adapter_name, adapter_ref in adapters.items():
         if not isinstance(adapter_ref, dict) or "$ref" not in adapter_ref:
             continue
+        # Service schemas can mark an adapter as required even when the adapter's
+        # discriminant schema does not carry its own "required" flag.
+        adapter_required = bool(adapter_ref.get("required", False))
         try:
             adapter_schema = resolve_ref(adapter_ref["$ref"], schema_base)
             discriminant = adapter_schema.get("properties", {}).get("discriminant")
@@ -183,7 +186,7 @@ def validate_against_schema(service_name: str, env_vars: Dict[str, str | None], 
                 continue
             discriminant_env_var = discriminant.get("env_var")
             enum_values = discriminant.get("enum", [])
-            required = discriminant.get("required", False)
+            required = bool(discriminant.get("required", False) or adapter_required)
             if not discriminant_env_var:
                 continue
 

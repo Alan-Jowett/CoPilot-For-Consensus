@@ -57,7 +57,7 @@ jobs:
 
       - name: Find existing issue
         id: find-issue
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@450193c5abd4cdb17ba9f3ffcfe8f635c4bb6c2a # v8
         with:
           script: |
             const issues = await github.rest.issues.listForRepo({
@@ -80,7 +80,7 @@ jobs:
 
       - name: Create or update issue
         if: steps.compare.outputs.outdated == 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@450193c5abd4cdb17ba9f3ffcfe8f635c4bb6c2a # v8
         with:
           script: |
             // Read the diff
@@ -154,7 +154,7 @@ jobs:
 
       - name: Close issue if configuration is current
         if: steps.compare.outputs.outdated == 'false' && steps.find-issue.outputs.issue-exists == 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@450193c5abd4cdb17ba9f3ffcfe8f635c4bb6c2a # v8
         with:
           script: |
             const issueNumber = '${{ steps.find-issue.outputs.issue-number }}';

@@ -4,7 +4,8 @@
 """Mock embedding provider for testing."""
 
 import logging
-from copilot_config import DriverConfig
+
+from copilot_config.generated.adapters.embedding_backend import DriverConfig_EmbeddingBackend_Mock
 
 from .base import EmbeddingProvider
 
@@ -24,7 +25,7 @@ class MockEmbeddingProvider(EmbeddingProvider):
         logger.info(f"Initialized MockEmbeddingProvider with dimension={dimension}")
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "MockEmbeddingProvider":
+    def from_config(cls, driver_config: DriverConfig_EmbeddingBackend_Mock) -> "MockEmbeddingProvider":
         """Create provider from configuration.
 
         Configuration defaults are defined in schema:

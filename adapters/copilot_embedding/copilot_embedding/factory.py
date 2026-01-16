@@ -1,10 +1,18 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Factory for creating embedding providers (DriverConfig-based)."""
+"""Factory for creating embedding providers."""
 
 import logging
-from copilot_config import DriverConfig
+
+from copilot_config.generated.adapters.embedding_backend import (
+    AdapterConfig_EmbeddingBackend,
+    DriverConfig_EmbeddingBackend_AzureOpenai,
+    DriverConfig_EmbeddingBackend_Huggingface,
+    DriverConfig_EmbeddingBackend_Mock,
+    DriverConfig_EmbeddingBackend_Openai,
+    DriverConfig_EmbeddingBackend_Sentencetransformers,
+)
 
 from .base import EmbeddingProvider
 from .huggingface_provider import HuggingFaceEmbeddingProvider
@@ -16,47 +24,53 @@ logger = logging.getLogger(__name__)
 
 
 def create_embedding_provider(
-    driver_name: str,
-    driver_config: DriverConfig
+    config: AdapterConfig_EmbeddingBackend,
 ) -> EmbeddingProvider:
     """Create an embedding provider from configuration.
 
     Args:
-        driver_name: Backend type (required).
-                Options: 'mock', 'sentencetransformers', 'openai', 'azure', 'azure_openai', 'huggingface'
-        driver_config: Configuration object with attributes for the selected backend
+        config: Typed adapter configuration for embedding_backend.
 
     Returns:
         EmbeddingProvider instance
 
     Raises:
-        ValueError: If driver_name is unknown or required configuration is missing
+        ValueError: If config is missing or embedding_backend_type is not recognized
     """
-    if not driver_name:
-        raise ValueError(
-            "driver_name parameter is required. "
-            "Must be one of: mock, sentencetransformers, openai, azure, azure_openai, huggingface"
-        )
+    if config is None:
+        raise ValueError("embedding_backend config is required")
 
-    backend = str(driver_name).lower()
+    backend = str(config.embedding_backend_type).lower()
+    driver_config = config.driver
+
     logger.info(f"Creating embedding provider with backend: {backend}")
 
     if backend == "mock":
+        if not isinstance(driver_config, DriverConfig_EmbeddingBackend_Mock):
+            raise TypeError("driver_config must be DriverConfig_EmbeddingBackend_Mock")
         return MockEmbeddingProvider.from_config(driver_config)
 
     if backend == "sentencetransformers":
+        if not isinstance(driver_config, DriverConfig_EmbeddingBackend_Sentencetransformers):
+            raise TypeError("driver_config must be DriverConfig_EmbeddingBackend_Sentencetransformers")
         return SentenceTransformerEmbeddingProvider.from_config(driver_config)
 
     if backend == "openai":
-        return OpenAIEmbeddingProvider.from_config(driver_config)
+        if not isinstance(driver_config, DriverConfig_EmbeddingBackend_Openai):
+            raise TypeError("driver_config must be DriverConfig_EmbeddingBackend_Openai")
+        return OpenAIEmbeddingProvider.from_config(driver_config, driver_name="openai")
 
     if backend == "azure_openai":
-        return OpenAIEmbeddingProvider.from_config(driver_config)
+        if not isinstance(driver_config, DriverConfig_EmbeddingBackend_AzureOpenai):
+            raise TypeError("driver_config must be DriverConfig_EmbeddingBackend_AzureOpenai")
+        return OpenAIEmbeddingProvider.from_config(driver_config, driver_name="azure_openai")
 
     if backend == "huggingface":
+        if not isinstance(driver_config, DriverConfig_EmbeddingBackend_Huggingface):
+            raise TypeError("driver_config must be DriverConfig_EmbeddingBackend_Huggingface")
         return HuggingFaceEmbeddingProvider.from_config(driver_config)
 
     raise ValueError(
-        f"Unknown embedding backend driver: {driver_name}. "
+        f"Unknown embedding backend driver: {backend}. "
         f"Supported backends: mock, sentencetransformers, openai, azure_openai, huggingface"
     )

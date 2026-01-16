@@ -6,7 +6,12 @@
 import logging
 
 import pytest
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.error_reporter import (
+    AdapterConfig_ErrorReporter,
+    DriverConfig_ErrorReporter_Console,
+    DriverConfig_ErrorReporter_Sentry,
+    DriverConfig_ErrorReporter_Silent,
+)
 from copilot_error_reporting import ErrorReporter, create_error_reporter
 from copilot_error_reporting.console_error_reporter import ConsoleErrorReporter
 from copilot_error_reporting.sentry_error_reporter import SentryErrorReporter
@@ -18,76 +23,57 @@ class TestErrorReporterFactory:
 
     def test_create_console_reporter(self):
         """Test creating a console error reporter."""
-        config = DriverConfig(
-            driver_name="console",
-            config={},
-            allowed_keys=set(),
+        config = AdapterConfig_ErrorReporter(
+            error_reporter_type="console",
+            driver=DriverConfig_ErrorReporter_Console(),
         )
-        reporter = create_error_reporter(
-            driver_name="console",
-            driver_config=config
-        )
+        reporter = create_error_reporter(config)
 
         assert isinstance(reporter, ConsoleErrorReporter)
         assert isinstance(reporter, ErrorReporter)
 
     def test_create_console_reporter_with_logger_name(self):
         """Test creating a console reporter with custom logger name."""
-        config = DriverConfig(
-            driver_name="console",
-            config={"logger_name": "test.logger"},
-            allowed_keys={"logger_name"},
+        config = AdapterConfig_ErrorReporter(
+            error_reporter_type="console",
+            driver=DriverConfig_ErrorReporter_Console(logger_name="test.logger"),
         )
-        reporter = create_error_reporter(
-            driver_name="console",
-            driver_config=config
-        )
+        reporter = create_error_reporter(config)
 
         assert isinstance(reporter, ConsoleErrorReporter)
         assert reporter.logger.name == "test.logger"
 
     def test_create_silent_reporter(self):
         """Test creating a silent error reporter."""
-        config = DriverConfig(
-            driver_name="silent",
-            config={},
-            allowed_keys=set(),
+        config = AdapterConfig_ErrorReporter(
+            error_reporter_type="silent",
+            driver=DriverConfig_ErrorReporter_Silent(),
         )
-        reporter = create_error_reporter(
-            driver_name="silent",
-            driver_config=config
-        )
+        reporter = create_error_reporter(config)
 
         assert isinstance(reporter, SilentErrorReporter)
         assert isinstance(reporter, ErrorReporter)
 
     def test_create_sentry_reporter(self):
         """Test creating a Sentry error reporter (without initializing)."""
-        config = DriverConfig(
-            driver_name="sentry",
-            config={"dsn": None, "environment": "test"},
-            allowed_keys={"dsn", "environment"},
+        config = AdapterConfig_ErrorReporter(
+            error_reporter_type="sentry",
+            driver=DriverConfig_ErrorReporter_Sentry(dsn=None, environment="test"),
         )
-        reporter = create_error_reporter(
-            driver_name="sentry",
-            driver_config=config
-        )
+        reporter = create_error_reporter(config)
 
         assert isinstance(reporter, SentryErrorReporter)
         assert isinstance(reporter, ErrorReporter)
 
     def test_create_unknown_reporter_type(self):
         """Test that unknown reporter driver raises ValueError."""
-        config = DriverConfig(
-            driver_name="invalid",
-            config={},
-            allowed_keys=set(),
+        config = AdapterConfig_ErrorReporter(
+            error_reporter_type="console",
+            driver=DriverConfig_ErrorReporter_Console(),
         )
-        with pytest.raises(ValueError, match="Unknown reporter driver"):
-            create_error_reporter(
-                driver_name="invalid",
-                driver_config=config
-            )
+        config.error_reporter_type = "invalid"  # type: ignore[assignment]
+        with pytest.raises(ValueError, match=r"Unknown error_reporter driver"):
+            create_error_reporter(config)
 
 
 class TestConsoleErrorReporter:
@@ -385,8 +371,13 @@ class TestSentryErrorReporter:
         reporter = SentryErrorReporter()
 
         assert reporter.dsn is None
-        assert reporter.environment == "production"
+        assert reporter.environment is None
         assert reporter._initialized is False
+
+    def test_from_config_uses_schema_default_environment(self):
+        """Test schema default environment is applied via typed config."""
+        reporter = SentryErrorReporter.from_config(DriverConfig_ErrorReporter_Sentry())
+        assert reporter.environment == "production"
 
     def test_initialization_with_environment(self):
         """Test initialization with custom environment."""

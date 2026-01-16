@@ -6,6 +6,7 @@
   "properties": {
     "api_key": {
       "type": "string",
+      "minLength": 1,
       "source": "secret",
       "secret_name": "openai_api_key",
       "env": "OPENAI_API_KEY",
@@ -13,12 +14,14 @@
     },
     "model": {
       "type": "string",
+      "minLength": 1,
       "source": "env",
       "env_var": "EMBEDDING_MODEL",
       "description": "OpenAI embedding model name"
     },
     "organization": {
       "type": "string",
+      "minLength": 1,
       "source": "env",
       "env_var": "OPENAI_ORGANIZATION",
       "description": "Optional OpenAI organization id"

@@ -10,7 +10,12 @@ instantiated via the factory with its required parameters.
 import json
 from pathlib import Path
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.chunker import (
+    AdapterConfig_Chunker,
+    DriverConfig_Chunker_FixedSize,
+    DriverConfig_Chunker_Semantic,
+    DriverConfig_Chunker_TokenWindow,
+)
 from copilot_chunking import create_chunker
 
 
@@ -78,6 +83,12 @@ class TestChunkerAllDrivers:
         drivers_enum = schema["properties"]["discriminant"]["enum"]
         drivers_dir = schema_dir / "drivers" / "chunker"
         
+        driver_config_classes = {
+            "token_window": DriverConfig_Chunker_TokenWindow,
+            "fixed_size": DriverConfig_Chunker_FixedSize,
+            "semantic": DriverConfig_Chunker_Semantic,
+        }
+
         for driver in drivers_enum:
             # Load driver schema
             driver_schema_path = drivers_dir / f"{driver}.json"
@@ -85,16 +96,15 @@ class TestChunkerAllDrivers:
             
             driver_schema = load_json(driver_schema_path)
             config_dict = get_minimal_config(driver_schema)
-            
-            # Get all allowed keys from schema
-            allowed_keys = set(driver_schema.get("properties", {}).keys())
-            
-            config = DriverConfig(
-                driver_name=driver,
-                config=config_dict,
-                allowed_keys=allowed_keys
-            )
+
+            config_cls = driver_config_classes[driver]
+            config = config_cls(**config_dict)
             
             # Should not raise any exceptions
-            chunker = create_chunker(driver_name=driver, driver_config=config)
+            chunker = create_chunker(
+                AdapterConfig_Chunker(
+                    chunking_strategy=driver,
+                    driver=config,
+                )
+            )
             assert chunker is not None, f"Failed to create chunker for driver: {driver}"

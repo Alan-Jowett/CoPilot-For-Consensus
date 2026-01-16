@@ -131,8 +131,8 @@ Each capacity unit = 1,000 TPM (tokens per minute).
 
 API keys are automatically:
 1. Retrieved from Azure OpenAI using `listKeys()` API
-2. Stored in Azure Key Vault as `azure-openai-api-key`
-3. Referenced in Container Apps via Key Vault references
+2. Stored in the **Core Key Vault** as `azure-openai-api-key`
+3. Mirrored into the **Environment Key Vault** used by the services (the vault referenced by `AZURE_KEY_VAULT_NAME`)
 4. Never exposed in plaintext environment variables
 
 ### Network Access Control
@@ -291,8 +291,8 @@ Azure OpenAI has quota limits per subscription and region.
 ### API Key Not Found
 
 **Check**:
-1. Key Vault secret `azure-openai-api-key` exists
-2. Container App managed identities have "Key Vault Secrets User" role
+1. Key Vault secret `azure-openai-api-key` exists in the vault your services are configured to use (`AZURE_KEY_VAULT_NAME`)
+2. Container App managed identities have "Key Vault Secrets User" role on that Key Vault
 3. Key Vault public access enabled (or Private Link configured)
 
 ## Cost Management

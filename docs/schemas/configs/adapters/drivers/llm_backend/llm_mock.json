@@ -9,6 +9,7 @@
             "source": "env",
             "env_var": "MOCK_LATENCY_MS",
             "default": 100,
+            "minimum": 0,
             "description": "Simulated latency in milliseconds"
         }
     }
