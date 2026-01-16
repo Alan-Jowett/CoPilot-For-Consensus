@@ -22,6 +22,13 @@ setup(
             "pytest-cov>=4.0.0",
             "pytest-mock>=3.10.0",
         ],
+        "test": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+            "pytest-mock>=3.10.0",
+            "azure-keyvault-keys>=4.9.0",
+            "azure-identity>=1.16.1",
+        ],
         "azure": [
             "azure-keyvault-keys>=4.9.0",
             "azure-identity>=1.16.1",

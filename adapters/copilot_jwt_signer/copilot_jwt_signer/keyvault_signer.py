@@ -131,12 +131,13 @@ class KeyVaultJWTSigner(JWTSigner):
 
     # Algorithm mapping to Key Vault SignatureAlgorithm
     _ALGORITHM_MAP = {
-        "RS256": "RS256",
-        "RS384": "RS384",
-        "RS512": "RS512",
-        "ES256": "ES256",
-        "ES384": "ES384",
-        "ES512": "ES512",
+        # Azure SDK's SignatureAlgorithm enum members are lowercase.
+        "RS256": "rs256",
+        "RS384": "rs384",
+        "RS512": "rs512",
+        "ES256": "es256",
+        "ES384": "es384",
+        "ES512": "es512",
     }
 
     def __init__(
@@ -397,7 +398,7 @@ class KeyVaultJWTSigner(JWTSigner):
 
             # Fetch key from Key Vault
             key = self.key_client.get_key(self.key_name, version=self.key_version)
-            key_material = cast(Any, key.key)
+            key_material: Any = key.key
 
             # Convert to JWK format
             jwk = {
@@ -409,9 +410,14 @@ class KeyVaultJWTSigner(JWTSigner):
 
             # Add key-specific parameters
             if key.key_type.value == "RSA":
+                # Azure's JsonWebKey is dynamically shaped; pylint can't see n/e.
+                # pylint: disable=no-member
                 jwk["n"] = self._bytes_to_base64url(key_material.n)
                 jwk["e"] = self._bytes_to_base64url(key_material.e)
+                # pylint: enable=no-member
             elif key.key_type.value == "EC":
+                # Azure's JsonWebKey is dynamically shaped; pylint can't see crv/x/y.
+                # pylint: disable=no-member
                 jwk["crv"] = (
                     key_material.crv.value
                     if hasattr(key_material.crv, "value")
@@ -419,6 +425,7 @@ class KeyVaultJWTSigner(JWTSigner):
                 )
                 jwk["x"] = self._bytes_to_base64url(key_material.x)
                 jwk["y"] = self._bytes_to_base64url(key_material.y)
+                # pylint: enable=no-member
 
             # Cache the result
             self._public_key_cache = jwk
@@ -448,23 +455,27 @@ class KeyVaultJWTSigner(JWTSigner):
         try:
             # Fetch key from Key Vault
             key = self.key_client.get_key(self.key_name, version=self.key_version)
-            key_material = cast(Any, key.key)
+            key_material: Any = key.key
 
             # Convert to PEM format using cryptography library
             if key.key_type.value == "RSA":
                 # Reconstruct RSA public key
+                # pylint: disable=no-member
                 public_key = rsa.RSAPublicNumbers(
                     e=int.from_bytes(key_material.e, byteorder='big'),
                     n=int.from_bytes(key_material.n, byteorder='big')
                 ).public_key()
+                # pylint: enable=no-member
             elif key.key_type.value == "EC":
                 # Reconstruct EC public key
                 # Map curve name
+                # pylint: disable=no-member
                 curve_name = (
                     key_material.crv.value
                     if hasattr(key_material.crv, "value")
                     else str(key_material.crv)
                 )
+                # pylint: enable=no-member
                 if curve_name == "P-256":
                     curve = ec.SECP256R1()
                 elif curve_name == "P-384":
@@ -474,11 +485,13 @@ class KeyVaultJWTSigner(JWTSigner):
                 else:
                     raise KeyVaultSignerError(f"Unsupported EC curve: {curve_name}")
 
+                # pylint: disable=no-member
                 public_key = ec.EllipticCurvePublicNumbers(
                     x=int.from_bytes(key_material.x, byteorder='big'),
                     y=int.from_bytes(key_material.y, byteorder='big'),
                     curve=curve
                 ).public_key()
+                # pylint: enable=no-member
             else:
                 raise KeyVaultSignerError(f"Unsupported key type: {key.key_type}")
 
