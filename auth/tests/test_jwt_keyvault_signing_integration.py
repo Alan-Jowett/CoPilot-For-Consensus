@@ -1,11 +1,9 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
-"""Integration tests for JWT signing with Key Vault.
+"""Integration tests for Key Vault JWT signing.
 
-Notes:
-- `copilot_jwt_signer` (and the Azure SDK extras it depends on) are optional.
-- The auth service configuration schema may not expose a `jwt_signer` adapter,
-  so these tests focus only on the signer package itself.
+These tests are marked as integration and are expected to be skipped unless the
+Azure Key Vault SDK dependencies are installed.
 """
 
 from __future__ import annotations

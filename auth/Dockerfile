@@ -15,6 +15,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python /app/adapters/scripts/install_adapters.py \
     copilot_auth \
     copilot_config \
+    copilot_jwt_signer \
     copilot_logging \
     copilot_metrics \
     copilot_schema_validation \

@@ -41,5 +41,18 @@
             "description": "HMAC secret key (required for HS256/HS384/HS512 algorithms)"
         }
     },
-    "required": ["algorithm", "key_id"]
+    "required": ["algorithm", "key_id"],
+    "x-conditional_required": [
+        {"if": {"field": "algorithm", "equals": "HS256"}, "then_required": ["secret_key"]},
+        {"if": {"field": "algorithm", "equals": "HS384"}, "then_required": ["secret_key"]},
+        {"if": {"field": "algorithm", "equals": "HS512"}, "then_required": ["secret_key"]},
+
+        {"if": {"field": "algorithm", "equals": "RS256"}, "then_required": ["private_key", "public_key"]},
+        {"if": {"field": "algorithm", "equals": "RS384"}, "then_required": ["private_key", "public_key"]},
+        {"if": {"field": "algorithm", "equals": "RS512"}, "then_required": ["private_key", "public_key"]},
+
+        {"if": {"field": "algorithm", "equals": "ES256"}, "then_required": ["private_key", "public_key"]},
+        {"if": {"field": "algorithm", "equals": "ES384"}, "then_required": ["private_key", "public_key"]},
+        {"if": {"field": "algorithm", "equals": "ES512"}, "then_required": ["private_key", "public_key"]}
+    ]
 }
