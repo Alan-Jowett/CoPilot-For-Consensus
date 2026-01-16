@@ -5,7 +5,6 @@
 
 import json
 import logging
-import os
 from typing import Any, cast
 
 from copilot_config.generated.adapters.vector_store import DriverConfig_VectorStore_AzureAiSearch
@@ -51,6 +50,7 @@ class AzureAISearchVectorStore(VectorStore):
         index_name: str = "embeddings",
         vector_size: int = 384,
         use_managed_identity: bool = False,
+        managed_identity_client_id: str | None = None,
     ):
         """Initialize an Azure AI Search vector store.
 
@@ -104,6 +104,7 @@ class AzureAISearchVectorStore(VectorStore):
         self._index_name = index_name
         self._vector_size = vector_size
         self._use_managed_identity = use_managed_identity
+        self._managed_identity_client_id = managed_identity_client_id
 
         # Store imports for later use
         self._SearchClient = SearchClient
@@ -121,10 +122,10 @@ class AzureAISearchVectorStore(VectorStore):
         if use_managed_identity:
             try:
                 from azure.identity import DefaultAzureCredential
-                # Use AZURE_CLIENT_ID env var if set (for user-assigned managed identity in Container Apps)
-                client_id = os.environ.get('AZURE_CLIENT_ID')
-                if client_id:
-                    self._credential = DefaultAzureCredential(managed_identity_client_id=client_id)
+                if self._managed_identity_client_id:
+                    self._credential = DefaultAzureCredential(
+                        managed_identity_client_id=self._managed_identity_client_id
+                    )
                 else:
                     self._credential = DefaultAzureCredential()
             except ImportError as e:
@@ -181,6 +182,7 @@ class AzureAISearchVectorStore(VectorStore):
             index_name=config.index_name,
             vector_size=config.vector_size,
             use_managed_identity=config.use_managed_identity,
+            managed_identity_client_id=config.managed_identity_client_id,
         )
 
     def _ensure_index(self) -> None:

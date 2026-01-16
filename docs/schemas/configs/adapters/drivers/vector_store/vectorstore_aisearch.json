@@ -36,6 +36,14 @@
             "default": false,
             "description": "Use managed identity instead of API key"
         },
+        "managed_identity_client_id": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZURE_CLIENT_ID",
+            "required": false,
+            "minLength": 1,
+            "description": "Client ID for user-assigned managed identity (optional; if omitted, DefaultAzureCredential will use system-assigned identity or default chain)"
+        },
         "vector_size": {
             "type": "int",
             "source": "env",
