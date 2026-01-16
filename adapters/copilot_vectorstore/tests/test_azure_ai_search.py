@@ -100,6 +100,43 @@ class TestAzureAISearchVectorStore:
 
     @patch('azure.search.documents.SearchClient')
     @patch('azure.search.documents.indexes.SearchIndexClient')
+    def test_lazy_index_initialization_only_runs_once(
+        self,
+        mock_index_client_class,
+        mock_search_client_class,
+    ):
+        """Verify operations trigger _ensure_index_ready exactly once."""
+        mock_index_client = Mock()
+        mock_search_client = Mock()
+        mock_index_client_class.return_value = mock_index_client
+        mock_search_client_class.return_value = mock_search_client
+
+        mock_index = Mock()
+        mock_index.fields = [Mock(name="embedding", vector_search_dimensions=3)]
+        mock_index_client.get_index.return_value = mock_index
+
+        mock_results = Mock()
+        mock_results.get_count.return_value = 0
+        mock_search_client.search.return_value = mock_results
+
+        store = AzureAISearchVectorStore(
+            endpoint="https://test.search.windows.net",
+            api_key="test-key",
+            vector_size=3,
+        )
+
+        # Lazy init: should not touch the index until first operation.
+        mock_index_client.get_index.assert_not_called()
+
+        store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
+        assert mock_index_client.get_index.call_count == 1
+
+        # Subsequent operations should not re-initialize the index.
+        store.count()
+        assert mock_index_client.get_index.call_count == 1
+
+    @patch('azure.search.documents.SearchClient')
+    @patch('azure.search.documents.indexes.SearchIndexClient')
     def test_add_embedding_validates_dimension(self, mock_index_client_class, mock_search_client_class):
         """Test that add_embedding validates vector dimension."""
         mock_index_client = Mock()
