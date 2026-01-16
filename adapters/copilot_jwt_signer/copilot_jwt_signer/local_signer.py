@@ -43,6 +43,8 @@ class LocalJWTSigner(JWTSigner):
         algorithm: str,
         private_key_path: Path | str | None = None,
         public_key_path: Path | str | None = None,
+        private_key: str | bytes | None = None,
+        public_key: str | bytes | None = None,
         secret_key: str | None = None,
         key_id: str = "default",
     ):
@@ -61,13 +63,19 @@ class LocalJWTSigner(JWTSigner):
         super().__init__(algorithm, key_id)
 
         if algorithm.startswith("RS") or algorithm.startswith("ES"):
-            # Asymmetric algorithms require key files
-            if not private_key_path or not public_key_path:
-                raise JWTSignerError(
-                    f"{algorithm} requires both private_key_path and public_key_path"
-                )
-
-            self._load_asymmetric_keys(private_key_path, public_key_path)
+            # Asymmetric algorithms require either key files or PEM content.
+            if private_key is not None or public_key is not None:
+                if private_key is None or public_key is None:
+                    raise JWTSignerError(
+                        f"{algorithm} requires both private_key and public_key when providing PEM content"
+                    )
+                self._load_asymmetric_keys_from_pem(private_key, public_key)
+            else:
+                if not private_key_path or not public_key_path:
+                    raise JWTSignerError(
+                        f"{algorithm} requires both private_key_path and public_key_path"
+                    )
+                self._load_asymmetric_keys(private_key_path, public_key_path)
 
         elif algorithm.startswith("HS"):
             # Symmetric algorithms use HMAC secret
@@ -119,6 +127,40 @@ class LocalJWTSigner(JWTSigner):
 
         except FileNotFoundError as e:
             raise JWTSignerError(f"Key file not found: {e}") from e
+        except Exception as e:
+            raise JWTSignerError(f"Failed to load keys: {e}") from e
+
+    def _load_asymmetric_keys_from_pem(self, private_key: str | bytes, public_key: str | bytes) -> None:
+        """Load RSA or EC keys from PEM content.
+
+        Args:
+            private_key: Private key PEM content (str or bytes)
+            public_key: Public key PEM content (str or bytes)
+
+        Raises:
+            JWTSignerError: If keys cannot be loaded
+        """
+        try:
+            private_bytes = private_key.encode("utf-8") if isinstance(private_key, str) else private_key
+            public_bytes = public_key.encode("utf-8") if isinstance(public_key, str) else public_key
+
+            self.private_key = serialization.load_pem_private_key(
+                private_bytes,
+                password=None,
+                backend=default_backend(),
+            )
+            self.public_key = serialization.load_pem_public_key(
+                public_bytes,
+                backend=default_backend(),
+            )
+
+            if self.algorithm.startswith("RS"):
+                if not isinstance(self.private_key, RSAPrivateKey):
+                    raise JWTSignerError(f"Private key must be RSA for {self.algorithm}")
+            elif self.algorithm.startswith("ES"):
+                if not isinstance(self.private_key, EllipticCurvePrivateKey):
+                    raise JWTSignerError(f"Private key must be EC for {self.algorithm}")
+
         except Exception as e:
             raise JWTSignerError(f"Failed to load keys: {e}") from e
 

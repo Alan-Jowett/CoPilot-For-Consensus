@@ -12,6 +12,11 @@ from typing import Any, Protocol, cast
 
 from copilot_auth import AuthenticationError, JWTManager, create_identity_provider
 from copilot_config.generated.adapters.oidc_providers import AdapterConfig_OidcProviders
+from copilot_config.generated.adapters.jwt_signer import (
+    AdapterConfig_JwtSigner,
+    DriverConfig_JwtSigner_Keyvault,
+    DriverConfig_JwtSigner_Local,
+)
 from copilot_config.generated.services.auth import ServiceConfig_Auth
 from copilot_logging import get_logger
 
@@ -193,28 +198,12 @@ class AuthService:
 
         settings = self.config.service_settings
 
-        jwt_signer_adapter = getattr(self.config, "jwt_signer", None)
+        jwt_signer_adapter = self.config.jwt_signer
         if jwt_signer_adapter is None:
             # Backward-compatible fallback for older schemas/configs.
             self._initialize_local_jwt_manager(None)
         else:
-            signer_type = getattr(
-                jwt_signer_adapter,
-                "jwt_signer_type",
-                getattr(jwt_signer_adapter, "signer_type", "local"),
-            )
-            driver_config = getattr(jwt_signer_adapter, "driver", None)
-            if driver_config is None:
-                # Backward-compatible shapes (pre adapter/driver generator).
-                if signer_type == "keyvault":
-                    driver_config = getattr(jwt_signer_adapter, "keyvault", None)
-                else:
-                    driver_config = getattr(jwt_signer_adapter, "local", None)
-
-            if signer_type == "keyvault":
-                self._initialize_keyvault_jwt_manager(driver_config)
-            else:
-                self._initialize_local_jwt_manager(driver_config)
+            self._initialize_adapter_jwt_manager(jwt_signer_adapter)
 
         # Initialize role store
         self.role_store = RoleStore(self.config)
@@ -266,7 +255,6 @@ class AuthService:
         default_expiry = settings.jwt_default_expiry if settings.jwt_default_expiry is not None else 1800
 
         try:
-            from copilot_config import DriverConfig
             from copilot_jwt_signer import create_jwt_signer
         except ImportError as e:
             raise ValueError(
@@ -274,53 +262,23 @@ class AuthService:
                 "Install with: pip install copilot-jwt-signer"
             ) from e
 
-        driver_payload: dict[str, Any] = {
-            "algorithm": algorithm,
-            "key_id": key_id,
-            "private_key_path": None,
-            "public_key_path": None,
-            "secret_key": None,
-        }
-
-        if algorithm.startswith("RS") or algorithm.startswith("ES"):
-            if private_key_content is None or public_key_content is None:
-                raise ValueError(
-                    f"{algorithm} requires private_key and public_key to be configured"
-                )
-
-            import tempfile
-
-            temp_dir = Path(tempfile.gettempdir()) / "auth_keys"
-            temp_dir.mkdir(exist_ok=True)
-
-            private_key_path = temp_dir / "jwt_private.pem"
-            public_key_path = temp_dir / "jwt_public.pem"
-
-            private_key_path.write_text(private_key_content)
-            public_key_path.write_text(public_key_content)
-
-            driver_payload["private_key_path"] = str(private_key_path)
-            driver_payload["public_key_path"] = str(public_key_path)
-
-        elif algorithm.startswith("HS"):
-            if secret_key_content is None:
-                raise ValueError(f"{algorithm} requires secret_key to be configured")
-            driver_payload["secret_key"] = secret_key_content
-
-        else:
-            raise ValueError(f"Unsupported local JWT signing algorithm: {algorithm}")
-
-        driver_config = DriverConfig(
-            driver_name="local",
-            config=driver_payload,
-            allowed_keys=set(driver_payload.keys()),
-        )
-
-        signer = create_jwt_signer("local", driver_config)
-        self.jwt_manager = JWTManager(
-            issuer=settings.issuer,
+        local_driver = DriverConfig_JwtSigner_Local(
             algorithm=algorithm,
             key_id=key_id,
+            private_key=private_key_content,
+            public_key=public_key_content,
+            secret_key=secret_key_content,
+        )
+        signer = create_jwt_signer(
+            AdapterConfig_JwtSigner(
+                signer_type="local",
+                driver=local_driver,
+            )
+        )
+        self.jwt_manager = JWTManager(
+            issuer=settings.issuer,
+            algorithm=signer.algorithm,
+            key_id=signer.key_id,
             default_expiry=default_expiry,
             signer=signer,
         )
@@ -347,7 +305,6 @@ class AuthService:
             raise ValueError("key_name is required in keyvault driver configuration")
 
         try:
-            from copilot_config import DriverConfig
             from copilot_jwt_signer import create_jwt_signer
         except ImportError as e:
             raise ValueError(
@@ -355,36 +312,34 @@ class AuthService:
                 "Install with: pip install copilot-jwt-signer[azure]"
             ) from e
 
-        driver_payload: dict[str, Any] = {
-            "algorithm": algorithm,
-            "key_id": key_id,
-            "key_vault_url": key_vault_url,
-            "key_name": key_name,
-            "key_version": getattr(jwt_signer_driver_config, "key_version", None),
-            "tenant_id": getattr(jwt_signer_driver_config, "tenant_id", None),
-            "client_id": getattr(jwt_signer_driver_config, "client_id", None),
-            "client_secret": getattr(jwt_signer_driver_config, "client_secret", None),
-            "max_retries": getattr(jwt_signer_driver_config, "max_retries", None),
-            "retry_delay": getattr(jwt_signer_driver_config, "retry_delay", None),
-            "circuit_breaker_threshold": getattr(
-                jwt_signer_driver_config, "circuit_breaker_threshold", None
-            ),
-            "circuit_breaker_timeout": getattr(
-                jwt_signer_driver_config, "circuit_breaker_timeout", None
-            ),
-        }
-
-        driver_config = DriverConfig(
-            driver_name="keyvault",
-            config=driver_payload,
-            allowed_keys=set(driver_payload.keys()),
-        )
-
-        signer = create_jwt_signer("keyvault", driver_config)
-        self.jwt_manager = JWTManager(
-            issuer=settings.issuer,
+        keyvault_driver = DriverConfig_JwtSigner_Keyvault(
             algorithm=algorithm,
             key_id=key_id,
+            key_vault_url=key_vault_url,
+            key_name=key_name,
+            key_version=getattr(jwt_signer_driver_config, "key_version", None),
+            tenant_id=getattr(jwt_signer_driver_config, "tenant_id", None),
+            client_id=getattr(jwt_signer_driver_config, "client_id", None),
+            client_secret=getattr(jwt_signer_driver_config, "client_secret", None),
+            max_retries=getattr(jwt_signer_driver_config, "max_retries", 3),
+            retry_delay=getattr(jwt_signer_driver_config, "retry_delay", 0.5),
+            circuit_breaker_threshold=getattr(
+                jwt_signer_driver_config, "circuit_breaker_threshold", 5
+            ),
+            circuit_breaker_timeout=getattr(
+                jwt_signer_driver_config, "circuit_breaker_timeout", 60.0
+            ),
+        )
+        signer = create_jwt_signer(
+            AdapterConfig_JwtSigner(
+                signer_type="keyvault",
+                driver=keyvault_driver,
+            )
+        )
+        self.jwt_manager = JWTManager(
+            issuer=settings.issuer,
+            algorithm=signer.algorithm,
+            key_id=signer.key_id,
             default_expiry=default_expiry,
             signer=signer,
         )
@@ -394,6 +349,32 @@ class AuthService:
             f"(algorithm={algorithm}, key={key_name})"
         )
 
+    def _initialize_adapter_jwt_manager(self, config: AdapterConfig_JwtSigner) -> None:
+        """Initialize JWT manager from typed jwt_signer adapter config."""
+        settings = self.config.service_settings
+        default_expiry = settings.jwt_default_expiry if settings.jwt_default_expiry is not None else 1800
+
+        try:
+            from copilot_jwt_signer import create_jwt_signer
+        except ImportError as e:
+            raise ValueError(
+                "JWT signing requires the copilot_jwt_signer adapter. "
+                "Install with: pip install copilot-jwt-signer"
+            ) from e
+
+        signer = create_jwt_signer(config)
+        self.jwt_manager = JWTManager(
+            issuer=settings.issuer,
+            algorithm=signer.algorithm,
+            key_id=signer.key_id,
+            default_expiry=default_expiry,
+            signer=signer,
+        )
+
+        logger.info(
+            "JWT manager initialized with signer adapter "
+            f"(type={config.signer_type}, algorithm={signer.algorithm})"
+        )
     def is_ready(self) -> bool:
         """Check if service is ready to handle requests."""
         return self.jwt_manager is not None and len(self.providers) > 0
