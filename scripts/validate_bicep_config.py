@@ -19,6 +19,94 @@ import sys
 from pathlib import Path
 
 
+def _is_bicep_conditional(value: object) -> bool:
+    if value is None:
+        return False
+    text = str(value)
+    return "?" in text
+
+
+def _validate_schema_discriminant(env_vars: dict, schema: dict, context: str) -> list[str]:
+    """Validate a schema-level discriminant (if present).
+
+    Some driver schemas have a root-level 'discriminant' (not inside 'properties').
+    Example: archive_azureblob.json requires AZUREBLOB_AUTH_TYPE.
+    """
+
+    issues: list[str] = []
+    discriminant = schema.get("discriminant")
+    if not isinstance(discriminant, dict):
+        return issues
+
+    if discriminant.get("source") != "env":
+        return issues
+
+    env_var = discriminant.get("env_var")
+    if not isinstance(env_var, str) or not env_var:
+        return issues
+
+    required = bool(discriminant.get("required", False))
+    enum_values = discriminant.get("enum", [])
+
+    if env_var not in env_vars:
+        if required:
+            issues.append(f"Missing REQUIRED discriminant: {env_var} ({context})")
+        else:
+            issues.append(f"Missing discriminant: {env_var} ({context})")
+        return issues
+
+    value = env_vars.get(env_var)
+    if value is None or _is_bicep_conditional(value):
+        # Can't evaluate; skip enum validation.
+        return issues
+
+    if isinstance(enum_values, list) and enum_values and value not in enum_values:
+        issues.append(f"Invalid discriminant value for {env_var}: '{value}' not in {enum_values} ({context})")
+
+    return issues
+
+
+def _select_oneof_variant_by_discriminant(env_vars: dict, schema: dict) -> dict:
+    """Best-effort selection of a oneOf variant using schema.discriminant.
+
+    Returns the selected variant schema, or the original schema if no selection is possible.
+    """
+
+    one_of = schema.get("oneOf")
+    if not isinstance(one_of, list) or not one_of:
+        return schema
+
+    discriminant = schema.get("discriminant")
+    if not isinstance(discriminant, dict):
+        return schema
+
+    env_var = discriminant.get("env_var")
+    field = discriminant.get("field")
+    if not isinstance(env_var, str) or not env_var:
+        return schema
+    if not isinstance(field, str) or not field:
+        return schema
+
+    value = env_vars.get(env_var)
+    if value is None or _is_bicep_conditional(value):
+        return schema
+
+    for variant in one_of:
+        if not isinstance(variant, dict):
+            continue
+        props = variant.get("properties")
+        if not isinstance(props, dict):
+            continue
+        field_spec = props.get(field)
+        if not isinstance(field_spec, dict):
+            continue
+        const_value = field_spec.get("const")
+        if const_value == value:
+            return variant
+
+    return schema
+
+
 def extract_env_vars(bicep_content: str, service_name: str) -> dict:
     """
     Extract environment variables for a service from Bicep file content.
@@ -291,12 +379,23 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
             with open(driver_schema_path, "r", encoding="utf-8") as f:
                 driver_schema = json.load(f)
 
-            driver_props = driver_schema.get("properties", {})
+            # Some driver schemas use a root-level discriminant + oneOf variants.
+            # Validate that discriminant env var is present (if required), then
+            # select a variant (if possible) so we can validate required env vars.
+            issues.extend(
+                _validate_schema_discriminant(
+                    env_vars,
+                    driver_schema,
+                    context=f"adapter '{adapter_name}' driver '{selected_driver}'",
+                )
+            )
+            effective_driver_schema = _select_oneof_variant_by_discriminant(env_vars, driver_schema)
+            driver_props = effective_driver_schema.get("properties", {})
 
             # Support schemas that express "at least one of" requirements.
             # Example: Azure Key Vault secret provider driver needs one of
             # AZURE_KEY_VAULT_URI or AZURE_KEY_VAULT_NAME.
-            required_one_of = driver_schema.get("x-required_one_of", [])
+            required_one_of = effective_driver_schema.get("x-required_one_of", driver_schema.get("x-required_one_of", []))
             if isinstance(required_one_of, list):
                 for group in required_one_of:
                     if not isinstance(group, list) or not group:
