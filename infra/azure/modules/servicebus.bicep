@@ -20,6 +20,7 @@ param identityResourceIds object
 @description('Services that will send messages (sender role only)')
 @minLength(1)
 param senderServices array = [
+  'ingestion'
   'parsing'
   'chunking'
   'embedding'
@@ -31,31 +32,16 @@ param senderServices array = [
 @description('Services that will receive messages (receiver role only)')
 @minLength(1)
 param receiverServices array = [
+  'parsing'
   'chunking'
   'embedding'
   'orchestrator'
   'summarization'
   'reporting'
-  'ingestion'
 ]
 
-var queueDefinitions = [
-  'archive.ingested'
-  'archive.ingestion.failed'
-  'json.parsed'
-  'parsing.failed'
-  'chunks.prepared'
-  'chunking.failed'
-  'embeddings.generated'
-  'embedding.generation.failed'
-  'summarization.requested'
-  'orchestration.failed'
-  'summary.complete'
-  'summarization.failed'
-  'report.published'
-  'report.delivery.failed'
-  'dlq.dead-letter'
-]
+@description('Shared topic name used for fan-out messaging')
+param eventsTopicName string = 'copilot.events'
 
 // Service Bus Namespace
 resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
@@ -73,26 +59,32 @@ resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview
   }
 }
 
-// Create all message queues
-resource queues 'Microsoft.ServiceBus/namespaces/queues@2022-10-01-preview' = [
-  for queue in queueDefinitions: {
-    parent: serviceBusNamespace
-    name: queue
+// Shared topic for event fan-out
+resource eventsTopic 'Microsoft.ServiceBus/namespaces/topics@2022-10-01-preview' = {
+  parent: serviceBusNamespace
+  name: eventsTopicName
+  properties: {
+    defaultMessageTimeToLive: 'P14D'
+    duplicateDetectionHistoryTimeWindow: 'PT10M'
+    enablePartitioning: sku == 'Standard'
+    maxSizeInMegabytes: sku == 'Premium' ? 81920 : 1024
+    requiresDuplicateDetection: false
+    supportOrdering: false
+  }
+}
+
+// Per-service subscriptions (each service gets its own copy of all events)
+resource eventsSubscriptions 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = [
+  for service in receiverServices: {
+    parent: eventsTopic
+    name: service
     properties: {
       lockDuration: 'PT5M'
-      maxSizeInMegabytes: sku == 'Premium' ? 81920 : 1024
-      requiresDuplicateDetection: false
-      requiresSession: false
       defaultMessageTimeToLive: 'P14D'
       deadLetteringOnMessageExpiration: true
-      duplicateDetectionHistoryTimeWindow: 'PT10M'
-      // NOTE: Standard queues are limited to 256 KB per message; Premium supports up to 100 MB.
-      maxMessageSizeInKilobytes: sku == 'Premium' ? 102400 : 256
-      // Partitioning improves throughput for Standard; Premium handles scale implicitly.
-      enablePartitioning: sku == 'Standard'
-      enableExpress: false
-      autoDeleteOnIdle: null
       maxDeliveryCount: 10
+      enableBatchedOperations: true
+      requiresSession: false
     }
   }
 ]
@@ -133,8 +125,11 @@ output namespaceFullyQualifiedName string = '${serviceBusNamespace.name}.service
 @description('The namespace resource ID for use by dependent resources')
 output namespaceResourceId string = serviceBusNamespace.id
 
-@description('Queue names deployed to the namespace')
-output queueNames array = [
-  for queue in queueDefinitions: queue
+@description('Shared topic name deployed to the namespace')
+output topicName string = eventsTopic.name
+
+@description('Subscription names deployed under the shared topic')
+output subscriptionNames array = [
+  for service in receiverServices: service
 ]
 

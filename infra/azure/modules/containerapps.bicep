@@ -265,11 +265,11 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: 'user_roles'
+              value: cosmosContainerName
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: '/id'
+              value: '/collection'
             }
             // Metrics adapter (Azure Monitor)
             {
