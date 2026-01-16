@@ -12,6 +12,8 @@ from copilot_jwt_signer.exceptions import CircuitBreakerOpenError, KeyVaultSigne
 pytest.importorskip("azure.keyvault.keys")
 pytest.importorskip("azure.identity")
 
+from azure.core.exceptions import ServiceRequestError
+
 from copilot_jwt_signer import KeyVaultJWTSigner
 
 
@@ -81,12 +83,16 @@ class TestKeyVaultJWTSignerWithMocks:
         mock_sign_result = mocker.MagicMock()
         mock_sign_result.signature = b"mock_signature"
         mock_crypto_client.sign.return_value = mock_sign_result
-        mocker.patch("azure.keyvault.keys.crypto.CryptographyClient", return_value=mock_crypto_client)
+        mock_crypto_client_cls = mocker.patch(
+            "azure.keyvault.keys.crypto.CryptographyClient",
+            return_value=mock_crypto_client,
+        )
         
         return {
             "credential": mock_credential,
             "key_client": mock_key_client,
             "crypto_client": mock_crypto_client,
+            "crypto_client_cls": mock_crypto_client_cls,
             "key": mock_key
         }
 
@@ -196,10 +202,15 @@ class TestKeyVaultJWTSignerWithMocks:
         mock_sign_result = mocker.MagicMock()
         mock_sign_result.signature = b"mock_signature"
         
-        failure_count = [0]
+        # NOTE: Each signer.sign() call can attempt multiple Key Vault sign operations
+        # due to internal retry logic. With max_retries=1, that's up to 2 calls per
+        # signer.sign(). To ensure we get 3 consecutive *sign()* failures (so the
+        # circuit opens at threshold=3), fail the first 6 underlying sign calls.
+        call_count = [0]
+
         def side_effect(*args, **kwargs):
-            failure_count[0] += 1
-            if failure_count[0] <= 3:
+            call_count[0] += 1
+            if call_count[0] <= 6:
                 raise ServiceRequestError("Network error")
             return mock_sign_result
         
@@ -245,9 +256,10 @@ class TestKeyVaultJWTSignerWithMocks:
         
         message = b"test message"
         signer.sign(message)
-        
-        # Should have used the specific version
-        mock_azure_clients["key_client"].get_key.assert_called_with("test-key", version="version456")
+
+        # Should have constructed the CryptographyClient with the specific version.
+        _args, kwargs = mock_azure_clients["crypto_client_cls"].call_args
+        assert kwargs["key"].endswith("/keys/test-key/version456")
 
 
 class TestKeyVaultJWTSignerEC:
@@ -317,28 +329,28 @@ class TestKeyVaultJWTSignerEC:
         assert "x" in jwk
         assert "y" in jwk
 
-    def test_health_check_failure(self, mock_azure_clients):
+    def test_health_check_failure(self, mock_azure_clients_ec):
         """Test health_check returns False when signer is in unhealthy state."""
-        mock_azure_clients["crypto_client"].sign.side_effect = ServiceRequestError("Network error")
+        mock_azure_clients_ec["crypto_client"].sign.side_effect = ServiceRequestError("Network error")
         
         signer = KeyVaultJWTSigner(
-            algorithm="RS256",
+            algorithm="ES256",
             key_vault_url="https://test.vault.azure.net/",
-            key_name="test-key"
+            key_name="test-ec-key"
         )
         
         # Health check should return False when sign fails
         result = signer.health_check()
         assert result is False
 
-    def test_health_check_with_circuit_breaker_open(self, mock_azure_clients):
+    def test_health_check_with_circuit_breaker_open(self, mock_azure_clients_ec):
         """Test health_check returns False when circuit breaker is open."""
-        mock_azure_clients["crypto_client"].sign.side_effect = ServiceRequestError("Network error")
+        mock_azure_clients_ec["crypto_client"].sign.side_effect = ServiceRequestError("Network error")
         
         signer = KeyVaultJWTSigner(
-            algorithm="RS256",
+            algorithm="ES256",
             key_vault_url="https://test.vault.azure.net/",
-            key_name="test-key",
+            key_name="test-ec-key",
             max_retries=1,
             circuit_breaker_threshold=2,
             circuit_breaker_timeout=60
@@ -349,6 +361,7 @@ class TestKeyVaultJWTSignerEC:
             try:
                 signer.sign(b"test")
             except KeyVaultSignerError:
+                # Expected failure while opening the circuit breaker; ignore the error.
                 pass
         
         # Health check should return False when circuit is open
