@@ -4,10 +4,33 @@
 """Abstract archive store interface for archive storage backends."""
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, TypeAlias
 
 from copilot_config.adapter_factory import create_adapter
-from copilot_config.generated.adapters.archive_store import AdapterConfig_ArchiveStore
+from copilot_config.generated.adapters.archive_store import (
+    AdapterConfig_ArchiveStore,
+    DriverConfig_ArchiveStore_Azureblob,
+    DriverConfig_ArchiveStore_Local,
+)
+
+
+_DriverConfig: TypeAlias = DriverConfig_ArchiveStore_Azureblob | DriverConfig_ArchiveStore_Local
+
+
+def _build_local(driver_config: _DriverConfig) -> "ArchiveStore":
+    from .local_volume_archive_store import LocalVolumeArchiveStore
+
+    if isinstance(driver_config, DriverConfig_ArchiveStore_Local):
+        return LocalVolumeArchiveStore.from_config(driver_config)
+    raise TypeError(f"Expected local driver config, got {type(driver_config).__name__}")
+
+
+def _build_azureblob(driver_config: _DriverConfig) -> "ArchiveStore":
+    from .azure_blob_archive_store import AzureBlobArchiveStore
+
+    if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob):
+        return AzureBlobArchiveStore.from_config(driver_config)
+    raise TypeError(f"Expected azureblob driver config, got {type(driver_config).__name__}")
 
 
 class ArchiveStoreError(Exception):
@@ -152,16 +175,13 @@ def create_archive_store(config: AdapterConfig_ArchiveStore) -> ArchiveStore:
     Raises:
         ValueError: If config is missing or archive_store_type is not recognized
     """
-    from .azure_blob_archive_store import AzureBlobArchiveStore
-    from .local_volume_archive_store import LocalVolumeArchiveStore
-
     return create_adapter(
         config,
         adapter_name="archive_store",
-        get_driver_type=lambda c: c.archive_store_type,
+        get_driver_type=lambda c: str(c.archive_store_type).lower(),
         get_driver_config=lambda c: c.driver,
         drivers={
-            "local": LocalVolumeArchiveStore.from_config,
-            "azureblob": AzureBlobArchiveStore.from_config,
+            "local": _build_local,
+            "azureblob": _build_azureblob,
         },
     )
