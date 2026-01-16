@@ -7,7 +7,7 @@ import base64
 import hashlib
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 from .exceptions import CircuitBreakerOpenError, KeyVaultSignerError
 from .signer import JWTSigner
@@ -397,6 +397,7 @@ class KeyVaultJWTSigner(JWTSigner):
 
             # Fetch key from Key Vault
             key = self.key_client.get_key(self.key_name, version=self.key_version)
+            key_material = cast(Any, key.key)
 
             # Convert to JWK format
             jwk = {
@@ -408,12 +409,16 @@ class KeyVaultJWTSigner(JWTSigner):
 
             # Add key-specific parameters
             if key.key_type.value == "RSA":
-                jwk["n"] = self._bytes_to_base64url(key.key.n)
-                jwk["e"] = self._bytes_to_base64url(key.key.e)
+                jwk["n"] = self._bytes_to_base64url(key_material.n)
+                jwk["e"] = self._bytes_to_base64url(key_material.e)
             elif key.key_type.value == "EC":
-                jwk["crv"] = key.key.crv.value if hasattr(key.key.crv, 'value') else str(key.key.crv)
-                jwk["x"] = self._bytes_to_base64url(key.key.x)
-                jwk["y"] = self._bytes_to_base64url(key.key.y)
+                jwk["crv"] = (
+                    key_material.crv.value
+                    if hasattr(key_material.crv, "value")
+                    else str(key_material.crv)
+                )
+                jwk["x"] = self._bytes_to_base64url(key_material.x)
+                jwk["y"] = self._bytes_to_base64url(key_material.y)
 
             # Cache the result
             self._public_key_cache = jwk
@@ -443,18 +448,23 @@ class KeyVaultJWTSigner(JWTSigner):
         try:
             # Fetch key from Key Vault
             key = self.key_client.get_key(self.key_name, version=self.key_version)
+            key_material = cast(Any, key.key)
 
             # Convert to PEM format using cryptography library
             if key.key_type.value == "RSA":
                 # Reconstruct RSA public key
                 public_key = rsa.RSAPublicNumbers(
-                    e=int.from_bytes(key.key.e, byteorder='big'),
-                    n=int.from_bytes(key.key.n, byteorder='big')
+                    e=int.from_bytes(key_material.e, byteorder='big'),
+                    n=int.from_bytes(key_material.n, byteorder='big')
                 ).public_key()
             elif key.key_type.value == "EC":
                 # Reconstruct EC public key
                 # Map curve name
-                curve_name = key.key.crv.value if hasattr(key.key.crv, 'value') else str(key.key.crv)
+                curve_name = (
+                    key_material.crv.value
+                    if hasattr(key_material.crv, "value")
+                    else str(key_material.crv)
+                )
                 if curve_name == "P-256":
                     curve = ec.SECP256R1()
                 elif curve_name == "P-384":
@@ -465,8 +475,8 @@ class KeyVaultJWTSigner(JWTSigner):
                     raise KeyVaultSignerError(f"Unsupported EC curve: {curve_name}")
 
                 public_key = ec.EllipticCurvePublicNumbers(
-                    x=int.from_bytes(key.key.x, byteorder='big'),
-                    y=int.from_bytes(key.key.y, byteorder='big'),
+                    x=int.from_bytes(key_material.x, byteorder='big'),
+                    y=int.from_bytes(key_material.y, byteorder='big'),
                     curve=curve
                 ).public_key()
             else:
