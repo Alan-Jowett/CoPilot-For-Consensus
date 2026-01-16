@@ -7,7 +7,7 @@ import base64
 import hashlib
 import logging
 import time
-from typing import Any, cast
+from typing import Any
 
 from .exceptions import CircuitBreakerOpenError, KeyVaultSignerError
 from .signer import JWTSigner
