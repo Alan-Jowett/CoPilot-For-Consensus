@@ -43,7 +43,7 @@ param coreKvSecretUriAoaiKey string
 @minLength(3)
 @maxLength(24)
 @description('Azure OpenAI account name from Core deployment outputs (aoaiAccountName). Prefer passing this explicitly rather than deriving it from the endpoint.')
-param coreAoaiAccountName string = ''
+param coreAoaiAccountName string
 
 // Back-compat: best-effort derivation from endpoint. Prefer coreAoaiAccountName parameter.
 // Azure OpenAI endpoint format: https://<account-name>.openai.azure.com/
