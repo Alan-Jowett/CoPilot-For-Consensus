@@ -3,6 +3,8 @@
 
 """Prometheus Pushgateway metrics collector implementation."""
 
+from __future__ import annotations
+
 import logging
 
 from copilot_config.generated.adapters.metrics import DriverConfig_Metrics_Pushgateway
