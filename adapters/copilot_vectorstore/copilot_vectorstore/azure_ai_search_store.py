@@ -79,9 +79,9 @@ class AzureAISearchVectorStore(VectorStore):
         if not endpoint:
             raise ValueError("endpoint parameter is required")
         if not endpoint.startswith("https://"):
-            raise ValueError("Must start with 'https://'")
+            raise ValueError("endpoint parameter must start with 'https://'")
         if vector_size <= 0:
-            raise ValueError("Vector size must be positive")
+            raise ValueError("vector_size parameter must be positive")
         if not use_managed_identity and not api_key:
             raise ValueError(
                 "Either api_key must be provided when not using managed identity"

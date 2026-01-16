@@ -191,8 +191,8 @@ class AuthService:
 
         algorithm = settings.jwt_algorithm or "RS256"
 
-        private_key_path: Path | None = None
-        public_key_path: Path | None = None
+        private_key_path: Path | None
+        public_key_path: Path | None
 
         if algorithm == "RS256":
             private_key = settings.jwt_private_key
@@ -216,8 +216,14 @@ class AuthService:
             public_key_path.write_text(public_key)
 
         elif algorithm.startswith("HS"):
+            private_key_path = None
+            public_key_path = None
             if settings.jwt_secret_key is None:
                 raise ValueError(f"{algorithm} requires jwt_secret_key to be configured")
+
+        else:
+            private_key_path = None
+            public_key_path = None
 
         default_expiry = settings.jwt_default_expiry if settings.jwt_default_expiry is not None else 1800
 

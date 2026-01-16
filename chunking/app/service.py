@@ -7,6 +7,11 @@ import time
 from datetime import datetime, timezone
 from typing import Any, cast
 
+try:
+    from pymongo.errors import DuplicateKeyError
+except Exception:
+    DuplicateKeyError = None  # type: ignore
+
 from copilot_chunking import Thread, ThreadChunker
 from copilot_message_bus import (
     ChunkingFailedEvent,
@@ -297,13 +302,11 @@ class ChunkingService:
                 new_chunks_created = 0
 
                 def _is_duplicate_key_error(exc: Exception) -> bool:
-                    try:
-                        from pymongo.errors import DuplicateKeyError
+                    if DuplicateKeyError is not None and isinstance(exc, DuplicateKeyError):
+                        return True
 
-                        return isinstance(exc, DuplicateKeyError)
-                    except Exception:
-                        # Best-effort fallback when pymongo isn't installed.
-                        return type(exc).__name__ == "DuplicateKeyError"
+                    # Best-effort fallback when pymongo isn't installed.
+                    return type(exc).__name__ == "DuplicateKeyError"
 
                 for chunk in all_chunks:
                     try:

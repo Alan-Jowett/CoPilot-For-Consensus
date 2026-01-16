@@ -63,7 +63,7 @@ class TestAzureAISearchVectorStore:
     @patch('azure.search.documents.indexes.SearchIndexClient')
     def test_invalid_endpoint_raises_error(self, mock_index_client_class, mock_search_client_class):
         """Test that invalid endpoint raises ValueError."""
-        with pytest.raises(ValueError, match="Must start with 'https://'"):
+        with pytest.raises(ValueError, match="endpoint parameter must start with 'https://'"):
             AzureAISearchVectorStore(
                 endpoint="http://test.search.windows.net",
                 api_key="test-key",
@@ -84,14 +84,14 @@ class TestAzureAISearchVectorStore:
     @patch('azure.search.documents.indexes.SearchIndexClient')
     def test_invalid_vector_size_raises_error(self, mock_index_client_class, mock_search_client_class):
         """Test that invalid vector size raises ValueError."""
-        with pytest.raises(ValueError, match="Vector size must be positive"):
+        with pytest.raises(ValueError, match="vector_size parameter must be positive"):
             AzureAISearchVectorStore(
                 endpoint="https://test.search.windows.net",
                 api_key="test-key",
                 vector_size=0,
             )
 
-        with pytest.raises(ValueError, match="Vector size must be positive"):
+        with pytest.raises(ValueError, match="vector_size parameter must be positive"):
             AzureAISearchVectorStore(
                 endpoint="https://test.search.windows.net",
                 api_key="test-key",
