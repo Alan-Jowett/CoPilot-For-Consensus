@@ -361,8 +361,8 @@ class TestKeyVaultJWTSignerEC:
             try:
                 signer.sign(b"test")
             except KeyVaultSignerError:
-                # Expected failure while opening the circuit breaker; ignore the error.
-                pass
+                # Expected failure while opening the circuit breaker; keep retrying.
+                continue
         
         # Health check should return False when circuit is open
         result = signer.health_check()
