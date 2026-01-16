@@ -139,9 +139,9 @@ def _extract_keyvault_created_secret_names(bicep_content: str, vault_name_var: s
         secret_names.add(match.group(1))
 
     # 2) concat() form: name: concat(<vaultVar>, '/secret-name')
-    # We capture the portion after the leading slash in the literal.
+    # We capture the portion after the (single) leading slash in the literal.
     # Matches: name: concat(keyVaultName, '/jwt-private-key')
-    pattern_concat = rf"name:\s*concat\(\s*{re.escape(vault_name_var)}\s*,\s*['\"]/+([^'\"/]+)['\"]\s*\)"
+    pattern_concat = rf"name:\s*concat\(\s*{re.escape(vault_name_var)}\s*,\s*['\"]/([^'\"/]+)['\"]\s*\)"
     for match in re.finditer(pattern_concat, bicep_content):
         secret_names.add(match.group(1))
 

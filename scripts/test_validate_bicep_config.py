@@ -13,7 +13,6 @@ This is the pattern used by the Azure Blob archive driver schema.
 from __future__ import annotations
 
 import importlib.util
-import json
 from pathlib import Path
 
 

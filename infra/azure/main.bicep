@@ -46,8 +46,11 @@ param coreKvSecretUriAoaiKey string
 param coreAoaiAccountName string
 
 // Back-compat: best-effort derivation from endpoint. Prefer coreAoaiAccountName parameter.
-// Azure OpenAI endpoint format: https://<account-name>.openai.azure.com/
-var derivedAoaiAccountName = azureOpenAIEndpoint != '' ? toLower(split(replace(replace(azureOpenAIEndpoint, 'https://', ''), 'http://', ''), '.')[0]) : ''
+// Expected Azure OpenAI endpoint host format: <account-name>.openai.azure.com
+// If the endpoint does not match the expected pattern (ports/paths/custom hosts), we leave this empty.
+var aoaiEndpointNoProto = azureOpenAIEndpoint != '' ? toLower(replace(replace(azureOpenAIEndpoint, 'https://', ''), 'http://', '')) : ''
+var aoaiEndpointHost = aoaiEndpointNoProto != '' ? split(aoaiEndpointNoProto, '/')[0] : ''
+var derivedAoaiAccountName = (aoaiEndpointHost != '' && endsWith(aoaiEndpointHost, '.openai.azure.com')) ? split(aoaiEndpointHost, '.')[0] : ''
 var effectiveAoaiAccountName = coreAoaiAccountName != '' ? toLower(coreAoaiAccountName) : derivedAoaiAccountName
 
 // ========================================
@@ -372,7 +375,12 @@ resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
 // for secret_provider (JWT/App Insights/etc), so we replicate the API key here.
 var cognitiveServicesApiVersion = '2023-05-01'
 
-var shouldCreateEnvOpenaiSecret = deployContainerApps && azureOpenAIEndpoint != '' && effectiveAoaiAccountName != '' && length(effectiveAoaiAccountName) >= 3 && length(effectiveAoaiAccountName) <= 24
+// Azure Cognitive Services / Azure OpenAI account name length constraints.
+// These mirror platform resource naming rules and are used to guard secret creation.
+var cognitiveServicesAccountNameMinLength = 3
+var cognitiveServicesAccountNameMaxLength = 24
+
+var shouldCreateEnvOpenaiSecret = deployContainerApps && azureOpenAIEndpoint != '' && effectiveAoaiAccountName != '' && length(effectiveAoaiAccountName) >= cognitiveServicesAccountNameMinLength && length(effectiveAoaiAccountName) <= cognitiveServicesAccountNameMaxLength
 
 resource envOpenaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (shouldCreateEnvOpenaiSecret) {
   name: '${keyVaultName}/azure-openai-api-key'

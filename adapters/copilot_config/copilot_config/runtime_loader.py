@@ -258,7 +258,14 @@ def _instantiate_driver_config(driver_class: Any, driver_config_dict: dict[str, 
             driver_config_dict.get(discriminant_key) if discriminant_key else None
         )
 
-        candidates = [arg for arg in get_args(driver_class) if isinstance(arg, type)]
+        # Generated config unions are expected to contain dataclass types.
+        # We ignore non-type args and explicitly exclude NoneType to avoid
+        # Optional[T] unions accidentally instantiating to None.
+        candidates = [
+            arg
+            for arg in get_args(driver_class)
+            if isinstance(arg, type) and arg is not type(None)
+        ]
 
         if discriminant_key and isinstance(selected_discriminant, str):
             narrowed: list[type] = []
