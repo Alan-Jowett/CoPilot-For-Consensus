@@ -156,6 +156,7 @@ def test_get_config_auth_composite_oidc_providers(monkeypatch, tmp_path):
     # Required adapters for auth
     monkeypatch.setenv("LOG_TYPE", "stdout")
     monkeypatch.setenv("METRICS_TYPE", "noop")
+    monkeypatch.setenv("DOCUMENT_STORE_TYPE", "inmemory")
     monkeypatch.setenv("AUTH_ISSUER", "http://issuer.example")
 
     config = get_config("auth")
@@ -187,6 +188,7 @@ def test_get_config_auth_hs256_requires_jwt_secret_key(monkeypatch, tmp_path):
     # Required adapters for auth
     monkeypatch.setenv("LOG_TYPE", "stdout")
     monkeypatch.setenv("METRICS_TYPE", "noop")
+    monkeypatch.setenv("DOCUMENT_STORE_TYPE", "inmemory")
 
     config = get_config("auth")
 
@@ -210,6 +212,7 @@ def test_get_config_auth_hs256_missing_jwt_secret_key_raises(monkeypatch, tmp_pa
     # Required adapters for auth
     monkeypatch.setenv("LOG_TYPE", "stdout")
     monkeypatch.setenv("METRICS_TYPE", "noop")
+    monkeypatch.setenv("DOCUMENT_STORE_TYPE", "inmemory")
 
     with pytest.raises(ValueError, match=r"jwt_secret_key parameter is required"):
         get_config("auth")

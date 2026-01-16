@@ -384,39 +384,55 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
 
     # Phase 1: Initialize secret provider if available
     secret_provider = None
-    try:
-        from copilot_secrets import create_secret_provider as create_secrets_provider
+    secret_provider_env = os.environ.get("SECRET_PROVIDER_TYPE")
 
-        from copilot_config.generated.adapters.secret_provider import (
-            AdapterConfig_SecretProvider,
-            DriverConfig_SecretProvider_AzureKeyVault,
-            DriverConfig_SecretProvider_Local,
-        )
+    class _LocalFileSecretProvider:
+        def __init__(self, base_path: str):
+            self._base_path = Path(base_path)
 
-        from .secret_provider import SecretConfigProvider
+        def _path_for(self, key: str) -> Path:
+            return self._base_path / key
 
-        # Check if secret provider is configured
-        secret_provider_env = os.environ.get("SECRET_PROVIDER_TYPE")
-        if secret_provider_env:
-            # Load secret provider adapter config
-            adapters_schema = service_schema.get("adapters", {})
-            if "secret_provider" in adapters_schema:
-                secret_adapter_ref = adapters_schema["secret_provider"]["$ref"]
-                secret_adapter_schema_path = schema_dir_path / secret_adapter_ref.lstrip("../")
+        def get_secret(self, key: str) -> str:
+            return self._path_for(key).read_text(encoding="utf-8")
 
-                if secret_adapter_schema_path.exists():
-                    with open(secret_adapter_schema_path) as f:
-                        secret_adapter_schema = json.load(f)
+        def get_secret_bytes(self, key: str) -> bytes:
+            return self._path_for(key).read_bytes()
 
-                    secret_result = _load_adapter_config(
-                        "secret_provider",
-                        secret_adapter_schema,
-                        schema_dir_path,
-                        None,
-                    )
+        def secret_exists(self, key: str) -> bool:
+            return self._path_for(key).exists()
 
-                    if secret_result:
-                        secret_driver_name, secret_config_dict = secret_result
+    if secret_provider_env:
+        # Load secret provider adapter config
+        adapters_schema = service_schema.get("adapters", {})
+        if "secret_provider" in adapters_schema:
+            secret_adapter_ref = adapters_schema["secret_provider"]["$ref"]
+            secret_adapter_schema_path = schema_dir_path / secret_adapter_ref.lstrip("../")
+
+            if secret_adapter_schema_path.exists():
+                with open(secret_adapter_schema_path) as f:
+                    secret_adapter_schema = json.load(f)
+
+                secret_result = _load_adapter_config(
+                    "secret_provider",
+                    secret_adapter_schema,
+                    schema_dir_path,
+                    None,
+                )
+
+                if secret_result:
+                    secret_driver_name, secret_config_dict = secret_result
+                    try:
+                        from copilot_secrets import create_secret_provider as create_secrets_provider
+
+                        from copilot_config.generated.adapters.secret_provider import (
+                            AdapterConfig_SecretProvider,
+                            DriverConfig_SecretProvider_AzureKeyVault,
+                            DriverConfig_SecretProvider_Local,
+                        )
+
+                        from .secret_provider import SecretConfigProvider
+
                         if secret_driver_name == "local":
                             driver_config = DriverConfig_SecretProvider_Local(**secret_config_dict)
                         elif secret_driver_name == "azure_key_vault":
@@ -434,9 +450,19 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
                             )
                         )
                         secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
-    except Exception:
-        # Typed config is usable without secrets support; treat secrets as optional.
-        pass
+                    except ImportError:
+                        # For unit tests and minimal deployments, allow local-file secrets without
+                        # requiring the copilot_secrets package.
+                        if secret_driver_name == "local":
+                            from .secret_provider import SecretConfigProvider
+
+                            base_path = str(secret_config_dict.get("base_path") or "/run/secrets")
+                            secret_provider = SecretConfigProvider(
+                                secret_provider=_LocalFileSecretProvider(base_path=base_path)
+                            )
+                    except Exception:
+                        # Typed config is usable without secrets support; treat secrets as optional.
+                        pass
 
     # Phase 2: Load service settings
     service_settings_data = {}
