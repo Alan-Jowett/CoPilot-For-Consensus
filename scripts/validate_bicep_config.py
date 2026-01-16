@@ -292,6 +292,39 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
                 driver_schema = json.load(f)
 
             driver_props = driver_schema.get("properties", {})
+
+            # Support schemas that express "at least one of" requirements.
+            # Example: Azure Key Vault secret provider driver needs one of
+            # AZURE_KEY_VAULT_URI or AZURE_KEY_VAULT_NAME.
+            required_one_of = driver_schema.get("x-required_one_of", [])
+            if isinstance(required_one_of, list):
+                for group in required_one_of:
+                    if not isinstance(group, list) or not group:
+                        continue
+
+                    satisfied = False
+                    required_env_vars: list[str] = []
+
+                    for prop_name in group:
+                        if prop_name not in driver_props:
+                            continue
+                        prop_spec = driver_props.get(prop_name)
+                        if not isinstance(prop_spec, dict):
+                            continue
+                        if prop_spec.get("source") != "env":
+                            continue
+
+                        env_var = prop_spec.get("env_var")
+                        if isinstance(env_var, str) and env_var:
+                            required_env_vars.append(env_var)
+                            if env_var in env_vars and env_vars[env_var] not in (None, ""):
+                                satisfied = True
+
+                    if required_env_vars and not satisfied:
+                        issues.append(
+                            f"Missing REQUIRED one-of env vars {required_env_vars} for adapter '{adapter_name}' "
+                            f"driver '{selected_driver}'"
+                        )
             for prop_name, prop_spec in driver_props.items():
                 if not isinstance(prop_spec, dict):
                     continue
