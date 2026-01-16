@@ -3,8 +3,11 @@
 
 """OpenAI/Azure OpenAI summarization implementation."""
 
+import importlib
 import logging
 import time
+
+from typing import Any
 
 from copilot_config.generated.adapters.llm_backend import (
     DriverConfig_LlmBackend_AzureOpenaiGpt,
@@ -58,11 +61,19 @@ class OpenAISummarizer(Summarizer):
             specified (or default) api_version and deployment_name.
         """
         try:
-            from openai import AzureOpenAI, OpenAI
-        except ImportError:
+            openai_module = importlib.import_module("openai")
+        except ImportError as exc:
             raise ImportError(
                 "openai is required for OpenAISummarizer. "
                 "Install it with: pip install openai"
+            ) from exc
+
+        OpenAI: Any = getattr(openai_module, "OpenAI", None)
+        AzureOpenAI: Any = getattr(openai_module, "AzureOpenAI", None)
+        if OpenAI is None or AzureOpenAI is None:
+            raise ImportError(
+                "openai is installed but missing expected client classes "
+                "(OpenAI/AzureOpenAI). Please upgrade: pip install --upgrade openai"
             )
 
         self.api_key = api_key
