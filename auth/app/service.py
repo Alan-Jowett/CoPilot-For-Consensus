@@ -6,9 +6,9 @@
 import asyncio
 import secrets
 import time
-from dataclasses import replace
-from pathlib import Path
-from typing import Any, Protocol, cast
+from dataclasses import asdict, replace
+from importlib import import_module
+from typing import Any, Callable, Protocol, cast
 
 from copilot_auth import AuthenticationError, JWTManager, create_identity_provider
 from copilot_config.generated.adapters.oidc_providers import AdapterConfig_OidcProviders
@@ -44,6 +44,24 @@ class _OidcProvider(Protocol):
     def exchange_code_for_token(self, code: str, code_verifier: str | None = None) -> dict[str, Any]: ...
 
     def validate_and_get_user(self, token_response: dict, nonce: str | None = None) -> Any: ...
+
+
+class _JwtSigner(Protocol):
+    algorithm: str
+    key_id: str
+
+
+def _load_create_jwt_signer(*, requirement_message: str) -> Callable[[AdapterConfig_JwtSigner], _JwtSigner]:
+    try:
+        module = import_module("copilot_jwt_signer")
+    except ModuleNotFoundError as e:
+        raise ValueError(requirement_message) from e
+
+    create = getattr(module, "create_jwt_signer", None)
+    if not callable(create):
+        raise ValueError("JWT signing requires copilot_jwt_signer.create_jwt_signer")
+
+    return cast(Callable[[AdapterConfig_JwtSigner], _JwtSigner], create)
 
 
 def create_identity_providers(
@@ -254,13 +272,12 @@ class AuthService:
 
         default_expiry = settings.jwt_default_expiry if settings.jwt_default_expiry is not None else 1800
 
-        try:
-            from copilot_jwt_signer import create_jwt_signer
-        except ImportError as e:
-            raise ValueError(
+        create_jwt_signer = _load_create_jwt_signer(
+            requirement_message=(
                 "Local JWT signing requires the copilot_jwt_signer adapter. "
                 "Install with: pip install copilot-jwt-signer"
-            ) from e
+            )
+        )
 
         local_driver = DriverConfig_JwtSigner_Local(
             algorithm=algorithm,
@@ -304,13 +321,12 @@ class AuthService:
         if not key_name:
             raise ValueError("key_name is required in keyvault driver configuration")
 
-        try:
-            from copilot_jwt_signer import create_jwt_signer
-        except ImportError as e:
-            raise ValueError(
+        create_jwt_signer = _load_create_jwt_signer(
+            requirement_message=(
                 "Key Vault signing requires the copilot_jwt_signer adapter with Azure extras. "
                 "Install with: pip install copilot-jwt-signer[azure]"
-            ) from e
+            )
+        )
 
         keyvault_driver = DriverConfig_JwtSigner_Keyvault(
             algorithm=algorithm,
@@ -354,13 +370,12 @@ class AuthService:
         settings = self.config.service_settings
         default_expiry = settings.jwt_default_expiry if settings.jwt_default_expiry is not None else 1800
 
-        try:
-            from copilot_jwt_signer import create_jwt_signer
-        except ImportError as e:
-            raise ValueError(
+        create_jwt_signer = _load_create_jwt_signer(
+            requirement_message=(
                 "JWT signing requires the copilot_jwt_signer adapter. "
                 "Install with: pip install copilot-jwt-signer"
-            ) from e
+            )
+        )
 
         signer = create_jwt_signer(config)
         self.jwt_manager = JWTManager(
