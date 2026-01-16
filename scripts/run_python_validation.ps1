@@ -100,25 +100,28 @@ function Install-RequirementsSafely([string]$requirementsPath, [switch]$BestEffo
 
 function Install-Adapters {
   Write-Step 'Installing all adapters (editable)'
-  python adapters/scripts/install_adapters.py \
-    copilot_auth \
-    copilot_chunking \
-    copilot_config \
-    copilot_consensus \
-    copilot_embedding \
-    copilot_message_bus \
-    copilot_logging \
-    copilot_metrics \
-    copilot_archive_fetcher \
-    copilot_archive_store \
-    copilot_error_reporting \
-    copilot_schema_validation \
-    copilot_secrets \
-    copilot_storage \
-    copilot_summarization \
-    copilot_vectorstore \
-    copilot_draft_diff \
-    copilot_startup
+  $adapters = @(
+    'copilot_auth',
+    'copilot_chunking',
+    'copilot_config',
+    'copilot_consensus',
+    'copilot_embedding',
+    'copilot_message_bus',
+    'copilot_logging',
+    'copilot_metrics',
+    'copilot_archive_fetcher',
+    'copilot_archive_store',
+    'copilot_error_reporting',
+    'copilot_schema_validation',
+    'copilot_secrets',
+    'copilot_storage',
+    'copilot_summarization',
+    'copilot_vectorstore',
+    'copilot_draft_diff',
+    'copilot_startup'
+  )
+
+  python adapters/scripts/install_adapters.py @adapters
 }
 
 function Run-Ruff {
@@ -149,10 +152,13 @@ function Run-PylintCritical {
     $pkgDir = Join-Path $adapterDir $adapterName
     if (Test-Path $pkgDir) {
       Write-Host "Checking $adapterName..." -ForegroundColor Cyan
-      pylint $pkgDir \
-        --disable=all \
-        --enable=E0602,E1101,E0611,E1102,E1120,E1121 \
-        --output-format=colorized
+      $pylintArgs = @(
+        $pkgDir,
+        '--disable=all',
+        '--enable=E0602,E1101,E0611,E1102,E1120,E1121',
+        '--output-format=colorized'
+      )
+      pylint @pylintArgs
 
       if ($LASTEXITCODE -ne 0) {
         $pylintErrors += 1
@@ -170,10 +176,12 @@ function Run-PylintCritical {
 
     if ($targets.Count -gt 0) {
       Write-Host "Checking $service..." -ForegroundColor Cyan
-      pylint @targets \
-        --disable=all \
-        --enable=E0602,E1101,E0611,E1102,E1120,E1121 \
-        --output-format=colorized
+      $pylintArgs = @(
+        '--disable=all',
+        '--enable=E0602,E1101,E0611,E1102,E1120,E1121',
+        '--output-format=colorized'
+      )
+      pylint @targets @pylintArgs
 
       if ($LASTEXITCODE -ne 0) {
         $pylintErrors += 1
