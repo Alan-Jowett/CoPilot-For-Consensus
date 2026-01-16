@@ -33,8 +33,6 @@ BICEP_PATH = REPO_ROOT / "infra" / "azure" / "modules" / "containerapps.bicep"
 
 SERVICE_DOCKERFILE = "Dockerfile.azure"
 
-COPILOT_IMPORT_RE = re.compile(r"^\s*(?:from|import)\s+(copilot_[a-z0-9_]+)\b")
-
 
 @dataclass(frozen=True)
 class AdapterPackaging:
@@ -129,7 +127,7 @@ def _scan_imported_adapters(service_dir: Path) -> set[str]:
     """Scan service Python code for imports of copilot_* adapters."""
     imported: set[str] = set()
 
-    def _is_excluded_python_file(path: Path) -> bool:
+    def _is_test_or_cache_file(path: Path) -> bool:
         try:
             rel_path = path.relative_to(service_dir)
         except ValueError:
@@ -139,13 +137,26 @@ def _scan_imported_adapters(service_dir: Path) -> set[str]:
         return "tests" in parts or "__pycache__" in parts
 
     def iter_py_files() -> list[Path]:
-        return [p for p in service_dir.rglob("*.py") if not _is_excluded_python_file(p)]
+        return [p for p in service_dir.rglob("*.py") if not _is_test_or_cache_file(p)]
 
     for py_file in iter_py_files():
-        for line in py_file.read_text(encoding="utf-8").splitlines():
-            m = COPILOT_IMPORT_RE.match(line)
-            if m:
-                imported.add(m.group(1))
+        try:
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        except SyntaxError as exc:
+            raise RuntimeError(f"Failed to parse Python file: {py_file}: {exc}") from exc
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    root = alias.name.split(".", 1)[0]
+                    if root.startswith("copilot_"):
+                        imported.add(root)
+            elif isinstance(node, ast.ImportFrom):
+                if not node.module:
+                    continue
+                root = node.module.split(".", 1)[0]
+                if root.startswith("copilot_"):
+                    imported.add(root)
 
     return imported
 
@@ -165,7 +176,12 @@ def _parse_dockerfile_installs(dockerfile_path: Path) -> tuple[set[str], dict[st
             in_block = True
 
         if in_block:
-            installed.update(re.findall(r"\b(copilot_[a-z0-9_]+)\b", line))
+            line_wo_comment = line.split("#", 1)[0]
+            for m in re.finditer(
+                r"(?:^|[\s\\])(?P<adapter>copilot_[a-z0-9_]+)(?=$|[\s\\])",
+                line_wo_comment,
+            ):
+                installed.add(m.group("adapter"))
             if not line.rstrip().endswith("\\"):
                 in_block = False
 

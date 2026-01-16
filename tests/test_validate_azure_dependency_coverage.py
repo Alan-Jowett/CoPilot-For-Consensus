@@ -24,7 +24,7 @@ def test_detects_missing_adapter_in_dockerfile(tmp_path: Path):
     svc = repo_root / "reporting"
     svc.mkdir()
     (svc / "Dockerfile.azure").write_text(
-        "RUN python /app/adapters/scripts/install_adapters.py \\\n+  copilot_logging\n",
+        "RUN python /app/adapters/scripts/install_adapters.py \\\n  copilot_logging\n",
         encoding="utf-8",
     )
     (svc / "app").mkdir()
