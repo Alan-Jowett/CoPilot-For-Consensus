@@ -101,6 +101,8 @@ extraPaths = [
     "adapters/copilot_archive_fetcher",
     "adapters/copilot_archive_store",
     "adapters/copilot_chunking",
+    "adapters/copilot_consensus",
+    "adapters/copilot_draft_diff",
     "adapters/copilot_embedding",
     "adapters/copilot_error_reporting",
     "adapters/copilot_logging",
@@ -110,6 +112,7 @@ extraPaths = [
     "adapters/copilot_secrets",
     "adapters/copilot_startup",
     "adapters/copilot_storage",
+    "adapters/copilot_summarization",
     "adapters/copilot_vectorstore",
 ]
 pythonVersion = "3.10"
