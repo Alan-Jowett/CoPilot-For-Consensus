@@ -9,7 +9,7 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from copilot_config.models import DriverConfig
+from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_AzureServiceBus
 
 try:
     from azure.identity import DefaultAzureCredential
@@ -56,30 +56,8 @@ class AzureServiceBusSubscriber(EventSubscriber):
             max_wait_time: Maximum time to wait for messages in seconds (default: 5)
 
         Raises:
-            ValueError: If neither connection_string nor fully_qualified_namespace is provided
-            ValueError: If topic_name is provided but subscription_name is not
-            ValueError: If neither queue_name nor topic_name is provided
+            ValueError: If required parameters are missing (enforced by schema validation)
         """
-        if not connection_string and not fully_qualified_namespace:
-            raise ValueError(
-                "Either connection_string or fully_qualified_namespace must be provided"
-            )
-
-        if use_managed_identity and not fully_qualified_namespace:
-            raise ValueError(
-                "fully_qualified_namespace is required when using managed identity"
-            )
-
-        if topic_name and not subscription_name:
-            raise ValueError(
-                "subscription_name is required when topic_name is provided"
-            )
-
-        if not queue_name and not topic_name:
-            raise ValueError(
-                "Either queue_name or topic_name must be provided"
-            )
-
         self.connection_string = connection_string
         self.fully_qualified_namespace = fully_qualified_namespace
         self.queue_name = queue_name
@@ -95,7 +73,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self._consuming = threading.Event()  # Thread-safe flag for consumption control
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "AzureServiceBusSubscriber":
+    def from_config(cls, driver_config: DriverConfig_MessageBus_AzureServiceBus) -> "AzureServiceBusSubscriber":
         """Create subscriber from DriverConfig.
 
         Args:
@@ -125,6 +103,14 @@ class AzureServiceBusSubscriber(EventSubscriber):
         auto_complete = driver_config.auto_complete
         max_wait_time = driver_config.max_wait_time
 
+        # Note: the shared DriverConfig schema is used by both publisher and subscriber.
+        # Some subscriber-specific invariants are enforced here to keep behavior stable
+        # even if the JSON schema cannot express the conditional requirements.
+        if topic_name and not subscription_name:
+            raise ValueError("subscription_name parameter is required")
+        if not queue_name and not topic_name:
+            raise ValueError("Either queue_name or topic_name parameter is required")
+
         return cls(
             connection_string=connection_string,
             fully_qualified_namespace=fully_qualified_namespace,
@@ -143,25 +129,25 @@ class AzureServiceBusSubscriber(EventSubscriber):
             ImportError: If azure-servicebus or azure-identity library is not installed
             Exception: If connection fails
         """
-        if ServiceBusClient is None:
-            raise ImportError("azure-servicebus library is not installed")
-
-        if self.use_managed_identity and DefaultAzureCredential is None:
-            raise ImportError("azure-identity library is not installed")
-
         try:
             if self.use_managed_identity:
+                if ServiceBusClient is None:
+                    raise ImportError("azure-servicebus library is not installed")
+                if DefaultAzureCredential is None:
+                    raise ImportError("azure-identity library is not installed")
+
                 logger.info("Connecting to Azure Service Bus using managed identity")
                 if self.fully_qualified_namespace is None:
                     raise ValueError("fully_qualified_namespace is required when using managed identity")
                 self._credential = DefaultAzureCredential()
-                if ServiceBusClient is None:
-                    raise ImportError("azure-servicebus library is not installed")
                 self.client = ServiceBusClient(
                     fully_qualified_namespace=self.fully_qualified_namespace,
                     credential=self._credential,
                 )
             elif self.connection_string:
+                if ServiceBusClient is None:
+                    raise ImportError("azure-servicebus library is not installed")
+
                 logger.info("Connecting to Azure Service Bus using connection string")
                 self.client = ServiceBusClient.from_connection_string(
                     conn_str=self.connection_string

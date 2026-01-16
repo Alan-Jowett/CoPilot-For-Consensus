@@ -5,7 +5,7 @@
 
 from typing import Any
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.error_reporter import DriverConfig_ErrorReporter_Sentry
 
 from .error_reporter import ErrorReporter
 
@@ -21,12 +21,13 @@ class SentryErrorReporter(ErrorReporter):
         reporter.report(exception, context={"user_id": "123"})
     """
 
-    def __init__(self, dsn: str | None = None, environment: str = "production"):
+    def __init__(self, dsn: str | None = None, environment: str | None = None):
         """Initialize Sentry error reporter.
 
         Args:
             dsn: Sentry DSN (Data Source Name) for the project
-            environment: Environment name (production, staging, development)
+            environment: Environment name (production, staging, development).
+                Defaults should be defined in the schema when using typed configs.
         """
         self.dsn = dsn
         self.environment = environment
@@ -36,12 +37,12 @@ class SentryErrorReporter(ErrorReporter):
             self._initialize_sentry()
 
     @classmethod
-    def from_config(cls, config: DriverConfig) -> "SentryErrorReporter":
-        """Create a SentryErrorReporter from DriverConfig.
+    def from_config(cls, config: DriverConfig_ErrorReporter_Sentry) -> "SentryErrorReporter":
+        """Create a SentryErrorReporter from driver configuration.
 
         Args:
-            config: DriverConfig with dsn and environment attributes.
-                    Environment default is provided by the schema.
+            config: Driver config with dsn and environment attributes.
+                Environment default is provided by the schema.
 
         Returns:
             Configured SentryErrorReporter instance
@@ -55,7 +56,7 @@ class SentryErrorReporter(ErrorReporter):
             pip install sentry-sdk
         """
         try:
-            import sentry_sdk
+            import sentry_sdk  # type: ignore[reportMissingImports]
             sentry_sdk.init(
                 dsn=self.dsn,
                 environment=self.environment,
@@ -80,7 +81,7 @@ class SentryErrorReporter(ErrorReporter):
             raise RuntimeError("Sentry reporter not initialized with a valid DSN")
 
         try:
-            import sentry_sdk
+            import sentry_sdk  # type: ignore[reportMissingImports]
 
             # Set context if provided
             if context:
@@ -117,7 +118,7 @@ class SentryErrorReporter(ErrorReporter):
             raise RuntimeError("Sentry reporter not initialized with a valid DSN")
 
         try:
-            import sentry_sdk
+            import sentry_sdk  # type: ignore[reportMissingImports]
 
             # Map our level names to Sentry level names
             level_map = {

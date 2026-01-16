@@ -8,26 +8,26 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
 class DriverConfig_Logger_AzureMonitor:
     """Configuration for logger adapter using azure_monitor driver."""
-    console_log: Optional[bool] = False
+    console_log: bool = False
     # Also log to console when using Azure Monitor
     instrumentation_key: Optional[str] = None
     # Application Insights instrumentation key for Azure Monitor logging
-    level: Optional[str] = 'INFO'
+    level: str = 'INFO'
     # Logging level
-    name: Optional[str] = 'copilot'
+    name: str = 'copilot'
     # Logger name for identification
 
 
 @dataclass
 class DriverConfig_Logger_Silent:
     """Configuration for logger adapter using silent driver."""
-    level: Optional[str] = 'INFO'
+    level: str = 'INFO'
     # Logging level for silent logger
     name: Optional[str] = None
     # Logger name (optional)
@@ -36,7 +36,7 @@ class DriverConfig_Logger_Silent:
 @dataclass
 class DriverConfig_Logger_Stdout:
     """Configuration for logger adapter using stdout driver."""
-    level: Optional[str] = 'INFO'
+    level: str = 'INFO'
     # Logging level for stdout logger
     name: Optional[str] = None
     # Logger name (optional)

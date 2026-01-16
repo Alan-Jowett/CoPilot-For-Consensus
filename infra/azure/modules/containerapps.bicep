@@ -516,6 +516,10 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azure_key_vault'
             }
             {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
+            }
+            {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.reporting
             }
@@ -674,6 +678,10 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -861,6 +869,10 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azure_key_vault'
             }
             {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
+            }
+            {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.parsing
             }
@@ -952,6 +964,16 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'CHUNK_LOG_LEVEL'
               value: 'INFO'
             }
+            // Logger adapter
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            // Error reporter adapter
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
@@ -997,6 +1019,10 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -1093,6 +1119,11 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'EMBEDDING_LOG_LEVEL'
               value: 'INFO'
+            }
+            // Logger adapter
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
             }
             // Message Bus adapter (Azure Service Bus)
             {
@@ -1195,6 +1226,10 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -1346,6 +1381,10 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -1630,6 +1669,10 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azure_key_vault'
+            }
+            {
+              name: 'AZURE_KEY_VAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'AZURE_CLIENT_ID'

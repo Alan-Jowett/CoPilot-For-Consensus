@@ -689,8 +689,10 @@ def test_vector_store_documents_total_metric_recorded(
 ):
     """Test that vector_store_documents_total metric is recorded when embeddings are stored."""
     # Create a metrics collector
-    from copilot_config import DriverConfig
-    metrics_collector = create_metrics_collector(driver_name="noop", driver_config=DriverConfig(driver_name="noop"))
+    from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
+    metrics_collector = create_metrics_collector(
+        AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+    )
 
     # Create service with metrics collector
     embedding_service = EmbeddingService(

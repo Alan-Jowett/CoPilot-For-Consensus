@@ -12,9 +12,15 @@ Public API:
 
 Example:
     >>> from copilot_metrics import create_metrics_collector
+    >>> from copilot_config.generated.adapters.metrics import (
+    ...     AdapterConfig_Metrics,
+    ...     DriverConfig_Metrics_Prometheus,
+    ... )
     >>> collector = create_metrics_collector(
-    ...     driver_name="prometheus",
-    ...     driver_config={"namespace": "myapp"}
+    ...     AdapterConfig_Metrics(
+    ...         metrics_type="prometheus",
+    ...         driver=DriverConfig_Metrics_Prometheus(namespace="myapp"),
+    ...     )
     ... )
     >>> collector.increment("requests", value=1.0, tags={"method": "GET"})
 """

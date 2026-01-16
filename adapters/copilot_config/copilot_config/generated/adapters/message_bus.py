@@ -8,23 +8,23 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
 class DriverConfig_MessageBus_AzureServiceBus:
     """Configuration for message_bus adapter using azure_service_bus driver."""
-    auto_complete: Optional[bool] = False
+    auto_complete: bool = False
     # Automatically complete messages after processing
     connection_string: Optional[str] = None
     # Azure Service Bus connection string (used when not using managed identity)
-    max_wait_time: Optional[int] = 5
+    max_wait_time: int = 5
     # Maximum time to wait for messages in seconds
     queue_name: Optional[str] = None
     # Azure Service Bus queue name (optional)
     servicebus_fully_qualified_namespace: Optional[str] = None
     # Azure Service Bus fully qualified namespace
-    servicebus_use_managed_identity: Optional[bool] = False
+    servicebus_use_managed_identity: bool = False
     # Use managed identity for Service Bus access
     subscription_name: Optional[str] = None
     # Azure Service Bus subscription name (optional, required if topic_name is set)
@@ -41,26 +41,26 @@ class DriverConfig_MessageBus_Noop:
 @dataclass
 class DriverConfig_MessageBus_Rabbitmq:
     """Configuration for message_bus adapter using rabbitmq driver."""
-    auto_ack: Optional[bool] = False
+    rabbitmq_password: str
+    # RabbitMQ password
+    rabbitmq_username: str
+    # RabbitMQ username
+    auto_ack: bool = False
     # Automatically acknowledge messages after processing
-    exchange: Optional[str] = 'copilot.events'
+    exchange: str = 'copilot.events'
     # RabbitMQ exchange name for publishing
-    exchange_name: Optional[str] = 'copilot.events'
+    exchange_name: str = 'copilot.events'
     # RabbitMQ exchange name for subscribing
-    exchange_type: Optional[str] = 'topic'
+    exchange_type: str = 'topic'
     # RabbitMQ exchange type
-    queue_durable: Optional[bool] = True
+    queue_durable: bool = True
     # Whether the queue survives broker restart
     queue_name: Optional[str] = None
     # RabbitMQ queue name (optional for subscribers)
-    rabbitmq_host: Optional[str] = 'messagebus'
+    rabbitmq_host: str = 'messagebus'
     # RabbitMQ hostname
-    rabbitmq_password: Optional[str] = None
-    # RabbitMQ password
-    rabbitmq_port: Optional[int] = 5672
+    rabbitmq_port: int = 5672
     # RabbitMQ port
-    rabbitmq_username: Optional[str] = None
-    # RabbitMQ username
 
 
 @dataclass

@@ -8,6 +8,10 @@ import time
 
 import pytest
 from copilot_config import load_driver_config
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Mongodb,
+)
 from copilot_storage import (
     DocumentNotFoundError,
     DocumentStoreNotConnectedError,
@@ -19,17 +23,15 @@ from copilot_storage.validating_document_store import ValidatingDocumentStore
 
 def get_mongodb_config():
     """Get MongoDB configuration from environment variables."""
-    return load_driver_config(
-        service=None,
-        adapter="document_store",
-        driver="mongodb",
-        fields={
-            "host": os.getenv("MONGODB_HOST", "localhost"),
-            "port": int(os.getenv("MONGODB_PORT", "27017")),
-            "username": os.getenv("MONGODB_USERNAME", "testuser"),
-            "password": os.getenv("MONGODB_PASSWORD", "testpass"),
-            "database": os.getenv("MONGODB_DATABASE", "test_copilot"),
-        },
+    return AdapterConfig_DocumentStore(
+        doc_store_type="mongodb",
+        driver=DriverConfig_DocumentStore_Mongodb(
+            host=os.getenv("MONGODB_HOST", "localhost"),
+            port=int(os.getenv("MONGODB_PORT", "27017")),
+            username=os.getenv("MONGODB_USERNAME", "testuser"),
+            password=os.getenv("MONGODB_PASSWORD", "testpass"),
+            database=os.getenv("MONGODB_DATABASE", "test_copilot"),
+        ),
     )
 
 
@@ -51,7 +53,7 @@ def mongodb_store():
     """Create and connect to a real MongoDB instance for integration tests."""
     config = get_mongodb_config()
     # Disable validation for integration tests - we're testing the raw MongoDB store
-    store = create_document_store(driver_name="mongodb", driver_config=config, enable_validation=False)
+    store = create_document_store(config, enable_validation=False)
     assert isinstance(store, MongoDocumentStore)
 
     # Attempt to connect with retries

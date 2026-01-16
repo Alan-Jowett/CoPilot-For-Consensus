@@ -63,7 +63,7 @@ class TestAzureAISearchVectorStore:
     @patch('azure.search.documents.indexes.SearchIndexClient')
     def test_invalid_endpoint_raises_error(self, mock_index_client_class, mock_search_client_class):
         """Test that invalid endpoint raises ValueError."""
-        with pytest.raises(ValueError, match="Must start with 'https://'"):
+        with pytest.raises(ValueError, match="endpoint parameter must start with 'https://'"):
             AzureAISearchVectorStore(
                 endpoint="http://test.search.windows.net",
                 api_key="test-key",
@@ -84,19 +84,56 @@ class TestAzureAISearchVectorStore:
     @patch('azure.search.documents.indexes.SearchIndexClient')
     def test_invalid_vector_size_raises_error(self, mock_index_client_class, mock_search_client_class):
         """Test that invalid vector size raises ValueError."""
-        with pytest.raises(ValueError, match="Vector size must be positive"):
+        with pytest.raises(ValueError, match="vector_size parameter must be positive"):
             AzureAISearchVectorStore(
                 endpoint="https://test.search.windows.net",
                 api_key="test-key",
                 vector_size=0,
             )
 
-        with pytest.raises(ValueError, match="Vector size must be positive"):
+        with pytest.raises(ValueError, match="vector_size parameter must be positive"):
             AzureAISearchVectorStore(
                 endpoint="https://test.search.windows.net",
                 api_key="test-key",
                 vector_size=-10,
             )
+
+    @patch('azure.search.documents.SearchClient')
+    @patch('azure.search.documents.indexes.SearchIndexClient')
+    def test_lazy_index_initialization_only_runs_once(
+        self,
+        mock_index_client_class,
+        mock_search_client_class,
+    ):
+        """Verify operations trigger _ensure_index_ready exactly once."""
+        mock_index_client = Mock()
+        mock_search_client = Mock()
+        mock_index_client_class.return_value = mock_index_client
+        mock_search_client_class.return_value = mock_search_client
+
+        mock_index = Mock()
+        mock_index.fields = [Mock(name="embedding", vector_search_dimensions=3)]
+        mock_index_client.get_index.return_value = mock_index
+
+        mock_results = Mock()
+        mock_results.get_count.return_value = 0
+        mock_search_client.search.return_value = mock_results
+
+        store = AzureAISearchVectorStore(
+            endpoint="https://test.search.windows.net",
+            api_key="test-key",
+            vector_size=3,
+        )
+
+        # Lazy init: should not touch the index until first operation.
+        mock_index_client.get_index.assert_not_called()
+
+        store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
+        assert mock_index_client.get_index.call_count == 1
+
+        # Subsequent operations should not re-initialize the index.
+        store.count()
+        assert mock_index_client.get_index.call_count == 1
 
     @patch('azure.search.documents.SearchClient')
     @patch('azure.search.documents.indexes.SearchIndexClient')
@@ -476,7 +513,7 @@ class TestAzureAISearchVectorStore:
     @patch('azure.search.documents.indexes.SearchIndexClient')
     @patch('azure.identity.DefaultAzureCredential')
     def test_managed_identity_with_client_id(self, mock_credential_class, mock_index_client_class, mock_search_client_class):
-        """Test that managed identity uses client ID from AZURE_CLIENT_ID env var."""
+        """Test that managed identity uses the provided client ID."""
         mock_index_client = Mock()
         mock_search_client = Mock()
         mock_credential = Mock()
@@ -489,19 +526,18 @@ class TestAzureAISearchVectorStore:
         mock_index.fields = [Mock(name="embedding", vector_search_dimensions=128)]
         mock_index_client.get_index.return_value = mock_index
 
-        # Set AZURE_CLIENT_ID environment variable
         test_client_id = "test-client-id-12345"
-        with patch.dict(os.environ, {'AZURE_CLIENT_ID': test_client_id}):
-            store = AzureAISearchVectorStore(
-                endpoint="https://test.search.windows.net",
-                index_name="test_index",
-                vector_size=128,
-                use_managed_identity=True,
-            )
+        store = AzureAISearchVectorStore(
+            endpoint="https://test.search.windows.net",
+            index_name="test_index",
+            vector_size=128,
+            use_managed_identity=True,
+            managed_identity_client_id=test_client_id,
+        )
 
-            # Verify DefaultAzureCredential was called with managed_identity_client_id
-            mock_credential_class.assert_called_once_with(managed_identity_client_id=test_client_id)
-            assert store._endpoint == "https://test.search.windows.net"
+        # Verify DefaultAzureCredential was called with managed_identity_client_id
+        mock_credential_class.assert_called_once_with(managed_identity_client_id=test_client_id)
+        assert store._endpoint == "https://test.search.windows.net"
 
     @patch('azure.search.documents.SearchClient')
     @patch('azure.search.documents.indexes.SearchIndexClient')

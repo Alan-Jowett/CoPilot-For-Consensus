@@ -6,6 +6,7 @@
     "properties": {
         "model_name": {
             "type": "string",
+            "minLength": 1,
             "source": "env",
             "env_var": "SENTENCETRANSFORMERS_MODEL_NAME",
             "default": "all-MiniLM-L6-v2",
@@ -13,10 +14,12 @@
         },
         "device": {
             "type": "string",
+            "minLength": 1,
+            "pattern": "^(cpu|mps|cuda(:\\d+)?)$",
             "source": "env",
             "env_var": "SENTENCETRANSFORMERS_DEVICE",
             "default": "cpu",
-            "description": "Device to use (cpu, cuda, mps)"
+            "description": "Device to use (supported: 'cpu', 'mps', 'cuda', 'cuda:N' like 'cuda:0')"
         },
         "cache_dir": {
             "type": "string",

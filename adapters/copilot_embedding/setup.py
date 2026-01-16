@@ -34,7 +34,7 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
-        "copilot-config>=0.1.0",  # For DriverConfig
+        "copilot-config>=0.1.0",  # For generated typed config dataclasses
     ],
     extras_require={
         "dev": [

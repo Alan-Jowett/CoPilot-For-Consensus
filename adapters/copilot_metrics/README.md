@@ -19,9 +19,15 @@ The metrics collection abstraction provides a pluggable interface for collecting
 
 ```python
 from copilot_metrics import create_metrics_collector
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_Noop,
+)
 
-# Create a metrics collector (auto-detects from METRICS_BACKEND env var)
-metrics = create_metrics_collector()
+# Create a metrics collector from typed config
+metrics = create_metrics_collector(
+    AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+)
 
 # Increment a counter
 metrics.increment("requests_total", tags={"method": "GET", "status": "200"})
@@ -35,31 +41,27 @@ metrics.gauge("active_connections", 42)
 
 ### Configuration
 
-Configure the metrics backend using the `METRICS_BACKEND` environment variable:
+Metrics driver selection and defaults live in the JSON schemas under
+`docs/schemas/configs/adapters/` and are loaded by `copilot_config`.
+
+Configure the metrics backend using the `METRICS_TYPE` environment variable
+(used by `copilot_config` loaders):
 
 ```bash
-# For local development and testing (default)
-METRICS_BACKEND=noop
+# For local development and testing
+METRICS_TYPE=noop
 
 # For production with Prometheus
-METRICS_BACKEND=prometheus
+METRICS_TYPE=prometheus
 
 # For production with Prometheus Pushgateway
-METRICS_BACKEND=pushgateway
+METRICS_TYPE=pushgateway
 
 # For Azure-native deployments
-METRICS_BACKEND=azure_monitor
+METRICS_TYPE=azure_monitor
 ```
 
-Or specify backend explicitly in code:
-
-```python
-# NoOp collector (no dependencies)
-metrics = create_metrics_collector(backend="noop")
-
-# Prometheus collector (requires prometheus_client)
-metrics = create_metrics_collector(backend="prometheus")
-```
+Then construct an `AdapterConfig_Metrics` and call `create_metrics_collector(...)`.
 
 ## Metric Types
 
@@ -194,8 +196,15 @@ logger = logging.getLogger(__name__)
 class IngestionService:
     def __init__(self, publisher: EventPublisher):
         self.publisher = publisher
-        # Initialize metrics collector from environment
-        self.metrics = create_metrics_collector()
+        # Initialize metrics collector from typed config
+        from copilot_config.generated.adapters.metrics import (
+            AdapterConfig_Metrics,
+            DriverConfig_Metrics_Noop,
+        )
+
+        self.metrics = create_metrics_collector(
+            AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        )
         logger.info(f"Metrics collector initialized: {type(self.metrics).__name__}")
 
     def ingest_archive(self, archive_id: str, source: str):
@@ -344,14 +353,11 @@ pip install azure-monitor-opentelemetry-exporter opentelemetry-sdk
 
 **Configuration:**
 
-Azure Monitor requires a connection string or instrumentation key. Configure via environment variables:
+Azure Monitor requires a connection string. Provide it via configuration/secrets (the connection string can be in `InstrumentationKey=...` form).
 
 ```bash
 # Recommended: Use connection string (includes endpoint and instrumentation key)
 export AZURE_MONITOR_CONNECTION_STRING="InstrumentationKey=<your-key>;IngestionEndpoint=https://..."
-
-# Alternative: Use instrumentation key only (legacy)
-export AZURE_MONITOR_INSTRUMENTATION_KEY="<your-instrumentation-key>"
 
 # Optional: Customize metric namespace (default: "copilot")
 export AZURE_MONITOR_METRIC_NAMESPACE="myapp"
@@ -360,7 +366,7 @@ export AZURE_MONITOR_METRIC_NAMESPACE="myapp"
 export AZURE_MONITOR_EXPORT_INTERVAL_MILLIS="30000"
 
 # Set the metrics backend
-export METRICS_BACKEND="azure_monitor"
+export METRICS_TYPE="azure_monitor"
 ```
 
 **Getting Connection String:**
@@ -373,12 +379,19 @@ export METRICS_BACKEND="azure_monitor"
 
 ```python
 from copilot_metrics import create_metrics_collector
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_AzureMonitor,
+)
 
-# Auto-detect from environment
-metrics = create_metrics_collector()  # Uses METRICS_BACKEND env var
-
-# Or explicitly create Azure Monitor collector
-metrics = create_metrics_collector(backend="azure_monitor")
+metrics = create_metrics_collector(
+    AdapterConfig_Metrics(
+        metrics_type="azure_monitor",
+        driver=DriverConfig_Metrics_AzureMonitor(
+            connection_string="InstrumentationKey=...",
+        ),
+    )
+)
 
 # Or create directly with parameters
 from copilot_metrics import AzureMonitorMetricsCollector
@@ -410,7 +423,7 @@ metrics.shutdown()
 For local development without Azure credentials, use the NoOp collector:
 
 ```bash
-export METRICS_BACKEND="noop"
+export METRICS_TYPE="noop"
 ```
 
 **Viewing Metrics in Azure:**
@@ -451,7 +464,7 @@ customMetrics
 services:
   myservice:
     environment:
-      - METRICS_BACKEND=azure_monitor
+            - METRICS_TYPE=azure_monitor
       - AZURE_MONITOR_CONNECTION_STRING=${AZURE_MONITOR_CONNECTION_STRING}
       - AZURE_MONITOR_METRIC_NAMESPACE=copilot
 ```
@@ -471,7 +484,7 @@ kind: ConfigMap
 metadata:
   name: metrics-config
 data:
-  METRICS_BACKEND: "azure_monitor"
+    METRICS_TYPE: "azure_monitor"
   AZURE_MONITOR_METRIC_NAMESPACE: "copilot"
 ```
 

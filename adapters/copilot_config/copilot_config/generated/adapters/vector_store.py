@@ -8,30 +8,32 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
 class DriverConfig_VectorStore_AzureAiSearch:
     """Configuration for vector_store adapter using azure_ai_search driver."""
+    endpoint: str
+    # Azure AI Search endpoint URL (HTTPS URI; must start with https://)
     api_key: Optional[str] = None
     # Azure AI Search API key (alternative to managed identity)
-    endpoint: Optional[str] = None
-    # Azure AI Search endpoint URL
-    index_name: Optional[str] = 'embeddings'
+    index_name: str = 'embeddings'
     # Azure AI Search index name for embeddings
-    use_managed_identity: Optional[bool] = False
+    managed_identity_client_id: Optional[str] = None
+    # Client ID for user-assigned managed identity (optional; if omitted, DefaultAzureCredential will use system-assigned identity or default chain)
+    use_managed_identity: bool = False
     # Use managed identity instead of API key
-    vector_size: Optional[int] = 384
+    vector_size: int = 384
     # Embedding vector dimension
 
 
 @dataclass
 class DriverConfig_VectorStore_Faiss:
     """Configuration for vector_store adapter using faiss driver."""
-    dimension: Optional[int] = 384
+    dimension: int = 384
     # Embedding vector dimension
-    index_type: Optional[str] = 'flat'
+    index_type: str = 'flat'
     # FAISS index type (flat, ivf)
     persist_path: Optional[str] = None
     # Optional path to persist the index
@@ -48,17 +50,17 @@ class DriverConfig_VectorStore_Qdrant:
     """Configuration for vector_store adapter using qdrant driver."""
     api_key: Optional[str] = None
     # Qdrant API key (optional)
-    collection_name: Optional[str] = 'embeddings'
+    collection_name: str = 'embeddings'
     # Qdrant collection name for embeddings
-    distance: Optional[str] = 'cosine'
-    # Distance metric (cosine, euclid)
-    host: Optional[str] = 'vectorstore'
+    distance: str = 'cosine'
+    # Distance metric (cosine, euclidean). The value 'euclid' is accepted as a backward-compatible alias.
+    host: str = 'vectorstore'
     # Qdrant server hostname
-    port: Optional[int] = 6333
+    port: int = 6333
     # Qdrant server port
-    upsert_batch_size: Optional[int] = 100
+    upsert_batch_size: int = 100
     # Batch size for upsert operations
-    vector_size: Optional[int] = 384
+    vector_size: int = 384
     # Embedding vector dimension
 
 

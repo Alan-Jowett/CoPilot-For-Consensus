@@ -5,7 +5,16 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TypeAlias
+
+from copilot_config.adapter_factory import create_adapter
+from copilot_config.generated.adapters.vector_store import (
+    AdapterConfig_VectorStore,
+    DriverConfig_VectorStore_AzureAiSearch,
+    DriverConfig_VectorStore_Faiss,
+    DriverConfig_VectorStore_Inmemory,
+    DriverConfig_VectorStore_Qdrant,
+)
 
 from .azure_ai_search_store import AzureAISearchVectorStore
 from .faiss_store import FAISSVectorStore
@@ -14,45 +23,59 @@ from .interface import VectorStore
 from .qdrant_store import QdrantVectorStore
 
 
-def create_vector_store(
-    driver_name: str | None = None,
-    driver_config: Any | None = None,
-) -> VectorStore:
+_DriverConfig: TypeAlias = (
+    DriverConfig_VectorStore_AzureAiSearch
+    | DriverConfig_VectorStore_Faiss
+    | DriverConfig_VectorStore_Inmemory
+    | DriverConfig_VectorStore_Qdrant
+)
+
+
+def _build_inmemory(driver_config: _DriverConfig) -> VectorStore:
+    if isinstance(driver_config, DriverConfig_VectorStore_Inmemory):
+        return InMemoryVectorStore.from_config(driver_config)
+    raise TypeError(f"Expected inmemory config, got {type(driver_config).__name__}")
+
+
+def _build_faiss(driver_config: _DriverConfig) -> VectorStore:
+    if isinstance(driver_config, DriverConfig_VectorStore_Faiss):
+        return FAISSVectorStore.from_config(driver_config)
+    raise TypeError(f"Expected faiss config, got {type(driver_config).__name__}")
+
+
+def _build_qdrant(driver_config: _DriverConfig) -> VectorStore:
+    if isinstance(driver_config, DriverConfig_VectorStore_Qdrant):
+        return QdrantVectorStore.from_config(driver_config)
+    raise TypeError(f"Expected qdrant config, got {type(driver_config).__name__}")
+
+
+def _build_azure_ai_search(driver_config: _DriverConfig) -> VectorStore:
+    if isinstance(driver_config, DriverConfig_VectorStore_AzureAiSearch):
+        return AzureAISearchVectorStore.from_config(driver_config)
+    raise TypeError(
+        f"Expected azure_ai_search config, got {type(driver_config).__name__}"
+    )
+
+
+def create_vector_store(config: AdapterConfig_VectorStore) -> VectorStore:
     """Create a vector store instance.
 
     Args:
-        driver_name: Backend type (required). Options: "inmemory", "faiss", "qdrant", "azure_ai_search", "aisearch".
-        driver_config: Backend configuration as dict-like object.
+        config: Typed adapter config.
 
     Returns:
         VectorStore instance.
-
-    Raises:
-        ValueError: If driver_name is not provided or is unknown.
     """
-    if not driver_name:
-        raise ValueError(
-            "driver_name is required for create_vector_store "
-            "(choose: 'inmemory', 'faiss', 'qdrant', 'azure_ai_search', or 'aisearch')"
-        )
 
-    driver_lower = driver_name.lower()
-    if driver_lower in {"aisearch", "ai_search", "azure", "azureaisearch", "azure_ai_search"}:
-        driver_lower = "azure_ai_search"
-
-    if driver_config is None:
-        driver_config = {}
-
-    if driver_lower == "inmemory":
-        return InMemoryVectorStore.from_config(driver_config)
-
-    if driver_lower == "faiss":
-        return FAISSVectorStore.from_config(driver_config)
-
-    if driver_lower == "qdrant":
-        return QdrantVectorStore.from_config(driver_config)
-
-    if driver_lower == "azure_ai_search":
-        return AzureAISearchVectorStore.from_config(driver_config)
-
-    raise ValueError(f"Unknown vector store driver: {driver_name}")
+    return create_adapter(
+        config,
+        adapter_name="vector_store",
+        get_driver_type=lambda c: str(c.vector_store_type).lower(),
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "inmemory": _build_inmemory,
+            "faiss": _build_faiss,
+            "qdrant": _build_qdrant,
+            "azure_ai_search": _build_azure_ai_search,
+        },
+    )

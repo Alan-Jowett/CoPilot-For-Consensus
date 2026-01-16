@@ -3,10 +3,12 @@
 
 """Prometheus metrics collector implementation."""
 
-import logging
-from typing import Optional
+from __future__ import annotations
 
-from copilot_config import DriverConfig
+import logging
+from typing import Any, TypeAlias
+
+from copilot_config.generated.adapters.metrics import DriverConfig_Metrics_Prometheus
 
 from .base import MetricsCollector
 
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Import prometheus_client with graceful fallback
 try:
-    from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+    from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, REGISTRY
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -37,8 +39,15 @@ class PrometheusMetricsCollector(MetricsCollector):
     Install with: pip install prometheus-client
     """
 
-    def __init__(self, registry: Optional['CollectorRegistry'] = None, namespace: str = "copilot",
-                 raise_on_error: bool = False):
+    _LabelNames: TypeAlias = tuple[str, ...]
+    _CacheKey: TypeAlias = tuple[str, _LabelNames]
+
+    def __init__(
+        self,
+        registry: CollectorRegistry | None = None,
+        namespace: str = "copilot",
+        raise_on_error: bool = False,
+    ):
         """Initialize Prometheus metrics collector.
 
         Args:
@@ -53,12 +62,14 @@ class PrometheusMetricsCollector(MetricsCollector):
                 "Install with: pip install prometheus-client"
             )
 
-        self.registry = registry
+        # Always store a concrete CollectorRegistry. This avoids Optional-typed
+        # registry leaking into downstream calls like push_to_gateway().
+        self.registry: CollectorRegistry = registry or REGISTRY
         self.namespace = namespace
         self.raise_on_error = raise_on_error
-        self._counters: dict[str, Counter] = {}
-        self._histograms: dict[str, Histogram] = {}
-        self._gauges: dict[str, Gauge] = {}
+        self._counters: dict[PrometheusMetricsCollector._CacheKey, Counter] = {}
+        self._histograms: dict[PrometheusMetricsCollector._CacheKey, Histogram] = {}
+        self._gauges: dict[PrometheusMetricsCollector._CacheKey, Gauge] = {}
         self._metrics_errors_count = 0
 
     def _get_or_create_counter(self, name: str, tags: dict[str, str] | None = None) -> 'Counter':
@@ -71,7 +82,7 @@ class PrometheusMetricsCollector(MetricsCollector):
         Returns:
             Prometheus Counter object
         """
-        labelnames = tuple(sorted(tags.keys())) if tags else ()
+        labelnames: PrometheusMetricsCollector._LabelNames = tuple(sorted(tags.keys())) if tags else ()
         cache_key = (name, labelnames)
 
         if cache_key not in self._counters:
@@ -95,7 +106,7 @@ class PrometheusMetricsCollector(MetricsCollector):
         Returns:
             Prometheus Histogram object
         """
-        labelnames = tuple(sorted(tags.keys())) if tags else ()
+        labelnames: PrometheusMetricsCollector._LabelNames = tuple(sorted(tags.keys())) if tags else ()
         cache_key = (name, labelnames)
 
         if cache_key not in self._histograms:
@@ -119,7 +130,7 @@ class PrometheusMetricsCollector(MetricsCollector):
         Returns:
             Prometheus Gauge object
         """
-        labelnames = tuple(sorted(tags.keys())) if tags else ()
+        labelnames: PrometheusMetricsCollector._LabelNames = tuple(sorted(tags.keys())) if tags else ()
         cache_key = (name, labelnames)
 
         if cache_key not in self._gauges:
@@ -205,14 +216,11 @@ class PrometheusMetricsCollector(MetricsCollector):
         return self._metrics_errors_count
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "PrometheusMetricsCollector":
+    def from_config(cls, driver_config: DriverConfig_Metrics_Prometheus) -> "PrometheusMetricsCollector":
         """Create a PrometheusMetricsCollector from configuration.
 
         Args:
-            driver_config: DriverConfig instance with optional attributes:
-                - registry: Optional Prometheus registry (default: None)
-                - namespace: Namespace prefix (default: "copilot")
-                - raise_on_error: Whether to raise on metric errors (default: False)
+            driver_config: Typed driver config.
 
         Returns:
             Configured PrometheusMetricsCollector instance
@@ -220,8 +228,14 @@ class PrometheusMetricsCollector(MetricsCollector):
         Raises:
             ImportError: If prometheus_client is not installed
         """
-        return cls(
-            registry=driver_config.registry,
-            namespace=driver_config.namespace,
-            raise_on_error=driver_config.raise_on_error
-        )
+        # The generated schema currently models `registry` as a JSON-ish object
+        # (e.g., Dict[str, Any]) rather than a prometheus_client CollectorRegistry.
+        # Treat non-registry values as "use default registry".
+        registry: CollectorRegistry | None
+        raw_registry: Any = getattr(driver_config, "registry", None)
+        if isinstance(raw_registry, CollectorRegistry):
+            registry = raw_registry
+        else:
+            registry = None
+
+        return cls(registry=registry, namespace=driver_config.namespace, raise_on_error=driver_config.raise_on_error)

@@ -6,7 +6,7 @@
 import logging
 import time
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.llm_backend import DriverConfig_LlmBackend_Llamacpp
 
 import requests
 
@@ -42,11 +42,7 @@ class LlamaCppSummarizer(Summarizer):
             base_url: Base URL for llama.cpp server endpoint
             timeout: Request timeout in seconds
 
-        Raises:
-            ValueError: If timeout is not a positive integer
         """
-        if not isinstance(timeout, int) or timeout <= 0:
-            raise ValueError(f"timeout must be a positive integer, got {timeout!r}")
 
         self.model = model
         self.base_url = base_url
@@ -54,7 +50,7 @@ class LlamaCppSummarizer(Summarizer):
         logger.info("Initialized LlamaCppSummarizer with model: %s", model)
 
     @classmethod
-    def from_config(cls, config: DriverConfig) -> "LlamaCppSummarizer":
+    def from_config(cls, config: DriverConfig_LlmBackend_Llamacpp) -> "LlamaCppSummarizer":
         """Create a LlamaCppSummarizer from configuration.
 
         Configuration defaults are defined in schema:

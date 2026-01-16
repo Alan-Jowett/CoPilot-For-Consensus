@@ -9,6 +9,7 @@ from typing import Any
 
 from .load_driver_config import load_driver_config  # noqa: F401
 from .models import AdapterConfig, DriverConfig, ServiceConfig
+from .schema_validation import validate_config_against_schema_dict
 
 
 def load_service_config(
@@ -62,8 +63,53 @@ def load_service_config(
         secret_provider: Any | None,
     ) -> dict[str, Any]:
         """Extract configuration values from a driver schema."""
+        if "oneOf" in driver_schema_data:
+            discriminant_info = driver_schema_data.get("discriminant", {})
+            discriminant_field = discriminant_info.get("field")
+            discriminant_env_var = discriminant_info.get("env_var")
+
+            if not discriminant_field or not discriminant_env_var:
+                raise ValueError(
+                    "Driver schema uses oneOf but is missing discriminant.field or discriminant.env_var"
+                )
+
+            selected_variant = os.environ.get(discriminant_env_var)
+            if not selected_variant:
+                is_required = discriminant_info.get("required", False)
+                default_variant = discriminant_info.get("default")
+                if is_required and not default_variant:
+                    raise ValueError(
+                        f"Driver schema requires discriminant configuration: set environment variable {discriminant_env_var}"
+                    )
+                selected_variant = default_variant
+
+            one_of = driver_schema_data.get("oneOf")
+            if not isinstance(one_of, list):
+                raise ValueError("Driver schema oneOf must be a list")
+
+            selected_schema: dict[str, Any] | None = None
+            for candidate in one_of:
+                if not isinstance(candidate, dict):
+                    continue
+                candidate_props = candidate.get("properties", {})
+                if not isinstance(candidate_props, dict):
+                    continue
+                disc_prop = candidate_props.get(discriminant_field, {})
+                if isinstance(disc_prop, dict) and disc_prop.get("const") == selected_variant:
+                    selected_schema = candidate
+                    break
+
+            if selected_schema is None:
+                raise ValueError(
+                    f"Driver schema discriminant '{discriminant_field}' has invalid value '{selected_variant}'"
+                )
+
+            return _extract_config_from_driver_schema(selected_schema, secret_provider)
+
         driver_config_dict: dict[str, Any] = {}
         driver_properties = driver_schema_data.get("properties", {})
+        required_list = driver_schema_data.get("required", [])
+        required_fields = set(required_list) if isinstance(required_list, list) else set()
 
         for prop_name, prop_spec in driver_properties.items():
             if prop_spec.get("source") == "env":
@@ -112,6 +158,33 @@ def load_service_config(
                 if prop_spec.get("default") is not None:
                     driver_config_dict[prop_name] = prop_spec.get("default")
 
+        missing_required = [name for name in required_fields if name not in driver_config_dict]
+        if missing_required:
+            details: list[str] = []
+            for field_name in sorted(missing_required):
+                spec = driver_properties.get(field_name, {})
+                if not isinstance(spec, dict):
+                    details.append(field_name)
+                    continue
+
+                if spec.get("source") == "env":
+                    env_var = spec.get("env_var")
+                    if isinstance(env_var, list):
+                        env_var_str = " or ".join([str(v) for v in env_var if v])
+                    else:
+                        env_var_str = str(env_var) if env_var else "<unknown>"
+                    details.append(f"{field_name} (set {env_var_str})")
+                elif spec.get("source") == "secret":
+                    secret_name = spec.get("secret_name")
+                    details.append(f"{field_name} (secret {secret_name})")
+                else:
+                    details.append(field_name)
+
+            raise ValueError(
+                "Missing required driver configuration: " + ", ".join(details)
+            )
+
+        validate_config_against_schema_dict(schema=driver_schema_data, config=driver_config_dict)
         return driver_config_dict
 
     def _append_adapter_configs_from_schema(
@@ -240,6 +313,26 @@ def load_service_config(
         # Extract allowed keys from driver schema
         allowed_keys = set((driver_schema_data.get("properties") or {}).keys())
 
+        if not allowed_keys and "oneOf" in driver_schema_data:
+            # For discriminated oneOf driver schemas, select the active variant and use its properties.
+            discriminant_info = driver_schema_data.get("discriminant", {})
+            discriminant_field = discriminant_info.get("field")
+            discriminant_env_var = discriminant_info.get("env_var")
+            selected_variant = os.environ.get(discriminant_env_var) if discriminant_env_var else None
+            if not selected_variant:
+                selected_variant = discriminant_info.get("default")
+
+            for candidate in driver_schema_data.get("oneOf", []):
+                if not isinstance(candidate, dict):
+                    continue
+                candidate_props = candidate.get("properties", {})
+                if not isinstance(candidate_props, dict):
+                    continue
+                disc_prop = candidate_props.get(discriminant_field, {}) if discriminant_field else {}
+                if isinstance(disc_prop, dict) and disc_prop.get("const") == selected_variant:
+                    allowed_keys = set(candidate_props.keys())
+                    break
+
         # Merge in common properties from adapter schema if they exist
         allowed_keys.update(common_properties.keys())
 
@@ -305,6 +398,12 @@ def load_service_config(
         try:
             from copilot_secrets import create_secret_provider as create_secrets_provider
 
+            from copilot_config.generated.adapters.secret_provider import (
+                AdapterConfig_SecretProvider,
+                DriverConfig_SecretProvider_AzureKeyVault,
+                DriverConfig_SecretProvider_Local,
+            )
+
             from .secret_provider import SecretConfigProvider
 
             secret_adapter = next(
@@ -313,9 +412,24 @@ def load_service_config(
             )
 
             if secret_adapter is not None:
+                secret_driver_name = secret_adapter.driver_name
+                secret_config_dict = getattr(secret_adapter.driver_config, "config", {})
+
+                if secret_driver_name == "local":
+                    driver_config = DriverConfig_SecretProvider_Local(**secret_config_dict)
+                elif secret_driver_name == "azure_key_vault":
+                    driver_config = DriverConfig_SecretProvider_AzureKeyVault(**secret_config_dict)
+                else:
+                    raise ValueError(
+                        f"Unknown secret_provider driver: {secret_driver_name}. "
+                        "Supported drivers: local, azure_key_vault"
+                    )
+
                 secret_provider_instance = create_secrets_provider(
-                    secret_adapter.driver_name,
-                    secret_adapter.driver_config,
+                    AdapterConfig_SecretProvider(
+                        secret_provider_type=secret_driver_name,
+                        driver=driver_config,
+                    )
                 )
                 secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
         except Exception as e:

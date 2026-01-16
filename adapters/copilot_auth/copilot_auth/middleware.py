@@ -565,7 +565,7 @@ def create_jwt_middleware(
     required_roles: list[str] | None = None,
     public_paths: list[str] | None = None,
     defer_jwks_fetch: bool = True,
-) -> type[JWTMiddleware]:
+) -> type[BaseHTTPMiddleware]:
     """Factory function to create JWT middleware with configuration.
 
     Args:

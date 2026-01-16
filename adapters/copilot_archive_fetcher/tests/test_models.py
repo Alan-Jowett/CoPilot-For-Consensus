@@ -3,6 +3,8 @@
 
 """Tests for archive fetcher models."""
 
+import pytest
+
 from copilot_archive_fetcher import SourceConfig
 
 
@@ -24,6 +26,7 @@ class TestSourceConfig:
         assert config.username is None
         assert config.password is None
         assert config.folder is None
+        assert config.enabled is True
 
     def test_source_config_with_all_fields(self):
         """Test creating SourceConfig with all optional fields."""
@@ -66,3 +69,15 @@ class TestSourceConfig:
 
         assert config.source_type == "local"
         assert config.url == "/path/to/local/archive"
+
+    def test_source_config_rejects_unknown_fields(self):
+        """Test that from_mapping rejects unknown keys (schema coherence)."""
+        with pytest.raises(ValueError, match="Unknown source fields"):
+            SourceConfig.from_mapping(
+                {
+                    "name": "test-source",
+                    "source_type": "http",
+                    "url": "https://example.com/archive.zip",
+                    "unexpected": "nope",
+                }
+            )

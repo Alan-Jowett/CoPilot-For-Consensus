@@ -6,7 +6,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from copilot_config.load_driver_config import load_driver_config
+from copilot_config.generated.adapters.embedding_backend import DriverConfig_EmbeddingBackend_Huggingface
 from copilot_embedding.huggingface_provider import HuggingFaceEmbeddingProvider
 
 
@@ -18,11 +18,9 @@ class TestHuggingFaceEmbeddingProvider:
         with patch.dict('sys.modules', {'transformers': None, 'torch': None}):
             with pytest.raises(ImportError) as exc_info:
                 HuggingFaceEmbeddingProvider.from_config(
-                    load_driver_config(
-                        "embedding",
-                        "embedding_backend",
-                        "huggingface",
-                        fields={"model_name": "sentence-transformers/all-MiniLM-L6-v2", "device": "cpu"},
+                    DriverConfig_EmbeddingBackend_Huggingface(
+                        model_name="sentence-transformers/all-MiniLM-L6-v2",
+                        device="cpu",
                     )
                 )
 
@@ -46,11 +44,9 @@ class TestHuggingFaceEmbeddingProvider:
 
         with patch.dict('sys.modules', {'transformers': mock_transformers_module, 'torch': mock_torch_module}):
             provider = HuggingFaceEmbeddingProvider.from_config(
-                load_driver_config(
-                    "embedding",
-                    "embedding_backend",
-                    "huggingface",
-                    fields={"model_name": "sentence-transformers/all-MiniLM-L6-v2", "device": "cpu"},
+                DriverConfig_EmbeddingBackend_Huggingface(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2",
+                    device="cpu",
                 )
             )
 
@@ -111,11 +107,9 @@ class TestHuggingFaceEmbeddingProvider:
 
         with patch.dict('sys.modules', {'transformers': mock_transformers_module, 'torch': mock_torch_module}):
             provider = HuggingFaceEmbeddingProvider.from_config(
-                load_driver_config(
-                    "embedding",
-                    "embedding_backend",
-                    "huggingface",
-                    fields={"model_name": "sentence-transformers/all-MiniLM-L6-v2", "device": "cpu"},
+                DriverConfig_EmbeddingBackend_Huggingface(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2",
+                    device="cpu",
                 )
             )
             embedding = provider.embed("test text")

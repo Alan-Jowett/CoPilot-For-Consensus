@@ -9,7 +9,7 @@ import uuid
 from collections import defaultdict
 from typing import Any
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_Inmemory
 
 from .document_store import DocumentNotFoundError, DocumentStore
 
@@ -20,7 +20,7 @@ class InMemoryDocumentStore(DocumentStore):
     """In-memory document store implementation for testing."""
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "InMemoryDocumentStore":
+    def from_config(cls, driver_config: DriverConfig_DocumentStore_Inmemory) -> "InMemoryDocumentStore":
         """Create an InMemoryDocumentStore from configuration.
 
         Args:

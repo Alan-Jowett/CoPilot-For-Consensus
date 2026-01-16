@@ -14,23 +14,27 @@ from bson import ObjectId
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.role_store import RoleStore
-
-
-class MockConfig:
-    """Mock configuration for testing."""
-
-    def __init__(self):
-        self.role_store_collection = "user_roles"
-        self.role_store_schema_dir = None
-
-    def get_adapter(self, adapter_type: str):
-        if adapter_type != "document_store":
-            return None
-        adapter = MagicMock()
-        adapter.driver_name = "mongodb"
-        adapter.driver_config = MagicMock()
-        adapter.driver_config.config = {}
-        return adapter
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.logger import (
+    AdapterConfig_Logger,
+    DriverConfig_Logger_Stdout,
+)
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_Noop,
+)
+from copilot_config.generated.adapters.oidc_providers import (
+    AdapterConfig_OidcProviders,
+    CompositeConfig_OidcProviders,
+)
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_Local,
+)
+from copilot_config.generated.services.auth import ServiceConfig_Auth, ServiceSettings_Auth
 
 
 @pytest.fixture
@@ -48,7 +52,28 @@ def role_store(mock_store):
     """Create a RoleStore instance with mocked dependencies."""
     with patch("app.role_store.create_document_store", return_value=mock_store):
         with patch("app.role_store.create_schema_provider"):
-            config = MockConfig()
+            config = ServiceConfig_Auth(
+                service_settings=ServiceSettings_Auth(issuer="http://localhost:8090"),
+                document_store=AdapterConfig_DocumentStore(
+                    doc_store_type="inmemory",
+                    driver=DriverConfig_DocumentStore_Inmemory(),
+                ),
+                logger=AdapterConfig_Logger(
+                    logger_type="stdout",
+                    driver=DriverConfig_Logger_Stdout(),
+                ),
+                metrics=AdapterConfig_Metrics(
+                    metrics_type="noop",
+                    driver=DriverConfig_Metrics_Noop(),
+                ),
+                oidc_providers=AdapterConfig_OidcProviders(
+                    oidc_providers=CompositeConfig_OidcProviders(),
+                ),
+                secret_provider=AdapterConfig_SecretProvider(
+                    secret_provider_type="local",
+                    driver=DriverConfig_SecretProvider_Local(),
+                ),
+            )
             return RoleStore(config)
 
 

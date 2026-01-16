@@ -3,10 +3,12 @@
 
 """Prometheus Pushgateway metrics collector implementation."""
 
-import logging
-import os
+from __future__ import annotations
 
-from copilot_config import DriverConfig
+import logging
+from typing import Any
+
+from copilot_config.generated.adapters.metrics import DriverConfig_Metrics_Pushgateway
 
 from .prometheus_metrics import PrometheusMetricsCollector
 
@@ -35,7 +37,7 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
         gateway: str,
         job: str,
         grouping_key: dict[str, str] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Initialize Prometheus Pushgateway metrics collector.
 
@@ -56,8 +58,15 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
                 "Install with: pip install prometheus-client"
             )
 
-        # Use a dedicated registry by default to keep pushed metrics scoped
-        registry = kwargs.pop("registry", CollectorRegistry())
+        # Use a dedicated registry by default to keep pushed metrics scoped.
+        # Accept "registry" via kwargs for backward compatibility.
+        registry_value = kwargs.pop("registry", None)
+        if registry_value is None:
+            registry = CollectorRegistry()
+        elif isinstance(registry_value, CollectorRegistry):
+            registry = registry_value
+        else:
+            registry = CollectorRegistry()
 
         super().__init__(registry=registry, **kwargs)
 
@@ -86,29 +95,25 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
             raise
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "PrometheusPushGatewayMetricsCollector":
+    def from_config(
+        cls,
+        driver_config: DriverConfig_Metrics_Pushgateway,
+    ) -> "PrometheusPushGatewayMetricsCollector":
         """Create a PrometheusPushGatewayMetricsCollector from configuration.
 
         Args:
-            driver_config: DriverConfig instance with required attributes:
-                - gateway: Pushgateway URL (e.g., "pushgateway:9091")
-                - job: Job name for metrics
-                Optional attributes:
-                - grouping_key: Optional grouping key dict (default: None)
-                - namespace: Namespace prefix (default: "copilot")
-                - raise_on_error: Whether to raise on metric errors (default: False)
+            driver_config: Typed driver config.
 
         Returns:
             Configured PrometheusPushGatewayMetricsCollector instance
 
         Raises:
             ImportError: If prometheus_client is not installed
-            ValueError: If gateway or job is not provided
         """
         return cls(
             gateway=driver_config.gateway,
             job=driver_config.job,
-            grouping_key=getattr(driver_config, "grouping_key", None),
-            namespace=getattr(driver_config, "namespace", "copilot"),
-            raise_on_error=getattr(driver_config, "raise_on_error", False)
+            grouping_key=driver_config.grouping_key,
+            namespace=driver_config.namespace,
+            raise_on_error=driver_config.raise_on_error,
         )

@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.oidc_providers import DriverConfig_OidcProviders_Github
 
 from .models import User
 from .oidc_provider import OIDCProvider
@@ -63,8 +63,10 @@ class GitHubIdentityProvider(OIDCProvider):
         self.api_base_url = api_base_url
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "GitHubIdentityProvider":
-        """Create GitHubIdentityProvider from DriverConfig.
+    def from_config(
+        cls, driver_config: DriverConfig_OidcProviders_Github
+    ) -> "GitHubIdentityProvider":
+        """Create GitHubIdentityProvider from typed config.
 
         Args:
             driver_config: DriverConfig object with GitHub OAuth configuration
@@ -77,6 +79,19 @@ class GitHubIdentityProvider(OIDCProvider):
         client_secret = driver_config.github_client_secret
         redirect_uri = driver_config.github_redirect_uri
         api_base_url = driver_config.github_api_base_url
+
+        if not client_id or not client_secret:
+            raise ValueError(
+                "GitHubIdentityProvider requires github_client_id and github_client_secret"
+            )
+
+        if not redirect_uri:
+            raise ValueError(
+                "GitHubIdentityProvider requires github_redirect_uri (or a service-level default)"
+            )
+
+        if not api_base_url:
+            api_base_url = "https://api.github.com"
 
         return cls(
             client_id=client_id,

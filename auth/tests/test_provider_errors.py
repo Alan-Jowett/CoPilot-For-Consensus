@@ -9,6 +9,29 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from copilot_config.generated.adapters.oidc_providers import (
+    AdapterConfig_OidcProviders,
+    CompositeConfig_OidcProviders,
+    DriverConfig_OidcProviders_Github,
+)
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.logger import (
+    AdapterConfig_Logger,
+    DriverConfig_Logger_Stdout,
+)
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_Noop,
+)
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_Local,
+)
+from copilot_config.generated.services.auth import ServiceConfig_Auth, ServiceSettings_Auth
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -20,34 +43,43 @@ class TestProviderErrors:
 
     @pytest.fixture
     def mock_config(self):
-        """Create a mock configuration."""
-        config = MagicMock()
-        config.issuer = "http://localhost:8090"
-        config.audiences = "copilot-for-consensus"
-        config.jwt_algorithm = "RS256"
-        config.jwt_key_id = "default"
-        config.jwt_default_expiry = 1800
-        config.max_skew_seconds = 90
-        # Provide dummy keys so AuthService can initialize.
-        config.jwt_private_key = "-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n"
-        config.jwt_public_key = "-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----\n"
-        config.jwt_secret_key = None
-        config.role_store_schema_dir = None
+        """Create a typed configuration."""
+        settings = ServiceSettings_Auth(
+            issuer="http://localhost:8090",
+            audiences="copilot-for-consensus",
+            jwt_algorithm="RS256",
+            jwt_key_id="default",
+            jwt_default_expiry=1800,
+            max_skew_seconds=90,
+            # Provide dummy keys so AuthService can initialize.
+            jwt_private_key="-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n",
+            jwt_public_key="-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----\n",
+            jwt_secret_key=None,
+            role_store_schema_dir=None,
+        )
 
-        # Configure providers via the new composite adapter (stable object).
-        oidc_adapter = MagicMock()
-        oidc_adapter.driver_name = "multi"
-        oidc_adapter.driver_config = MagicMock()
-        oidc_adapter.driver_config.config = {}
-        config._oidc_adapter = oidc_adapter
-
-        def get_adapter(adapter_type: str):
-            if adapter_type == "oidc_providers":
-                return config._oidc_adapter
-            return None
-
-        config.get_adapter = get_adapter
-        return config
+        return ServiceConfig_Auth(
+            service_settings=settings,
+            document_store=AdapterConfig_DocumentStore(
+                doc_store_type="inmemory",
+                driver=DriverConfig_DocumentStore_Inmemory(),
+            ),
+            logger=AdapterConfig_Logger(
+                logger_type="stdout",
+                driver=DriverConfig_Logger_Stdout(),
+            ),
+            metrics=AdapterConfig_Metrics(
+                metrics_type="noop",
+                driver=DriverConfig_Metrics_Noop(),
+            ),
+            oidc_providers=AdapterConfig_OidcProviders(
+                oidc_providers=CompositeConfig_OidcProviders()
+            ),
+            secret_provider=AdapterConfig_SecretProvider(
+                secret_provider_type="local",
+                driver=DriverConfig_SecretProvider_Local(),
+            ),
+        )
 
     @pytest.fixture
     def auth_service_no_providers(self, mock_config, monkeypatch):
@@ -130,15 +162,15 @@ class TestProviderErrors:
     @pytest.fixture
     def auth_service_with_github(self, mock_config, monkeypatch):
         """Create an auth service with only GitHub configured."""
-        # Populate composite adapter config with a GitHub provider entry.
-        oidc_adapter = mock_config.get_adapter("oidc_providers")
-        oidc_adapter.driver_config.config = {
-            "github": {
-                "github_client_id": "test_client_id",
-                "github_client_secret": "test_client_secret",
-                "github_redirect_uri": "http://localhost:8090/callback",
-            }
-        }
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                github=DriverConfig_OidcProviders_Github(
+                    github_client_id="test_client_id",
+                    github_client_secret="test_client_secret",
+                    github_redirect_uri="http://localhost:8090/callback",
+                )
+            )
+        )
 
         # Mock to avoid actual provider initialization
         def mock_write_text(self, content):
@@ -160,7 +192,7 @@ class TestProviderErrors:
 
         # Mock create_identity_provider to return a mock provider
         original_create = service.create_identity_provider
-        def mock_create(**kwargs):
+        def mock_create(provider_name, driver_config, *, issuer=None):
             """Mock identity provider factory to avoid real OAuth initialization."""
             mock_provider = MagicMock()
             mock_provider.discover = MagicMock()

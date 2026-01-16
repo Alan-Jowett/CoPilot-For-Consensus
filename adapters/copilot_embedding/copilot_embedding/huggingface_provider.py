@@ -4,7 +4,8 @@
 """HuggingFace Transformers embedding provider."""
 
 import logging
-from copilot_config import DriverConfig
+
+from copilot_config.generated.adapters.embedding_backend import DriverConfig_EmbeddingBackend_Huggingface
 
 from .base import EmbeddingProvider
 
@@ -55,7 +56,9 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
         logger.info("HuggingFace model loaded successfully")
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "HuggingFaceEmbeddingProvider":
+    def from_config(
+        cls, driver_config: DriverConfig_EmbeddingBackend_Huggingface
+    ) -> "HuggingFaceEmbeddingProvider":
         """Create provider from configuration.
 
         Configuration defaults are defined in schema:
@@ -74,8 +77,8 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
         return cls(
             model_name=driver_config.model_name,
             device=driver_config.device,
-            max_length=driver_config.max_length,
-            cache_dir=getattr(driver_config, "cache_dir", None),
+            max_length=int(driver_config.max_length),
+            cache_dir=driver_config.cache_dir,
         )
 
     def embed(self, text: str) -> list[float]:

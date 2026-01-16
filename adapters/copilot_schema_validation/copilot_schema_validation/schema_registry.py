@@ -17,6 +17,7 @@ import json
 import logging
 from functools import lru_cache
 from pathlib import Path
+from typing import TypedDict
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,19 @@ SCHEMA_REGISTRY: dict[str, str] = {
     # Role store schemas (v1)
     "v1.UserRoles": "role_store/user_roles.schema.json",
 }
+
+
+class SchemaMetadata(TypedDict):
+    """Metadata for a registered schema.
+
+    Returned by get_schema_metadata() without loading the schema JSON.
+    """
+
+    type: str
+    version: str
+    relative_path: str
+    absolute_path: str | None
+    exists: bool
 
 
 @lru_cache(maxsize=1)
@@ -254,7 +268,7 @@ def validate_registry() -> tuple[bool, list[str]]:
     return len(errors) == 0, errors
 
 
-def get_schema_metadata(schema_type: str, version: str) -> dict[str, str] | None:
+def get_schema_metadata(schema_type: str, version: str) -> SchemaMetadata | None:
     """Get metadata about a registered schema without loading the full content.
 
     Args:
@@ -262,7 +276,8 @@ def get_schema_metadata(schema_type: str, version: str) -> dict[str, str] | None
         version: The schema version
 
     Returns:
-        Dictionary with metadata (path, exists, type, version) or None if not registered.
+        SchemaMetadata with (type, version, relative_path, absolute_path, exists)
+        or None if not registered.
 
     Example:
         >>> meta = get_schema_metadata("ArchiveIngested", "v1")

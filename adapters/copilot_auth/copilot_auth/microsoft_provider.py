@@ -9,7 +9,7 @@ allowing users to authenticate using their Microsoft accounts.
 
 from typing import Any
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.oidc_providers import DriverConfig_OidcProviders_Microsoft
 
 from .models import User
 from .oidc_provider import OIDCProvider
@@ -58,8 +58,10 @@ class MicrosoftIdentityProvider(OIDCProvider):
         self.tenant = tenant
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "MicrosoftIdentityProvider":
-        """Create MicrosoftIdentityProvider from DriverConfig.
+    def from_config(
+        cls, driver_config: DriverConfig_OidcProviders_Microsoft
+    ) -> "MicrosoftIdentityProvider":
+        """Create MicrosoftIdentityProvider from typed config.
 
         Args:
             driver_config: DriverConfig object with Microsoft OAuth configuration
@@ -72,6 +74,19 @@ class MicrosoftIdentityProvider(OIDCProvider):
         client_secret = driver_config.microsoft_client_secret
         redirect_uri = driver_config.microsoft_redirect_uri
         tenant = driver_config.microsoft_tenant
+
+        if not client_id or not client_secret:
+            raise ValueError(
+                "MicrosoftIdentityProvider requires microsoft_client_id and microsoft_client_secret"
+            )
+
+        if not redirect_uri:
+            raise ValueError(
+                "MicrosoftIdentityProvider requires microsoft_redirect_uri (or a service-level default)"
+            )
+
+        if not tenant:
+            tenant = "common"
 
         return cls(
             client_id=client_id,

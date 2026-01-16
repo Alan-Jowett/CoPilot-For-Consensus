@@ -13,6 +13,7 @@ from typing import Optional
 from ..adapters.document_store import AdapterConfig_DocumentStore
 from ..adapters.embedding_backend import AdapterConfig_EmbeddingBackend
 from ..adapters.error_reporter import AdapterConfig_ErrorReporter
+from ..adapters.logger import AdapterConfig_Logger
 from ..adapters.message_bus import AdapterConfig_MessageBus
 from ..adapters.metrics import AdapterConfig_Metrics
 from ..adapters.secret_provider import AdapterConfig_SecretProvider
@@ -39,10 +40,11 @@ class ServiceSettings_Embedding:
 class ServiceConfig_Embedding:
     """Top-level configuration for embedding service."""
     service_settings: ServiceSettings_Embedding
-    document_store: Optional[AdapterConfig_DocumentStore] = None
-    embedding_backend: Optional[AdapterConfig_EmbeddingBackend] = None
-    error_reporter: Optional[AdapterConfig_ErrorReporter] = None
-    message_bus: Optional[AdapterConfig_MessageBus] = None
-    metrics: Optional[AdapterConfig_Metrics] = None
-    secret_provider: Optional[AdapterConfig_SecretProvider] = None
-    vector_store: Optional[AdapterConfig_VectorStore] = None
+    document_store: AdapterConfig_DocumentStore
+    embedding_backend: AdapterConfig_EmbeddingBackend
+    error_reporter: AdapterConfig_ErrorReporter
+    logger: AdapterConfig_Logger
+    message_bus: AdapterConfig_MessageBus
+    metrics: AdapterConfig_Metrics
+    secret_provider: AdapterConfig_SecretProvider
+    vector_store: AdapterConfig_VectorStore

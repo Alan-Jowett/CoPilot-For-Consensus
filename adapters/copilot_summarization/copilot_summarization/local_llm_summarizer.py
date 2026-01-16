@@ -6,7 +6,7 @@
 import logging
 import time
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.llm_backend import DriverConfig_LlmBackend_Local
 
 import requests
 
@@ -41,11 +41,7 @@ class LocalLLMSummarizer(Summarizer):
             base_url: Base URL for local inference endpoint
             timeout: Request timeout in seconds
 
-        Raises:
-            ValueError: If timeout is not a positive integer
         """
-        if not isinstance(timeout, int) or timeout <= 0:
-            raise ValueError(f"timeout must be a positive integer, got {timeout!r}")
 
         self.model = model
         self.base_url = base_url
@@ -53,7 +49,7 @@ class LocalLLMSummarizer(Summarizer):
         logger.info("Initialized LocalLLMSummarizer with model: %s", model)
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "LocalLLMSummarizer":
+    def from_config(cls, driver_config: DriverConfig_LlmBackend_Local) -> "LocalLLMSummarizer":
         """Create a LocalLLMSummarizer from configuration.
 
         Configuration defaults are defined in schema:

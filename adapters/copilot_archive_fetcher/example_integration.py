@@ -26,17 +26,9 @@ def fetch_and_process_archive(config_dict: dict, output_dir: str) -> dict:
         Dictionary with fetch results
     """
     try:
-        # Create source configuration from dictionary
-        # (e.g., loaded from environment variables or config file)
-        config = SourceConfig(
-            name=config_dict.get("name"),
-            source_type=config_dict.get("type"),
-            url=config_dict.get("url"),
-            port=config_dict.get("port"),
-            username=config_dict.get("username"),
-            password=config_dict.get("password"),
-            folder=config_dict.get("folder"),
-        )
+        # Create source configuration from dictionary.
+        # This expects schema-coherent keys, e.g.: name/source_type/url.
+        config = SourceConfig.from_mapping(config_dict)
 
         logger.info(f"Fetching archive from source: {config.name} ({config.source_type})")
 
@@ -84,17 +76,17 @@ def main():
     sources = [
         {
             "name": "http-archive",
-            "type": "http",
+            "source_type": "http",
             "url": "https://example.com/archive.tar.gz",
         },
         {
             "name": "local-files",
-            "type": "local",
+            "source_type": "local",
             "url": "/data/source/files",
         },
         {
             "name": "rsync-mirror",
-            "type": "rsync",
+            "source_type": "rsync",
             "url": "rsync://mirror.example.com/data/",
         },
     ]

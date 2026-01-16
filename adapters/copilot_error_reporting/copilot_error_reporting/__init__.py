@@ -7,61 +7,73 @@ A shared library for error reporting and diagnostics across microservices
 in the Copilot-for-Consensus system.
 """
 
-from copilot_config import DriverConfig
+from typing import TypeAlias
+
+from copilot_config.adapter_factory import create_adapter
+from copilot_config.generated.adapters.error_reporter import (
+    AdapterConfig_ErrorReporter,
+    DriverConfig_ErrorReporter_Console,
+    DriverConfig_ErrorReporter_Sentry,
+    DriverConfig_ErrorReporter_Silent,
+)
 
 from .error_reporter import ErrorReporter
 
 __version__ = "0.1.0"
 
+_DriverConfig: TypeAlias = (
+    DriverConfig_ErrorReporter_Console
+    | DriverConfig_ErrorReporter_Sentry
+    | DriverConfig_ErrorReporter_Silent
+)
 
-def create_error_reporter(
-    driver_name: str,
-    driver_config: DriverConfig,
-) -> ErrorReporter:
-    """Create an error reporter based on driver name and config (factory pattern).
 
-    This factory is typically called by service configuration loaders that provide
-    DriverConfig objects with attribute access. Configuration properties are accessed
-    via attributes with defaults defined in schemas.
+def _build_console(config: _DriverConfig) -> ErrorReporter:
+    from .console_error_reporter import ConsoleErrorReporter
+
+    if not isinstance(config, DriverConfig_ErrorReporter_Console):
+        raise TypeError("driver config must be DriverConfig_ErrorReporter_Console")
+    return ConsoleErrorReporter.from_config(config)
+
+
+def _build_silent(config: _DriverConfig) -> ErrorReporter:
+    from .silent_error_reporter import SilentErrorReporter
+
+    if not isinstance(config, DriverConfig_ErrorReporter_Silent):
+        raise TypeError("driver config must be DriverConfig_ErrorReporter_Silent")
+    return SilentErrorReporter.from_config(config)
+
+
+def _build_sentry(config: _DriverConfig) -> ErrorReporter:
+    from .sentry_error_reporter import SentryErrorReporter
+
+    if not isinstance(config, DriverConfig_ErrorReporter_Sentry):
+        raise TypeError("driver config must be DriverConfig_ErrorReporter_Sentry")
+    return SentryErrorReporter.from_config(config)
+
+def create_error_reporter(config: AdapterConfig_ErrorReporter) -> ErrorReporter:
+    """Create an error reporter from typed configuration.
 
     Args:
-        driver_name: Reporter driver ("console", "silent", "sentry")
-        driver_config: DriverConfig with driver-specific attributes.
-                      Expected attributes vary by reporter:
-                      - console: logger_name (optional)
-                      - silent: no configuration needed
-                      - sentry: dsn (required), environment (optional)
+        config: Typed adapter configuration for error_reporter.
 
     Returns:
-        ErrorReporter instance
+        ErrorReporter instance.
 
     Raises:
-        ValueError: If driver_name is unknown
-        TypeError: If driver_config is not a DriverConfig instance
-
-    Example:
-        >>> # Typically called by config loader:
-        >>> from copilot_config import load_service_config
-        >>> config = load_service_config("my-service")
-        >>> error_adapter = config.get_adapter("error_reporter")
-        >>> reporter = create_error_reporter(
-        ...     error_adapter.driver_name,
-        ...     error_adapter.driver_config
-        ... )
+        ValueError: If config is missing or error_reporter_type is not recognized.
     """
-    driver_lower = driver_name.lower()
-
-    if driver_lower == "console":
-        from .console_error_reporter import ConsoleErrorReporter  # local import to keep class internal
-        return ConsoleErrorReporter.from_config(driver_config)
-    if driver_lower == "silent":
-        from .silent_error_reporter import SilentErrorReporter  # local import to keep class internal
-        return SilentErrorReporter.from_config(driver_config)
-    if driver_lower == "sentry":
-        from .sentry_error_reporter import SentryErrorReporter  # local import to keep class internal
-        return SentryErrorReporter.from_config(driver_config)
-
-    raise ValueError(f"Unknown reporter driver: {driver_name}")
+    return create_adapter(
+        config,
+        adapter_name="error_reporter",
+        get_driver_type=lambda c: c.error_reporter_type,
+        get_driver_config=lambda c: c.driver,
+        drivers={
+            "console": _build_console,
+            "silent": _build_silent,
+            "sentry": _build_sentry,
+        },
+    )
 
 
 __all__ = [

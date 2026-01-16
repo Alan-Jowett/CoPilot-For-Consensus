@@ -4,11 +4,18 @@
 """Validating document store that enforces schema validation."""
 
 import logging
-from typing import Any, Callable
+from typing import Any, Callable, Protocol, cast, runtime_checkable
 
 from .document_store import DocumentNotFoundError, DocumentStore
 
 logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class _SupportsAggregateDocuments(Protocol):
+    def aggregate_documents(
+        self, collection: str, pipeline: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]: ...
 
 
 class DocumentValidationError(Exception):
@@ -352,11 +359,12 @@ class ValidatingDocumentStore(DocumentStore):
             AttributeError: If underlying store doesn't support aggregation
         """
         # Check if underlying store supports aggregation
-        if not hasattr(self._store, 'aggregate_documents'):
+        if not isinstance(self._store, _SupportsAggregateDocuments):
             raise AttributeError(
                 f"Underlying store {type(self._store).__name__} does not support aggregation"
             )
 
         # Delegate to underlying store without validation
         # (aggregation results may not match original document schemas)
-        return self._store.aggregate_documents(collection, pipeline)
+        store = cast(_SupportsAggregateDocuments, self._store)
+        return store.aggregate_documents(collection, pipeline)

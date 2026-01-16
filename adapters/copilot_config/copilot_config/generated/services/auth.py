@@ -20,6 +20,7 @@ from ..adapters.secret_provider import AdapterConfig_SecretProvider
 @dataclass
 class ServiceSettings_Auth:
     """Service-specific settings for auth."""
+    issuer: str
     audiences: Optional[str] = 'copilot-for-consensus'
     auto_approve_enabled: Optional[bool] = False
     auto_approve_roles: Optional[str] = None
@@ -27,7 +28,6 @@ class ServiceSettings_Auth:
     enable_dpop: Optional[bool] = False
     first_user_auto_promotion_enabled: Optional[bool] = False
     host: Optional[str] = '0.0.0.0'
-    issuer: Optional[str] = 'http://localhost:8090'
     jwt_algorithm: Optional[str] = 'RS256'
     jwt_default_expiry: Optional[int] = 1800
     jwt_key_id: Optional[str] = 'default'
@@ -46,8 +46,8 @@ class ServiceSettings_Auth:
 class ServiceConfig_Auth:
     """Top-level configuration for auth service."""
     service_settings: ServiceSettings_Auth
-    document_store: Optional[AdapterConfig_DocumentStore] = None
-    logger: Optional[AdapterConfig_Logger] = None
-    metrics: Optional[AdapterConfig_Metrics] = None
-    oidc_providers: Optional[AdapterConfig_OidcProviders] = None
-    secret_provider: Optional[AdapterConfig_SecretProvider] = None
+    document_store: AdapterConfig_DocumentStore
+    logger: AdapterConfig_Logger
+    metrics: AdapterConfig_Metrics
+    oidc_providers: AdapterConfig_OidcProviders
+    secret_provider: AdapterConfig_SecretProvider

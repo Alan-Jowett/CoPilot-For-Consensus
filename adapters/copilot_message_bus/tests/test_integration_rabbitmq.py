@@ -78,8 +78,8 @@ def rabbitmq_subscriber():
         try:
             subscriber.connect()
             break
-        except (ConnectionError, OSError, TimeoutError):
-            # Network/connection errors - retry
+        except Exception:
+            # Network/connection errors (including pika AMQPConnectionError) - retry
             if i < max_retries - 1:
                 time.sleep(2)
             else:

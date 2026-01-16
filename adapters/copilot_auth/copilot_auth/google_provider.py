@@ -9,7 +9,7 @@ authenticate using their Google accounts.
 
 from typing import Any
 
-from copilot_config import DriverConfig
+from copilot_config.generated.adapters.oidc_providers import DriverConfig_OidcProviders_Google
 
 from .models import User
 from .oidc_provider import OIDCProvider
@@ -51,8 +51,10 @@ class GoogleIdentityProvider(OIDCProvider):
         )
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig) -> "GoogleIdentityProvider":
-        """Create GoogleIdentityProvider from DriverConfig.
+    def from_config(
+        cls, driver_config: DriverConfig_OidcProviders_Google
+    ) -> "GoogleIdentityProvider":
+        """Create GoogleIdentityProvider from typed config.
 
         Args:
             driver_config: DriverConfig object with Google OAuth configuration
@@ -66,6 +68,16 @@ class GoogleIdentityProvider(OIDCProvider):
         client_id = driver_config.google_client_id
         client_secret = driver_config.google_client_secret
         redirect_uri = driver_config.google_redirect_uri
+
+        if not client_id or not client_secret:
+            raise ValueError(
+                "GoogleIdentityProvider requires google_client_id and google_client_secret"
+            )
+
+        if not redirect_uri:
+            raise ValueError(
+                "GoogleIdentityProvider requires google_redirect_uri (or a service-level default)"
+            )
 
         return cls(
             client_id=client_id,

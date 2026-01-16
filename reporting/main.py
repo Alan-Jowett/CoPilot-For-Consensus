@@ -6,36 +6,60 @@
 import os
 import sys
 import threading
-from pathlib import Path
+from dataclasses import replace
+from typing import cast
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from copilot_config import load_service_config, load_driver_config
+from copilot_config.runtime_loader import get_config
+from copilot_config.generated.services.reporting import ServiceConfig_Reporting
+from copilot_config.generated.adapters.message_bus import (
+    DriverConfig_MessageBus_AzureServiceBus,
+    DriverConfig_MessageBus_Rabbitmq,
+)
+from copilot_config.generated.adapters.metrics import (
+    DriverConfig_Metrics_AzureMonitor,
+    DriverConfig_Metrics_Prometheus,
+    DriverConfig_Metrics_Pushgateway,
+)
+from copilot_config.generated.adapters.vector_store import (
+    DriverConfig_VectorStore_AzureAiSearch,
+    DriverConfig_VectorStore_Faiss,
+    DriverConfig_VectorStore_Qdrant,
+)
 from copilot_message_bus import create_publisher, create_subscriber
-from copilot_logging import create_logger, create_uvicorn_log_config, get_logger, set_default_logger
+from copilot_logging import (
+    create_logger,
+    create_stdout_logger,
+    create_uvicorn_log_config,
+    get_logger,
+    set_default_logger,
+)
 from copilot_metrics import create_metrics_collector
 from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import DocumentStoreConnectionError, create_document_store
 from fastapi import FastAPI, HTTPException, Query
 
-# Configure structured JSON logging
-logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"level": "INFO", "name": "reporting"})
-logger = create_logger("stdout", logger_config)
-set_default_logger(logger)
+# Bootstrap logger before configuration is loaded
+bootstrap_logger = create_stdout_logger(level="INFO", name="reporting")
+set_default_logger(bootstrap_logger)
 
 from app import __version__
-from app import service as reporting_service_module
 from app.service import ReportingService
-reporting_service_module.logger = get_logger(reporting_service_module.__name__)
+logger = bootstrap_logger
 
 # Create FastAPI app
 app = FastAPI(title="Reporting Service", version=__version__)
 
 # Global service instance
 reporting_service = None
+
+
+def load_service_config() -> ServiceConfig_Reporting:
+    return cast(ServiceConfig_Reporting, get_config("reporting"))
 
 
 @app.get("/")
@@ -415,24 +439,23 @@ def start_subscriber_thread(service: ReportingService):
 def main():
     """Main entry point for the reporting service."""
     global reporting_service
+    global logger
 
     logger.info(f"Starting Reporting Service (version {__version__})")
 
     try:
-        # Load configuration using config adapter
-        config = load_service_config("reporting")
+        # Load strongly-typed configuration from JSON schemas
+        config = load_service_config()
         logger.info("Configuration loaded successfully")
 
         # Conditionally add JWT authentication middleware based on config
-        # Note: Middleware must be added before routes are accessed, but routes are already
-        # defined at module level. For proper middleware setup, we would need to restructure
-        # the app initialization. For now, skip middleware addition if app has already started.
-        if config.jwt_auth_enabled:
+        if bool(config.service_settings.jwt_auth_enabled):
             logger.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
-                auth_service_url = getattr(config, 'auth_service_url', None)
-                audience = getattr(config, 'service_audience', None)
+
+                auth_service_url = str(config.service_settings.auth_service_url or "http://auth:8090")
+                audience = str(config.service_settings.service_audience or "copilot-for-consensus")
                 auth_middleware = create_jwt_middleware(
                     auth_service_url=auth_service_url,
                     audience=audience,
@@ -441,39 +464,74 @@ def main():
                 )
                 try:
                     app.add_middleware(auth_middleware)
-                except RuntimeError as e:
-                    # App already started - middleware cannot be added
-                    logger.warning(f"Cannot add middleware after app has started: {e}")
+                except RuntimeError as exc:
+                    logger.warning(f"Cannot add middleware after app has started: {exc}")
             except ImportError:
                 logger.debug("copilot_auth module not available - JWT authentication disabled")
         else:
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
 
-        # Create adapters using factory pattern
-        logger.info("Creating message bus publisher from adapter configuration")
-        message_bus_adapter = config.get_adapter("message_bus")
-        if message_bus_adapter is None:
-            raise ValueError("message_bus adapter is required")
+        # Replace bootstrap logger with config-based logger
+        logger = create_logger(config.logger)
+        set_default_logger(logger)
+        logger.info("Logger initialized from service configuration")
 
+        # Service-owned identity constants (not deployment settings)
+        service_name = "reporting"
+        subscriber_queue_name = "summary.complete"
+
+        # Message bus identity:
+        # - RabbitMQ: use a stable queue name per service.
+        # - Azure Service Bus: use topic/subscription (do NOT use queue_name).
+        message_bus_type = str(config.message_bus.message_bus_type).lower()
+        if message_bus_type == "rabbitmq":
+            rabbitmq_cfg = cast(DriverConfig_MessageBus_Rabbitmq, config.message_bus.driver)
+            config.message_bus.driver = replace(rabbitmq_cfg, queue_name=subscriber_queue_name)
+        elif message_bus_type == "azure_service_bus":
+            asb_cfg = cast(DriverConfig_MessageBus_AzureServiceBus, config.message_bus.driver)
+            config.message_bus.driver = replace(
+                asb_cfg,
+                topic_name="copilot.events",
+                subscription_name=service_name,
+                queue_name=None,
+            )
+
+        # Metrics identity: stamp per-service identifier onto driver config
+        metrics_type = str(config.metrics.metrics_type).lower()
+        if metrics_type == "pushgateway":
+            pushgateway_cfg = cast(DriverConfig_Metrics_Pushgateway, config.metrics.driver)
+            config.metrics.driver = replace(pushgateway_cfg, job=service_name, namespace=service_name)
+        elif metrics_type == "prometheus":
+            prometheus_cfg = cast(DriverConfig_Metrics_Prometheus, config.metrics.driver)
+            config.metrics.driver = replace(prometheus_cfg, namespace=service_name)
+        elif metrics_type == "azure_monitor":
+            azure_monitor_cfg = cast(DriverConfig_Metrics_AzureMonitor, config.metrics.driver)
+            config.metrics.driver = replace(azure_monitor_cfg, namespace=service_name)
+
+        # Refresh module-level service logger to use the current default
+        from app import service as reporting_service_module
+
+        reporting_service_module.logger = get_logger(reporting_service_module.__name__)
+
+        # Create adapters using typed factory pattern
+        logger.info("Creating message bus publisher...")
         publisher = create_publisher(
-            driver_name=message_bus_adapter.driver_name,
-            driver_config=message_bus_adapter.driver_config,
+            config.message_bus,
             enable_validation=True,
             strict_validation=True,
         )
         try:
             publisher.connect()
         except Exception as e:
-            if message_bus_adapter.driver_name.lower() != "noop":
+            if str(config.message_bus.message_bus_type).lower() != "noop":
                 logger.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
-        logger.info("Creating message bus subscriber from adapter configuration")
+        logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
-            driver_name=message_bus_adapter.driver_name,
-            driver_config=message_bus_adapter.driver_config,
+            config.message_bus,
             enable_validation=True,
             strict_validation=True,
         )
@@ -483,98 +541,75 @@ def main():
             logger.error(f"Failed to connect subscriber to message bus: {e}")
             raise ConnectionError("Subscriber failed to connect to message bus")
 
-        logger.info("Creating document store from adapter configuration")
-        document_store_adapter = config.get_adapter("document_store")
-        if document_store_adapter is None:
-            raise ValueError("document_store adapter is required")
-
+        logger.info("Creating document store...")
         document_store = create_document_store(
-            driver_name=document_store_adapter.driver_name,
-            driver_config=document_store_adapter.driver_config,
+            config.document_store,
             enable_validation=True,
             strict_validation=True,
+            schema_provider=create_schema_provider(schema_type="documents"),
         )
-
-        # connect() raises on failure; None return indicates success
-        document_store.connect()
-        logger.info("Document store connected successfully")
+        try:
+            document_store.connect()
+            logger.info("Document store connected successfully")
+        except DocumentStoreConnectionError as e:
+            logger.error(f"Failed to connect to document store: {e}")
+            raise
 
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
-        metrics_adapter = config.get_adapter("metrics")
-        if metrics_adapter is not None:
-            from copilot_config import DriverConfig
-            metrics_driver_config = DriverConfig(
-                driver_name=metrics_adapter.driver_name,
-                config={**metrics_adapter.driver_config.config, "job": "reporting"},
-                allowed_keys=metrics_adapter.driver_config.allowed_keys
-            )
-            metrics_collector = create_metrics_collector(
-                driver_name=metrics_adapter.driver_name,
-                driver_config=metrics_driver_config,
-            )
-        else:
-            from copilot_config import DriverConfig
-            metrics_collector = create_metrics_collector(
-                driver_name="noop",
-                driver_config=DriverConfig(driver_name="noop")
-            )
+        metrics_collector = create_metrics_collector(config.metrics)
 
         # Create error reporter - fail fast on errors
         logger.info("Creating error reporter...")
-        error_reporter_adapter = config.get_adapter("error_reporter")
-        if error_reporter_adapter is not None:
-            error_reporter = create_error_reporter(
-                driver_name=error_reporter_adapter.driver_name,
-                driver_config=error_reporter_adapter.driver_config,
-            )
-        else:
-            error_reporter = create_error_reporter(
-                driver_name=config.error_reporter_type,
-            )
+        error_reporter = create_error_reporter(config.error_reporter)
 
         # Create optional vector store and embedding provider for topic search
         vector_store = None
         embedding_provider = None
 
-        # Check if we have vector store configuration via adapter
-        vector_store_adapter = config.get_adapter("vector_store")
-        embedding_adapter = config.get_adapter("embedding_provider")
+        # Vector store + embedding backend for topic search.
+        try:
+            logger.info("Creating embedding provider for topic search...")
+            from copilot_embedding import create_embedding_provider
+            from copilot_vectorstore import create_vector_store
 
-        if vector_store_adapter is not None and embedding_adapter is not None:
-            try:
-                logger.info("Creating embedding provider for topic search from adapter configuration")
-                from copilot_embedding import create_embedding_provider
-                embedding_provider = create_embedding_provider(
-                    driver_name=embedding_adapter.driver_name,
-                    driver_config=embedding_adapter.driver_config,
-                )
-                logger.info("Embedding provider created successfully")
+            embedding_provider = create_embedding_provider(config.embedding_backend)
+            logger.info("Embedding provider created successfully")
 
-                # Get embedding dimension from adapter config
-                embedding_dimension = embedding_adapter.driver_config.get("dimension")
-                if embedding_dimension is None:
-                    logger.info("Embedding dimension not configured; detecting via test embedding")
-                    test_embedding = embedding_provider.embed("test")
-                    embedding_dimension = len(test_embedding)
-                logger.info(f"Using embedding dimension: {embedding_dimension}")
+            # Determine embedding dimension (prefer explicit provider dimension when available).
+            embedding_dimension_value = getattr(embedding_provider, "dimension", None)
+            if isinstance(embedding_dimension_value, int):
+                embedding_dimension = embedding_dimension_value
+            else:
+                logger.info("Embedding dimension not configured; detecting via test embedding")
+                embedding_dimension = len(embedding_provider.embed("test"))
+            logger.info(f"Using embedding dimension: {embedding_dimension}")
 
-                logger.info("Creating vector store for topic search from adapter configuration")
-                from copilot_vectorstore import create_vector_store
-                vector_store = create_vector_store(
-                    driver_name=vector_store_adapter.driver_name,
-                    driver_config=vector_store_adapter.driver_config,
-                    dimension=embedding_dimension
-                )
-                logger.info("Vector store created successfully")
-                logger.info("Topic-based search is enabled")
-            except Exception as e:
-                logger.warning(f"Failed to initialize topic search components: {e}")
-                logger.warning("Topic-based search will not be available")
-                vector_store = None
-                embedding_provider = None
-        else:
-            logger.info("Vector store or embedding provider not configured - topic search will not be available")
+            vector_store_config = config.vector_store
+            vector_store_type = str(vector_store_config.vector_store_type).lower()
+            if vector_store_type in {"qdrant", "azure_ai_search"}:
+                if vector_store_type == "qdrant":
+                    qdrant_cfg = cast(DriverConfig_VectorStore_Qdrant, vector_store_config.driver)
+                    vector_store_config = replace(vector_store_config, driver=replace(qdrant_cfg, vector_size=embedding_dimension))
+                else:
+                    azure_search_cfg = cast(DriverConfig_VectorStore_AzureAiSearch, vector_store_config.driver)
+                    vector_store_config = replace(
+                        vector_store_config,
+                        driver=replace(azure_search_cfg, vector_size=embedding_dimension),
+                    )
+            elif vector_store_type == "faiss":
+                faiss_cfg = cast(DriverConfig_VectorStore_Faiss, vector_store_config.driver)
+                vector_store_config = replace(vector_store_config, driver=replace(faiss_cfg, dimension=embedding_dimension))
+
+            logger.info("Creating vector store for topic search...")
+            vector_store = create_vector_store(vector_store_config)
+            logger.info("Vector store created successfully")
+            logger.info("Topic-based search is enabled")
+        except Exception as e:
+            logger.warning(f"Failed to initialize topic search components: {e}")
+            logger.warning("Topic-based search will not be available")
+            vector_store = None
+            embedding_provider = None
 
         # Create reporting service
         reporting_service = ReportingService(
@@ -583,16 +618,16 @@ def main():
             subscriber=subscriber,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
-            webhook_url=config.notify_webhook_url if config.notify_webhook_url else None,
-            notify_enabled=config.notify_enabled,
-            webhook_summary_max_length=config.webhook_summary_max_length,
+            webhook_url=config.service_settings.notify_webhook_url if config.service_settings.notify_webhook_url else None,
+            notify_enabled=bool(config.service_settings.notify_enabled),
+            webhook_summary_max_length=int(config.service_settings.webhook_summary_max_length or 0),
             vector_store=vector_store,
             embedding_provider=embedding_provider,
         )
 
-        logger.info(f"Webhook notifications: {'enabled' if config.notify_enabled else 'disabled'}")
-        if config.notify_enabled and config.notify_webhook_url:
-            logger.info(f"Webhook URL: {config.notify_webhook_url}")
+        logger.info(f"Webhook notifications: {'enabled' if config.service_settings.notify_enabled else 'disabled'}")
+        if config.service_settings.notify_enabled and config.service_settings.notify_webhook_url:
+            logger.info(f"Webhook URL: {config.service_settings.notify_webhook_url}")
 
         # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
@@ -604,15 +639,27 @@ def main():
         logger.info("Subscriber thread started")
 
         # Start FastAPI server
-        logger.info(f"Starting HTTP server on port {config.http_port}...")
+        http_host = str(config.service_settings.http_host or "0.0.0.0")
+        http_port = int(config.service_settings.http_port or 8080)
+        logger.info(f"Starting HTTP server on port {http_port}...")
 
         # Configure Uvicorn with structured JSON logging
-        log_config = create_uvicorn_log_config(service_name="reporting", log_level="INFO")
-        uvicorn.run(app, host=config.http_host, port=config.http_port, log_config=log_config, access_log=False)
+        log_level = getattr(config.logger.driver, "level", "INFO")
+        log_config = create_uvicorn_log_config(service_name="reporting", log_level=log_level)
+        uvicorn.run(app, host=http_host, port=http_port, log_config=log_config, access_log=False)
 
     except Exception as e:
         logger.error(f"Failed to start reporting service: {e}", exc_info=True)
         sys.exit(1)
+    finally:
+        # Cleanup
+        if reporting_service:
+            if reporting_service.subscriber:
+                reporting_service.subscriber.disconnect()
+            if reporting_service.publisher:
+                reporting_service.publisher.disconnect()
+            if reporting_service.document_store:
+                reporting_service.document_store.disconnect()
 
 
 if __name__ == "__main__":

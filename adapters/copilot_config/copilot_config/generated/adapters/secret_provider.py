@@ -8,7 +8,7 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
@@ -29,7 +29,7 @@ class DriverConfig_SecretProvider_AzureKeyVault:
 @dataclass
 class DriverConfig_SecretProvider_Local:
     """Configuration for secret_provider adapter using local driver."""
-    base_path: Optional[str] = '/run/secrets'
+    base_path: str = '/run/secrets'
     # Base path for secret storage
 
 

@@ -16,6 +16,12 @@ from copilot_auth.google_provider import GoogleIdentityProvider
 from copilot_auth.microsoft_provider import MicrosoftIdentityProvider
 from copilot_auth.mock_provider import MockIdentityProvider
 
+from copilot_config.generated.adapters.oidc_providers import (
+    DriverConfig_OidcProviders_Github,
+    DriverConfig_OidcProviders_Google,
+    DriverConfig_OidcProviders_Microsoft,
+)
+
 
 class TestMockIdentityProvider:
     """Tests for MockIdentityProvider."""
@@ -202,14 +208,15 @@ class TestGitHubIdentityProviderExtended:
     """Extended tests for GitHubIdentityProvider to improve coverage."""
 
     def test_from_config(self):
-        """Test from_config creates provider from DriverConfig."""
-        mock_config = Mock()
-        mock_config.github_client_id = "config-client-id"
-        mock_config.github_client_secret = "config-secret"
-        mock_config.github_redirect_uri = "https://config.example.com/callback"
-        mock_config.github_api_base_url = "https://api.github.com"
-        
-        provider = GitHubIdentityProvider.from_config(mock_config)
+        """Test from_config creates provider from typed config."""
+        cfg = DriverConfig_OidcProviders_Github(
+            github_client_id="config-client-id",
+            github_client_secret="config-secret",
+            github_redirect_uri="https://config.example.com/callback",
+            github_api_base_url="https://api.github.com",
+        )
+
+        provider = GitHubIdentityProvider.from_config(cfg)
         
         assert provider.client_id == "config-client-id"
         assert provider.client_secret == "config-secret"
@@ -423,13 +430,14 @@ class TestGoogleIdentityProviderExtended:
         assert provider.scopes == ["openid", "profile", "email"]
 
     def test_from_config(self):
-        """Test from_config creates provider from DriverConfig."""
-        mock_config = Mock()
-        mock_config.google_client_id = "config-client-id"
-        mock_config.google_client_secret = "config-secret"
-        mock_config.google_redirect_uri = "https://config.example.com/callback"
-        
-        provider = GoogleIdentityProvider.from_config(mock_config)
+        """Test from_config creates provider from typed config."""
+        cfg = DriverConfig_OidcProviders_Google(
+            google_client_id="config-client-id",
+            google_client_secret="config-secret",
+            google_redirect_uri="https://config.example.com/callback",
+        )
+
+        provider = GoogleIdentityProvider.from_config(cfg)
         
         assert provider.client_id == "config-client-id"
         assert provider.client_secret == "config-secret"
@@ -544,14 +552,15 @@ class TestMicrosoftIdentityProviderExtended:
         assert "login.microsoftonline.com/contoso.onmicrosoft.com/v2.0" in provider.discovery_url
 
     def test_from_config(self):
-        """Test from_config creates provider from DriverConfig."""
-        mock_config = Mock()
-        mock_config.microsoft_client_id = "config-client-id"
-        mock_config.microsoft_client_secret = "config-secret"
-        mock_config.microsoft_redirect_uri = "https://config.example.com/callback"
-        mock_config.microsoft_tenant = "test-tenant"
-        
-        provider = MicrosoftIdentityProvider.from_config(mock_config)
+        """Test from_config creates provider from typed config."""
+        cfg = DriverConfig_OidcProviders_Microsoft(
+            microsoft_client_id="config-client-id",
+            microsoft_client_secret="config-secret",
+            microsoft_redirect_uri="https://config.example.com/callback",
+            microsoft_tenant="test-tenant",
+        )
+
+        provider = MicrosoftIdentityProvider.from_config(cfg)
         
         assert provider.client_id == "config-client-id"
         assert provider.client_secret == "config-secret"
