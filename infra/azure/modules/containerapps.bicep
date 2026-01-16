@@ -650,6 +650,10 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureblob'
             }
             {
+              name: 'AZUREBLOB_AUTH_TYPE'
+              value: 'managed_identity'
+            }
+            {
               name: 'AZUREBLOB_ACCOUNT_NAME'
               value: storageAccountName
             }
@@ -842,6 +846,10 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'ARCHIVE_STORE_TYPE'
               value: 'azureblob'
+            }
+            {
+              name: 'AZUREBLOB_AUTH_TYPE'
+              value: 'managed_identity'
             }
             {
               name: 'AZUREBLOB_ACCOUNT_NAME'
