@@ -152,7 +152,10 @@ class ReportingService:
         """
         # Extract data from event
         original_summary_id = event_data.get("summary_id")  # SHA-256 hash from summarization service
-        thread_id = event_data.get("thread_id")
+        thread_id_value = event_data.get("thread_id")
+        if not isinstance(thread_id_value, str) or not thread_id_value:
+            raise ValueError("SummaryComplete event missing required 'thread_id'")
+        thread_id = thread_id_value
 
         # Generate a 16-character hex ID for summaries._id (matching schema requirements)
         # Use a truncated hash of the original summary_id for determinism
@@ -301,8 +304,12 @@ class ReportingService:
             "url": f"/api/reports/{report_id}",
         }
 
+        webhook_url = self.webhook_url
+        if not isinstance(webhook_url, str) or not webhook_url:
+            raise ValueError("Webhook notifications enabled but webhook_url is not configured")
+
         response = requests.post(
-            self.webhook_url,
+            webhook_url,
             json=payload,
             timeout=10,
         )

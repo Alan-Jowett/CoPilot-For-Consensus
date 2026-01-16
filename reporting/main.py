@@ -577,8 +577,9 @@ def main():
             logger.info("Embedding provider created successfully")
 
             # Determine embedding dimension (prefer explicit provider dimension when available).
-            if hasattr(embedding_provider, "dimension"):
-                embedding_dimension = embedding_provider.dimension
+            embedding_dimension_value = getattr(embedding_provider, "dimension", None)
+            if isinstance(embedding_dimension_value, int):
+                embedding_dimension = embedding_dimension_value
             else:
                 logger.info("Embedding dimension not configured; detecting via test embedding")
                 embedding_dimension = len(embedding_provider.embed("test"))

@@ -215,8 +215,10 @@ jobs:
 
           if [ $PYLINT_ERRORS -gt 0 ]; then
             echo "::error::Pylint found critical errors in $PYLINT_ERRORS module(s)"
-            exit 1
           fi
+
+          # Do not fail here; fail at the end so other checks still run.
+          exit 0
 
       - name: MyPy - Static Type Checking
         id: mypy
@@ -323,241 +325,150 @@ jobs:
           # Do not fail the build on Pyright yet; report in summary instead
           exit 0
 
-      - name: Pyright (gating) - Archive fetcher typed source config safety
+      - name: Pyright (gating) - Typed config safety gates
+        id: pyright_gates
         run: |
-          # This adapter uses a strict, schema-aligned SourceConfig model.
-          # Gate key modules so type mistakes in source_type dispatch are caught
-          # before merge.
-          pyright \
-            adapters/copilot_archive_fetcher/copilot_archive_fetcher/models.py \
-            adapters/copilot_archive_fetcher/copilot_archive_fetcher/factory.py \
-            --level error
+          echo "::group::Running Pyright gating checks"
+          set +e
 
-      - name: Pyright (gating) - Archive store typed config safety
-        run: |
-          # Archive store uses generated typed configs (AdapterConfig_ArchiveStore) and
-          # typed driver configs; gate the public factory and key drivers.
-          pyright \
+          GATE_FAILS=0
+
+          run_gate() {
+            gate_name="$1"
+            shift
+            echo ""
+            echo "=== $gate_name ==="
+            pyright "$@" --level error
+            if [ $? -ne 0 ]; then
+              GATE_FAILS=$((GATE_FAILS + 1))
+              echo "::error::Pyright gate failed: $gate_name"
+            fi
+          }
+
+          run_gate "Archive fetcher typed source config safety" \
+            adapters/copilot_archive_fetcher/copilot_archive_fetcher/models.py \
+            adapters/copilot_archive_fetcher/copilot_archive_fetcher/factory.py
+
+          run_gate "Archive store typed config safety" \
             adapters/copilot_archive_store/copilot_archive_store/archive_store.py \
             adapters/copilot_archive_store/copilot_archive_store/azure_blob_archive_store.py \
-            adapters/copilot_archive_store/copilot_archive_store/local_volume_archive_store.py \
-            --level error
+            adapters/copilot_archive_store/copilot_archive_store/local_volume_archive_store.py
 
-      - name: Pyright (gating) - Auth adapter typed config safety
-        run: |
-          # Auth adapter consumes generated typed oidc_providers configs.
-          # Gate the factory and provider constructors to prevent config schema drift.
-          pyright \
+          run_gate "Auth adapter typed config safety" \
             adapters/copilot_auth/copilot_auth/factory.py \
             adapters/copilot_auth/copilot_auth/github_provider.py \
             adapters/copilot_auth/copilot_auth/google_provider.py \
-            adapters/copilot_auth/copilot_auth/microsoft_provider.py \
-            --level error
+            adapters/copilot_auth/copilot_auth/microsoft_provider.py
 
-      - name: Pyright (gating) - Chunking adapter typed config safety
-        run: |
-          # Chunking adapter consumes generated typed chunker configs.
-          # Gate the factory and core module to prevent config schema drift.
-          pyright \
-            adapters/copilot_chunking/copilot_chunking/chunkers.py \
-            --level error
+          run_gate "Chunking adapter typed config safety" \
+            adapters/copilot_chunking/copilot_chunking/chunkers.py
 
-      - name: Pyright (gating) - Config adapter typed runtime loader safety
-        run: |
-          # copilot_config is the typed boundary between JSON schema/env/secret loading
-          # and the generated ServiceConfig_* / AdapterConfig_* dataclasses.
-          # Gate key entrypoints so schema drift shows up as attribute errors in CI.
-          pyright \
+          run_gate "Config adapter typed runtime loader safety" \
             adapters/copilot_config/copilot_config/runtime_loader.py \
-            adapters/copilot_config/copilot_config/adapter_factory.py \
-            --level error
+            adapters/copilot_config/copilot_config/adapter_factory.py
 
-      - name: Pyright (gating) - Consensus adapter typed config safety
-        run: |
-          # Consensus adapter consumes generated typed consensus_detector configs.
-          # Gate the factory and core model so config drift becomes a CI failure.
-          pyright \
+          run_gate "Consensus adapter typed config safety" \
             adapters/copilot_consensus/copilot_consensus/consensus.py \
-            adapters/copilot_consensus/copilot_consensus/thread.py \
-            --level error
+            adapters/copilot_consensus/copilot_consensus/thread.py
 
-      - name: Pyright (gating) - Draft diff adapter typed config safety
-        run: |
-          # Draft diff adapter consumes generated typed draft_diff_provider configs.
-          # Gate the factory and key providers to prevent schema drift.
-          pyright \
+          run_gate "Draft diff adapter typed config safety" \
             adapters/copilot_draft_diff/copilot_draft_diff/factory.py \
             adapters/copilot_draft_diff/copilot_draft_diff/mock_provider.py \
-            adapters/copilot_draft_diff/copilot_draft_diff/datatracker_provider.py \
-            --level error
+            adapters/copilot_draft_diff/copilot_draft_diff/datatracker_provider.py
 
-      - name: Pyright (gating) - Embedding adapter typed config safety
-        run: |
-          # Embedding adapter consumes generated typed embedding_backend configs.
-          # Gate the factory and providers so driver/config drift becomes a CI failure.
-          pyright \
+          run_gate "Embedding adapter typed config safety" \
             adapters/copilot_embedding/copilot_embedding/factory.py \
             adapters/copilot_embedding/copilot_embedding/openai_provider.py \
-            adapters/copilot_embedding/copilot_embedding/sentence_transformer_provider.py \
-            --level error
+            adapters/copilot_embedding/copilot_embedding/sentence_transformer_provider.py
 
-      - name: Pyright (gating) - Error reporting adapter typed config safety
-        run: |
-          # Error reporting adapter consumes generated typed error_reporter configs.
-          # Gate the adapter entrypoint and implementations so schema drift breaks CI.
-          pyright \
+          run_gate "Error reporting adapter typed config safety" \
             adapters/copilot_error_reporting/copilot_error_reporting/__init__.py \
             adapters/copilot_error_reporting/copilot_error_reporting/console_error_reporter.py \
             adapters/copilot_error_reporting/copilot_error_reporting/sentry_error_reporter.py \
-            adapters/copilot_error_reporting/copilot_error_reporting/silent_error_reporter.py \
-            --level error
+            adapters/copilot_error_reporting/copilot_error_reporting/silent_error_reporter.py
 
-      - name: Pyright (gating) - Logging adapter typed config safety
-        run: |
-          # Logging adapter consumes generated typed logger configs.
-          # Gate the factory and key drivers so schema drift breaks CI.
-          pyright \
+          run_gate "Logging adapter typed config safety" \
             adapters/copilot_logging/copilot_logging/factory.py \
             adapters/copilot_logging/copilot_logging/stdout_logger.py \
             adapters/copilot_logging/copilot_logging/silent_logger.py \
-            adapters/copilot_logging/copilot_logging/azure_monitor_logger.py \
-            --level error
+            adapters/copilot_logging/copilot_logging/azure_monitor_logger.py
 
-      - name: Pyright (gating) - Metrics adapter typed config safety
-        run: |
-          # Metrics adapter consumes generated typed metrics configs.
-          # Gate the factory and key drivers so schema drift breaks CI.
-          pyright \
+          run_gate "Metrics adapter typed config safety" \
             adapters/copilot_metrics/copilot_metrics/factory.py \
             adapters/copilot_metrics/copilot_metrics/prometheus_metrics.py \
             adapters/copilot_metrics/copilot_metrics/pushgateway_metrics.py \
-            adapters/copilot_metrics/copilot_metrics/azure_monitor_metrics.py \
-            --level error
+            adapters/copilot_metrics/copilot_metrics/azure_monitor_metrics.py
 
-      - name: Pyright (gating) - Schema validation adapter safety
-        run: |
-          # Schema validation is a shared library used across services/adapters.
-          # Gate key entrypoints so missing imports/attribute errors fail fast.
-          pyright \
+          run_gate "Schema validation adapter safety" \
             adapters/copilot_schema_validation/copilot_schema_validation/__init__.py \
             adapters/copilot_schema_validation/copilot_schema_validation/schema_registry.py \
             adapters/copilot_schema_validation/copilot_schema_validation/schema_provider.py \
             adapters/copilot_schema_validation/copilot_schema_validation/file_schema_provider.py \
-            adapters/copilot_schema_validation/copilot_schema_validation/models.py \
-            --level error
+            adapters/copilot_schema_validation/copilot_schema_validation/models.py
 
-      - name: Pyright (gating) - Secrets adapter typed config safety
-        run: |
-          # Secrets adapter consumes generated typed secret_provider configs.
-          # Gate the factory and providers so schema drift breaks CI.
-          pyright \
+          run_gate "Secrets adapter typed config safety" \
             adapters/copilot_secrets/copilot_secrets/factory.py \
             adapters/copilot_secrets/copilot_secrets/local_provider.py \
-            adapters/copilot_secrets/copilot_secrets/azurekeyvault_provider.py \
-            --level error
+            adapters/copilot_secrets/copilot_secrets/azurekeyvault_provider.py
 
-      - name: Pyright (gating) - Startup adapter safety
-        run: |
-          # Startup adapter provides requeue utilities used by services.
-          # Gate the core module to catch import/typing regressions.
-          pyright \
-            adapters/copilot_startup/copilot_startup/startup_requeue.py \
-            --level error
+          run_gate "Startup adapter safety" \
+            adapters/copilot_startup/copilot_startup/startup_requeue.py
 
-      - name: Pyright (gating) - Storage adapter typed config safety
-        run: |
-          # Storage adapter consumes generated typed document_store configs.
-          # Gate the factory and key implementations so schema drift breaks CI.
-          pyright \
+          run_gate "Storage adapter typed config safety" \
             adapters/copilot_storage/copilot_storage/factory.py \
             adapters/copilot_storage/copilot_storage/mongo_document_store.py \
             adapters/copilot_storage/copilot_storage/azure_cosmos_document_store.py \
-            adapters/copilot_storage/copilot_storage/validating_document_store.py \
-            --level error
+            adapters/copilot_storage/copilot_storage/validating_document_store.py
 
-      - name: Pyright (gating) - Summarization adapter typed config safety
-        run: |
-          # Summarization adapter consumes generated typed llm_backend configs.
-          # Gate the factory and the concrete summarizers used by services.
-          pyright \
+          run_gate "Summarization adapter typed config safety" \
             adapters/copilot_summarization/copilot_summarization/factory.py \
             adapters/copilot_summarization/copilot_summarization/openai_summarizer.py \
             adapters/copilot_summarization/copilot_summarization/local_llm_summarizer.py \
-            adapters/copilot_summarization/copilot_summarization/llamacpp_summarizer.py \
-            --level error
+            adapters/copilot_summarization/copilot_summarization/llamacpp_summarizer.py
 
-      - name: Pyright (gating) - Vectorstore adapter typed config safety
-        run: |
-          # Vectorstore adapter consumes generated typed vector_store configs.
-          # Gate the factory and driver implementations that parse driver configs.
-          pyright \
+          run_gate "Vectorstore adapter typed config safety" \
             adapters/copilot_vectorstore/copilot_vectorstore/factory.py \
             adapters/copilot_vectorstore/copilot_vectorstore/qdrant_store.py \
             adapters/copilot_vectorstore/copilot_vectorstore/azure_ai_search_store.py \
             adapters/copilot_vectorstore/copilot_vectorstore/faiss_store.py \
-            adapters/copilot_vectorstore/copilot_vectorstore/inmemory.py \
-            --level error
+            adapters/copilot_vectorstore/copilot_vectorstore/inmemory.py
 
-      - name: Pyright (gating) - Message bus adapter typed config safety
-        run: |
-          # Message bus adapter consumes generated typed message_bus configs.
-          # Gate factory and key drivers so schema drift breaks CI.
-          pyright \
+          run_gate "Message bus adapter typed config safety" \
             adapters/copilot_message_bus/copilot_message_bus/factory.py \
             adapters/copilot_message_bus/copilot_message_bus/rabbitmq_publisher.py \
             adapters/copilot_message_bus/copilot_message_bus/rabbitmq_subscriber.py \
             adapters/copilot_message_bus/copilot_message_bus/azureservicebuspublisher.py \
-            adapters/copilot_message_bus/copilot_message_bus/azureservicebussubscriber.py \
-            --level error
+            adapters/copilot_message_bus/copilot_message_bus/azureservicebussubscriber.py
 
-      - name: Pyright (gating) - Ingestion typed config safety
-        run: |
-          # This is the shift-left guardrail: catch missing/incorrect config attribute
-          # access (e.g., config.storage_path vs config.service_settings.storage_path)
-          # before merge.
-          pyright ingestion/main.py ingestion/app/service.py --level error
+          run_gate "Ingestion typed config safety" \
+            ingestion/main.py ingestion/app/service.py
 
-      - name: Pyright (gating) - Auth typed config safety
-        run: |
-          # Auth uses schema-driven config; this guards against config schema drift
-          # and missing attribute access in entrypoints and core logic.
-          pyright auth/main.py auth/app/config.py auth/app/service.py auth/app/role_store.py --level error
+          run_gate "Auth typed config safety" \
+            auth/main.py auth/app/config.py auth/app/service.py auth/app/role_store.py
 
-      - name: Pyright (gating) - Chunking typed config safety
-        run: |
-          # Chunking uses schema-driven config; this guards against config schema drift
-          # and missing attribute access in the entrypoint and core service.
-          pyright chunking/main.py chunking/app/service.py --level error
+          run_gate "Chunking typed config safety" \
+            chunking/main.py chunking/app/service.py
 
-      - name: Pyright (gating) - Embedding typed config safety
-        run: |
-          # Embedding uses schema-driven config; this guards against config schema drift
-          # and missing attribute access in the entrypoint and core service.
-          pyright embedding/main.py embedding/app/service.py --level error
+          run_gate "Embedding typed config safety" \
+            embedding/main.py embedding/app/service.py
 
-      - name: Pyright (gating) - Orchestrator typed config safety
-        run: |
-          # Orchestrator uses schema-driven config; this guards against config schema drift
-          # and missing attribute access in the entrypoint and core service.
-          pyright orchestrator/main.py orchestrator/app/service.py --level error
+          run_gate "Orchestrator typed config safety" \
+            orchestrator/main.py orchestrator/app/service.py
 
-      - name: Pyright (gating) - Parsing typed config safety
-        run: |
-          # Parsing uses schema-driven config; this guards against config schema drift
-          # and missing attribute access in the entrypoint and core service.
-          pyright parsing/main.py parsing/app/service.py --level error
+          run_gate "Parsing typed config safety" \
+            parsing/main.py parsing/app/service.py
 
-      - name: Pyright (gating) - Reporting typed config safety
-        run: |
-          # Reporting uses schema-driven config; this guards against config schema drift
-          # and missing attribute access in the entrypoint and core service.
-          pyright reporting/main.py reporting/app/service.py --level error
+          run_gate "Reporting typed config safety" \
+            reporting/main.py reporting/app/service.py
 
-      - name: Pyright (gating) - Summarization typed config safety
-        run: |
-          # Summarization uses schema-driven config; this guards against config schema drift
-          # and missing attribute access in the entrypoint and core service.
-          pyright summarization/main.py summarization/app/service.py --level error
+          run_gate "Summarization typed config safety" \
+            summarization/main.py summarization/app/service.py
+
+          echo "fail_count=$GATE_FAILS" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+
+          # Do not fail here; fail at the end so the summary always runs.
+          exit 0
 
       - name: Generate Validation Summary
         if: always()
@@ -603,17 +514,40 @@ jobs:
             echo "| Pyright | ❌ Failed | $PYRIGHT_ERRORS module(s) |" >> $GITHUB_STEP_SUMMARY
           fi
 
+          # Pyright gates
+          PYRIGHT_GATE_FAILS="${{ steps.pyright_gates.outputs.fail_count }}"
+          if [ "$PYRIGHT_GATE_FAILS" = "0" ] || [ -z "$PYRIGHT_GATE_FAILS" ]; then
+            echo "| Pyright gates | ✅ Passed | 0 |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Pyright gates | ❌ Failed | $PYRIGHT_GATE_FAILS check(s) |" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Critical Checks" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The following checks will **fail the build** if they detect errors:" >> $GITHUB_STEP_SUMMARY
           echo "- **Pylint** (E0602: undefined-variable, E1101: no-member, E0611: no-name-in-module)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pyright gates** (typed config safety checks)" >> $GITHUB_STEP_SUMMARY
           echo "- **Import smoke tests** (critical import/runtime errors)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Informational (non-blocking) results:" >> $GITHUB_STEP_SUMMARY
-          echo "- **MyPy** and **Pyright** (reported above; reviewed but not gating yet)" >> $GITHUB_STEP_SUMMARY
+          echo "- **MyPy** and **Pyright** (reported above; reviewed but not gating)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "These checks catch hallucinated methods, attributes, and variables in LLM-generated code." >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail job if critical checks failed
+        if: always()
+        run: |
+          PYLINT_ERRORS="${{ steps.pylint.outputs.error_count }}"
+          PYRIGHT_GATE_FAILS="${{ steps.pyright_gates.outputs.fail_count }}"
+
+          if [ -z "$PYLINT_ERRORS" ]; then PYLINT_ERRORS=0; fi
+          if [ -z "$PYRIGHT_GATE_FAILS" ]; then PYRIGHT_GATE_FAILS=0; fi
+
+          if [ "$PYLINT_ERRORS" != "0" ] || [ "$PYRIGHT_GATE_FAILS" != "0" ]; then
+            echo "::error::Critical checks failed (pylint=$PYLINT_ERRORS, pyright_gates=$PYRIGHT_GATE_FAILS)"
+            exit 1
+          fi
 
   import-smoke-tests:
     name: Import Smoke Tests
@@ -714,5 +648,10 @@ jobs:
         run: |
           if [ "${{ needs.import-smoke-tests.result }}" = "failure" ]; then
             echo "::error::Import smoke tests failed - critical import errors detected"
+            exit 1
+          fi
+
+          if [ "${{ needs.static-analysis.result }}" = "failure" ]; then
+            echo "::error::Static analysis job failed - critical checks detected"
             exit 1
           fi

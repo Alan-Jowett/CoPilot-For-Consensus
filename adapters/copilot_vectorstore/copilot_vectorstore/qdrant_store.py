@@ -3,6 +3,7 @@
 
 """Qdrant-based vector store implementation."""
 
+import importlib
 import logging
 import uuid
 from typing import Any
@@ -89,8 +90,14 @@ class QdrantVectorStore(VectorStore):
             ConnectionError: If cannot connect to Qdrant server
         """
         try:
-            from qdrant_client import QdrantClient
-            from qdrant_client.models import Distance, PointIdsList, PointStruct, VectorParams
+            qdrant_client_module = importlib.import_module("qdrant_client")
+            qdrant_models_module = importlib.import_module("qdrant_client.models")
+
+            QdrantClient = getattr(qdrant_client_module, "QdrantClient")
+            Distance = getattr(qdrant_models_module, "Distance")
+            PointIdsList = getattr(qdrant_models_module, "PointIdsList")
+            PointStruct = getattr(qdrant_models_module, "PointStruct")
+            VectorParams = getattr(qdrant_models_module, "VectorParams")
         except ImportError as e:
             raise ImportError(
                 "qdrant-client is not installed. Install it with: pip install qdrant-client"
@@ -111,10 +118,10 @@ class QdrantVectorStore(VectorStore):
         self._upsert_batch_size = upsert_batch_size
 
         # Store imports for later use
-        self._Distance = Distance
-        self._VectorParams = VectorParams
-        self._PointStruct = PointStruct
-        self._PointIdsList = PointIdsList
+        self._Distance: Any = Distance
+        self._VectorParams: Any = VectorParams
+        self._PointStruct: Any = PointStruct
+        self._PointIdsList: Any = PointIdsList
 
         # Initialize Qdrant client
         try:

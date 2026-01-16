@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from copilot_config.generated.adapters.metrics import DriverConfig_Metrics_Pushgateway
 
@@ -36,7 +37,7 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
         gateway: str,
         job: str,
         grouping_key: dict[str, str] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Initialize Prometheus Pushgateway metrics collector.
 
@@ -57,8 +58,15 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
                 "Install with: pip install prometheus-client"
             )
 
-        # Use a dedicated registry by default to keep pushed metrics scoped
-        registry = kwargs.pop("registry", CollectorRegistry())
+        # Use a dedicated registry by default to keep pushed metrics scoped.
+        # Accept "registry" via kwargs for backward compatibility.
+        registry_value = kwargs.pop("registry", None)
+        if registry_value is None:
+            registry = CollectorRegistry()
+        elif isinstance(registry_value, CollectorRegistry):
+            registry = registry_value
+        else:
+            registry = CollectorRegistry()
 
         super().__init__(registry=registry, **kwargs)
 

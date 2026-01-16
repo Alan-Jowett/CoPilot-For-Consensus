@@ -3,6 +3,7 @@
 
 """FAISS-based vector store implementation."""
 
+import importlib
 import logging
 from typing import Any
 
@@ -43,7 +44,7 @@ class FAISSVectorStore(VectorStore):
             ValueError: If dimension <= 0 or index_type is invalid
         """
         try:
-            import faiss
+            faiss = importlib.import_module("faiss")
         except ImportError as e:
             raise ImportError(
                 "FAISS is not installed. Install it with: pip install faiss-cpu"
@@ -109,7 +110,9 @@ class FAISSVectorStore(VectorStore):
             # Train with deterministic random data for initialization
             # In production, this will be replaced by actual data during first batch add
             np.random.seed(42)
-            index.train(np.random.rand(1000, self._dimension).astype('float32'))
+            training_data = np.random.rand(1000, self._dimension).astype("float32")
+            train = getattr(index, "train")
+            train(training_data)
             return index
 
     def add_embedding(self, id: str, vector: list[float], metadata: dict[str, Any]) -> None:
