@@ -213,7 +213,7 @@ def main():
         log.info("Ingestion service configured and ready")
 
         # Ensure storage path exists (if configured)
-        storage_path = config.service_settings.storage_path or "/tmp/ingestion"
+        storage_path = config.service_settings.storage_path or "/data/ingestion"
         IngestionService._ensure_storage_path(storage_path)
         log.info("Storage path prepared", storage_path=storage_path)
 

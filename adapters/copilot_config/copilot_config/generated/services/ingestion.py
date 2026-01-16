@@ -35,7 +35,7 @@ class ServiceSettings_Ingestion:
     request_timeout_seconds: Optional[int] = 60
     schedule_interval_seconds: Optional[int] = 21600
     service_audience: Optional[str] = 'copilot-for-consensus'
-    storage_path: Optional[str] = '/tmp/ingestion'
+    storage_path: Optional[str] = '/data/ingestion'
 
 
 @dataclass

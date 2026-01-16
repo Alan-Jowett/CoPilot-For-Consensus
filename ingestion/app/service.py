@@ -140,7 +140,7 @@ class IngestionService:
 
         # Get storage path from config or use default (store as instance variable for use throughout service)
         settings = config.service_settings
-        self.storage_path = settings.storage_path or "/tmp/ingestion"
+        self.storage_path = settings.storage_path or "/data/ingestion"
         self._ensure_storage_path(self.storage_path)
 
         if error_reporter is None:

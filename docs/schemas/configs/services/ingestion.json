@@ -90,7 +90,7 @@
             "type": "string",
             "source": "env",
             "env_var": "INGESTION_STORAGE_PATH",
-            "default": "/tmp/ingestion",
+            "default": "/data/ingestion",
             "description": "Path for storing ingestion data"
         },
         "http_host": {
