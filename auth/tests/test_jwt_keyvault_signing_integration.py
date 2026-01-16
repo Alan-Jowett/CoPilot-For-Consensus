@@ -1,3 +1,12 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+"""Integration tests for Key Vault JWT signing.
+
+These tests are marked as integration and are expected to be skipped unless the
+Azure Key Vault SDK dependencies are installed.
+"""
+
 from __future__ import annotations
 
 from unittest.mock import Mock, patch
