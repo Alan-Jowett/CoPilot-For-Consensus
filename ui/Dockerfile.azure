@@ -6,10 +6,12 @@
 FROM node:25-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
-RUN if [ -f package-lock.json ]; then npm ci --only=production; \
-    elif [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile --prod; \
-    elif [ -f yarn.lock ]; then npm i -g yarn && yarn install --frozen-lockfile --production; \
-    else npm install --production; fi
+# Install build dependencies (including devDependencies) so `tsc`/`vite` exist.
+# The final runtime image is still minimal because it only copies `/app/dist`.
+RUN if [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
+  elif [ -f yarn.lock ]; then npm i -g yarn && yarn install --frozen-lockfile; \
+  else npm install; fi
 ARG VITE_REPORTING_API_URL
 ENV VITE_REPORTING_API_URL=${VITE_REPORTING_API_URL}
 ARG VITE_BASE

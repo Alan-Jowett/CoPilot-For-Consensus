@@ -4,13 +4,12 @@
 name: Publish Azure-Optimized Docker Images to GHCR
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Docker Compose CI"]
+    types:
+      - completed
     branches:
       - main
-    paths:
-      - '**/Dockerfile.azure'
-      - 'adapters/**'
-      - '.github/workflows/publish-docker-images-azure.yml'
   workflow_dispatch:
 
 permissions:
@@ -31,6 +30,8 @@ jobs:
   publish:
     name: Build and Publish Azure-Optimized Docker Images
     runs-on: ubuntu-latest
+    # Only run if the triggering workflow succeeded (or if manually triggered)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     strategy:
       fail-fast: false
@@ -80,6 +81,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || github.event.workflow_run.head_sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
