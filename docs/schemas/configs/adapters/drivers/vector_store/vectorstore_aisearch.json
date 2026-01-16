@@ -11,7 +11,7 @@
             "minLength": 1,
             "pattern": "^https://",
             "format": "uri",
-            "description": "Azure AI Search endpoint URL"
+            "description": "Azure AI Search endpoint URL (HTTPS URI; must start with https://)"
         },
         "index_name": {
             "type": "string",

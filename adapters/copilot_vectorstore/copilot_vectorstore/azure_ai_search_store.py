@@ -524,7 +524,7 @@ class AzureAISearchVectorStore(VectorStore):
             top=0,  # Don't return actual documents, just count
         )
         # Some SDK versions type this as `int`, but at runtime it can be `None`.
-        count = cast(Any, results).get_count()
+        count = cast(int | None, results.get_count())
         if count is None:
             logger.warning(
                 "Azure AI Search returned None for count, returning 0. "

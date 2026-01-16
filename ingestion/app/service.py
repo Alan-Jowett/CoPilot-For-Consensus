@@ -729,35 +729,39 @@ class IngestionService:
             )
             return
 
+        def _refresh_archive_metadata_cache(source_name: str) -> dict[str, dict[str, Any]]:
+            if not self.archive_store:
+                self._archive_metadata_cache[source_name] = {}
+                return {}
+
+            archives = self.archive_store.list_archives(source_name)
+            lookup: dict[str, dict[str, Any]] = {}
+            for archive in archives:
+                archive_id_value = archive.get("archive_id")
+                if isinstance(archive_id_value, str) and archive_id_value:
+                    lookup[archive_id_value] = archive
+
+            self._archive_metadata_cache[source_name] = lookup
+            return lookup
+
         try:
             # Get archive metadata from ArchiveStore
             archive_metadata = None
             if self.archive_store:
                 # Use per-source in-memory cache (initialized in __init__) to avoid repeated
                 # list_archives calls when processing multiple archives for a source.
-                cached_archive_lookup: dict[str, dict[str, Any]] | None = self._archive_metadata_cache.get(source.name)
+                cached_archive_lookup: dict[str, dict[str, Any]] | None = self._archive_metadata_cache.get(
+                    source.name
+                )
                 if cached_archive_lookup is None:
-                    archives = self.archive_store.list_archives(source.name)
-                    cached_archive_lookup = {}
-                    for archive in archives:
-                        archive_id_value = archive.get("archive_id")
-                        if isinstance(archive_id_value, str) and archive_id_value:
-                            cached_archive_lookup[archive_id_value] = archive
-                    self._archive_metadata_cache[source.name] = cached_archive_lookup
+                    cached_archive_lookup = _refresh_archive_metadata_cache(source.name)
 
                 archive_metadata = cached_archive_lookup.get(archive_id)
                 
                 # If metadata not found in cache, refresh the cache in case new archives
                 # were just stored by store_archive() and not yet in the cache
                 if not archive_metadata:
-                    # Reload list_archives to get newly stored archives
-                    archives = self.archive_store.list_archives(source.name)
-                    cached_archive_lookup = {}
-                    for archive in archives:
-                        archive_id_value = archive.get("archive_id")
-                        if isinstance(archive_id_value, str) and archive_id_value:
-                            cached_archive_lookup[archive_id_value] = archive
-                    self._archive_metadata_cache[source.name] = cached_archive_lookup
+                    cached_archive_lookup = _refresh_archive_metadata_cache(source.name)
                     archive_metadata = cached_archive_lookup.get(archive_id)
 
             # Determine archive format from stored metadata or default to mbox

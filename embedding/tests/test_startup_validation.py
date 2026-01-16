@@ -54,7 +54,6 @@ def _make_service_config(
     message_bus_driver: str = "rabbitmq",
     document_store_driver: str = "mongodb",
     vectorstore_driver: str = "qdrant",
-    embedding_driver: str = "mock",
     http_port: int = 8082,
 ) -> ServiceConfig_Embedding:
     # Use jwt_auth_enabled=False to avoid importing/initializing auth middleware in unit tests.
@@ -93,7 +92,7 @@ def _make_service_config(
             ),
         ),
         embedding_backend=AdapterConfig_EmbeddingBackend(
-            embedding_backend_type=embedding_driver,
+            embedding_backend_type="mock",
             driver=DriverConfig_EmbeddingBackend_Mock(dimension=384),
         ),
         metrics=AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()),

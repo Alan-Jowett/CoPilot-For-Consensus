@@ -257,6 +257,51 @@ class TestProviderInitialization:
 
         service.JWTManager = original_jwt_manager
 
+    def test_service_starts_with_partial_provider_init_failure(self, mock_config, monkeypatch):
+        """Service should start with providers that initialize successfully."""
+        monkeypatch.setattr(Path, "write_text", lambda self, content: None)
+        monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
+
+        class MockJWTManager:
+            def __init__(self, **kwargs):
+                pass
+
+        from app import service
+
+        original_jwt_manager = service.JWTManager
+        service.JWTManager = MockJWTManager
+
+        mock_config.oidc_providers = AdapterConfig_OidcProviders(
+            oidc_providers=CompositeConfig_OidcProviders(
+                github=DriverConfig_OidcProviders_Github(
+                    github_client_id="test_client_id",
+                    github_client_secret="test_client_secret",
+                    github_redirect_uri="http://localhost:8090/callback",
+                ),
+                google=DriverConfig_OidcProviders_Google(
+                    google_client_id="test_client_id.apps.googleusercontent.com",
+                    google_client_secret="test_client_secret",
+                    google_redirect_uri="http://localhost:8090/callback",
+                ),
+            )
+        )
+
+        good_provider = self._create_mock_identity_provider()
+
+        def _create_provider(provider_type: str, *_args, **_kwargs):
+            if provider_type == "github":
+                raise RuntimeError("boom")
+            return good_provider
+
+        with patch("app.service.create_identity_provider", side_effect=_create_provider):
+            auth_svc = AuthService(config=mock_config)
+
+            assert "google" in auth_svc.providers
+            assert auth_svc.providers["google"] is good_provider
+            assert "github" not in auth_svc.providers
+
+        service.JWTManager = original_jwt_manager
+
     def test_provider_initialization_with_custom_redirect_uri(self, mock_config, monkeypatch):
         """Test that custom redirect URIs from config are preserved."""
         monkeypatch.setattr(Path, "write_text", lambda self, content: None)

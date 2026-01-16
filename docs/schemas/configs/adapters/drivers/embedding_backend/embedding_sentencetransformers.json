@@ -19,7 +19,7 @@
             "source": "env",
             "env_var": "SENTENCETRANSFORMERS_DEVICE",
             "default": "cpu",
-            "description": "Device to use (e.g., 'cpu', 'mps', 'cuda', 'cuda:0', 'cuda:1')"
+            "description": "Device to use (supported: 'cpu', 'mps', 'cuda', 'cuda:N' like 'cuda:0')"
         },
         "cache_dir": {
             "type": "string",

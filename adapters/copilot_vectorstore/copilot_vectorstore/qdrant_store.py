@@ -44,6 +44,12 @@ def _coerce_vector_struct(vector_struct: Any, fallback: list[float]) -> list[flo
         if isinstance(first_value, list):
             return first_value
 
+        logger.warning(
+            "Unexpected vector structure format for named vectors: "
+            "expected first value to be list, got %s; returning fallback vector.",
+            type(first_value).__name__ if first_value is not None else "None",
+        )
+
     return fallback
 
 

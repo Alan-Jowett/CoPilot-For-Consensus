@@ -135,7 +135,10 @@ def _get_embedding_model(config: ServiceConfig_Embedding) -> str:
     if backend_type == "mock":
         return "mock"
 
-    return backend_name
+    raise ValueError(
+        f"Unsupported embedding backend type '{backend_type}' "
+        f"for model resolution in _get_embedding_model"
+    )
 
 
 def main():
