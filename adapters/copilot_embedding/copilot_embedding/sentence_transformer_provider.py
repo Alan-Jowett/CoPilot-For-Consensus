@@ -3,7 +3,10 @@
 
 """SentenceTransformer embedding provider."""
 
+import importlib
 import logging
+
+from typing import Any
 
 from copilot_config.generated.adapters.embedding_backend import (
     DriverConfig_EmbeddingBackend_Sentencetransformers,
@@ -31,11 +34,18 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
             cache_dir: Directory to cache models
         """
         try:
-            from sentence_transformers import SentenceTransformer
-        except ImportError:
+            st_module = importlib.import_module("sentence_transformers")
+        except ImportError as exc:
             raise ImportError(
                 "sentence-transformers is required for SentenceTransformerEmbeddingProvider. "
                 "Install it with: pip install sentence-transformers"
+            ) from exc
+
+        SentenceTransformer: Any = getattr(st_module, "SentenceTransformer", None)
+        if SentenceTransformer is None:
+            raise ImportError(
+                "sentence-transformers is installed but missing expected SentenceTransformer symbol. "
+                "Please upgrade: pip install --upgrade sentence-transformers"
             )
 
         self.model_name = model_name

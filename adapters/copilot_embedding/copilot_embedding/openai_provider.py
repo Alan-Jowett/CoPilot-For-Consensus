@@ -3,9 +3,10 @@
 
 """OpenAI and Azure OpenAI embedding provider."""
 
+import importlib
 import logging
 
-from typing import Literal
+from typing import Any, Literal
 
 from copilot_config.generated.adapters.embedding_backend import (
     DriverConfig_EmbeddingBackend_AzureOpenai,
@@ -38,11 +39,21 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             deployment_name: Deployment name (for Azure OpenAI)
         """
         try:
-            from openai import AzureOpenAI, OpenAI
-        except ImportError:
+            openai_module = importlib.import_module("openai")
+        except ImportError as exc:
             raise ImportError(
                 "openai is required for OpenAIEmbeddingProvider. "
                 "Install it with: pip install openai"
+            ) from exc
+
+        # Access client classes dynamically so Pyright does not require the optional
+        # dependency (CI gate runs without installing every ML/LLM provider).
+        OpenAI: Any = getattr(openai_module, "OpenAI", None)
+        AzureOpenAI: Any = getattr(openai_module, "AzureOpenAI", None)
+        if OpenAI is None or AzureOpenAI is None:
+            raise ImportError(
+                "openai is installed but missing expected client classes "
+                "(OpenAI/AzureOpenAI). Please upgrade: pip install --upgrade openai"
             )
 
         self.model = model
