@@ -116,6 +116,28 @@ def start_subscriber_thread(service: EmbeddingService):
         raise
 
 
+def _get_embedding_model(config: ServiceConfig_Embedding) -> str:
+    backend_type = config.embedding_backend.embedding_backend_type
+    backend_name = str(backend_type).lower()
+
+    if backend_type == "sentencetransformers":
+        driver = cast(DriverConfig_EmbeddingBackend_Sentencetransformers, config.embedding_backend.driver)
+        return driver.model_name
+    if backend_type == "huggingface":
+        driver = cast(DriverConfig_EmbeddingBackend_Huggingface, config.embedding_backend.driver)
+        return driver.model_name
+    if backend_type == "openai":
+        driver = cast(DriverConfig_EmbeddingBackend_Openai, config.embedding_backend.driver)
+        return driver.model
+    if backend_type == "azure_openai":
+        driver = cast(DriverConfig_EmbeddingBackend_AzureOpenai, config.embedding_backend.driver)
+        return driver.model or driver.deployment_name
+    if backend_type == "mock":
+        return "mock"
+
+    return backend_name
+
+
 def main():
     """Main entry point for the embedding service."""
     global embedding_service
@@ -242,21 +264,7 @@ def main():
             sample_embedding = embedding_provider.embed("test")
             embedding_dimension = len(sample_embedding)
 
-        embedding_model = backend_name
-        if config.embedding_backend.embedding_backend_type == "sentencetransformers":
-            driver = cast(DriverConfig_EmbeddingBackend_Sentencetransformers, config.embedding_backend.driver)
-            embedding_model = driver.model_name
-        elif config.embedding_backend.embedding_backend_type == "huggingface":
-            driver = cast(DriverConfig_EmbeddingBackend_Huggingface, config.embedding_backend.driver)
-            embedding_model = driver.model_name
-        elif config.embedding_backend.embedding_backend_type == "openai":
-            driver = cast(DriverConfig_EmbeddingBackend_Openai, config.embedding_backend.driver)
-            embedding_model = driver.model
-        elif config.embedding_backend.embedding_backend_type == "azure_openai":
-            driver = cast(DriverConfig_EmbeddingBackend_AzureOpenai, config.embedding_backend.driver)
-            embedding_model = driver.model or driver.deployment_name
-        elif config.embedding_backend.embedding_backend_type == "mock":
-            embedding_model = "mock"
+        embedding_model = _get_embedding_model(config)
 
         embedding_backend_label = backend_name
 

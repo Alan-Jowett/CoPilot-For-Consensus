@@ -66,8 +66,16 @@ class AzureAISearchVectorStore(VectorStore):
             RuntimeError: If cannot connect to Azure AI Search
         """
         # Basic parameter validation.
-        # This adapter is often constructed directly in unit tests, so it should
-        # not rely solely on schema-level validation.
+        # This adapter is often constructed directly in unit tests (and can be
+        # used by callers without going through the typed-config loader), so it
+        # should not rely solely on schema-level validation.
+        #
+        # Note: Schema validation helps catch invalid config values early, but it
+        # cannot guarantee correctness at runtime (e.g., empty strings passed
+        # programmatically, partially constructed configs in tests, or values
+        # coming from non-schema sources). Keeping a small amount of defensive
+        # runtime validation here makes failures clearer and localizes errors to
+        # the adapter boundary.
         if not endpoint:
             raise ValueError("endpoint parameter is required")
         if not endpoint.startswith("https://"):

@@ -735,30 +735,30 @@ class IngestionService:
             if self.archive_store:
                 # Use per-source in-memory cache (initialized in __init__) to avoid repeated
                 # list_archives calls when processing multiple archives for a source.
-                archive_lookup: dict[str, dict[str, Any]] | None = self._archive_metadata_cache.get(source.name)
-                if archive_lookup is None:
+                cached_archive_lookup: dict[str, dict[str, Any]] | None = self._archive_metadata_cache.get(source.name)
+                if cached_archive_lookup is None:
                     archives = self.archive_store.list_archives(source.name)
-                    archive_lookup = {}
+                    cached_archive_lookup = {}
                     for archive in archives:
                         archive_id_value = archive.get("archive_id")
                         if isinstance(archive_id_value, str) and archive_id_value:
-                            archive_lookup[archive_id_value] = archive
-                    self._archive_metadata_cache[source.name] = archive_lookup
+                            cached_archive_lookup[archive_id_value] = archive
+                    self._archive_metadata_cache[source.name] = cached_archive_lookup
 
-                archive_metadata = archive_lookup.get(archive_id)
+                archive_metadata = cached_archive_lookup.get(archive_id)
                 
                 # If metadata not found in cache, refresh the cache in case new archives
                 # were just stored by store_archive() and not yet in the cache
                 if not archive_metadata:
                     # Reload list_archives to get newly stored archives
                     archives = self.archive_store.list_archives(source.name)
-                    archive_lookup = {}
+                    cached_archive_lookup = {}
                     for archive in archives:
                         archive_id_value = archive.get("archive_id")
                         if isinstance(archive_id_value, str) and archive_id_value:
-                            archive_lookup[archive_id_value] = archive
-                    self._archive_metadata_cache[source.name] = archive_lookup
-                    archive_metadata = archive_lookup.get(archive_id)
+                            cached_archive_lookup[archive_id_value] = archive
+                    self._archive_metadata_cache[source.name] = cached_archive_lookup
+                    archive_metadata = cached_archive_lookup.get(archive_id)
 
             # Determine archive format from stored metadata or default to mbox
             archive_format = "mbox"

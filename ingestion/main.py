@@ -66,13 +66,49 @@ scheduler: IngestionScheduler | None = None
 base_publisher = None
 base_document_store = None
 
-def _substitute_env_vars(value: object) -> object:
+def _substitute_env_vars(
+    value: object,
+    *,
+    _depth: int = 0,
+    _max_depth: int = 50,
+    _seen: set[int] | None = None,
+) -> object:
+    if _depth > _max_depth:
+        raise ValueError("Sources config expansion exceeded maximum nesting depth")
+
     if isinstance(value, str):
         return os.path.expandvars(value)
+
     if isinstance(value, list):
-        return [_substitute_env_vars(v) for v in value]
+        if _seen is None:
+            _seen = set()
+        obj_id = id(value)
+        if obj_id in _seen:
+            raise ValueError("Sources config expansion detected a cyclic structure")
+        _seen.add(obj_id)
+        try:
+            return [
+                _substitute_env_vars(v, _depth=_depth + 1, _max_depth=_max_depth, _seen=_seen)
+                for v in value
+            ]
+        finally:
+            _seen.remove(obj_id)
+
     if isinstance(value, dict):
-        return {k: _substitute_env_vars(v) for k, v in value.items()}
+        if _seen is None:
+            _seen = set()
+        obj_id = id(value)
+        if obj_id in _seen:
+            raise ValueError("Sources config expansion detected a cyclic structure")
+        _seen.add(obj_id)
+        try:
+            return {
+                k: _substitute_env_vars(v, _depth=_depth + 1, _max_depth=_max_depth, _seen=_seen)
+                for k, v in value.items()
+            }
+        finally:
+            _seen.remove(obj_id)
+
     return value
 
 

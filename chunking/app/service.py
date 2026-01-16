@@ -296,6 +296,15 @@ class ChunkingService:
                 skipped_duplicates = 0
                 new_chunks_created = 0
 
+                def _is_duplicate_key_error(exc: Exception) -> bool:
+                    try:
+                        from pymongo.errors import DuplicateKeyError
+
+                        return isinstance(exc, DuplicateKeyError)
+                    except Exception:
+                        # Best-effort fallback when pymongo isn't installed.
+                        return type(exc).__name__ == "DuplicateKeyError"
+
                 for chunk in all_chunks:
                     try:
                         self.document_store.insert_document("chunks", chunk)
@@ -304,7 +313,7 @@ class ChunkingService:
                     except Exception as e:
                         # Chunk already exists (idempotent retry).
                         # Do not depend on pymongo at import-time; detect duplicates by name/message.
-                        if type(e).__name__ == "DuplicateKeyError" or "duplicate key" in str(e).lower():
+                        if _is_duplicate_key_error(e):
                             logger.debug(
                                 f"Chunk {chunk.get('_id', 'unknown')} already exists, skipping"
                             )
