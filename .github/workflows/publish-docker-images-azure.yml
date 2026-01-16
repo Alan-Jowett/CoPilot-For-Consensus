@@ -4,6 +4,8 @@
 name: Publish Azure-Optimized Docker Images to GHCR
 
 on:
+  # Publish only after Docker Compose CI succeeds to ensure end-to-end integration
+  # testing has passed (mirrors the gating approach in publish-docker-images.yml).
   workflow_run:
     workflows: ["Docker Compose CI"]
     types:
