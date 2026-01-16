@@ -42,15 +42,17 @@ class AdapterPackaging:
     extras_require: dict[str, set[str]]
 
 
-def _strip_quotes(value: str) -> str:
-    value = value.strip()
-    if len(value) >= 2 and value[0] == "'" and value[-1] == "'":
-        return value[1:-1]
-    return value
-
-
 def _parse_bicep_container_envs(bicep_path: Path) -> dict[str, dict[str, str]]:
-    """Return mapping of container name -> env var name -> raw value expression."""
+    """Return mapping of container name -> env var name -> raw value expression.
+
+        Notes / assumptions (intentionally simple parser):
+        - Expects env blocks in the form `env: [` on a single line.
+        - Expects each env entry as separate `name:` and `value:` lines.
+        - Multi-line value expressions are not supported; only the first `value:` line is
+            captured.
+        - Used to detect driver selections like `VECTOR_STORE_TYPE` to validate that
+            Dockerfile.azure installs the right adapter extras.
+        """
     if not bicep_path.exists():
         raise FileNotFoundError(f"Bicep file not found: {bicep_path}")
 
@@ -64,7 +66,7 @@ def _parse_bicep_container_envs(bicep_path: Path) -> dict[str, dict[str, str]]:
 
         # Detect container name: typically lowercase service name (e.g., 'reporting')
         # Avoid env var names (UPPER_SNAKE_CASE) and interpolated resource names.
-        m_container = re.search(r"\bname:\s*'([a-z0-9-]+)'\b", line)
+        m_container = re.search(r"\bname:\s*'([a-z0-9-]+)'", line)
         if m_container and "_" not in m_container.group(1):
             candidate = m_container.group(1)
             # Ignore common non-container names that can appear in other contexts
@@ -117,9 +119,7 @@ def _scan_imported_adapters(service_dir: Path) -> set[str]:
         return [
             p
             for p in service_dir.rglob("*.py")
-            if "\\tests\\" not in str(p)
-            and "/tests/" not in p.as_posix()
-            and "__pycache__" not in p.parts
+            if "tests" not in p.parts and "__pycache__" not in p.parts
         ]
 
     for py_file in iter_py_files():
@@ -199,7 +199,9 @@ def _parse_adapter_packaging(adapter_dir: Path) -> AdapterPackaging:
                             if isinstance(reqs, list):
                                 extras_require[str(extra_name)] = {str(r) for r in reqs}
 
-    except Exception as exc:  # best-effort only
+    except Exception as exc:
+        # Fail-fast: packaging metadata must be parseable to reliably validate
+        # required Azure SDK dependencies.
         raise RuntimeError(f"Failed to parse {setup_path}: {exc}") from exc
 
     return AdapterPackaging(install_requires=install_requires, extras_require=extras_require)
@@ -220,10 +222,10 @@ def _get_env_driver_values(env_value_expr: str) -> set[str]:
     return set(re.findall(r"'([^']+)'", env_value_expr))
 
 
-def validate_repo(repo_root: Path = REPO_ROOT) -> list[str]:
+def validate_repo(repo_root: Path = REPO_ROOT, *, bicep_path: Path = BICEP_PATH) -> list[str]:
     errors: list[str] = []
 
-    bicep_envs = _parse_bicep_container_envs(BICEP_PATH)
+    bicep_envs = _parse_bicep_container_envs(bicep_path)
     services = _find_service_dirs(repo_root)
 
     adapters_root = repo_root / "adapters"
@@ -353,8 +355,6 @@ def validate_repo(repo_root: Path = REPO_ROOT) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    global BICEP_PATH  # noqa: PLW0603
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--bicep",
@@ -363,9 +363,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to containerapps.bicep (defaults to repo Azure module)",
     )
     args = parser.parse_args(argv)
-    BICEP_PATH = args.bicep
 
-    errors = validate_repo(REPO_ROOT)
+    errors = validate_repo(REPO_ROOT, bicep_path=args.bicep)
     if errors:
         print("Dependency coverage validation failed:\n", file=sys.stderr)
         for err in errors:
