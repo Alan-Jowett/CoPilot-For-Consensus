@@ -241,6 +241,9 @@ def _instantiate_driver_config(driver_class: Any, driver_config_dict: dict[str, 
         type_key: str | None = None
 
         # Select the lexicographically smallest *_auth_type or *_type key in a single pass.
+        # Note: if multiple keys match, this is a deterministic heuristic only.
+        # The key is used to *narrow* candidates when possible; we still fall back
+        # to attempting all union variants if narrowing doesn't apply.
         for key in driver_config_dict:
             if key.endswith("_auth_type"):
                 if auth_type_key is None or key < auth_type_key:
