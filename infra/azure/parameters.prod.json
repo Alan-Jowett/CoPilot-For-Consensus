@@ -17,6 +17,9 @@
     "azureOpenAIEndpoint": {
       "value": "https://REPLACE-WITH-CORE-DEPLOYMENT-OUTPUT.openai.azure.com/"
     },
+    "coreAoaiAccountName": {
+      "value": "REPLACE-WITH-CORE-DEPLOYMENT-OUTPUT"
+    },
     "azureOpenAIGptDeploymentName": {
       "value": "gpt-4o-deployment"
     },

@@ -252,6 +252,12 @@ output documentsDatabaseName string = documentsDatabase.name
 @description('Container name')
 output containerName string = documentsContainer.name
 
+@description('Auth container name')
+output authContainerName string = authContainer.name
+
+@description('Auth container partition key path')
+output authPartitionKeyPath string = '/collection'
+
 @description('Autoscale max RU/s applied to the database')
 output autoscaleMaxThroughput int = autoscaleMaxRu
 

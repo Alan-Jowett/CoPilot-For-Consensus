@@ -119,14 +119,31 @@ def _normalize_secret_name_for_key_vault(schema_secret_name: str) -> str:
 def _extract_keyvault_created_secret_names(bicep_content: str, vault_name_var: str) -> set[str]:
     """Extract KV secret names created in a given vault variable context.
 
-    We look for patterns like:
+    This is a best-effort helper that recognizes a small set of common
+    Bicep patterns. Supported single-line forms include:
+
       name: '${keyVaultName}/jwt-private-key'
       name: "${keyVaultName}/jwt-private-key"
+      name: concat(keyVaultName, '/jwt-private-key')
+
+    More complex or multi-line expressions (for example, `name` built across
+    multiple `concat` calls or interpolations) are intentionally ignored.
     """
 
-    # Capture the portion after '<vaultVar>/' within a quoted string.
-    pattern = rf"name:\s*['\"]\$\{{{re.escape(vault_name_var)}\}}/([^'\"]+)['\"]"
-    return set(match.group(1) for match in re.finditer(pattern, bicep_content))
+    secret_names: set[str] = set()
+
+    # 1) Interpolated string: name: "${<vaultVar>/secret-name}"
+    pattern_interpolated = rf"name:\s*['\"]\$\{{{re.escape(vault_name_var)}\}}/([^'\"]+)['\"]"
+    for match in re.finditer(pattern_interpolated, bicep_content):
+        secret_names.add(match.group(1))
+
+    # 2) concat() form: name: concat(<vaultVar>, '/secret-name')
+    # We capture the portion after the leading slash in the literal.
+    pattern_concat = rf"name:\s*concat\(\s*{re.escape(vault_name_var)}\s*,\s*['\"]/+([^'\"/]+)['\"]\s*\)"
+    for match in re.finditer(pattern_concat, bicep_content):
+        secret_names.add(match.group(1))
+
+    return secret_names
 
 
 def _load_iac_keyvault_secret_inventory() -> dict[str, set[str]]:
@@ -465,7 +482,14 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
             # Support schemas that express "at least one of" requirements.
             # Example: Azure Key Vault secret provider driver needs one of
             # AZURE_KEY_VAULT_URI or AZURE_KEY_VAULT_NAME.
-            required_one_of = effective_driver_schema.get("x-required_one_of", driver_schema.get("x-required_one_of", []))
+            # Combine parent-level and variant-level one-of requirements (if any).
+            required_one_of: list = []
+            parent_required_one_of = driver_schema.get("x-required_one_of")
+            if isinstance(parent_required_one_of, list):
+                required_one_of.extend(parent_required_one_of)
+            variant_required_one_of = effective_driver_schema.get("x-required_one_of")
+            if isinstance(variant_required_one_of, list):
+                required_one_of.extend(variant_required_one_of)
             if isinstance(required_one_of, list):
                 for group in required_one_of:
                     if not isinstance(group, list) or not group:

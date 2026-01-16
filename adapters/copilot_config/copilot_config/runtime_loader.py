@@ -237,10 +237,19 @@ def _instantiate_driver_config(driver_class: Any, driver_config_dict: dict[str, 
 
     if origin is Union:
         discriminant_key: str | None = None
-        for key in driver_config_dict:
-            if key.endswith("_auth_type") or key.endswith("_type"):
-                discriminant_key = key
-                break
+        auth_type_keys = sorted([key for key in driver_config_dict if key.endswith("_auth_type")])
+        type_keys = sorted(
+            [
+                key
+                for key in driver_config_dict
+                if key.endswith("_type") and not key.endswith("_auth_type")
+            ]
+        )
+
+        if auth_type_keys:
+            discriminant_key = auth_type_keys[0]
+        elif type_keys:
+            discriminant_key = type_keys[0]
 
         selected_discriminant = (
             driver_config_dict.get(discriminant_key) if discriminant_key else None

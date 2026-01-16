@@ -60,6 +60,12 @@ param cosmosDocumentsDatabaseName string = 'copilot'
 @description('Cosmos DB container name for documents')
 param cosmosContainerName string = 'documents'
 
+@description('Cosmos DB container name for auth service (must exist in cosmosAuthDatabaseName)')
+param cosmosAuthContainerName string = 'documents'
+
+@description('Cosmos DB partition key path for auth service container (must match provisioned container)')
+param cosmosAuthPartitionKeyPath string = '/collection'
+
 @description('Storage Account name for blob storage')
 param storageAccountName string = ''
 
@@ -265,11 +271,11 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: cosmosContainerName
+              value: cosmosAuthContainerName
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: '/collection'
+              value: cosmosAuthPartitionKeyPath
             }
             // Metrics adapter (Azure Monitor)
             {

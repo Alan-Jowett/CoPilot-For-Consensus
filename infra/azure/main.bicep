@@ -40,9 +40,15 @@ param coreKeyVaultName string
 @description('Secret URI for Azure OpenAI API key in Core Key Vault')
 param coreKvSecretUriAoaiKey string
 
-// Derive Core Azure OpenAI account name from endpoint for key material replication into Env Key Vault.
+@minLength(3)
+@maxLength(24)
+@description('Azure OpenAI account name from Core deployment outputs (aoaiAccountName). Prefer passing this explicitly rather than deriving it from the endpoint.')
+param coreAoaiAccountName string = ''
+
+// Back-compat: best-effort derivation from endpoint. Prefer coreAoaiAccountName parameter.
 // Azure OpenAI endpoint format: https://<account-name>.openai.azure.com/
-var coreAoaiAccountName = azureOpenAIEndpoint != '' ? toLower(split(replace(replace(azureOpenAIEndpoint, 'https://', ''), 'http://', ''), '.')[0]) : ''
+var derivedAoaiAccountName = azureOpenAIEndpoint != '' ? toLower(split(replace(replace(azureOpenAIEndpoint, 'https://', ''), 'http://', ''), '.')[0]) : ''
+var effectiveAoaiAccountName = coreAoaiAccountName != '' ? toLower(coreAoaiAccountName) : derivedAoaiAccountName
 
 // ========================================
 // End Core RG Integration Parameters
@@ -364,10 +370,14 @@ resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
 // Store Azure OpenAI API key in Env Key Vault for services using env secret_provider
 // NOTE: Core infrastructure also stores this in Core Key Vault. Env services currently use env Key Vault
 // for secret_provider (JWT/App Insights/etc), so we replicate the API key here.
-resource envOpenaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps && azureOpenAIEndpoint != '' && coreAoaiAccountName != '') {
+resource envOpenaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps && azureOpenAIEndpoint != '' && effectiveAoaiAccountName != '' && length(effectiveAoaiAccountName) >= 3 && length(effectiveAoaiAccountName) <= 24) {
   name: '${keyVaultName}/azure-openai-api-key'
   properties: {
-    value: listKeys(resourceId(coreKvSubscriptionId, coreKvResourceGroupName, 'Microsoft.CognitiveServices/accounts', coreAoaiAccountName), '2023-10-01-preview').key1
+    // IMPORTANT: The identity executing this deployment must have management-plane access
+    // (e.g. 'Cognitive Services Contributor' or equivalent) on the Azure OpenAI account
+    // referenced by coreKvSubscriptionId/coreKvResourceGroupName/effectiveAoaiAccountName,
+    // otherwise this listKeys() call will fail at deployment time.
+    value: listKeys(resourceId(coreKvSubscriptionId, coreKvResourceGroupName, 'Microsoft.CognitiveServices/accounts', effectiveAoaiAccountName), '2023-05-01').key1
     contentType: 'text/plain'
   }
   dependsOn: [
@@ -523,6 +533,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     cosmosAuthDatabaseName: cosmosModule.outputs.authDatabaseName
     cosmosDocumentsDatabaseName: cosmosModule.outputs.documentsDatabaseName
     cosmosContainerName: cosmosModule.outputs.containerName
+    cosmosAuthContainerName: cosmosModule.outputs.authContainerName
+    cosmosAuthPartitionKeyPath: cosmosModule.outputs.authPartitionKeyPath
     storageAccountName: storageModule!.outputs.accountName
     storageBlobEndpoint: storageModule!.outputs.blobEndpoint
     subnetId: vnetModule!.outputs.containerAppsSubnetId

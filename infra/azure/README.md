@@ -251,6 +251,7 @@ cd infra\azure
 - `coreKvResourceId`
 - `coreKvName`
 - `aoaiEndpoint`
+- `aoaiAccountName`
 - `aoaiGptDeploymentName`
 - `aoaiEmbeddingDeploymentName`
 - `kvSecretUris.aoaiKey`
@@ -266,6 +267,9 @@ Edit `parameters.dev.json`, `parameters.staging.json`, or `parameters.prod.json`
   "parameters": {
     "azureOpenAIEndpoint": {
       "value": "https://copilot-oai-core-abc123.openai.azure.com/"
+    },
+    "coreAoaiAccountName": {
+      "value": "copilot-oai-core-abc12"
     },
     "azureOpenAIGptDeploymentName": {
       "value": "gpt-4o-deployment"

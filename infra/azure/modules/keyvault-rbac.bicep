@@ -40,22 +40,22 @@ resource jwtPublicKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' exist
 
 // Auth service needs private key to sign tokens
 resource authJwtPrivateKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization && contains(servicePrincipalIds, 'auth')) {
-  name: guid(jwtPrivateKeySecret.id, servicePrincipalIds.auth, keyVaultSecretsUserRoleId)
+  name: guid(jwtPrivateKeySecret.id, servicePrincipalIds['auth'], keyVaultSecretsUserRoleId)
   scope: jwtPrivateKeySecret
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: servicePrincipalIds.auth
+    principalId: servicePrincipalIds['auth']
     principalType: 'ServicePrincipal'
   }
 }
 
 // Auth service needs public key to verify tokens
 resource authJwtPublicKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization && contains(servicePrincipalIds, 'auth')) {
-  name: guid(jwtPublicKeySecret.id, servicePrincipalIds.auth, keyVaultSecretsUserRoleId)
+  name: guid(jwtPublicKeySecret.id, servicePrincipalIds['auth'], keyVaultSecretsUserRoleId)
   scope: jwtPublicKeySecret
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: servicePrincipalIds.auth
+    principalId: servicePrincipalIds['auth']
     principalType: 'ServicePrincipal'
   }
 }
