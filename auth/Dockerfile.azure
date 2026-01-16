@@ -16,6 +16,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_logging \
     copilot_metrics \
     copilot_error_reporting \
+    copilot_schema_validation \
     copilot_secrets \
     copilot_storage \
     copilot_startup

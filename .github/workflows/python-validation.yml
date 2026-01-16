@@ -8,6 +8,8 @@ on:
     branches: [ main ]
     paths:
       - '**.py'
+      - '**/Dockerfile.azure'
+      - 'infra/azure/**/*.bicep'
       - 'pyproject.toml'
       - 'requirements-dev.txt'
       - '.github/workflows/python-validation.yml'
@@ -15,6 +17,8 @@ on:
     branches: [ main ]
     paths:
       - '**.py'
+      - '**/Dockerfile.azure'
+      - 'infra/azure/**/*.bicep'
       - 'pyproject.toml'
       - 'requirements-dev.txt'
       - '.github/workflows/python-validation.yml'
@@ -140,6 +144,10 @@ jobs:
           if [ -f "summarization/requirements.txt" ]; then
             pip install -r summarization/requirements.txt
           fi
+
+      - name: Validate Azure Dependency Coverage
+        run: |
+          python scripts/validate_azure_dependency_coverage.py
 
       - name: Ruff - Fast Python Linter
         id: ruff
