@@ -107,6 +107,75 @@ def _select_oneof_variant_by_discriminant(env_vars: dict, schema: dict) -> dict:
     return schema
 
 
+def _normalize_secret_name_for_key_vault(schema_secret_name: str) -> str:
+    """Convert schema secret_name to Azure Key Vault secret resource name.
+
+    Convention: schema uses snake_case; Key Vault secret names use hyphens.
+    """
+
+    return schema_secret_name.replace("_", "-")
+
+
+def _extract_keyvault_created_secret_names(bicep_content: str, vault_name_var: str) -> set[str]:
+    """Extract KV secret names created in a given vault variable context.
+
+    We look for patterns like:
+      name: '${keyVaultName}/jwt-private-key'
+      name: "${keyVaultName}/jwt-private-key"
+    """
+
+    # Capture the portion after '<vaultVar>/' within a quoted string.
+    pattern = rf"name:\s*['\"]\$\{{{re.escape(vault_name_var)}\}}/([^'\"]+)['\"]"
+    return set(match.group(1) for match in re.finditer(pattern, bicep_content))
+
+
+def _load_iac_keyvault_secret_inventory() -> dict[str, set[str]]:
+    """Load a best-effort inventory of Key Vault secrets created by IaC.
+
+    Returns:
+      {
+        'env': {<secret-names>},
+        'core': {<secret-names>},
+      }
+    """
+
+    repo_root = Path(__file__).parent.parent
+    env_main = repo_root / "infra" / "azure" / "main.bicep"
+    core_main = repo_root / "infra" / "azure" / "core.bicep"
+
+    inventory: dict[str, set[str]] = {"env": set(), "core": set()}
+
+    if env_main.exists():
+        content = env_main.read_text(encoding="utf-8")
+        inventory["env"] = _extract_keyvault_created_secret_names(content, "keyVaultName")
+
+    if core_main.exists():
+        content = core_main.read_text(encoding="utf-8")
+        inventory["core"] = _extract_keyvault_created_secret_names(content, "coreKeyVaultName")
+
+    return inventory
+
+
+def _kv_scope_from_env(env_vars: dict) -> str:
+    """Return which KV scope the service is configured to use.
+
+    This is a heuristic used for static validation.
+    - In Container Apps module, AZURE_KEY_VAULT_NAME is usually set to the env param 'keyVaultName'.
+    """
+
+    name = env_vars.get("AZURE_KEY_VAULT_NAME")
+    if not name:
+        return "unknown"
+
+    # Common patterns in the Bicep module (static, not evaluated).
+    if str(name).strip() == "keyVaultName":
+        return "env"
+    if str(name).strip() == "coreKeyVaultName":
+        return "core"
+
+    return "unknown"
+
+
 def extract_env_vars(bicep_content: str, service_name: str) -> dict:
     """
     Extract environment variables for a service from Bicep file content.
@@ -264,6 +333,7 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
     Returns list of issues found (empty if valid).
     """
     issues = []
+    required_secrets: set[str] = set()
     
     # Get service settings from schema
     service_settings = schema.get("service_settings", {})
@@ -441,8 +511,16 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
                     # Secrets should be loaded via secret_provider, not via env vars
                     # Check if any env var references this secret (which is wrong)
                     secret_name = prop_spec.get("secret_name")
+                    required_prop = prop_spec.get("required", False)
                     if secret_name:
                         secret_candidates = secret_name if isinstance(secret_name, list) else [secret_name]
+
+                        # Track required secrets for IaC coverage validation
+                        if required_prop:
+                            for candidate in secret_candidates:
+                                if isinstance(candidate, str) and candidate:
+                                    required_secrets.add(candidate)
+
                         # Check if any env var has a KeyVault reference to this secret
                         for env_var_name, referenced_secret in keyvault_refs.items():
                             if referenced_secret in secret_candidates:
@@ -457,6 +535,47 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
         except Exception as e:
             issues.append(f"Error validating adapter '{adapter_name}': {e}")
     
+    issues.extend(_validate_required_secrets_created_by_iac(env_vars, required_secrets))
+    return issues
+
+
+def _validate_required_secrets_created_by_iac(env_vars: dict, required_secrets: set[str]) -> list[str]:
+    """Static check: required schema secrets must be created by IaC in the selected Key Vault."""
+
+    issues: list[str] = []
+
+    if not required_secrets:
+        return issues
+
+    if env_vars.get("SECRET_PROVIDER_TYPE") != "azure_key_vault":
+        return issues
+
+    kv_scope = _kv_scope_from_env(env_vars)
+    if kv_scope == "unknown":
+        # Can't confidently map to env/core based on static values.
+        return issues
+
+    inventory = _load_iac_keyvault_secret_inventory()
+    created = inventory.get(kv_scope, set())
+
+    # Some secrets are documented as out-of-band/manual (OAuth). Don't enforce these.
+    manual_prefixes = (
+        "github_oauth_",
+        "google_oauth_",
+        "microsoft_oauth_",
+        "entra_oauth_",
+    )
+
+    for schema_secret in sorted(required_secrets):
+        if schema_secret.startswith(manual_prefixes):
+            continue
+
+        kv_secret = _normalize_secret_name_for_key_vault(schema_secret)
+        if kv_secret not in created:
+            issues.append(
+                f"Missing REQUIRED secret '{kv_secret}' in {kv_scope} Key Vault IaC (service uses AZURE_KEY_VAULT_NAME={env_vars.get('AZURE_KEY_VAULT_NAME')})."
+            )
+
     return issues
 
 

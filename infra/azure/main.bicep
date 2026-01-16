@@ -40,6 +40,10 @@ param coreKeyVaultName string
 @description('Secret URI for Azure OpenAI API key in Core Key Vault')
 param coreKvSecretUriAoaiKey string
 
+// Derive Core Azure OpenAI account name from endpoint for key material replication into Env Key Vault.
+// Azure OpenAI endpoint format: https://<account-name>.openai.azure.com/
+var coreAoaiAccountName = azureOpenAIEndpoint != '' ? toLower(split(replace(replace(azureOpenAIEndpoint, 'https://', ''), 'http://', ''), '.')[0]) : ''
+
 // ========================================
 // End Core RG Integration Parameters
 // ========================================
@@ -357,6 +361,20 @@ resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
   ]
 }
 
+// Store Azure OpenAI API key in Env Key Vault for services using env secret_provider
+// NOTE: Core infrastructure also stores this in Core Key Vault. Env services currently use env Key Vault
+// for secret_provider (JWT/App Insights/etc), so we replicate the API key here.
+resource envOpenaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps && azureOpenAIEndpoint != '' && coreAoaiAccountName != '') {
+  name: '${keyVaultName}/azure-openai-api-key'
+  properties: {
+    value: listKeys(resourceId(coreKvSubscriptionId, coreKvResourceGroupName, 'Microsoft.CognitiveServices/accounts', coreAoaiAccountName), '2023-10-01-preview').key1
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
+
 // Module: Generate per-deployment JWT keys and store in Key Vault
 module jwtKeysModule 'modules/jwtkeys.bicep' = if (deployContainerApps) {
   name: 'jwtKeysDeployment'
@@ -448,13 +466,14 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
     keyVaultName: keyVaultModule.outputs.keyVaultName
     servicePrincipalIds: identitiesModule.outputs.identityPrincipalIdsByName
     enableRbacAuthorization: enableRbacAuthorization
-    deployAzureOpenAI: false  // OpenAI is in Core RG; env services access Core KV directly
+    deployAzureOpenAI: azureOpenAIEndpoint != ''
   }
   dependsOn: [
     keyVaultModule
     jwtKeysModule  // Ensure JWT secrets exist before assigning access
     appInsightsInstrKeySecret
     appInsightsConnectionStringSecret
+    envOpenaiApiKeySecret
     coreKvRbacModule  // Ensure Core KV access is granted before RBAC module runs
   ]
 }
@@ -518,6 +537,7 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
   }
   dependsOn: [
     jwtKeysModule  // Ensure JWT keys are generated before auth service starts
+    envOpenaiApiKeySecret
     keyVaultRbacModule  // Ensure RBAC assignments are complete before services access secrets
     coreKvRbacModule  // Ensure Core KV access is granted before Container Apps start
   ]
