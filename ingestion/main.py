@@ -313,10 +313,25 @@ def main():
         log.info("Creating archive store from adapter configuration...")
         archive_store = create_archive_store(config.archive_store)
 
-        # Load sources from local config file (optional)
-        sources_path = Path(os.environ.get("INGESTION_SOURCES_CONFIG_PATH", Path(__file__).with_name("config.json")))
-        sources = _load_sources_from_file(sources_path)
-        log.info("Ingestion sources loaded", count=len(sources))
+        # Load sources based on configured storage backend
+        sources_store_type = config.service_settings.sources_store_type or "document_store"
+        sources: list[dict] = []
+        
+        if sources_store_type == "file":
+            # File backend: load from configured path or legacy env var
+            sources_file_path = config.service_settings.sources_file_path
+            if sources_file_path:
+                sources_path = Path(sources_file_path)
+            else:
+                # Fallback to legacy INGESTION_SOURCES_CONFIG_PATH env var for backward compatibility
+                sources_path = Path(os.environ.get("INGESTION_SOURCES_CONFIG_PATH", Path(__file__).with_name("config.json")))
+            
+            sources = _load_sources_from_file(sources_path)
+            log.info("Ingestion sources loaded from file", count=len(sources), path=str(sources_path))
+        else:
+            # Document store backend: sources will be loaded from document store by service
+            # Pass empty list to service; it will load from document store in __init__
+            log.info("Ingestion sources will be loaded from document store")
 
         # Create ingestion service
         ingestion_service = IngestionService(

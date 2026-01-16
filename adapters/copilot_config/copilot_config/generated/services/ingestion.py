@@ -35,6 +35,8 @@ class ServiceSettings_Ingestion:
     request_timeout_seconds: Optional[int] = 60
     schedule_interval_seconds: Optional[int] = 21600
     service_audience: Optional[str] = 'copilot-for-consensus'
+    sources_file_path: Optional[str] = None
+    sources_store_type: Optional[str] = 'document_store'
     storage_path: Optional[str] = '/data/ingestion'
 
 
