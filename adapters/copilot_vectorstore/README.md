@@ -210,7 +210,7 @@ store = create_vector_store(
             port=6333,
             collection_name="embeddings",
             vector_size=384,
-            distance="cosine",  # or "euclid"
+            distance="cosine",  # or "euclidean" (alias: "euclid")
             upsert_batch_size=100,
         ),
     )

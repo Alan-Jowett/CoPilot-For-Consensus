@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 class DriverConfig_VectorStore_AzureAiSearch:
     """Configuration for vector_store adapter using azure_ai_search driver."""
     endpoint: str
-    # Azure AI Search endpoint URL
+    # Azure AI Search endpoint URL (HTTPS URI; must start with https://)
     api_key: Optional[str] = None
     # Azure AI Search API key (alternative to managed identity)
     index_name: str = 'embeddings'
@@ -53,7 +53,7 @@ class DriverConfig_VectorStore_Qdrant:
     collection_name: str = 'embeddings'
     # Qdrant collection name for embeddings
     distance: str = 'cosine'
-    # Distance metric (cosine, euclid)
+    # Distance metric (cosine, euclidean). The value 'euclid' is accepted as a backward-compatible alias.
     host: str = 'vectorstore'
     # Qdrant server hostname
     port: int = 6333

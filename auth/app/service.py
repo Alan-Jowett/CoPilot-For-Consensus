@@ -58,6 +58,11 @@ def create_identity_providers(
 
     default_redirect_uri = f"{issuer.rstrip('/')}/callback" if issuer else None
 
+    def _with_default_redirect_uri(provider_config: Any, field_name: str) -> Any:
+        if default_redirect_uri and getattr(provider_config, field_name) is None:
+            return replace(provider_config, **{field_name: default_redirect_uri})
+        return provider_config
+
     providers: dict[str, _OidcProvider] = {}
     github = composite.github
     google = composite.google
@@ -65,8 +70,7 @@ def create_identity_providers(
 
     if github is not None:
         try:
-            if default_redirect_uri and github.github_redirect_uri is None:
-                github = replace(github, github_redirect_uri=default_redirect_uri)
+            github = _with_default_redirect_uri(github, "github_redirect_uri")
             provider = create_identity_provider(
                 "github",
                 github,
@@ -86,8 +90,7 @@ def create_identity_providers(
             logger.error(f"Failed to initialize provider github: {e}")
     if google is not None:
         try:
-            if default_redirect_uri and google.google_redirect_uri is None:
-                google = replace(google, google_redirect_uri=default_redirect_uri)
+            google = _with_default_redirect_uri(google, "google_redirect_uri")
             provider = create_identity_provider(
                 "google",
                 google,
@@ -107,8 +110,7 @@ def create_identity_providers(
             logger.error(f"Failed to initialize provider google: {e}")
     if microsoft is not None:
         try:
-            if default_redirect_uri and microsoft.microsoft_redirect_uri is None:
-                microsoft = replace(microsoft, microsoft_redirect_uri=default_redirect_uri)
+            microsoft = _with_default_redirect_uri(microsoft, "microsoft_redirect_uri")
             provider = create_identity_provider(
                 "microsoft",
                 microsoft,

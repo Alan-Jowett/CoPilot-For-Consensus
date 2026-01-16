@@ -28,9 +28,15 @@ def _string_to_uuid(s: str) -> str:
 def _coerce_vector_struct(vector_struct: Any, fallback: list[float]) -> list[float]:
     """Coerce Qdrant vector outputs into a plain list[float].
 
-    Qdrant can return either a single unnamed vector (list[float]) or a
-    named-vector mapping (dict[str, ...]). For this adapter, we always expose
-    a single list[float] vector.
+        Qdrant can return either a single unnamed vector (list[float]) or a
+        named-vector mapping (dict[str, ...]). For this adapter, we always expose
+        a single list[float] vector.
+
+        If Qdrant returns multiple named vectors, this adapter selects a single
+        vector to expose:
+        - Prefer a vector named "default" when present.
+        - Otherwise, fall back to the first entry in iteration order and log a
+            warning to avoid silently masking unexpected formats.
     """
 
     if vector_struct is None:
@@ -40,14 +46,30 @@ def _coerce_vector_struct(vector_struct: Any, fallback: list[float]) -> list[flo
         return vector_struct
 
     if isinstance(vector_struct, dict):
-        first_value = next(iter(vector_struct.values()), None)
-        if isinstance(first_value, list):
-            return first_value
+        if not vector_struct:
+            return fallback
+
+        if len(vector_struct) > 1:
+            keys = list(vector_struct.keys())
+            logger.warning(
+                "Multiple named vectors returned by Qdrant (%s); selecting one to expose.",
+                keys,
+            )
+
+        if "default" in vector_struct:
+            selected_name = "default"
+            selected_value = vector_struct.get("default")
+        else:
+            selected_name, selected_value = next(iter(vector_struct.items()))
+
+        if isinstance(selected_value, list):
+            return selected_value
 
         logger.warning(
             "Unexpected vector structure format for named vectors: "
-            "expected first value to be list, got %s; returning fallback vector.",
-            type(first_value).__name__ if first_value is not None else "None",
+            "expected '%s' value to be list, got %s; returning fallback vector.",
+            selected_name,
+            type(selected_value).__name__ if selected_value is not None else "None",
         )
 
     return fallback
@@ -65,7 +87,7 @@ class QdrantVectorStore(VectorStore):
         api_key: Optional API key for authentication
         collection_name: Name of the collection to use (default: "embeddings")
         vector_size: Dimension of embedding vectors (default: 384)
-        distance: Distance metric ("cosine" or "euclid", default: "cosine")
+        distance: Distance metric ("cosine" or "euclidean"; "euclid" accepted, default: "cosine")
         upsert_batch_size: Batch size for upsert operations (default: 100)
     """
 
@@ -87,12 +109,12 @@ class QdrantVectorStore(VectorStore):
             api_key: Optional API key for authentication
             collection_name: Name of the collection to use
             vector_size: Dimension of embedding vectors
-            distance: Distance metric ("cosine" or "euclid")
+            distance: Distance metric ("cosine" or "euclidean"; "euclid" accepted)
             upsert_batch_size: Batch size for upsert operations
 
         Raises:
             ImportError: If qdrant-client is not installed
-            ValueError: If distance is not "cosine" or "euclid"
+            ValueError: If distance is not "cosine", "euclid", or "euclidean"
             ConnectionError: If cannot connect to Qdrant server
         """
         try:
@@ -109,8 +131,10 @@ class QdrantVectorStore(VectorStore):
                 "qdrant-client is not installed. Install it with: pip install qdrant-client"
             ) from e
 
-        if distance not in ["cosine", "euclid"]:
-            raise ValueError(f"Invalid distance metric '{distance}'. Must be 'cosine' or 'euclid'")
+        if distance not in ["cosine", "euclid", "euclidean"]:
+            raise ValueError(
+                f"Invalid distance metric '{distance}'. Must be 'cosine' or 'euclidean' (alias: 'euclid')"
+            )
 
         if vector_size <= 0:
             raise ValueError(f"Vector size must be positive, got {vector_size}")
@@ -210,6 +234,7 @@ class QdrantVectorStore(VectorStore):
             distance_map = {
                 "cosine": self._Distance.COSINE,
                 "euclid": self._Distance.EUCLID,
+                "euclidean": self._Distance.EUCLID,
             }
 
             self._client.create_collection(

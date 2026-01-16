@@ -523,7 +523,10 @@ class AzureAISearchVectorStore(VectorStore):
             include_total_count=True,
             top=0,  # Don't return actual documents, just count
         )
-        # Some SDK versions type this as `int`, but at runtime it can be `None`.
+        # NOTE: SearchResults.get_count() is treated as optional at runtime.
+        # - The service may omit @odata.count even when include_total_count=True.
+        # - azure-search-documents SDK type annotations have varied across versions
+        #   and can be stricter than the service contract.
         count = cast(int | None, results.get_count())
         if count is None:
             logger.warning(

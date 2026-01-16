@@ -50,8 +50,8 @@
             "source": "env",
             "env_var": "QDRANT_DISTANCE",
             "default": "cosine",
-            "enum": ["cosine", "euclid"],
-            "description": "Distance metric (cosine, euclid)"
+            "enum": ["cosine", "euclidean", "euclid"],
+            "description": "Distance metric (cosine, euclidean). The value 'euclid' is accepted as a backward-compatible alias."
         },
         "upsert_batch_size": {
             "type": "int",
