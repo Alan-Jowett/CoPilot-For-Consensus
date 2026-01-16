@@ -90,10 +90,6 @@ class TestSourceBackends:
     def test_file_backend_uses_startup_sources(self, tmp_path):
         """Test that file backend uses sources from startup parameter."""
         # Create config with file backend
-        settings = ServiceSettings_Ingestion(
-            storage_path=str(tmp_path / "storage"),
-            sources_store_type="file",
-        )
         config = make_config(storage_path=str(tmp_path / "storage"))
         config.service_settings.sources_store_type = "file"
 

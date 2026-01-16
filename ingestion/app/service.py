@@ -6,6 +6,7 @@ import json
 import os
 import time
 from collections.abc import Iterable
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -1021,14 +1022,17 @@ class IngestionService:
         # Get all sources and enabled sources based on configured backend
         if self._sources_store_type == "file":
             all_sources = self._startup_sources
-            enabled_sources = _enabled_sources(self._startup_sources)
+            enabled_sources_list = _enabled_sources(self._startup_sources)
+            sources_enabled_count = len(enabled_sources_list)
         else:
             all_sources = self.list_sources(enabled_only=False)
-            enabled_sources = _enabled_sources(all_sources)
+            # Use list_sources with enabled_only=True to avoid double filtering
+            enabled_sources_list = self.list_sources(enabled_only=True)
+            sources_enabled_count = len(enabled_sources_list)
 
         return {
             "sources_configured": len(all_sources),
-            "sources_enabled": len(enabled_sources),
+            "sources_enabled": sources_enabled_count,
             "total_files_ingested": self._stats.get("total_files_ingested", 0),
             "last_ingestion_at": self._stats.get("last_ingestion_at"),
             "version": getattr(self, "version", "unknown"),
@@ -1353,7 +1357,13 @@ class IngestionService:
             return
 
         for source in self._startup_sources:
-            source_dict = source if isinstance(source, dict) else source.__dict__
+            # Convert SourceConfig to dict for processing
+            if isinstance(source, dict):
+                source_dict = source
+            else:
+                # Use dataclasses.asdict for proper serialization
+                source_dict = asdict(source)
+            
             source_name = source_dict.get("name")
             
             if not source_name:
