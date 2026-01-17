@@ -6,8 +6,6 @@
 import time
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from copilot_event_retry import RetryConfig, RetryContext, RetryPolicy
 
 

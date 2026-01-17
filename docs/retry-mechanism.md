@@ -27,15 +27,31 @@ A shared adapter provides retry logic that can be integrated into any service:
 
 ### Integration Points
 
-The retry mechanism is integrated into:
+The retry mechanism is integrated into all services in the pipeline:
 
-1. **Chunking Service** (`chunking/app/service.py`)
+1. **Parsing Service** (`parsing/app/service.py`)
+   - Wraps `_handle_archive_ingested` event handler
+   - Retries when archives are not found in the ArchiveStore
+
+2. **Chunking Service** (`chunking/app/service.py`)
    - Wraps `_handle_json_parsed` event handler
    - Retries when messages are not found in the database
 
-2. **Embedding Service** (`embedding/app/service.py`)
+3. **Embedding Service** (`embedding/app/service.py`)
    - Wraps `_handle_chunks_prepared` event handler
    - Retries when chunks are not found in the database
+
+4. **Orchestrator Service** (`orchestrator/app/service.py`)
+   - Wraps `_handle_embeddings_generated` event handler
+   - Retries when chunks are not found in the database
+
+5. **Summarization Service** (`summarization/app/service.py`)
+   - Wraps `_handle_summarization_requested` event handler
+   - Retries when messages are not found in the database
+
+6. **Reporting Service** (`reporting/app/service.py`)
+   - Wraps `_handle_summary_complete` event handler
+   - Retries when threads are not found in the database
 
 ## Configuration
 
@@ -93,7 +109,7 @@ The retry policy implements exponential backoff with full jitter to:
 
 Retries are abandoned when:
 1. Maximum attempts reached (`max_attempts`)
-2. Total TTL exceeded (`ttl_minutes`)
+2. Total TTL exceeded (`ttl_seconds`)
 
 ## Idempotency
 
@@ -101,8 +117,14 @@ Retries are abandoned when:
 
 Each event is assigned an idempotency key to prevent duplicate processing:
 
-- **Chunking**: `"chunking-{message_id_1}-{message_id_2}-{message_id_3}"`
-- **Embedding**: `"embedding-{chunk_id_1}-{chunk_id_2}-{chunk_id_3}"`
+- **Parsing**: `"parsing-{archive_id}"`
+- **Chunking**: `"chunking-{message_ids_str_or_hash}"`
+- **Embedding**: `"embedding-{chunk_ids_str_or_hash}"`
+- **Orchestrator**: `"orchestrator-{chunk_ids_str_or_hash}"`
+- **Summarization**: `"summarization-{thread_ids_str_or_hash}"`
+- **Reporting**: `"reporting-{thread_id}-{summary_id}"`
+
+When the concatenated ID string exceeds 100 characters, a SHA256 hash (truncated to 16 characters) is used instead to keep keys manageable.
 
 The idempotency key is included in:
 - Retry attempts (ensures same event is retried)

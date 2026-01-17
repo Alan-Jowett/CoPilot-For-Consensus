@@ -3,6 +3,7 @@
 
 """Main chunking service implementation."""
 
+import hashlib
 import time
 from datetime import datetime, timezone
 from typing import Any, cast
@@ -224,8 +225,15 @@ class ChunkingService:
 
             # Process with retry logic for race condition handling
             # Generate idempotency key from message doc IDs
+            # Use all message doc IDs for uniqueness (limited to reasonable length for key storage)
             message_doc_ids = json_parsed.data.get("message_doc_ids", [])
-            idempotency_key = f"chunking-{'-'.join(str(mid) for mid in message_doc_ids[:3])}"
+            message_ids_str = '-'.join(str(mid) for mid in message_doc_ids)
+            # Hash if too long to keep key manageable
+            if len(message_ids_str) > 100:
+                message_ids_hash = hashlib.sha256(message_ids_str.encode()).hexdigest()[:16]
+                idempotency_key = f"chunking-{message_ids_hash}"
+            else:
+                idempotency_key = f"chunking-{message_ids_str}"
             
             # Wrap processing with retry logic
             handle_event_with_retry(

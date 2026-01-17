@@ -274,7 +274,6 @@ class OrchestrationService:
             chunk_ids_str = '-'.join(str(cid) for cid in chunk_ids)
             # Hash if too long to keep key manageable
             if len(chunk_ids_str) > 100:
-                import hashlib
                 chunk_ids_hash = hashlib.sha256(chunk_ids_str.encode()).hexdigest()[:16]
                 idempotency_key = f"orchestrator-{chunk_ids_hash}"
             else:

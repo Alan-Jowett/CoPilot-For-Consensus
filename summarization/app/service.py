@@ -181,7 +181,6 @@ class SummarizationService:
             thread_ids_str = '-'.join(str(tid) for tid in thread_ids)
             # Hash if too long to keep key manageable
             if len(thread_ids_str) > 100:
-                import hashlib
                 thread_ids_hash = hashlib.sha256(thread_ids_str.encode()).hexdigest()[:16]
                 idempotency_key = f"summarization-{thread_ids_hash}"
             else:

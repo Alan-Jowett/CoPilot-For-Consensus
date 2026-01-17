@@ -3,6 +3,7 @@
 
 """Main embedding service implementation."""
 
+import hashlib
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -168,8 +169,15 @@ class EmbeddingService:
 
             # Process with retry logic for race condition handling
             # Generate idempotency key from chunk IDs
+            # Use all chunk IDs for uniqueness (limited to reasonable length for key storage)
             chunk_ids = chunks_prepared.data.get("chunk_ids", [])
-            idempotency_key = f"embedding-{'-'.join(str(cid) for cid in chunk_ids[:3])}"
+            chunk_ids_str = '-'.join(str(cid) for cid in chunk_ids)
+            # Hash if too long to keep key manageable
+            if len(chunk_ids_str) > 100:
+                chunk_ids_hash = hashlib.sha256(chunk_ids_str.encode()).hexdigest()[:16]
+                idempotency_key = f"embedding-{chunk_ids_hash}"
+            else:
+                idempotency_key = f"embedding-{chunk_ids_str}"
             
             # Wrap processing with retry logic
             handle_event_with_retry(

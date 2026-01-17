@@ -125,15 +125,20 @@ class ReportingService:
 
             logger.info(f"Received SummaryComplete event: {summary_complete.data.get('thread_id')}")
 
-            # Process with retry logic for race condition handling
-            # Generate idempotency key from thread ID and summary ID (both required)
+            # Validate required fields before retry wrapper
+            # Missing fields indicate malformed events that should NOT be retried
             thread_id = summary_complete.data.get("thread_id")
             summary_id = summary_complete.data.get("summary_id")
             
             if not thread_id or not summary_id:
                 error_msg = "Missing required fields thread_id or summary_id in SummaryComplete event"
                 logger.error(error_msg)
-                raise ValueError(error_msg)
+                # Record metrics for invalid event
+                if self.metrics_collector:
+                    self.metrics_collector.increment("reporting_events_total", tags={"event_type": "summary_complete", "outcome": "validation_error"})
+                    self.metrics_collector.increment("reporting_failures_total", tags={"error_type": "ValidationError"})
+                # Do NOT re-raise to avoid infinite requeue of malformed events
+                return
                 
             idempotency_key = f"reporting-{thread_id}-{summary_id}"
             
