@@ -18,6 +18,7 @@ from .document_store import (
     DocumentStoreError,
     DocumentStoreNotConnectedError,
 )
+from .schema_registry import sanitize_document, sanitize_documents
 
 logger = logging.getLogger(__name__)
 
@@ -306,12 +307,15 @@ class AzureCosmosDocumentStore(DocumentStore):
     def get_document(self, collection: str, doc_id: str) -> dict[str, Any] | None:
         """Retrieve a document by its ID.
 
+        Returns a sanitized document without backend system fields or
+        document store metadata fields.
+
         Args:
             collection: Name of the logical collection
             doc_id: Document ID
 
         Returns:
-            Document data as dictionary, or None if not found
+            Sanitized document data as dictionary, or None if not found
 
         Raises:
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
@@ -328,7 +332,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             )
 
             logger.debug(f"AzureCosmosDocumentStore: retrieved document {doc_id} from {collection}")
-            return doc
+            return sanitize_document(doc, collection)
 
         except cosmos_exceptions.CosmosResourceNotFoundError:
             logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
@@ -348,6 +352,9 @@ class AzureCosmosDocumentStore(DocumentStore):
     ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
+        Returns sanitized documents without backend system fields or
+        document store metadata fields.
+
         Supports MongoDB-style operators: $in, $eq
 
         Args:
@@ -356,7 +363,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             limit: Maximum number of documents to return
 
         Returns:
-            List of matching documents (empty list if no matches)
+            List of sanitized matching documents (empty list if no matches)
 
         Raises:
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
@@ -456,7 +463,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                 f"AzureCosmosDocumentStore: query on {collection} with {filter_dict} "
                 f"returned {len(items)} documents"
             )
-            return items
+            return sanitize_documents(items, collection)
 
         except DocumentStoreError:
             # Re-raise our own validation errors without wrapping
@@ -570,6 +577,9 @@ class AzureCosmosDocumentStore(DocumentStore):
     ) -> list[dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
 
+        Returns sanitized documents without backend system fields or
+        document store metadata fields.
+
         Note: This is a simplified implementation that supports common aggregation stages
         for compatibility with MongoDB-style pipelines. Cosmos DB uses SQL queries, so
         we translate simple pipelines to SQL where possible, and handle complex operations
@@ -582,7 +592,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             pipeline: Aggregation pipeline (list of stage dictionaries)
 
         Returns:
-            List of aggregation results
+            List of sanitized aggregation results
 
         Raises:
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
@@ -603,7 +613,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                 f"AzureCosmosDocumentStore: aggregation on {collection} "
                 f"returned {len(results)} documents"
             )
-            return results
+            return sanitize_documents(results, collection, preserve_extra=True)
 
         except DocumentStoreError:
             # Re-raise our own validation errors without wrapping

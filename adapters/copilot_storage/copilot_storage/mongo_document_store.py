@@ -15,6 +15,7 @@ from .document_store import (
     DocumentStoreError,
     DocumentStoreNotConnectedError,
 )
+from .schema_registry import sanitize_document, sanitize_documents
 
 logger = logging.getLogger(__name__)
 
@@ -182,12 +183,15 @@ class MongoDocumentStore(DocumentStore):
     def get_document(self, collection: str, doc_id: str) -> dict[str, Any] | None:
         """Retrieve a document by its ID.
 
+        Returns a sanitized document without backend system fields or
+        document store metadata fields.
+
         Args:
             collection: Name of the collection
             doc_id: Document ID
 
         Returns:
-            Document data as dictionary, or None if not found
+            Sanitized document data as dictionary, or None if not found
 
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
@@ -216,7 +220,7 @@ class MongoDocumentStore(DocumentStore):
                 if "_id" in doc:
                     doc["_id"] = str(doc["_id"])
                 logger.debug(f"MongoDocumentStore: retrieved document {doc_id} from {collection}")
-                return doc
+                return sanitize_document(doc, collection)
 
             logger.debug(f"MongoDocumentStore: document {doc_id} not found in {collection}")
             return None
@@ -230,13 +234,16 @@ class MongoDocumentStore(DocumentStore):
     ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
+        Returns sanitized documents without backend system fields or
+        document store metadata fields.
+
         Args:
             collection: Name of the collection
             filter_dict: Filter criteria as dictionary (MongoDB query format)
             limit: Maximum number of documents to return
 
         Returns:
-            List of matching documents (empty list if no matches)
+            List of sanitized matching documents (empty list if no matches)
 
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
@@ -260,7 +267,7 @@ class MongoDocumentStore(DocumentStore):
                 f"MongoDocumentStore: query on {collection} with {filter_dict} "
                 f"returned {len(results)} documents"
             )
-            return results
+            return sanitize_documents(results, collection)
 
         except Exception as e:
             logger.error(f"MongoDocumentStore: query_documents failed - {e}", exc_info=True)
@@ -357,6 +364,9 @@ class MongoDocumentStore(DocumentStore):
     ) -> list[dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
 
+        Returns sanitized documents without backend system fields or
+        document store metadata fields.
+
         **Note**: ObjectId values are recursively converted to strings for JSON
         serialization compatibility. This handles ObjectIds in nested documents
         (e.g., from $lookup stages).
@@ -366,7 +376,7 @@ class MongoDocumentStore(DocumentStore):
             pipeline: MongoDB aggregation pipeline (list of stage dictionaries)
 
         Returns:
-            List of aggregation results
+            List of sanitized aggregation results
 
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
@@ -389,7 +399,7 @@ class MongoDocumentStore(DocumentStore):
                 f"MongoDocumentStore: aggregation on {collection} "
                 f"returned {len(results)} documents"
             )
-            return results
+            return sanitize_documents(results, collection, preserve_extra=True)
 
         except Exception as e:
             logger.error(f"MongoDocumentStore: aggregate_documents failed - {e}", exc_info=True)
