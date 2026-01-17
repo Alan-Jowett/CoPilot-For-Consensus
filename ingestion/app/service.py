@@ -74,7 +74,10 @@ def _prune_source_fields(source_dict: dict[str, Any]) -> dict[str, Any]:
     for key, value in source_dict.items():
         # Only keep fields that SourceConfig accepts
         if key in _ALLOWED_SOURCE_FIELDS:
-            pruned[key] = value
+            if key == "_id" and value is not None and not isinstance(value, str):
+                pruned[key] = str(value)
+            else:
+                pruned[key] = value
     return pruned
 
 
@@ -113,6 +116,10 @@ def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
     """
     # Make a copy to avoid modifying the original
     sanitized = dict(source_dict)
+
+    # Ensure _id is JSON serializable (Mongo may use bson.ObjectId)
+    if "_id" in sanitized and sanitized["_id"] is not None and not isinstance(sanitized["_id"], str):
+        sanitized["_id"] = str(sanitized["_id"])
     
     # Ensure password is not exposed
     if "password" in sanitized and sanitized["password"]:
@@ -1137,7 +1144,13 @@ class IngestionService:
 
         # Store in document store
         try:
-            self.document_store.insert_document("sources", source_data)
+            # Avoid backend mutation of caller-provided mappings, and ensure we
+            # never allow a non-JSON-serializable id (e.g., bson.ObjectId) to
+            # leak into API responses.
+            to_store = dict(source_data)
+            to_store.setdefault("_id", source_data["name"])
+
+            self.document_store.insert_document("sources", to_store)
 
             # Reload sources from config
             self._reload_sources()
@@ -1145,7 +1158,7 @@ class IngestionService:
             self.logger.info("Source created", source_name=source_data["name"])
 
             # Return created source (without exposing password)
-            return _sanitize_source_dict(source_data)
+            return _sanitize_source_dict(to_store)
         except Exception as e:
             self.logger.error("Failed to create source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to create source: {str(e)}")

@@ -133,6 +133,43 @@ class TestSourcesEndpoints:
         assert data["source"]["name"] == "test-source"
         assert data["source"]["source_type"] == "http"
 
+    def test_create_source_handles_non_json_id(self, client, service):
+        """Creating a source must not return non-JSON-serializable ids.
+
+        Some backends (e.g., MongoDB) may assign an ObjectId and/or mutate the
+        inserted dict. This test simulates that behavior without requiring
+        pymongo/bson in the unit-test environment.
+        """
+
+        class _NonJsonId:
+            def __str__(self) -> str:  # pragma: no cover
+                return "non-json-id"
+
+        original_insert = service.document_store.insert_document
+
+        def insert_and_mutate(collection: str, doc: dict):
+            # Simulate a backend mutating the passed dict (e.g., injecting _id)
+            doc["_id"] = _NonJsonId()
+            return original_insert(collection, doc)
+
+        service.document_store.insert_document = insert_and_mutate  # type: ignore[method-assign]
+
+        source_data = {
+            "name": "mutated-id-source",
+            "source_type": "http",
+            "url": "https://example.com/archive.mbox",
+            "enabled": True,
+        }
+
+        response = client.post("/api/sources", json=source_data)
+        assert response.status_code == 201
+
+        payload = response.json()
+        assert payload["source"]["name"] == "mutated-id-source"
+        # Ensure any id present is safe for JSON serialization
+        if "_id" in payload["source"] and payload["source"]["_id"] is not None:
+            assert isinstance(payload["source"]["_id"], str)
+
     def test_create_source_duplicate(self, client, service):
         """Test creating a duplicate source returns 400."""
         source_data = {
