@@ -362,9 +362,6 @@ class OrchestrationService:
 
         Returns:
             List of unique thread IDs
-            
-        Raises:
-            DocumentNotFoundError: If no chunks found (race condition)
         """
         thread_ids: set[str] = set()
 
@@ -376,11 +373,10 @@ class OrchestrationService:
         )
 
         if not chunks:
-            error_msg = f"No chunks found in database for {len(chunk_ids)} IDs"
-            logger.warning(error_msg)
-            # Raise retryable error to trigger retry logic for race conditions
-            # This handles cases where events arrive before documents are queryable
-            raise DocumentNotFoundError(error_msg)
+            logger.warning(
+                f"No chunks found in database for {len(chunk_ids)} IDs; skipping"
+            )
+            return []
 
         for chunk in chunks:
             thread_id = chunk.get("thread_id")
