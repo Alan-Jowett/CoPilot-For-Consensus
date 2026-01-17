@@ -1601,6 +1601,7 @@ The deployment automatically creates an Azure Portal Dashboard that visualizes O
 - **Failure Rates**: Service-specific failure counters
 
 **Accessing the Dashboard:**
+**Bash (Linux/macOS):**
 ```bash
 # Get dashboard URL from deployment outputs
 DASHBOARD_URL=$(az deployment group show \
@@ -1612,7 +1613,19 @@ echo "Dashboard URL: $DASHBOARD_URL"
 # Or open directly in browser:
 # macOS: open "$DASHBOARD_URL"
 # Linux: xdg-open "$DASHBOARD_URL"
-# Windows: start "$DASHBOARD_URL"
+```
+
+**PowerShell (Windows):**
+```powershell
+# Get dashboard URL from deployment outputs
+$dashboardUrl = (az deployment group show `
+  --name copilot-deployment `
+  --resource-group copilot-rg `
+  --query properties.outputs.dashboardUrl.value -o tsv)
+
+Write-Host "Dashboard URL: $dashboardUrl"
+# Or open directly in browser:
+# start $dashboardUrl
 ```
 
 Or navigate manually:
@@ -1696,11 +1709,21 @@ See [../../docs/observability/metrics-catalog.md](../../docs/observability/metri
 
 If metrics are not appearing in the dashboard:
 1. Verify Application Insights is receiving data:
+   **Bash:**
    ```bash
    # Check recent traces
    az monitor app-insights query \
      --app <app-insights-name> \
      --resource-group copilot-rg \
+     --analytics-query "traces | where timestamp > ago(1h) | take 10"
+   ```
+
+   **PowerShell:**
+   ```powershell
+   # Check recent traces
+   az monitor app-insights query `
+     --app <app-insights-name> `
+     --resource-group copilot-rg `
      --analytics-query "traces | where timestamp > ago(1h) | take 10"
    ```
 2. Ensure Container Apps have correct Application Insights connection string
