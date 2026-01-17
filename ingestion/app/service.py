@@ -388,6 +388,7 @@ class IngestionService:
                 )
 
             # Step 3: Delete messages (query by archive_id or source)
+            message_ids = []
             try:
                 # Try querying by source first
                 messages = self.document_store.query_documents(
@@ -409,11 +410,11 @@ class IngestionService:
                         self.document_store.delete_document("messages", message_id)
                         deletion_counts["messages"] += 1
                     except Exception as e:
-                            self.logger.warning(
-                                "Failed to delete message",
-                                message_id=message_id,
-                                error=str(e),
-                            )
+                        self.logger.warning(
+                            "Failed to delete message",
+                            message_id=message_id,
+                            error=str(e),
+                        )
                 self.logger.info(
                     "Deleted messages",
                     source_name=source_name,
@@ -426,7 +427,6 @@ class IngestionService:
                     error=str(e),
                     exc_info=True,
                 )
-                message_ids = []
 
             # Step 4: Delete chunks (query by message_id or source)
             chunk_ids = []
