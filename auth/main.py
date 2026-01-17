@@ -228,7 +228,7 @@ async def login(
         logger.info(f"Initiated login for provider={provider}, aud={aud}")
 
         # Record metrics
-        metrics.increment("login_initiated_total", {"provider": provider, "audience": aud})
+        metrics.increment("login_initiated_total", tags={"provider": provider, "audience": aud})
 
         return RedirectResponse(url=authorization_url, status_code=302)
 
@@ -321,11 +321,11 @@ async def callback(
 
     except ValueError as e:
         logger.error(f"Callback validation failed: {e}")
-        metrics.increment("callback_failed_total", {"error": "validation_error"})
+        metrics.increment("callback_failed_total", tags={"error": "validation_error"})
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error during callback: {e}")
-        metrics.increment("callback_failed_total", {"error": "internal_error"})
+        metrics.increment("callback_failed_total", tags={"error": "internal_error"})
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -434,7 +434,7 @@ def userinfo(request: Request) -> JSONResponse:
             try:
                 claims = service.validate_token(token=token, audience=audience)
                 # Successfully validated - return user info
-                metrics.increment("userinfo_success_total", {"audience": audience})
+                metrics.increment("userinfo_success_total", tags={"audience": audience})
                 return JSONResponse(
                     content={
                         "sub": claims.get("sub"),
@@ -451,14 +451,14 @@ def userinfo(request: Request) -> JSONResponse:
 
         # Token didn't match any configured audience
         logger.warning(f"Token validation failed for all configured audiences: {validation_errors}")
-        metrics.increment("userinfo_failed_total", {"error": "invalid_audience"})
+        metrics.increment("userinfo_failed_total", tags={"error": "invalid_audience"})
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token does not match any configured audience"
         )
 
     except Exception as e:
         logger.error(f"Token validation failed: {e}")
-        metrics.increment("userinfo_failed_total", {"error": "token_error"})
+        metrics.increment("userinfo_failed_total", tags={"error": "token_error"})
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
@@ -693,7 +693,7 @@ async def list_pending_assignments(
             },
         )
 
-        metrics.increment("admin_list_pending_total", {"admin": admin_user_id})
+        metrics.increment("admin_list_pending_total", tags={"admin": admin_user_id})
 
         return JSONResponse(
             content={
@@ -749,7 +749,10 @@ async def search_users(
             },
         )
 
-        metrics.increment("admin_search_users_total", {"admin": admin_user_id, "search_by": search_by.value})
+        metrics.increment(
+            "admin_search_users_total",
+            tags={"admin": admin_user_id, "search_by": search_by.value},
+        )
 
         return JSONResponse(
             content={
@@ -803,7 +806,7 @@ async def get_user_roles(
             },
         )
 
-        metrics.increment("admin_view_roles_total", {"admin": admin_user_id})
+        metrics.increment("admin_view_roles_total", tags={"admin": admin_user_id})
 
         return JSONResponse(content=user_record)
 
