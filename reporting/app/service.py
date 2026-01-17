@@ -148,8 +148,6 @@ class ReportingService:
                 event=event,
                 config=self.retry_config,
                 idempotency_key=idempotency_key,
-                metrics_collector=self.metrics_collector,
-                error_reporter=self.error_reporter,
                 service_name="reporting",
             )
 
@@ -272,25 +270,19 @@ class ReportingService:
 
         # Update thread document with summary_id to mark as complete
         logger.info(f"Updating thread {thread_id} with summary_id {report_id}")
-        # Threads use thread_id as document _id; update by ID
-        # Verify thread exists before updating (race condition check)
-        threads = self.document_store.query_documents(
-            "threads",
-            filter_dict={"_id": thread_id},
-            limit=1,
-        )
-        if not threads:
-            error_msg = f"Thread {thread_id} not found in database"
-            logger.warning(error_msg)
-            # Raise retryable error to trigger retry logic for race conditions
-            # This handles cases where events arrive before documents are queryable
-            raise DocumentNotFoundError(error_msg)
-        
-        self.document_store.update_document(
-            "threads",
-            thread_id,
-            {"summary_id": report_id},
-        )
+        # Threads use thread_id as document _id; update by ID.
+        # If the thread document is missing, treat the update as best-effort and continue.
+        try:
+            self.document_store.update_document(
+                "threads",
+                thread_id,
+                {"summary_id": report_id},
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to update thread {thread_id} with summary_id {report_id}: {e}",
+                exc_info=True,
+            )
 
         # Attempt webhook notification if enabled
         notified = False
