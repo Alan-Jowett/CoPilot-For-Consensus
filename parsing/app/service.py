@@ -700,7 +700,7 @@ class ParsingService:
         thread_lookup = {thread["thread_id"]: thread for thread in threads}
 
         # Track failed publications for error reporting
-        failed_publishes = []
+        failed_publishes: list[tuple[str, Exception]] = []
 
         for message in parsed_messages:
             # Validate required fields exist
