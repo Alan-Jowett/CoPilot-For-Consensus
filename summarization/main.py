@@ -258,6 +258,28 @@ def main():
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter(config.error_reporter)
 
+        # Check for batch mode environment variables
+        # Batch mode is only supported for OpenAI and Azure OpenAI backends
+        llm_backend_type = str(config.llm_backend.llm_backend_type).lower()
+        batch_mode_enabled = os.environ.get("OPENAI_BATCH_MODE", "false").lower() in ("true", "1", "yes")
+        batch_max_threads = int(os.environ.get("OPENAI_BATCH_MAX_THREADS", "50"))
+        batch_poll_interval = int(os.environ.get("OPENAI_BATCH_POLL_INTERVAL_SECONDS", "60"))
+
+        if batch_mode_enabled and llm_backend_type not in ("openai", "azure_openai_gpt"):
+            logger.warning(
+                f"Batch mode is only supported for OpenAI and Azure OpenAI backends, "
+                f"but current backend is '{llm_backend_type}'. Batch mode disabled."
+            )
+            batch_mode_enabled = False
+
+        if batch_mode_enabled:
+            logger.info(
+                f"Batch mode enabled: max_threads={batch_max_threads}, "
+                f"poll_interval={batch_poll_interval}s"
+            )
+        else:
+            logger.info("Batch mode disabled (using interactive mode)")
+
         summarization_service = SummarizationService(
             document_store=document_store,
             vector_store=vector_store,
@@ -274,6 +296,9 @@ def main():
             llm_model=str(llm_model),
             context_window_tokens=4096,
             prompt_template="",
+            batch_mode_enabled=batch_mode_enabled,
+            batch_max_threads=batch_max_threads,
+            batch_poll_interval_seconds=batch_poll_interval,
         )
 
         subscriber_thread = threading.Thread(

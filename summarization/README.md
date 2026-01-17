@@ -61,6 +61,9 @@ The Summarization Service turns retrieved context into concise, citation-rich su
 | `AZURE_OPENAI_ENDPOINT` | String | No | - | Azure OpenAI endpoint URL |
 | `AZURE_OPENAI_DEPLOYMENT` | String | No | `gpt-35-turbo` | Azure deployment name |
 | `OPENAI_API_KEY` | String | No | - | OpenAI API key (if using OpenAI) |
+| `OPENAI_BATCH_MODE` | Boolean | No | `false` | Enable batch mode for OpenAI/Azure (50% cost reduction) |
+| `OPENAI_BATCH_MAX_THREADS` | Integer | No | `50` | Maximum threads per batch (when batch mode enabled) |
+| `OPENAI_BATCH_POLL_INTERVAL_SECONDS` | Integer | No | `60` | Polling interval for batch status (when batch mode enabled) |
 | `OLLAMA_HOST` | String | No | `http://ollama:11434` | Ollama server URL |
 | `SYSTEM_PROMPT_PATH` | String | No | `/app/prompts/system.txt` | System prompt file |
 | `USER_PROMPT_PATH` | String | No | `/app/prompts/user.txt` | User prompt template |
@@ -101,6 +104,18 @@ LLM_BACKEND=openai
 OPENAI_API_KEY=your-key
 LLM_MODEL=gpt-4o-mini
 ```
+
+**OpenAI API with Batch Mode (50% cost reduction):**
+```bash
+LLM_BACKEND=openai
+OPENAI_API_KEY=your-key
+LLM_MODEL=gpt-4o-mini
+OPENAI_BATCH_MODE=true
+OPENAI_BATCH_MAX_THREADS=50
+OPENAI_BATCH_POLL_INTERVAL_SECONDS=60
+```
+
+**Note on Batch Mode:** Batch mode uses OpenAI's Batch API for asynchronous processing, which provides approximately 50% cost savings compared to interactive mode. When enabled, multiple threads in a single `SummarizationRequested` event are processed as a batch job. Batch jobs typically complete within a few hours but may take up to 24 hours. Only available for OpenAI and Azure OpenAI backends.
 
 ## Events
 
