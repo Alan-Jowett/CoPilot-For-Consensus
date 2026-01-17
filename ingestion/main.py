@@ -9,6 +9,7 @@ import signal
 import sys
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
