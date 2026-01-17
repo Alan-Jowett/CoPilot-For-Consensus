@@ -362,9 +362,6 @@ module dashboardModule 'modules/dashboard.bicep' = if (deployContainerApps) {
     logAnalyticsWorkspaceResourceId: appInsightsModule!.outputs.workspaceId
     tags: tags
   }
-  dependsOn: [
-    appInsightsModule
-  ]
 }
 
 // Store Application Insights secrets securely in Key Vault

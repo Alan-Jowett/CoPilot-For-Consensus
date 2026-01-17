@@ -269,10 +269,9 @@ requests
 traces
 | where timestamp > ago(24h)
 | extend severityLevel = coalesce(tostring(customDimensions.severityLevel), tostring(severityLevel), "Information")
-| where severityLevel in ("Error", "Warning", "Information")
-| summarize ErrorsPerHour = countif(severityLevel == "Error"), 
+| summarize ErrorsPerHour = countif(severityLevel in ("Error", "Critical")), 
             WarningsPerHour = countif(severityLevel == "Warning"), 
-            InfoPerHour = countif(severityLevel == "Information") 
+            InfoPerHour = countif(severityLevel in ("Information", "Informational", "Verbose", "Debug", "Trace")) 
   by bin(timestamp, 1h)
 | render timechart
 '''

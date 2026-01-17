@@ -35,9 +35,9 @@ The dashboard includes the following tiles:
 - **Data**: Errors, warnings, and info logs per hour
 - **Source**: Application Insights `traces` table
 - **Metrics**: 
-  - Errors per hour (severity = "Error")
+  - Errors per hour (severity = "Error" or "Critical")
   - Warnings per hour (severity = "Warning")
-  - Info per hour (severity = "Information")
+  - Info per hour (severity = "Information", "Informational", "Verbose", "Debug", or "Trace")
 
 ### 5. Custom Metrics - Service Processing Rates
 - **Type**: Line chart
