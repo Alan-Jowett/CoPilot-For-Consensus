@@ -64,6 +64,7 @@ The Summarization Service turns retrieved context into concise, citation-rich su
 | `OPENAI_BATCH_MODE` | Boolean | No | `false` | Enable batch mode for OpenAI/Azure (50% cost reduction) |
 | `OPENAI_BATCH_MAX_THREADS` | Integer | No | `50` | Maximum threads per batch (when batch mode enabled) |
 | `OPENAI_BATCH_POLL_INTERVAL_SECONDS` | Integer | No | `60` | Polling interval for batch status (when batch mode enabled) |
+| `OPENAI_BATCH_TIMEOUT_HOURS` | Integer | No | `24` | Maximum wait time for batch completion in hours |
 | `OLLAMA_HOST` | String | No | `http://ollama:11434` | Ollama server URL |
 | `SYSTEM_PROMPT_PATH` | String | No | `/app/prompts/system.txt` | System prompt file |
 | `USER_PROMPT_PATH` | String | No | `/app/prompts/user.txt` | User prompt template |

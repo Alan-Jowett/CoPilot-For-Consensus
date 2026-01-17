@@ -264,6 +264,7 @@ def main():
         batch_mode_enabled = os.environ.get("OPENAI_BATCH_MODE", "false").lower() in ("true", "1", "yes")
         batch_max_threads = int(os.environ.get("OPENAI_BATCH_MAX_THREADS", "50"))
         batch_poll_interval = int(os.environ.get("OPENAI_BATCH_POLL_INTERVAL_SECONDS", "60"))
+        batch_timeout_hours = int(os.environ.get("OPENAI_BATCH_TIMEOUT_HOURS", "24"))
 
         if batch_mode_enabled and llm_backend_type not in ("openai", "azure_openai_gpt"):
             logger.warning(
@@ -275,7 +276,7 @@ def main():
         if batch_mode_enabled:
             logger.info(
                 f"Batch mode enabled: max_threads={batch_max_threads}, "
-                f"poll_interval={batch_poll_interval}s"
+                f"poll_interval={batch_poll_interval}s, timeout={batch_timeout_hours}h"
             )
         else:
             logger.info("Batch mode disabled (using interactive mode)")
@@ -299,6 +300,7 @@ def main():
             batch_mode_enabled=batch_mode_enabled,
             batch_max_threads=batch_max_threads,
             batch_poll_interval_seconds=batch_poll_interval,
+            batch_timeout_hours=batch_timeout_hours,
         )
 
         subscriber_thread = threading.Thread(

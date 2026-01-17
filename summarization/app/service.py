@@ -48,6 +48,7 @@ class SummarizationService:
         batch_mode_enabled: bool = False,
         batch_max_threads: int = 50,
         batch_poll_interval_seconds: int = 60,
+        batch_timeout_hours: int = 24,
     ):
         """Initialize summarization service.
 
@@ -70,6 +71,7 @@ class SummarizationService:
             batch_mode_enabled: Enable batch mode for OpenAI/Azure (default: False)
             batch_max_threads: Maximum threads per batch (default: 50)
             batch_poll_interval_seconds: Polling interval for batch status (default: 60)
+            batch_timeout_hours: Maximum wait time for batch completion in hours (default: 24)
         """
         self.document_store = document_store
         self.vector_store = vector_store
@@ -89,6 +91,7 @@ class SummarizationService:
         self.batch_mode_enabled = batch_mode_enabled
         self.batch_max_threads = batch_max_threads
         self.batch_poll_interval_seconds = batch_poll_interval_seconds
+        self.batch_timeout_hours = batch_timeout_hours
 
         # Stats
         self.summaries_generated = 0
@@ -497,7 +500,7 @@ class SummarizationService:
             logger.info(f"Created batch job {batch_id} for {len(threads)} threads")
 
             # Poll for completion
-            max_wait_seconds = 24 * 3600  # 24 hours max
+            max_wait_seconds = self.batch_timeout_hours * 3600
             elapsed = 0
             while elapsed < max_wait_seconds:
                 time.sleep(self.batch_poll_interval_seconds)

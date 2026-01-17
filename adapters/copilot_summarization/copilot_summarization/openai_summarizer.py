@@ -6,6 +6,7 @@
 import importlib
 import json
 import logging
+import os
 import tempfile
 import time
 
@@ -301,7 +302,6 @@ class OpenAISummarizer(Summarizer):
             raise
         finally:
             # Clean up temporary file
-            import os
             try:
                 os.unlink(batch_file_path)
             except Exception:
