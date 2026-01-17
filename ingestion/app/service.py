@@ -6,6 +6,7 @@ import json
 import os
 import time
 from collections.abc import Iterable
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -198,6 +199,37 @@ class IngestionService:
 
         # Sources cache for dynamic source management from document store
         self._sources_cache: list[dict[str, Any]] | None = None
+
+        # Determine source storage backend from config with validation
+        raw_sources_store_type = settings.sources_store_type or "document_store"
+        
+        # Validate sources_store_type value
+        if raw_sources_store_type not in ("file", "document_store"):
+            self.logger.warning(
+                "Invalid sources_store_type in config; defaulting to 'document_store'",
+                sources_store_type=raw_sources_store_type,
+            )
+            raw_sources_store_type = "document_store"
+        
+        self._sources_store_type = raw_sources_store_type
+        
+        # If document_store is not available, fall back to file mode regardless of config
+        if self._sources_store_type == "document_store" and not self.document_store:
+            self.logger.warning(
+                "sources_store_type is 'document_store' but document_store is not configured; "
+                "falling back to 'file' mode using startup sources"
+            )
+            self._sources_store_type = "file"
+        
+        # If using document_store backend, initialize sources from document store
+        # If using file backend, sources come from _startup_sources
+        if self._sources_store_type == "document_store":
+            # Load sources from document store on initialization
+            self._reload_sources()
+            # If startup sources were provided (for backward compatibility or migration),
+            # merge them into document store
+            if self._startup_sources:
+                self._merge_startup_sources_to_document_store()
 
     @staticmethod
     def _ensure_storage_path(storage_path: str) -> None:
@@ -592,7 +624,7 @@ class IngestionService:
         """
         results = {}
 
-        for source in _enabled_sources(self._startup_sources):
+        for source in self._get_enabled_sources_for_ingestion():
             self.logger.info("Starting source ingestion", source_name=source.name)
             try:
                 self.ingest_archive(source)
@@ -1029,11 +1061,20 @@ class IngestionService:
         Returns:
             Dictionary with service statistics
         """
-        sources = _enabled_sources(self._startup_sources)
+        # Get all sources and enabled sources based on configured backend
+        if self._sources_store_type == "file":
+            all_sources = self._startup_sources
+            enabled_sources_list = _enabled_sources(self._startup_sources)
+            sources_enabled_count = len(enabled_sources_list)
+        else:
+            all_sources = self.list_sources(enabled_only=False)
+            # Use list_sources with enabled_only=True to avoid double filtering
+            enabled_sources_list = self.list_sources(enabled_only=True)
+            sources_enabled_count = len(enabled_sources_list)
 
         return {
-            "sources_configured": len(self._startup_sources),
-            "sources_enabled": len(sources),
+            "sources_configured": len(all_sources),
+            "sources_enabled": sources_enabled_count,
             "total_files_ingested": self._stats.get("total_files_ingested", 0),
             "last_ingestion_at": self._stats.get("last_ingestion_at"),
             "version": getattr(self, "version", "unknown"),
@@ -1346,6 +1387,67 @@ class IngestionService:
                 exc_info=True
             )
             self._sources_cache = []
+
+    def _merge_startup_sources_to_document_store(self):
+        """Merge startup sources into document store (migration helper).
+
+        This method is called during initialization if sources_store_type is 'document_store'
+        and startup sources were provided. It creates any sources that don't already exist
+        in the document store, supporting migration from file-based to document_store backend.
+        """
+        if not self.document_store or not self._startup_sources:
+            return
+
+        for source in self._startup_sources:
+            # Convert SourceConfig to dict for processing
+            if isinstance(source, dict):
+                source_dict = source
+            else:
+                # Use dataclasses.asdict for proper serialization
+                source_dict = asdict(source)
+            
+            source_name = source_dict.get("name")
+            
+            if not source_name:
+                self.logger.warning("Skipping startup source without name", source=source_dict)
+                continue
+            
+            # Check if source already exists in document store
+            existing = self.get_source(source_name)
+            if existing:
+                self.logger.debug(
+                    "Startup source already exists in document store, skipping",
+                    source_name=source_name
+                )
+                continue
+            
+            # Create the source in document store
+            try:
+                self.create_source(source_dict)
+                self.logger.info(
+                    "Merged startup source into document store",
+                    source_name=source_name
+                )
+            except Exception as e:
+                self.logger.warning(
+                    "Failed to merge startup source into document store",
+                    source_name=source_name,
+                    error=str(e)
+                )
+
+    def _get_enabled_sources_for_ingestion(self) -> list[SourceConfig]:
+        """Get enabled sources based on configured storage backend.
+
+        Returns:
+            List of enabled SourceConfig objects for ingestion
+        """
+        if self._sources_store_type == "file":
+            # Use file-based sources from startup
+            return _enabled_sources(self._startup_sources)
+        else:
+            # Use document store sources (default)
+            sources = self.list_sources(enabled_only=False)
+            return _enabled_sources(sources)
 
     def _update_source_status(
         self,

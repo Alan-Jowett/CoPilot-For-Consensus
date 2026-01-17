@@ -106,6 +106,20 @@
             "env_var": "INGESTION_SCHEDULE_INTERVAL_SECONDS",
             "default": 21600,
             "description": "Scheduler interval for periodic ingestion in seconds (default: 6 hours)"
+        },
+        "sources_store_type": {
+            "type": "string",
+            "source": "env",
+            "env_var": "INGESTION_SOURCES_STORE_TYPE",
+            "default": "document_store",
+            "description": "Backend for storing and loading ingestion sources: 'document_store' (default, production) or 'file' (dev/legacy). Invalid values will cause a validation warning and default to 'document_store'."
+        },
+        "sources_file_path": {
+            "type": "string",
+            "source": "env",
+            "env_var": "INGESTION_SOURCES_FILE_PATH",
+            "default": null,
+            "description": "Path to sources JSON file (only used when sources_store_type is 'file')"
         }
     },
     "adapters": {

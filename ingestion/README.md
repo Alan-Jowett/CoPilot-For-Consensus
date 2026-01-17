@@ -162,6 +162,8 @@ curl -X DELETE http://localhost:8080/ingestion/api/sources/ietf-quic
 |----------|---------|-------------|
 | `HTTP_PORT` | `8080` | HTTP API server port |
 | `INGESTION_SCHEDULE_INTERVAL_SECONDS` | `21600` | Interval between scheduled ingestions (6 hours) |
+| `INGESTION_SOURCES_STORE_TYPE` | `document_store` | Backend for source storage: `document_store` (default, production) or `file` (dev/legacy) |
+| `INGESTION_SOURCES_FILE_PATH` | `None` | Path to sources JSON file (only used when `INGESTION_SOURCES_STORE_TYPE=file`) |
 | `STORAGE_PATH` | `/data/raw_archives` | Archive storage location |
 | `MESSAGE_BUS_TYPE` | `rabbitmq` | `rabbitmq` or `noop` |
 | `MESSAGE_BUS_HOST` | `messagebus` | RabbitMQ hostname |
@@ -175,32 +177,71 @@ curl -X DELETE http://localhost:8080/ingestion/api/sources/ietf-quic
 | `RETRY_MAX_ATTEMPTS` | `3` | Max retry attempts |
 | `RETRY_BACKOFF_SECONDS` | `60` | Retry backoff time |
 
+### Source Storage Backends
+
+The ingestion service supports two backends for storing and loading source configurations:
+
+#### Document Store Backend (Default, Recommended for Production)
+
+- **Configuration:** `INGESTION_SOURCES_STORE_TYPE=document_store` (default)
+- **Storage:** Sources are stored in the `sources` collection in the configured document store (MongoDB/CosmosDB)
+- **Management:** Sources are fully managed via REST API CRUD operations
+- **Scheduler:** Periodic ingestion uses sources from the document store (single source of truth)
+- **Use Case:** Production deployments where sources need dynamic management
+
+#### File Backend (Legacy/Development)
+
+- **Configuration:** `INGESTION_SOURCES_STORE_TYPE=file`
+- **Storage:** Sources are loaded from a JSON file at startup
+- **File Path:** Set via `INGESTION_SOURCES_FILE_PATH` or legacy `INGESTION_SOURCES_CONFIG_PATH` env var
+- **Default File:** Falls back to `ingestion/config.json` if no path is specified
+- **Scheduler:** Periodic ingestion uses sources from the startup file (immutable during runtime)
+- **Use Case:** Development, testing, or deployments with static source configuration
+
+**Migration Path:** When switching from file to document_store backend, any sources provided at startup will be automatically merged into the document store on first run (deduplicated by name).
+
 ### Source Configuration
 
-Sources are managed via the REST API and stored in the document database. They can also be pre-configured in the database.
+**Default Behavior (Production):** Sources are managed dynamically via the REST API and stored in the document database. No static configuration file is required.
 
-  # HTTP/HTTPS source
-  - name: "archive-http"
-    type: "http"
-    url: "https://example.com/archives.mbox"
-    enabled: true
+**Legacy/Development Mode:** For static source configuration, set `INGESTION_SOURCES_STORE_TYPE=file` and optionally specify a file path with `INGESTION_SOURCES_FILE_PATH`. Example file format:
 
-  # IMAP source
-  - name: "mail-archive"
-    type: "imap"
-    url: "imap.example.com"
-    port: 993
-    username: "${IMAP_USERNAME}"
-    password: "${IMAP_PASSWORD}"
-    folder: "INBOX"
-    enabled: true
-
-  # Local filesystem (testing)
-  - name: "local-test"
-    type: "local"
-    url: "/path/to/local/archives"
-    enabled: false
+```json
+{
+  "sources": [
+    {
+      "name": "ietf-quic",
+      "source_type": "rsync",
+      "url": "rsync.ietf.org::mailman-archive/quic/",
+      "enabled": true
+    },
+    {
+      "name": "archive-http",
+      "source_type": "http",
+      "url": "https://example.com/archives.mbox",
+      "enabled": true
+    },
+    {
+      "name": "mail-archive",
+      "source_type": "imap",
+      "url": "imap.example.com",
+      "port": 993,
+      "username": "${IMAP_USERNAME}",
+      "password": "${IMAP_PASSWORD}",
+      "folder": "INBOX",
+      "enabled": true
+    },
+    {
+      "name": "local-test",
+      "source_type": "local",
+      "url": "/path/to/local/archives",
+      "enabled": false
+    }
+  ]
+}
 ```
+
+For production deployments using the default document_store backend, use the REST API to create sources dynamically instead of maintaining a static configuration file.
 
 ## UI Upload Workflow
 
