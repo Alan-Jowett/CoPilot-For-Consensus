@@ -544,7 +544,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'REPORTING_AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'REPORTING_SERVICE_AUDIENCE'
@@ -712,7 +712,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'INGESTION_AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'INGESTION_SERVICE_AUDIENCE'
@@ -905,7 +905,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'PARSING_AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'PARSING_SERVICE_AUDIENCE'
@@ -1053,7 +1053,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'CHUNK_AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'CHUNK_SERVICE_AUDIENCE'
@@ -1264,7 +1264,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'EMBEDDING_AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'EMBEDDING_SERVICE_AUDIENCE'
@@ -1456,7 +1456,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'ORCHESTRATOR_AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'ORCHESTRATOR_SERVICE_AUDIENCE'
@@ -1703,7 +1703,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'SUMMARIZATION_AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'SUMMARIZATION_SERVICE_AUDIENCE'
