@@ -5,6 +5,11 @@
 # Uses Azure Blob Storage instead of local filesystem
 FROM python:3.14-slim@sha256:1f741aef81d09464251f4c52c83a02f93ece0a636db125d411bd827bf381a763
 
+# Install rsync for archive fetching
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends rsync && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Install shared adapters in dependency order using centralized script
