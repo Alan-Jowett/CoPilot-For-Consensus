@@ -348,7 +348,10 @@ class TestAzureCosmosDocumentStore:
             store.get_document("users", "test-id")
 
     def test_get_document_success(self):
-        """Test successful document retrieval."""
+        """Test successful document retrieval.
+        
+        Note: System fields (id, collection) are removed by sanitization.
+        """
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key="testkey"
@@ -368,7 +371,9 @@ class TestAzureCosmosDocumentStore:
         doc = store.get_document("users", "user-123")
 
         assert doc is not None
-        assert doc["id"] == "user-123"
+        # System fields (id, collection) are removed by sanitization
+        assert "id" not in doc
+        assert "collection" not in doc
         assert doc["name"] == "Alice"
         mock_container.read_item.assert_called_once_with(
             item="user-123",

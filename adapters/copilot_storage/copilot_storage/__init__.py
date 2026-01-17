@@ -17,6 +17,12 @@ from .document_store import (  # noqa: E402
     DocumentStoreNotConnectedError,
 )
 from .factory import create_document_store  # noqa: E402
+from .schema_registry import (  # noqa: E402
+    get_collection_fields,
+    reset_registry,
+    sanitize_document,
+    sanitize_documents,
+)
 from .validating_document_store import (  # noqa: E402
     DocumentValidationError,
     ValidatingDocumentStore,
@@ -32,5 +38,9 @@ __all__ = [
     "DocumentNotFoundError",
     "DocumentValidationError",
     "ValidatingDocumentStore",
+    "get_collection_fields",
+    "reset_registry",
+    "sanitize_document",
+    "sanitize_documents",
 ]
 
