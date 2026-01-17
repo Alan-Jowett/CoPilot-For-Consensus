@@ -316,6 +316,9 @@ class IngestionService:
         - Embeddings from vectorstore (via chunk IDs)
         - Summaries/reports from document_store
 
+        Note: If cascade delete fails, the source itself will NOT be deleted.
+        This ensures data consistency by preventing orphaned source records.
+
         Args:
             source_name: Name of the source to delete
 
@@ -348,7 +351,7 @@ class IngestionService:
             archives = self.document_store.query_documents(
                 "archives",
                 {"source": source_name}
-            )
+            ) or []
             archive_ids = self._extract_doc_ids(archives)
 
             self.logger.info(
@@ -362,7 +365,7 @@ class IngestionService:
                 threads = self.document_store.query_documents(
                     "threads",
                     {"source": source_name}
-                )
+                ) or []
                 thread_ids = self._extract_doc_ids(threads)
                 for thread_id in thread_ids:
                     try:
@@ -394,14 +397,14 @@ class IngestionService:
                 messages = self.document_store.query_documents(
                     "messages",
                     {"source": source_name}
-                )
+                ) or []
                 # If no messages found by source, try by archive_id
                 if not messages and archive_ids:
                     for archive_id in archive_ids:
                         archive_messages = self.document_store.query_documents(
                             "messages",
                             {"archive_id": archive_id}
-                        )
+                        ) or []
                         messages.extend(archive_messages)
 
                 message_ids = self._extract_doc_ids(messages)
@@ -435,14 +438,14 @@ class IngestionService:
                 chunks = self.document_store.query_documents(
                     "chunks",
                     {"source": source_name}
-                )
+                ) or []
                 # If no chunks found by source, try by message_id
                 if not chunks and message_ids:
                     for message_id in message_ids:
                         message_chunks = self.document_store.query_documents(
                             "chunks",
                             {"message_id": message_id}
-                        )
+                        ) or []
                         chunks.extend(message_chunks)
 
                 chunk_ids = self._extract_doc_ids(chunks)
@@ -487,14 +490,14 @@ class IngestionService:
                 summaries = self.document_store.query_documents(
                     "summaries",
                     {"source": source_name}
-                )
+                ) or []
                 # If no summaries found by source, try by archive_id
                 if not summaries and archive_ids:
                     for archive_id in archive_ids:
                         archive_summaries = self.document_store.query_documents(
                             "summaries",
                             {"archive_id": archive_id}
-                        )
+                        ) or []
                         summaries.extend(archive_summaries)
 
                 summary_ids = self._extract_doc_ids(summaries)

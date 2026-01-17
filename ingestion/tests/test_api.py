@@ -433,6 +433,106 @@ class TestSourcesEndpoints:
             archives_after = service.document_store.query_documents("archives", {"source": "test-source"})
             assert len(archives_after) == 1  # Archive should still exist
 
+    def test_delete_source_cascade_partial_failure(self, client, service):
+        """Test cascade delete with partial failures - verifies non-blocking error handling."""
+        from unittest.mock import Mock, patch
+        
+        # Create a source
+        source_data = {
+            "name": "test-source",
+            "source_type": "http",
+            "url": "https://example.com/archive.mbox",
+            "enabled": True,
+        }
+        client.post("/api/sources", json=source_data)
+
+        # Add test data
+        if service.document_store:
+            service.document_store.insert_document("archives", {
+                "_id": "archive-123",
+                "source": "test-source",
+                "file_hash": "abc123",
+            })
+            service.document_store.insert_document("threads", {
+                "_id": "thread-123",
+                "source": "test-source",
+            })
+            service.document_store.insert_document("threads", {
+                "_id": "thread-456",
+                "source": "test-source",
+            })
+            service.document_store.insert_document("messages", {
+                "_id": "message-123",
+                "source": "test-source",
+            })
+
+        # Mock delete_document to fail for one specific thread
+        original_delete = service.document_store.delete_document
+        def mock_delete(collection, doc_id):
+            if collection == "threads" and doc_id == "thread-123":
+                raise Exception("Simulated deletion failure")
+            return original_delete(collection, doc_id)
+        
+        with patch.object(service.document_store, 'delete_document', side_effect=mock_delete):
+            response = client.delete("/api/sources/test-source?cascade=true")
+
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Should still succeed overall, with partial counts
+        assert data["cascade"] is True
+        assert "deletion_counts" in data
+        # One thread should have been deleted, one failed
+        assert data["deletion_counts"]["threads"] == 1
+
+    def test_delete_source_cascade_with_archive_store(self, client, service):
+        """Test cascade delete verifies archive_store deletions."""
+        from unittest.mock import Mock
+        
+        # Create a source
+        source_data = {
+            "name": "test-source",
+            "source_type": "http",
+            "url": "https://example.com/archive.mbox",
+            "enabled": True,
+        }
+        client.post("/api/sources", json=source_data)
+
+        # Add archive to document store
+        if service.document_store:
+            service.document_store.insert_document("archives", {
+                "_id": "archive-123",
+                "source": "test-source",
+                "file_hash": "abc123",
+            })
+
+        # Track archive_store delete calls
+        original_delete_archive = service.archive_store.delete_archive
+        delete_archive_calls = []
+        
+        def track_delete_archive(archive_id):
+            delete_archive_calls.append(archive_id)
+            # Return True to simulate successful deletion
+            return True
+        
+        service.archive_store.delete_archive = Mock(side_effect=track_delete_archive)
+
+        # Delete with cascade
+        response = client.delete("/api/sources/test-source?cascade=true")
+
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Verify archive_store.delete_archive was called
+        assert len(delete_archive_calls) == 1
+        assert "archive-123" in delete_archive_calls
+        
+        # Verify deletion count includes archive_store
+        assert data["deletion_counts"]["archives_archivestore"] == 1
+        
+        # Restore original method
+        service.archive_store.delete_archive = original_delete_archive
+
 
 class TestSourceStatusEndpoint:
     """Tests for source status endpoint."""
