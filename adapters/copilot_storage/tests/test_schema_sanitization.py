@@ -10,9 +10,7 @@ storage driver (Cosmos/Mongo/InMemory).
 
 import pytest
 
-from copilot_storage import (
-    DocumentStore,
-)
+from copilot_storage import DocumentStore
 from copilot_storage.inmemory_document_store import InMemoryDocumentStore
 
 

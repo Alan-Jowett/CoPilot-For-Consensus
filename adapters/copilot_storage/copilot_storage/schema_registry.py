@@ -10,13 +10,16 @@ without backend-specific or unknown fields.
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Default schema directory (relative to repository root)
-_DEFAULT_SCHEMA_DIR = Path(__file__).parent.parent.parent.parent / "docs" / "schemas" / "documents"
+# Default schema directory
+# Try to find repository root via environment variable or relative path
+_REPO_ROOT = Path(os.environ.get("REPO_ROOT", Path(__file__).parent.parent.parent.parent))
+_DEFAULT_SCHEMA_DIR = _REPO_ROOT / "docs" / "schemas" / "documents"
 
 # Global registry: collection name -> set of allowed field names
 _COLLECTION_SCHEMAS: dict[str, set[str]] = {}

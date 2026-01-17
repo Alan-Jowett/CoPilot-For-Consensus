@@ -58,9 +58,11 @@ def _prune_source_fields(source_dict: dict[str, Any]) -> dict[str, Any]:
 
     Note: The storage layer now sanitizes documents on read, so this function
     is primarily needed for:
-    - Manually-constructed source dicts (e.g., in tests)
-    - Backward compatibility with older storage systems
+    - Manually-constructed source dicts (e.g., in tests or API requests)
     - Additional validation before SourceConfig.from_mapping()
+
+    This function may be deprecated in a future release once all callers
+    are updated to pass pre-sanitized documents.
 
     The fetcher SourceConfig is strict and rejects unknown fields.
     """
@@ -1164,11 +1166,14 @@ class IngestionService:
             return None
 
         doc = docs[0]
-        # Get the document ID (already sanitized by storage layer)
+        # Get the document ID (storage layer ensures _id is present and clean)
         doc_id = doc.get("_id")
 
         if doc_id is None:
-            raise ValueError(f"Source document for '{source_name}' has no _id field")
+            raise ValueError(
+                f"Source document for '{source_name}' is missing the required '_id' field. "
+                "This may indicate a storage layer issue."
+            )
 
         return str(doc_id)
 
