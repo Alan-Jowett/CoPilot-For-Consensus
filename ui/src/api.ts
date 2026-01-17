@@ -62,7 +62,11 @@ interface ApiErrorLike {
 }
 
 function isApiErrorLike(error: unknown): error is ApiErrorLike {
-  return typeof error === 'object' && error != null && Object.hasOwn(error, 'detail')
+  return (
+    typeof error === 'object' &&
+    error != null &&
+    Object.prototype.hasOwnProperty.call(error, 'detail')
+  )
 }
 
 function formatErrorMessage(error: unknown, fallbackMessage: string): string {
