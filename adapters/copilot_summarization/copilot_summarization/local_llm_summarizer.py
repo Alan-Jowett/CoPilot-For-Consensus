@@ -10,7 +10,7 @@ from copilot_config.generated.adapters.llm_backend import DriverConfig_LlmBacken
 
 import requests
 
-from .models import Summary, Thread
+from .models import Citation, Summary, Thread
 from .summarizer import Summarizer
 
 logger = logging.getLogger(__name__)

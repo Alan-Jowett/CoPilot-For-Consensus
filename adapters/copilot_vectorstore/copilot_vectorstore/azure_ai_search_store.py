@@ -143,7 +143,7 @@ class AzureAISearchVectorStore(VectorStore):
                 ) from e
         else:
             # api_key is schema-validated (required when not using managed identity).
-            self._credential = AzureKeyCredential(cast(str, api_key))
+            self._credential = AzureKeyCredential(cast(str, api_key))  # type: ignore[assignment]
 
         # Initialize clients
         try:
@@ -215,7 +215,7 @@ class AzureAISearchVectorStore(VectorStore):
             # Check for ResourceNotFoundError first (requires azure-search-documents >= 11.0),
             # then fall back to string matching for older SDK versions or other clients
             is_not_found = (
-                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
+                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or  # type: ignore[truthy-function]
                 "not found" in str(e).lower() or "does not exist" in str(e).lower()
             )
             if is_not_found:
@@ -483,7 +483,7 @@ class AzureAISearchVectorStore(VectorStore):
             # Check for ResourceNotFoundError first (requires azure-search-documents >= 11.0),
             # then fall back to string matching for older SDK versions or other clients
             is_not_found = (
-                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
+                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or # type: ignore[truthy-function]
                 "not found" in str(e).lower()
             )
             if is_not_found:
@@ -556,7 +556,7 @@ class AzureAISearchVectorStore(VectorStore):
             # Check for ResourceNotFoundError first (requires azure-search-documents >= 11.0),
             # then fall back to string matching for older SDK versions or other clients
             is_not_found = (
-                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
+                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or # type: ignore[truthy-function]
                 "not found" in str(e).lower()
             )
             if is_not_found:

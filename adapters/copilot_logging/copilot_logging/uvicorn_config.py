@@ -36,7 +36,7 @@ class JSONFormatter(logging.Formatter):
         """
         # Use record.created for accurate event timestamp
         event_time = datetime.fromtimestamp(record.created, tz=timezone.utc)
-        log_entry = {
+        log_entry: dict[str, Any] = {
             "timestamp": event_time.isoformat().replace("+00:00", "Z"),
             "level": record.levelname,
             "logger": self.logger_name,
