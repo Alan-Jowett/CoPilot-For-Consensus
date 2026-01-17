@@ -268,7 +268,7 @@ requests
                   Query: '''
 traces
 | where timestamp > ago(24h)
-| extend severityLevel = coalesce(tostring(customDimensions.severityLevel), tostring(severityLevel), "Information")
+| extend severityLevel = coalesce(tostring(severityLevel), tostring(customDimensions.severityLevel), "Information")
 | summarize ErrorsPerHour = countif(severityLevel in ("Error", "Critical")), 
             WarningsPerHour = countif(severityLevel == "Warning"), 
             InfoPerHour = countif(severityLevel in ("Information", "Informational", "Verbose", "Debug", "Trace")) 
