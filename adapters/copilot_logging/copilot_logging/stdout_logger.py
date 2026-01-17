@@ -58,7 +58,7 @@ class StdoutLogger(Logger):
         Raises:
             TypeError: If driver_config is not a DriverConfig instance
         """
-        level = cast(str, driver_config.level)
+        level = driver_config.level
         return cls(level=level, name=driver_config.name)
 
     def _log(self, level: str, message: str, **kwargs: Any) -> None:
