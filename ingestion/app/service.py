@@ -481,7 +481,7 @@ class IngestionService:
                     "Embeddings may exist for deleted chunks - manual cleanup may be needed",
                     source_name=source_name,
                     chunk_count=len(chunk_ids),
-                    message="The embedding service should handle cleanup of embeddings associated with deleted chunks",
+                    note="The embedding service should handle cleanup of embeddings associated with deleted chunks",
                 )
 
             # Step 6: Delete summaries/reports (query by source or archive_id)
@@ -1585,7 +1585,7 @@ class IngestionService:
             return False
 
         # Perform cascade delete if requested
-        deletion_counts = None
+        deletion_counts: dict[str, int] = {}
         if cascade:
             self.logger.info(
                 "Performing cascade delete",
