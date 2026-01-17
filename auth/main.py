@@ -286,7 +286,7 @@ async def callback(
         audiences = _get_audience_list(service.config.service_settings.audiences)
         metrics.increment(
             "callback_success_total",
-            {"audience": audiences[0] if audiences else "copilot-for-consensus"},
+            tags={"audience": audiences[0] if audiences else "copilot-for-consensus"},
         )
 
         # Create response with JWT cookie for seamless SSO integration with services like Grafana
@@ -857,7 +857,7 @@ async def assign_user_roles(
 
         metrics.increment(
             "admin_assign_roles_total",
-            {
+            tags={
                 "admin": admin_user_id,
                 "roles": ",".join(role_request.roles),
             },
@@ -915,7 +915,7 @@ async def revoke_user_roles(
 
         metrics.increment(
             "admin_revoke_roles_total",
-            {
+            tags={
                 "admin": admin_user_id,
                 "roles": ",".join(role_request.roles),
             },
