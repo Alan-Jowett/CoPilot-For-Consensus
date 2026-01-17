@@ -1,30 +1,30 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-metadata description = 'Generate per-deployment JWT keypair and store in Key Vault via deployment script'
+metadata description = 'Create RSA cryptographic key in Key Vault for JWT signing via deployment script'
 
 @description('Location for resources')
 param location string
 
-@description('Azure Key Vault name to store JWT secrets')
+@description('Azure Key Vault name to store JWT key')
 param keyVaultName string
 
-@description('User-assigned managed identity resource ID used to set secrets')
+@description('User-assigned managed identity resource ID used to create keys')
 param scriptIdentityId string
 
-@description('Force tag to rerun the key generation script each deployment')
+@description('Force tag to rerun the key creation script each deployment')
 param forceUpdateTag string
 
-@description('Secret name for the JWT private key')
-param jwtPrivateSecretName string = 'jwt-private-key'
+@description('Name of the RSA key to create in Key Vault for JWT signing')
+param jwtKeyName string = 'jwt-auth-key'
 
-@description('Secret name for the JWT public key')
-param jwtPublicSecretName string = 'jwt-public-key'
+@description('RSA key size in bits')
+param jwtKeySize int = 3072
 
-@description('Maximum retries when writing JWT secrets (to allow RBAC propagation)')
+@description('Maximum retries when creating JWT key (to allow RBAC propagation)')
 param jwtKeysMaxRetries int = 30
 
-@description('Delay in seconds between retries when writing JWT secrets')
+@description('Delay in seconds between retries when creating JWT key')
 param jwtKeysRetryDelaySeconds int = 30
 
 param tags object = {}
@@ -33,9 +33,9 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
   name: keyVaultName
 }
 
-// Deployment script generates a fresh RSA keypair and stores both private/public in Key Vault.
+// Deployment script creates an RSA cryptographic key in Key Vault for JWT signing
 resource jwtKeyScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
-  name: 'generate-jwt-keys'
+  name: 'create-jwt-key'
   location: location
   tags: tags
   kind: 'AzurePowerShell'
@@ -60,12 +60,12 @@ resource jwtKeyScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
         value: keyVaultName
       }
       {
-        name: 'JWT_PRIVATE_SECRET_NAME'
-        value: jwtPrivateSecretName
+        name: 'JWT_KEY_NAME'
+        value: jwtKeyName
       }
       {
-        name: 'JWT_PUBLIC_SECRET_NAME'
-        value: jwtPublicSecretName
+        name: 'JWT_KEY_SIZE'
+        value: string(jwtKeySize)
       }
       {
         name: 'JWT_MAX_RETRIES'
@@ -77,17 +77,7 @@ resource jwtKeyScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
       }
     ]
     scriptContent: '''
-# Helper function to format base64 string for PEM (64 chars per line)
-function Format-Base64ForPem {
-    param([string]$base64String)
-    $lines = @()
-    for ($i = 0; $i -lt $base64String.Length; $i += 64) {
-        $lines += $base64String.Substring($i, [Math]::Min(64, $base64String.Length - $i))
-    }
-    return $lines -join "`n"
-}
-
-function Handle-SecretError {
+function Handle-KeyError {
   param(
     [string]$errorMessage,
     [int]$attempt,
@@ -96,7 +86,7 @@ function Handle-SecretError {
   )
 
   # Use case-insensitive matching because Azure error casing can vary
-  if ($errorMessage -imatch "(\bForbidden\b|\bParentResourceNotFound\b|\bis not authorized to perform action\b|\bdoes not have secrets/set permission\b)") {
+  if ($errorMessage -imatch "(\bForbidden\b|\bParentResourceNotFound\b|\bis not authorized to perform action\b|\bdoes not have keys/create permission\b)") {
     if ($attempt -lt $maxRetries) {
       Write-Warning "Permission error on attempt $attempt of $maxRetries. RBAC may still be propagating. Waiting $retryDelay seconds before retry..."
       Write-Warning "Error: $errorMessage"
@@ -124,67 +114,56 @@ $VerbosePreference = 'Continue'
 # This is intentional to accommodate slow RBAC propagation in some environments.
 $initialDelaySeconds = 90
 Start-Sleep -Seconds $initialDelaySeconds
+
 $keyVaultName = $env:KEY_VAULT_NAME
-$privateSecretName = $env:JWT_PRIVATE_SECRET_NAME
-$publicSecretName = $env:JWT_PUBLIC_SECRET_NAME
-
-# Use .NET for RSA key generation (available by default in PowerShell)
-$rsa = [System.Security.Cryptography.RSA]::Create(3072)
-
-# Export private key in PEM format with proper 64-character line wrapping
-$privateKeyBase64 = [System.Convert]::ToBase64String($rsa.ExportRSAPrivateKey())
-$privateKeyFormatted = "-----BEGIN RSA PRIVATE KEY-----`n" + (Format-Base64ForPem -base64String $privateKeyBase64) + "`n-----END RSA PRIVATE KEY-----"
-
-# Export public key in PEM format with proper 64-character line wrapping
-$publicKeyBase64 = [System.Convert]::ToBase64String($rsa.ExportSubjectPublicKeyInfo())
-$publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + (Format-Base64ForPem -base64String $publicKeyBase64) + "`n-----END PUBLIC KEY-----"
-
-# Store in Key Vault with retry logic for RBAC propagation delays
-# Azure RBAC can take up to 5 minutes to propagate after role assignment
+$jwtKeyName = $env:JWT_KEY_NAME
+$jwtKeySize = [int]$env:JWT_KEY_SIZE
 $maxRetries = [int]$env:JWT_MAX_RETRIES
-$retryDelay = [int]$env:JWT_RETRY_DELAY_SECONDS  # 30 seconds between retries => 29 delays (~14.5 minutes retry delay with 30 retries; see total worst-case wait-time calculation above)
-$privateStored = $false
-$publicStored = $false
+$retryDelay = [int]$env:JWT_RETRY_DELAY_SECONDS
 
-Write-Host "Storing JWT keys in Key Vault (with retry for RBAC propagation)..."
+Write-Host "Creating JWT RSA key in Key Vault (with retry for RBAC propagation)..."
+Write-Host "  Key Vault: $keyVaultName"
+Write-Host "  Key Name: $jwtKeyName"
+Write-Host "  Key Size: $jwtKeySize bits"
+
+$keyCreated = $false
 
 for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
   try {
-    if (-not $privateStored) {
-      Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $privateSecretName -SecretValue (ConvertTo-SecureString -String $privateKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
-      $privateStored = $true
+    # Check if key already exists
+    $existingKey = Get-AzKeyVaultKey -VaultName $keyVaultName -Name $jwtKeyName -ErrorAction SilentlyContinue
+    if ($existingKey) {
+      Write-Host "JWT RSA key already exists: $($existingKey.Id)"
+      $keyCreated = $true
+      break
     }
-  }
-  catch {
-    $errorMessage = $_.Exception.Message
-    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { continue }
-  }
 
-  try {
-    if (-not $publicStored) {
-      Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $publicSecretName -SecretValue (ConvertTo-SecureString -String $publicKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
-      $publicStored = $true
-    }
-  }
-  catch {
-    $errorMessage = $_.Exception.Message
-    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { continue }
-  }
-
-  if ($privateStored -and $publicStored) {
-    Write-Host "JWT keys generated and stored successfully (attempt $attempt)"
+    # Create new RSA key in Key Vault
+    $key = Add-AzKeyVaultKey -VaultName $keyVaultName -Name $jwtKeyName -KeyType RSA -KeySize $jwtKeySize -ErrorAction Stop
+    Write-Host "JWT RSA key created successfully: $($key.Id)"
+    Write-Host "  Key Version: $($key.Version)"
+    $keyCreated = $true
     break
   }
+  catch {
+    $errorMessage = $_.Exception.Message
+    if (Handle-KeyError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { continue }
+  }
 }
 
-if (-not ($privateStored -and $publicStored)) {
-  throw "Failed to store both JWT secrets in Key Vault after $maxRetries attempts. Private stored: $privateStored; Public stored: $publicStored."
+if (-not $keyCreated) {
+  throw "Failed to create JWT RSA key in Key Vault after $maxRetries attempts"
 }
+
+# Output the key information for use by other deployments
+$DeploymentScriptOutputs = @{}
+$DeploymentScriptOutputs['jwtKeyName'] = $jwtKeyName
+$DeploymentScriptOutputs['keyVaultName'] = $keyVaultName
 '''
   }
 }
 
 // Outputs
 output keyVaultName string = keyVault.name
-output jwtPrivateSecretName string = jwtPrivateSecretName
-output jwtPublicSecretName string = jwtPublicSecretName
+output jwtKeyName string = jwtKeyName
+output jwtKeyUri string = '${keyVault.properties.vaultUri}keys/${jwtKeyName}'

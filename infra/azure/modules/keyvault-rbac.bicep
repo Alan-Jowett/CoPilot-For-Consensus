@@ -19,6 +19,10 @@ param deployAzureOpenAI bool = true
 // This built-in role allows reading secret contents but not listing/managing secrets
 var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
 
+// Key Vault Crypto User role definition ID
+// This built-in role allows using cryptographic keys for signing/encryption operations
+var keyVaultCryptoUserRoleId = '12338af0-0e69-4776-bea7-57586841c05f'
+
 // Reference existing Key Vault
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
   name: keyVaultName
@@ -55,6 +59,21 @@ resource authJwtPublicKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04
   scope: jwtPublicKeySecret
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
+    principalId: servicePrincipalIds['auth']
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// ============================================================================
+// JWT CRYPTOGRAPHIC KEY - Auth service only (sign tokens with Key Vault key)
+// ============================================================================
+
+// Auth service needs Crypto User permission to use the JWT signing key in Key Vault
+resource authJwtCryptoKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization && contains(servicePrincipalIds, 'auth')) {
+  name: guid(keyVault.id, servicePrincipalIds['auth'], keyVaultCryptoUserRoleId)
+  scope: keyVault
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultCryptoUserRoleId)
     principalId: servicePrincipalIds['auth']
     principalType: 'ServicePrincipal'
   }
@@ -211,6 +230,7 @@ output deployedRbacRoleAssignments array = enableRbacAuthorization ? concat(
 
 output summary string = enableRbacAuthorization ? '''
 ✅ Per-secret RBAC role assignments configured:
+- JWT cryptographic key: auth service only (Crypto User role for signing operations)
 - JWT private key: auth service only (secret-scoped)
 - JWT public key: auth service only (secret-scoped)
 - App Insights secrets: all ${length(allServices)} services (secret-scoped for telemetry)
@@ -220,7 +240,7 @@ ${deployAzureOpenAI ? '- Azure OpenAI API key: embedding/orchestrator/summarizat
 
 🔒 Security Improvement:
 - Before: All ${length(allServices)} services had vault-wide 'get' access to ALL secrets
-- After: Each service can only access specific secrets it needs
+- After: Each service can only access specific secrets/keys it needs
 - Blast radius of compromised service significantly reduced
 
 ⚠️  IMPORTANT: OAuth secrets require manual RBAC configuration after creation.

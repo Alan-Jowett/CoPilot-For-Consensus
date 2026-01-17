@@ -31,8 +31,8 @@ def load_auth_config() -> ServiceConfig_Auth:
         >>> config = load_auth_config()
         >>> print(config.service_settings.issuer)
         'http://localhost:8090'
-        >>> print(config.service_settings.jwt_algorithm)
-        'RS256'
+        >>> print(config.jwt_signer)
+        <jwt_signer adapter configuration>
     """
     config = get_config("auth")
     logger.info("Auth configuration loaded successfully")

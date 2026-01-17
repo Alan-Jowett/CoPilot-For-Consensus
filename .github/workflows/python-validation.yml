@@ -70,6 +70,7 @@ jobs:
           # Install all adapters for comprehensive validation
           python adapters/scripts/install_adapters.py \
             copilot_auth \
+            copilot_jwt_signer \
             copilot_chunking \
             copilot_config \
             copilot_consensus \

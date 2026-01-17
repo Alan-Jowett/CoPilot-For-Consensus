@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ..adapters.document_store import AdapterConfig_DocumentStore
+from ..adapters.jwt_signer import AdapterConfig_JwtSigner
 from ..adapters.logger import AdapterConfig_Logger
 from ..adapters.metrics import AdapterConfig_Metrics
 from ..adapters.oidc_providers import AdapterConfig_OidcProviders
@@ -28,12 +29,7 @@ class ServiceSettings_Auth:
     enable_dpop: Optional[bool] = False
     first_user_auto_promotion_enabled: Optional[bool] = False
     host: Optional[str] = '0.0.0.0'
-    jwt_algorithm: Optional[str] = 'RS256'
     jwt_default_expiry: Optional[int] = 1800
-    jwt_key_id: Optional[str] = 'default'
-    jwt_private_key: Optional[str] = None
-    jwt_public_key: Optional[str] = None
-    jwt_secret_key: Optional[str] = None
     max_skew_seconds: Optional[int] = 90
     port: Optional[int] = 8090
     require_nonce: Optional[bool] = True
@@ -51,3 +47,4 @@ class ServiceConfig_Auth:
     metrics: AdapterConfig_Metrics
     oidc_providers: AdapterConfig_OidcProviders
     secret_provider: AdapterConfig_SecretProvider
+    jwt_signer: Optional[AdapterConfig_JwtSigner] = None
