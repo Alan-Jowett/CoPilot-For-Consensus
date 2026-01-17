@@ -29,6 +29,12 @@ server {
   server_name _;
   root /usr/share/nginx/html;
 
+  # Disable sendfile for Azure Container Apps / Envoy compatibility
+  # When running behind Envoy (ACA ingress), sendfile can cause response truncation
+  sendfile off;
+  tcp_nopush off;
+  tcp_nodelay on;
+
   # Increase client body size limit for file uploads (100MB)
   client_max_body_size 100M;
 
