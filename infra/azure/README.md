@@ -49,6 +49,7 @@ See [Two-RG Deployment Guide](#two-rg-deployment-guide) for detailed instruction
 - **[Azure OpenAI Configuration Guide](OPENAI_CONFIGURATION.md)** - Detailed guide for configuring Azure OpenAI, model selection, and cost optimization
 - **[Bicep Architecture](BICEP_ARCHITECTURE.md)** - Infrastructure architecture and module design
 - **[GitHub OIDC Setup](GITHUB_OIDC_SETUP.md)** - Configure GitHub Actions for automated deployments
+- **[Azure Portal Dashboard](DASHBOARD.md)** - OpenTelemetry metrics visualization and customization guide
 
 ## Table of Contents
 
