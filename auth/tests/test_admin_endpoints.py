@@ -11,6 +11,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from copilot_metrics.noop_metrics import NoOpMetricsCollector
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -38,6 +40,9 @@ def client(mock_auth_service):
 
         # Set the mock auth service
         main.auth_service = mock_auth_service
+
+        # Ensure tests start with a fresh metrics collector so counters don't leak across tests.
+        main.metrics = NoOpMetricsCollector()
 
         return TestClient(main.app)
 
@@ -93,6 +98,14 @@ class TestListPendingAssignments:
         assert data["total"] == 2
         assert data["limit"] == 50
         assert data["skip"] == 0
+
+        # Verify metrics increment happened with tags (regression test for passing dict as value).
+        import main
+
+        assert main.metrics.get_counter_total(
+            "admin_list_pending_total",
+            tags={"admin": "github:admin"},
+        ) == 1.0
 
     def test_list_pending_with_filters(self, client, mock_auth_service, admin_token):
         """Test listing with user_id and role filters."""

@@ -14,6 +14,10 @@
 .PARAMETER Registry
     Custom registry to use (default: ghcr.io/alan-jowett/copilot-for-consensus)
 
+.PARAMETER Tag
+    Image tag to apply (default: azure). For example, use -Tag "alan-jowett" to
+    align with infra/azure containerImageTag parameters.
+
 .EXAMPLE
     .\scripts\build-azure-images.ps1
     Build all images locally
@@ -26,7 +30,8 @@
 [CmdletBinding()]
 param(
     [switch]$Push,
-    [string]$Registry = "ghcr.io/alan-jowett/copilot-for-consensus"
+    [string]$Registry = "ghcr.io/alan-jowett/copilot-for-consensus",
+    [string]$Tag = "azure"
 )
 
 $ErrorActionPreference = "Stop"
@@ -45,6 +50,7 @@ $services = @(
 
 Write-Host "Building Azure-optimized Docker images..." -ForegroundColor Green
 Write-Host "Registry: $Registry" -ForegroundColor Yellow
+Write-Host "Tag: $Tag" -ForegroundColor Yellow
 Write-Host "Push: $Push" -ForegroundColor Yellow
 Write-Host ""
 
@@ -56,10 +62,12 @@ function Build-Image {
     )
     
     Write-Host "Building $Service..." -ForegroundColor Green
-    
+
+    $localTag = if ($Tag -eq "azure") { "azure-local" } else { "$Tag-local" }
+
     $tags = @(
-        "${Registry}/${Service}:azure",
-        "${Registry}/${Service}:azure-local"
+        "${Registry}/${Service}:$Tag",
+        "${Registry}/${Service}:$localTag"
     )
     
     $tagArgs = $tags | ForEach-Object { "--tag", $_ }
@@ -68,7 +76,7 @@ function Build-Image {
         docker build `
             --file $Dockerfile `
             @tagArgs `
-            --cache-from "${Registry}/${Service}:azure" `
+            --cache-from "${Registry}/${Service}:$Tag" `
             $Context
         
         if ($LASTEXITCODE -eq 0) {
@@ -118,4 +126,4 @@ if (-not $Push) {
 
 # Display summary
 Write-Host "Summary:" -ForegroundColor Green
-docker images --format "table {{.Repository}}:{{.Tag}}`t{{.Size}}" | Select-String -Pattern ([regex]::Escape($Registry) + '.*azure')
+docker images --format "table {{.Repository}}:{{.Tag}}`t{{.Size}}" | Select-String -Pattern ([regex]::Escape($Registry) + ".*:$Tag$")

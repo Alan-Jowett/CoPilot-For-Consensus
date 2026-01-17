@@ -97,11 +97,18 @@ class AzureMonitorMetricsCollector(MetricsCollector):
         self._counters: dict[str, Any] = {}
         self._histograms: dict[str, Any] = {}
         self._gauges: dict[str, Any] = {}
-        self._gauge_values: dict[str, float] = {}
+        # Store the latest gauge values per metric and per tag-set.
+        # Keyed by fully qualified metric name (e.g. "copilot.queue_depth").
+        # The inner dict is keyed by a stable, sorted tuple of (key, value) tag pairs.
+        self._gauge_values: dict[str, dict[tuple[tuple[str, str], ...], float]] = {}
 
         # Create Azure Monitor exporter
         try:
-            exporter = AzureMonitorMetricExporter(connection_string=self.connection_string)
+            # Import exporter at runtime so tests can monkeypatch and to avoid
+            # binding to a specific exporter implementation at module import.
+            from azure.monitor.opentelemetry import exporter as am_exporter
+
+            exporter = am_exporter.AzureMonitorMetricExporter(connection_string=self.connection_string)
 
             # Create periodic metric reader with configured interval
             reader = PeriodicExportingMetricReader(
@@ -197,8 +204,8 @@ class AzureMonitorMetricsCollector(MetricsCollector):
         if name not in self._gauges:
             gauge_key = f"{self.namespace}.{name}"
 
-            # Initialize gauge value
-            self._gauge_values[gauge_key] = 0.0
+            # Initialize gauge values for an empty tag-set.
+            self._gauge_values[gauge_key] = {(): 0.0}
 
             # Create callback that returns the current value
             # Capture gauge_key by value to avoid closure bug.
@@ -208,7 +215,12 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 _ = callback_options
                 if otel_metrics is None:
                     return []
-                return [otel_metrics.Observation(self._gauge_values.get(key, 0.0), {})]
+
+                observations = []
+                for tags_key, value in self._gauge_values.get(key, {}).items():
+                    attributes = dict(tags_key)
+                    observations.append(otel_metrics.Observation(value, attributes))
+                return observations
 
             self._gauges[name] = self._meter.create_observable_gauge(
                 name=gauge_key,
@@ -261,9 +273,9 @@ class AzureMonitorMetricsCollector(MetricsCollector):
     def gauge(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
         """Set an Azure Monitor gauge to a specific value.
 
-        Note: OpenTelemetry gauges are observable (callback-based), so this implementation
-        stores the value internally and the gauge callback reports it periodically.
-        Tags are not fully supported for gauges in the current implementation.
+        Note: OpenTelemetry gauges are observable (callback-based). This implementation
+        stores the latest value internally per tag-set and the gauge callback reports
+        all known tag variants on collection.
 
         Args:
             name: Name of the gauge metric
@@ -276,14 +288,13 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             if gauge is not None:
                 # Store the latest value for the callback to report
                 gauge_key = f"{self.namespace}.{name}"
-                self._gauge_values[gauge_key] = value
-                logger.debug(f"AzureMonitorMetricsCollector: gauge {name} set to {value} with tags {tags}")
-
+                tags_key: tuple[tuple[str, str], ...] = ()
                 if tags:
-                    logger.warning(
-                        f"Tags/dimensions are not fully supported for gauge '{name}' "
-                        "with observable gauges in OpenTelemetry"
-                    )
+                    tags_key = tuple(sorted((str(k), str(v)) for k, v in tags.items()))
+                if gauge_key not in self._gauge_values:
+                    self._gauge_values[gauge_key] = {}
+                self._gauge_values[gauge_key][tags_key] = value
+                logger.debug(f"AzureMonitorMetricsCollector: gauge {name} set to {value} with tags {tags}")
         except Exception as e:
             self._metrics_errors_count += 1
             logger.error(f"Failed to set gauge {name}: {e}")
@@ -301,7 +312,15 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             Most recent gauge value, or None if not found
         """
         gauge_key = f"{self.namespace}.{name}"
-        return self._gauge_values.get(gauge_key)
+        values = self._gauge_values.get(gauge_key)
+        if not values:
+            return None
+
+        tags_key: tuple[tuple[str, str], ...] = ()
+        if tags:
+            tags_key = tuple(sorted((str(k), str(v)) for k, v in tags.items()))
+
+        return values.get(tags_key)
 
     def get_errors_count(self) -> int:
         """Get the count of metrics collection errors.

@@ -100,6 +100,10 @@ module coreKeyVaultModule 'modules/keyvault.bicep' = {
 }
 
 // Module: Azure OpenAI
+// NOTE: If public network access is enabled but networkDefaultAction is Deny with an empty allowlist,
+// all traffic will be blocked (including from Container Apps), resulting in 403 firewall/VNet errors.
+// For dev, default to Allow unless an explicit CIDR allowlist is provided.
+var openaiNetworkDefaultAction = (environment == 'dev' && length(azureOpenAIAllowedCidrs) == 0) ? 'Allow' : 'Deny'
 module openaiModule 'modules/openai.bicep' = {
   name: 'coreOpenaiDeployment'
   params: {
@@ -114,8 +118,8 @@ module openaiModule 'modules/openai.bicep' = {
     embeddingModelName: azureOpenAIEmbeddingModelName
     embeddingDeploymentCapacity: azureOpenAIEmbeddingDeploymentCapacity
     identityResourceId: openaiIdentity.id
-    enablePublicNetworkAccess: environment == 'dev'  // For dev enable public endpoint, but defaultAction remains Deny; use azureOpenAIAllowedCidrs to allow specific IPs
-    networkDefaultAction: 'Deny'
+    enablePublicNetworkAccess: environment == 'dev'
+    networkDefaultAction: openaiNetworkDefaultAction
     ipRules: azureOpenAIAllowedCidrs
     tags: tags
   }
