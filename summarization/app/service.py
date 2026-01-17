@@ -22,7 +22,6 @@ from copilot_storage import DocumentStore
 from copilot_summarization import Citation, Summarizer, Thread
 from copilot_vectorstore import VectorStore
 from copilot_event_retry import (
-    DocumentNotFoundError,
     RetryConfig,
     handle_event_with_retry,
 )
@@ -544,8 +543,9 @@ class SummarizationService:
         Returns:
             Dictionary with 'messages' and 'chunks' keys
             
-        Raises:
-            DocumentNotFoundError: If no messages found (race condition)
+        Notes:
+            If no messages are found, returns an empty context; callers are
+            responsible for publishing a `NoContextError` failure event.
         """
         # Query messages from document store
         messages = self.document_store.query_documents(
@@ -556,9 +556,7 @@ class SummarizationService:
         if not messages:
             error_msg = f"No messages found for thread {thread_id}"
             logger.warning(error_msg)
-            # Raise retryable error to trigger retry logic for race conditions
-            # This handles cases where events arrive before documents are queryable
-            raise DocumentNotFoundError(error_msg)
+            return {"messages": [], "chunks": []}
 
         # Extract message text for context
         message_texts = []
