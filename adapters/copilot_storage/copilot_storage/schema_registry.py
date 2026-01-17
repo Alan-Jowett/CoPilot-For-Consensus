@@ -52,7 +52,7 @@ _COLLECTION_SCHEMAS: dict[str, set[str]] = {}
 
 # Track which unknown fields have been logged (to avoid log spam)
 # Uses tuple (collection, field) as key to avoid delimiter issues
-_UNKNOWN_FIELDS_LOGGED: set[tuple[str, str]] = set()
+_LOGGED_UNKNOWN_FIELDS: set[tuple[str, str]] = set()
 
 
 def _load_schema_fields(schema_path: Path) -> set[str]:
@@ -81,8 +81,6 @@ def _initialize_registry(schema_dir: Path | None = None) -> None:
     Args:
         schema_dir: Directory containing schema files (defaults to docs/schemas/documents)
     """
-    global _COLLECTION_SCHEMAS
-
     if schema_dir is None:
         schema_dir = _DEFAULT_SCHEMA_DIR
 
@@ -127,9 +125,8 @@ def reset_registry() -> None:
     tests start with a clean state. It clears all loaded schemas so they
     will be reloaded on next access.
     """
-    global _COLLECTION_SCHEMAS, _UNKNOWN_FIELDS_LOGGED
     _COLLECTION_SCHEMAS.clear()
-    _UNKNOWN_FIELDS_LOGGED.clear()
+    _LOGGED_UNKNOWN_FIELDS.clear()
     logger.debug("Schema registry has been reset")
 
 
@@ -142,8 +139,6 @@ def get_collection_fields(collection: str) -> set[str] | None:
     Returns:
         Set of allowed field names, or None if no schema is registered
     """
-    global _COLLECTION_SCHEMAS
-
     # Lazy initialization
     if not _COLLECTION_SCHEMAS:
         _initialize_registry()
@@ -196,8 +191,8 @@ def sanitize_document(doc: dict[str, Any], collection: str, preserve_extra: bool
                 # Log at warning level for first occurrence of this field in this collection
                 # Use tuple for cache key to avoid delimiter collision issues
                 cache_key = (collection, key)
-                if cache_key not in _UNKNOWN_FIELDS_LOGGED:
-                    _UNKNOWN_FIELDS_LOGGED.add(cache_key)
+                if cache_key not in _LOGGED_UNKNOWN_FIELDS:
+                    _LOGGED_UNKNOWN_FIELDS.add(cache_key)
                     logger.warning(
                         f"Removing unknown field '{key}' from collection '{collection}' "
                         f"(not in schema). This warning will only appear once per field."

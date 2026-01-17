@@ -9,6 +9,7 @@ storage driver (Cosmos/Mongo/InMemory).
 """
 
 import pytest
+from typing import Any
 
 from copilot_storage import DocumentStore
 from copilot_storage.inmemory_document_store import InMemoryDocumentStore
@@ -22,7 +23,7 @@ def store() -> DocumentStore:
     return store
 
 
-def _insert_with_backend_fields(store: InMemoryDocumentStore, collection: str, doc: dict) -> None:
+def _insert_with_backend_fields(store: InMemoryDocumentStore, collection: str, doc: dict[str, Any]) -> None:
     """Helper to insert a document with simulated backend system fields.
     
     This helper directly accesses internal storage to simulate what backend
