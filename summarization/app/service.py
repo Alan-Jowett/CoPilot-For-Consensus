@@ -176,8 +176,16 @@ class SummarizationService:
 
             # Process with retry logic for race condition handling
             # Generate idempotency key from thread IDs
+            # Use all thread IDs for uniqueness (limited to reasonable length for key storage)
             thread_ids = summarization_requested.data.get("thread_ids", [])
-            idempotency_key = f"summarization-{'-'.join(str(tid) for tid in thread_ids[:3])}"
+            thread_ids_str = '-'.join(str(tid) for tid in thread_ids)
+            # Hash if too long to keep key manageable
+            if len(thread_ids_str) > 100:
+                import hashlib
+                thread_ids_hash = hashlib.sha256(thread_ids_str.encode()).hexdigest()[:16]
+                idempotency_key = f"summarization-{thread_ids_hash}"
+            else:
+                idempotency_key = f"summarization-{thread_ids_str}"
             
             # Wrap processing with retry logic
             handle_event_with_retry(

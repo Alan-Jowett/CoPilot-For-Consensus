@@ -126,9 +126,15 @@ class ReportingService:
             logger.info(f"Received SummaryComplete event: {summary_complete.data.get('thread_id')}")
 
             # Process with retry logic for race condition handling
-            # Generate idempotency key from thread ID
-            thread_id = summary_complete.data.get("thread_id", "unknown")
-            summary_id = summary_complete.data.get("summary_id", "unknown")
+            # Generate idempotency key from thread ID and summary ID (both required)
+            thread_id = summary_complete.data.get("thread_id")
+            summary_id = summary_complete.data.get("summary_id")
+            
+            if not thread_id or not summary_id:
+                error_msg = "Missing required fields thread_id or summary_id in SummaryComplete event"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+                
             idempotency_key = f"reporting-{thread_id}-{summary_id}"
             
             # Wrap processing with retry logic
@@ -263,30 +269,23 @@ class ReportingService:
         logger.info(f"Updating thread {thread_id} with summary_id {report_id}")
         # Threads use thread_id as document _id; update by ID
         # Verify thread exists before updating (race condition check)
-        try:
-            threads = self.document_store.query_documents(
-                "threads",
-                filter_dict={"_id": thread_id},
-                limit=1,
-            )
-            if not threads:
-                error_msg = f"Thread {thread_id} not found in database"
-                logger.warning(error_msg)
-                # Raise retryable error to trigger retry logic for race conditions
-                # This handles cases where events arrive before documents are queryable
-                raise DocumentNotFoundError(error_msg)
-            
-            self.document_store.update_document(
-                "threads",
-                thread_id,
-                {"summary_id": report_id},
-            )
-        except DocumentNotFoundError:
-            # Re-raise to trigger retry
-            raise
-        except Exception as e:
-            logger.error(f"Failed to update thread {thread_id}: {e}", exc_info=True)
-            raise
+        threads = self.document_store.query_documents(
+            "threads",
+            filter_dict={"_id": thread_id},
+            limit=1,
+        )
+        if not threads:
+            error_msg = f"Thread {thread_id} not found in database"
+            logger.warning(error_msg)
+            # Raise retryable error to trigger retry logic for race conditions
+            # This handles cases where events arrive before documents are queryable
+            raise DocumentNotFoundError(error_msg)
+        
+        self.document_store.update_document(
+            "threads",
+            thread_id,
+            {"summary_id": report_id},
+        )
 
         # Attempt webhook notification if enabled
         notified = False

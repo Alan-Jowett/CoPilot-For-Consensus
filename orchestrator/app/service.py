@@ -269,8 +269,16 @@ class OrchestrationService:
 
             # Process with retry logic for race condition handling
             # Generate idempotency key from chunk IDs
+            # Use all chunk IDs for uniqueness (limited to reasonable length for key storage)
             chunk_ids = embeddings_event.data.get("chunk_ids", [])
-            idempotency_key = f"orchestrator-{'-'.join(str(cid) for cid in chunk_ids[:3])}"
+            chunk_ids_str = '-'.join(str(cid) for cid in chunk_ids)
+            # Hash if too long to keep key manageable
+            if len(chunk_ids_str) > 100:
+                import hashlib
+                chunk_ids_hash = hashlib.sha256(chunk_ids_str.encode()).hexdigest()[:16]
+                idempotency_key = f"orchestrator-{chunk_ids_hash}"
+            else:
+                idempotency_key = f"orchestrator-{chunk_ids_str}"
             
             # Wrap processing with retry logic
             handle_event_with_retry(
@@ -361,36 +369,26 @@ class OrchestrationService:
         """
         thread_ids: set[str] = set()
 
-        try:
-            # Query document store for chunks by _id
-            chunks = self.document_store.query_documents(
-                "chunks",
-                {"_id": {"$in": chunk_ids}},
-                limit=len(chunk_ids)
-            )
+        # Query document store for chunks by _id
+        chunks = self.document_store.query_documents(
+            "chunks",
+            {"_id": {"$in": chunk_ids}},
+            limit=len(chunk_ids)
+        )
 
-            if not chunks:
-                error_msg = f"No chunks found in database for {len(chunk_ids)} IDs"
-                logger.warning(error_msg)
-                # Raise retryable error to trigger retry logic for race conditions
-                # This handles cases where events arrive before documents are queryable
-                raise DocumentNotFoundError(error_msg)
+        if not chunks:
+            error_msg = f"No chunks found in database for {len(chunk_ids)} IDs"
+            logger.warning(error_msg)
+            # Raise retryable error to trigger retry logic for race conditions
+            # This handles cases where events arrive before documents are queryable
+            raise DocumentNotFoundError(error_msg)
 
-            for chunk in chunks:
-                thread_id = chunk.get("thread_id")
-                if thread_id:
-                    thread_ids.add(thread_id)
+        for chunk in chunks:
+            thread_id = chunk.get("thread_id")
+            if thread_id:
+                thread_ids.add(thread_id)
 
-            logger.info(f"Resolved {len(thread_ids)} unique threads from {len(chunk_ids)} chunks")
-
-        except DocumentNotFoundError:
-            # Re-raise to trigger retry
-            raise
-        except Exception as e:
-            logger.error(f"Error resolving threads: {e}", exc_info=True)
-            if self.error_reporter:
-                self.error_reporter.report(e, context={"chunk_ids": chunk_ids})
-            raise
+        logger.info(f"Resolved {len(thread_ids)} unique threads from {len(chunk_ids)} chunks")
 
         return list(thread_ids)
 
