@@ -259,6 +259,51 @@ def test_process_chunks_no_chunks_found(embedding_service, mock_document_store, 
     mock_publisher.publish.assert_not_called()
 
 
+def test_process_chunks_updates_status_by_canonical_id(
+    embedding_service,
+    mock_document_store,
+):
+    """Service should update chunk status using canonical '_id'."""
+    chunk_ids = ["aaaa1111bbbb2222", "cccc3333dddd4444"]
+    chunks = [
+        create_valid_chunk(
+            message_doc_id="abc123def4567890",
+            message_id="<msg1@example.com>",
+            thread_id="1111222233334444",
+            chunk_index=0,
+            text="This is chunk 1 text.",
+            token_count=10,
+            metadata={
+                "sender": "user@example.com",
+                "date": "2023-10-15T12:00:00Z",
+                "subject": "Test Subject",
+            },
+            **{"_id": chunk_ids[0], "id": "cosmos-native-1"},
+        ),
+        create_valid_chunk(
+            message_doc_id="abc123def4567890",
+            message_id="<msg1@example.com>",
+            thread_id="1111222233334444",
+            chunk_index=1,
+            text="This is chunk 2 text.",
+            token_count=10,
+            metadata={
+                "sender": "user@example.com",
+                "date": "2023-10-15T12:00:00Z",
+                "subject": "Test Subject",
+            },
+            **{"_id": chunk_ids[1], "id": "cosmos-native-2"},
+        ),
+    ]
+
+    mock_document_store.query_documents.return_value = chunks
+
+    embedding_service.process_chunks({"chunk_ids": chunk_ids})
+
+    updated_doc_ids = [call.kwargs["doc_id"] for call in mock_document_store.update_document.call_args_list]
+    assert set(updated_doc_ids) == set(chunk_ids)
+
+
 def test_process_chunks_empty_chunk_ids(embedding_service, mock_document_store):
     """Test handling when event has no chunk IDs."""
     event_data = {

@@ -94,6 +94,54 @@ function Test-CoreParametersPopulated {
     param([string]$ParametersPath)
     
     $content = Get-Content -Path $ParametersPath -Raw
+
+    # Fail fast if required parameters are missing (Azure CLI will otherwise prompt interactively and appear to hang).
+    try {
+        $json = $content | ConvertFrom-Json
+    } catch {
+        Write-Error "Parameters file is not valid JSON: $ParametersPath"
+        throw
+    }
+
+    $requiredParams = @(
+        'azureOpenAIEndpoint',
+        'azureOpenAIGptDeploymentName',
+        'coreKeyVaultResourceId',
+        'coreKeyVaultName',
+        'coreKvSecretUriAoaiKey',
+        'coreAoaiAccountName'
+    )
+
+    $missing = @()
+    foreach ($p in $requiredParams) {
+        if (-not $json.parameters -or -not $json.parameters.PSObject.Properties.Name -contains $p) {
+            $missing += $p
+            continue
+        }
+
+        $v = $json.parameters.$p.value
+        if ($null -eq $v -or ($v -is [string] -and [string]::IsNullOrWhiteSpace($v))) {
+            $missing += $p
+        }
+    }
+
+    if ($missing.Count -gt 0) {
+        Write-Error "================================================"
+        Write-Error "DEPLOYMENT BLOCKED: Missing required parameters!"
+        Write-Error "================================================"
+        Write-Error "The parameters file is missing required values:" 
+        Write-Error "  $ParametersPath"
+        Write-Error ""
+        Write-Error "Missing/empty parameters:"
+        foreach ($m in $missing) {
+            Write-Error "  - $m"
+        }
+        Write-Error ""
+        Write-Error "Fix: populate these from Core deployment outputs (deploy.core.ps1), then re-run." 
+        Write-Error "Note: 'coreAoaiAccountName' should come from Core output 'aoaiAccountName'."
+        Write-Error "================================================"
+        exit 1
+    }
     
     # Check for placeholder values that indicate missing Core outputs
     # Be specific to avoid false positives (e.g., "contentVersion" in schema, version hashes in URIs)
@@ -171,9 +219,10 @@ $validationResult = az deployment group validate `
     --template-file $templatePath `
     --parameters "@$ParametersPath" `
     --parameters projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location `
-    2>&1
+    2>&1 | Tee-Object -Variable validationResult
+$validationExitCode = $LASTEXITCODE
 
-if ($LASTEXITCODE -ne 0) {
+if ($validationExitCode -ne 0) {
     Write-Error "Template validation failed."
     Write-Error "Ensure your parameters file contains all required Core outputs (see deploy.core.ps1)."
     Write-Host $validationResult
@@ -196,9 +245,10 @@ $deployResult = az deployment group create `
     --template-file $templatePath `
     --parameters "@$ParametersPath" `
     --parameters projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location `
-    2>&1
+    2>&1 | Tee-Object -Variable deployResult
+$deployExitCode = $LASTEXITCODE
 
-if ($LASTEXITCODE -eq 0) {
+if ($deployExitCode -eq 0) {
     Write-Info "Environment deployment completed successfully!"
 
     # Show deployment outputs

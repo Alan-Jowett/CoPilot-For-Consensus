@@ -41,17 +41,13 @@ param coreKeyVaultName string
 param coreKvSecretUriAoaiKey string
 
 @minLength(3)
-@maxLength(24)
+@maxLength(64)
 @description('Azure OpenAI account name from Core deployment outputs (aoaiAccountName). Prefer passing this explicitly rather than deriving it from the endpoint.')
 param coreAoaiAccountName string
 
-// Back-compat: best-effort derivation from endpoint. Prefer coreAoaiAccountName parameter.
-// Expected Azure OpenAI endpoint host format: <account-name>.openai.azure.com
-// If the endpoint does not match the expected pattern (ports/paths/custom hosts), we leave this empty.
-var aoaiEndpointNoProto = azureOpenAIEndpoint != '' ? toLower(replace(replace(azureOpenAIEndpoint, 'https://', ''), 'http://', '')) : ''
-var aoaiEndpointHost = aoaiEndpointNoProto != '' ? split(aoaiEndpointNoProto, '/')[0] : ''
-var derivedAoaiAccountName = (aoaiEndpointHost != '' && endsWith(aoaiEndpointHost, '.openai.azure.com')) ? split(aoaiEndpointHost, '.')[0] : ''
-var effectiveAoaiAccountName = coreAoaiAccountName != '' ? toLower(coreAoaiAccountName) : derivedAoaiAccountName
+// IMPORTANT: Azure OpenAI resource name is NOT reliably derivable from the endpoint hostname.
+// Always pass the resource name explicitly via coreAoaiAccountName (from Core deployment output aoaiAccountName).
+var effectiveAoaiAccountName = toLower(coreAoaiAccountName)
 
 // ========================================
 // End Core RG Integration Parameters
@@ -376,9 +372,9 @@ resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
 var cognitiveServicesApiVersion = '2023-05-01'
 
 // Azure Cognitive Services / Azure OpenAI account name length constraints.
-// These mirror platform resource naming rules and are used to guard secret creation.
+// These are used to guard secret creation. Azure OpenAI account names can be longer than 24 chars.
 var cognitiveServicesAccountNameMinLength = 3
-var cognitiveServicesAccountNameMaxLength = 24
+var cognitiveServicesAccountNameMaxLength = 64
 
 var shouldCreateEnvOpenaiSecret = deployContainerApps && azureOpenAIEndpoint != '' && effectiveAoaiAccountName != '' && length(effectiveAoaiAccountName) >= cognitiveServicesAccountNameMinLength && length(effectiveAoaiAccountName) <= cognitiveServicesAccountNameMaxLength
 
@@ -413,7 +409,7 @@ module jwtKeysModule 'modules/jwtkeys.bicep' = if (deployContainerApps) {
 }
 
 resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
-  name: '${keyVaultName}/azure-connection-string'
+  name: '${keyVaultName}/azure-monitor-connection-string'
   properties: {
     value: appInsightsModule!.outputs.connectionString
     contentType: 'text/plain'

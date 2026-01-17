@@ -267,6 +267,32 @@ class TestAzureCosmosDocumentStore:
 
         assert doc_id == "user-123"
 
+    def test_insert_document_uses__id_as_native_id_when_id_missing(self):
+        """If caller provides only canonical _id, use it as Cosmos native id."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey",
+        )
+
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        mock_container.create_item.return_value = {
+            "id": "deadbeefdeadbeef",
+            "_id": "deadbeefdeadbeef",
+            "collection": "archives",
+            "status": "pending",
+        }
+
+        doc_id = store.insert_document("archives", {"_id": "deadbeefdeadbeef", "status": "pending"})
+
+        assert doc_id == "deadbeefdeadbeef"
+
+        inserted_doc = mock_container.create_item.call_args.kwargs["body"]
+        assert inserted_doc["id"] == "deadbeefdeadbeef"
+        assert inserted_doc["_id"] == "deadbeefdeadbeef"
+        assert inserted_doc["collection"] == "archives"
+
     def test_insert_document_resource_exists(self):
         """Test that insert fails when document already exists."""
         from azure.cosmos import exceptions

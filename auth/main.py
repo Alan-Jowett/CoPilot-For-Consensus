@@ -749,10 +749,7 @@ async def search_users(
             },
         )
 
-        metrics.increment(
-            "admin_search_users_total",
-            tags={"admin": admin_user_id, "search_by": search_by.value},
-        )
+        metrics.increment("admin_search_users_total", tags={"admin": admin_user_id, "search_by": search_by.value})
 
         return JSONResponse(
             content={
