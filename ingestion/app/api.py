@@ -58,6 +58,11 @@ class UploadResponse(BaseModel):
     size_bytes: int
     uploaded_at: str
     suggested_source_type: str = "local"
+    # Uploads are currently stored on the service filesystem (storage_path/uploads).
+    # This is intentionally separate from ArchiveStore (used for ingested archives).
+    upload_storage_backend: str | None = None
+    upload_storage_path: str | None = None
+    archive_store_backend: str | None = None
 
 
 # Maximum upload size in bytes (100 MB)
@@ -362,11 +367,14 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
             uploaded_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
             logger.info(
-                "File uploaded successfully",
+                "File uploaded successfully (local uploads directory)",
                 filename=file_path.name,
                 size_bytes=file_size,
                 file_path=str(file_path),
                 uploaded_at=uploaded_at,
+                upload_storage_backend="local_filesystem",
+                upload_storage_path=str(Path(service.storage_path)),
+                archive_store_backend=getattr(service, "archive_store_type", None),
             )
 
             return UploadResponse(
@@ -375,6 +383,9 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                 size_bytes=file_size,
                 uploaded_at=uploaded_at,
                 suggested_source_type="local",
+                upload_storage_backend="local_filesystem",
+                upload_storage_path=str(Path(service.storage_path)),
+                archive_store_backend=getattr(service, "archive_store_type", None),
             )
         except HTTPException as http_exc:
             logger.debug("HTTPException raised in upload_file", status_code=http_exc.status_code)

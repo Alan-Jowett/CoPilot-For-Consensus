@@ -31,6 +31,38 @@ from .exceptions import (
 logger: Logger = get_logger(__name__)
 
 
+_ALLOWED_SOURCE_FIELDS: set[str] = {
+    "name",
+    "source_type",
+    "url",
+    "port",
+    "username",
+    "password",
+    "folder",
+    "enabled",
+    "schedule",
+}
+
+
+def _prune_source_fields(source_dict: dict[str, Any]) -> dict[str, Any]:
+    """Drop document-store/system fields not accepted by SourceConfig.
+
+    Cosmos DB documents (and some in-memory stores) may include system fields
+    like _etag/_rid/_ts, plus application-level fields like id/collection.
+    The fetcher SourceConfig is strict and rejects unknown fields.
+    """
+    pruned: dict[str, Any] = {}
+    for key, value in source_dict.items():
+        if key.startswith("_"):
+            continue
+        if key in {"id", "collection"}:
+            continue
+        if key not in _ALLOWED_SOURCE_FIELDS:
+            continue
+        pruned[key] = value
+    return pruned
+
+
 def _expand(value: str | None) -> str | None:
     return os.path.expandvars(value) if isinstance(value, str) else value
 
@@ -48,7 +80,7 @@ def _source_from_mapping(source: dict[str, Any]) -> SourceConfig:
         SourceConfigurationError: If source is empty or missing required fields
     """
     try:
-        expanded = dict(source)
+        expanded = _prune_source_fields(dict(source))
         expanded["url"] = _expand(expanded.get("url"))
         expanded["username"] = _expand(expanded.get("username"))
         expanded["password"] = _expand(expanded.get("password"))
@@ -59,8 +91,7 @@ def _source_from_mapping(source: dict[str, Any]) -> SourceConfig:
 
 def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
     """Remove fields that should not be exposed or are not JSON serializable."""
-    sanitized = source_dict.copy()
-    sanitized.pop("_id", None)
+    sanitized = _prune_source_fields(source_dict.copy())
 
     if "password" in sanitized and sanitized["password"]:
         sanitized["password"] = None
