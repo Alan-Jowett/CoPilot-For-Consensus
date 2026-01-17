@@ -21,6 +21,11 @@ from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from copilot_summarization import Citation, Summarizer, Thread
 from copilot_vectorstore import VectorStore
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
 
 logger = get_logger(__name__)
 
@@ -45,6 +50,7 @@ class SummarizationService:
         llm_model: str = "mistral",
         context_window_tokens: int = 4096,
         prompt_template: str = "",
+        event_retry_config: RetryConfig | None = None,
     ):
         """Initialize summarization service.
 
@@ -64,6 +70,7 @@ class SummarizationService:
             llm_model: LLM model name (default: mistral)
             context_window_tokens: LLM context window size (default: 4096)
             prompt_template: Prompt template for summarization (default: empty)
+            event_retry_config: Retry configuration for event race condition handling (optional)
         """
         self.document_store = document_store
         self.vector_store = vector_store
@@ -80,6 +87,7 @@ class SummarizationService:
         self.llm_model = llm_model
         self.context_window_tokens = context_window_tokens
         self.prompt_template = prompt_template
+        self.event_retry_config = event_retry_config or RetryConfig()
 
         # Stats
         self.summaries_generated = 0
@@ -149,12 +157,13 @@ class SummarizationService:
             # Don't fail service startup on requeue errors
 
     def _handle_summarization_requested(self, event: dict[str, Any]):
-        """Handle SummarizationRequested event.
+        """Handle SummarizationRequested event with retry logic for race conditions.
 
-        This is an event handler for message queue consumption. Exceptions are
-        logged and re-raised to allow message requeue for transient failures
-        (e.g., database unavailable). Only exceptions due to bad event data
-        should be caught and not re-raised.
+        This is an event handler for message queue consumption. Wraps the processing
+        logic with retry handling to address race conditions where documents are not
+        yet queryable. Exceptions are logged and re-raised to allow message requeue
+        for transient failures (e.g., database unavailable). Only exceptions due to
+        bad event data should be caught and not re-raised.
 
         Args:
             event: Event dictionary
@@ -165,8 +174,21 @@ class SummarizationService:
 
             logger.info(f"Received SummarizationRequested event for {len(summarization_requested.data.get('thread_ids', []))} threads")
 
-            # Process each thread
-            self.process_summarization(summarization_requested.data)
+            # Process with retry logic for race condition handling
+            # Generate idempotency key from thread IDs
+            thread_ids = summarization_requested.data.get("thread_ids", [])
+            idempotency_key = f"summarization-{'-'.join(str(tid) for tid in thread_ids[:3])}"
+            
+            # Wrap processing with retry logic
+            handle_event_with_retry(
+                handler=lambda e: self.process_summarization(e.get("data", {})),
+                event=event,
+                config=self.event_retry_config,
+                idempotency_key=idempotency_key,
+                metrics_collector=self.metrics_collector,
+                error_reporter=self.error_reporter,
+                service_name="summarization",
+            )
 
         except Exception as e:
             logger.error(f"Error handling SummarizationRequested event: {e}", exc_info=True)
@@ -514,6 +536,9 @@ class SummarizationService:
 
         Returns:
             Dictionary with 'messages' and 'chunks' keys
+            
+        Raises:
+            DocumentNotFoundError: If no messages found (race condition)
         """
         # Query messages from document store
         messages = self.document_store.query_documents(
@@ -522,8 +547,11 @@ class SummarizationService:
         )
 
         if not messages:
-            logger.warning(f"No messages found for thread {thread_id}")
-            return {"messages": [], "chunks": []}
+            error_msg = f"No messages found for thread {thread_id}"
+            logger.warning(error_msg)
+            # Raise retryable error to trigger retry logic for race conditions
+            # This handles cases where events arrive before documents are queryable
+            raise DocumentNotFoundError(error_msg)
 
         # Extract message text for context
         message_texts = []

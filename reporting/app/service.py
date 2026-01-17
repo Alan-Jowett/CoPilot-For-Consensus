@@ -20,6 +20,11 @@ from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
 
 # Optional dependencies for search/filtering features
 if TYPE_CHECKING:
@@ -50,6 +55,7 @@ class ReportingService:
         webhook_summary_max_length: int = 500,
         vector_store: Optional["VectorStore"] = None,
         embedding_provider: Optional["EmbeddingProvider"] = None,
+        retry_config: RetryConfig | None = None,
     ):
         """Initialize reporting service.
 
@@ -64,6 +70,7 @@ class ReportingService:
             webhook_summary_max_length: Max length for summary in webhook payload
             vector_store: Vector store for topic-based search (optional)
             embedding_provider: Embedding provider for topic search (optional)
+            retry_config: Retry configuration for race condition handling (optional)
         """
         self.document_store = document_store
         self.publisher = publisher
@@ -75,6 +82,7 @@ class ReportingService:
         self.webhook_summary_max_length = webhook_summary_max_length
         self.vector_store = vector_store
         self.embedding_provider = embedding_provider
+        self.retry_config = retry_config or RetryConfig()
 
         # Stats
         self.reports_stored = 0
@@ -98,12 +106,13 @@ class ReportingService:
         logger.info("Reporting service is ready")
 
     def _handle_summary_complete(self, event: dict[str, Any]):
-        """Handle SummaryComplete event.
+        """Handle SummaryComplete event with retry logic for race conditions.
 
-        This is an event handler for message queue consumption. Exceptions are
-        logged and re-raised to allow message requeue for transient failures
-        (e.g., database unavailable). Only exceptions due to bad event data
-        should be caught and not re-raised.
+        This is an event handler for message queue consumption. Wraps the processing
+        logic with retry handling to address race conditions where documents are not
+        yet queryable. Exceptions are logged and re-raised to allow message requeue
+        for transient failures (e.g., database unavailable). Only exceptions due to
+        bad event data should be caught and not re-raised.
 
         Args:
             event: Event dictionary
@@ -116,8 +125,22 @@ class ReportingService:
 
             logger.info(f"Received SummaryComplete event: {summary_complete.data.get('thread_id')}")
 
-            # Process the summary
-            self.process_summary(summary_complete.data, event)
+            # Process with retry logic for race condition handling
+            # Generate idempotency key from thread ID
+            thread_id = summary_complete.data.get("thread_id", "unknown")
+            summary_id = summary_complete.data.get("summary_id", "unknown")
+            idempotency_key = f"reporting-{thread_id}-{summary_id}"
+            
+            # Wrap processing with retry logic
+            handle_event_with_retry(
+                handler=lambda e: self.process_summary(e.get("data", {}), e),
+                event=event,
+                config=self.retry_config,
+                idempotency_key=idempotency_key,
+                metrics_collector=self.metrics_collector,
+                error_reporter=self.error_reporter,
+                service_name="reporting",
+            )
 
             # Record processing time
             self.last_processing_time = time.time() - start_time
@@ -239,11 +262,31 @@ class ReportingService:
         # Update thread document with summary_id to mark as complete
         logger.info(f"Updating thread {thread_id} with summary_id {report_id}")
         # Threads use thread_id as document _id; update by ID
-        self.document_store.update_document(
-            "threads",
-            thread_id,
-            {"summary_id": report_id},
-        )
+        # Verify thread exists before updating (race condition check)
+        try:
+            threads = self.document_store.query_documents(
+                "threads",
+                filter_dict={"_id": thread_id},
+                limit=1,
+            )
+            if not threads:
+                error_msg = f"Thread {thread_id} not found in database"
+                logger.warning(error_msg)
+                # Raise retryable error to trigger retry logic for race conditions
+                # This handles cases where events arrive before documents are queryable
+                raise DocumentNotFoundError(error_msg)
+            
+            self.document_store.update_document(
+                "threads",
+                thread_id,
+                {"summary_id": report_id},
+            )
+        except DocumentNotFoundError:
+            # Re-raise to trigger retry
+            raise
+        except Exception as e:
+            logger.error(f"Failed to update thread {thread_id}: {e}", exc_info=True)
+            raise
 
         # Attempt webhook notification if enabled
         notified = False
