@@ -77,6 +77,52 @@ class TestValidatingDocumentStore:
         assert store._collection_to_schema_name("chunks") == "chunks"
         assert store._collection_to_schema_name("summaries") == "summaries"
 
+    def test_update_document_falls_back_to_query_by__id_when_missing(self):
+        """If get_document misses, allow update via query({_id: doc_id}).
+
+        This models Cosmos DB behavior where the native document id ("id") can
+        differ from the application-level canonical key (often stored in "_id").
+        """
+
+        class FakeStore:
+            def __init__(self):
+                self.updated: list[tuple[str, str, dict]] = []
+
+            def connect(self):
+                return None
+
+            def disconnect(self):
+                return None
+
+            def insert_document(self, collection: str, doc: dict):
+                raise NotImplementedError
+
+            def get_document(self, collection: str, doc_id: str):
+                # Simulate "miss" when asked by canonical id
+                return None
+
+            def query_documents(self, collection: str, filter_dict: dict, limit: int = 100):
+                if collection == "archives" and filter_dict == {"_id": "9b548dcbf26aec88"}:
+                    return [{"id": "cosmos-generated-id", "_id": "9b548dcbf26aec88", "status": "pending"}]
+                return []
+
+            def update_document(self, collection: str, doc_id: str, patch: dict):
+                self.updated.append((collection, doc_id, patch))
+
+            def delete_document(self, collection: str, doc_id: str):
+                raise NotImplementedError
+
+        base = FakeStore()
+        store = ValidatingDocumentStore(store=base, schema_provider=None, strict=True)
+
+        store.update_document(
+            "archives",
+            "9b548dcbf26aec88",
+            {"status": "completed"},
+        )
+
+        assert base.updated == [("archives", "cosmos-generated-id", {"status": "completed"})]
+
     @requires_schema_validation
     def test_insert_valid_document_strict_mode(self):
         """Test inserting a valid document in strict mode."""
@@ -325,6 +371,78 @@ class TestValidatingDocumentStore:
             store.update_document("test_collection", doc_id, patch)
 
         assert "status" in str(exc_info.value).lower()
+
+    @requires_schema_validation
+    def test_update_document_ignores_store_metadata_fields(self):
+        """Updating should ignore store-injected metadata for schema validation.
+
+        Some backends (e.g., Azure Cosmos DB) inject system/envelope properties
+        on read (id, collection, _etag, etc.). Our schemas often set
+        additionalProperties=false, so validation must strip these keys.
+        """
+
+        class _MetadataInjectingStore:
+            def __init__(self, inner):
+                self._inner = inner
+
+            def connect(self):
+                return self._inner.connect()
+
+            def disconnect(self):
+                return self._inner.disconnect()
+
+            def insert_document(self, collection, doc):
+                return self._inner.insert_document(collection, doc)
+
+            def get_document(self, collection, doc_id):
+                doc = self._inner.get_document(collection, doc_id)
+                if doc is None:
+                    return None
+                return {
+                    **doc,
+                    "id": "cosmos-id",
+                    "collection": collection,
+                    "_etag": "etag",
+                    "_rid": "rid",
+                    "_self": "self",
+                    "_ts": 123,
+                    "_attachments": "att",
+                }
+
+            def update_document(self, collection, doc_id, patch):
+                return self._inner.update_document(collection, doc_id, patch)
+
+            def delete_document(self, collection, doc_id):
+                return self._inner.delete_document(collection, doc_id)
+
+            def query_documents(self, collection, filter_dict, limit=100):
+                return self._inner.query_documents(collection, filter_dict, limit)
+
+        base = _create_base_inmemory_store()
+        base.connect()
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "_id": {"type": "string"},
+                "name": {"type": "string"},
+                "enabled": {"type": "boolean"},
+            },
+            "required": ["name"],
+            "additionalProperties": False,
+        }
+
+        provider = MockSchemaProvider({"sources": schema})
+        metadata_base = _MetadataInjectingStore(base)
+        store = ValidatingDocumentStore(metadata_base, provider, strict=True)
+
+        doc_id = base.insert_document("sources", {"name": "test-source", "enabled": True})
+
+        # Should not raise, even though current_doc has extra store metadata.
+        store.update_document("sources", doc_id, {"enabled": False})
+
+        updated = base.get_document("sources", doc_id)
+        assert updated["enabled"] is False
 
     def test_update_nonexistent_document(self):
         """Test updating a non-existent document raises DocumentNotFoundError."""

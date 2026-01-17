@@ -23,6 +23,9 @@ param cosmosDbAutoscaleMaxRu int
 @description('Tags applied to all Cosmos DB resources')
 param tags object = {}
 
+@description('Enable public network access (set to false for production with Private Link)')
+param enablePublicNetworkAccess bool = true
+
 var normalizedAccountName = toLower(accountName)
 var authDatabaseName = 'auth'
 var documentsDatabaseName = 'copilot'
@@ -84,9 +87,12 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' = {
     consistencyPolicy: {
       defaultConsistencyLevel: 'Session'
     }
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: enablePublicNetworkAccess ? 'Enabled' : 'Disabled'
     enableFreeTier: false
     disableLocalAuth: false
+    // Only allow Azure services to bypass network restrictions when public access is enabled
+    // When using Private Link (public access disabled), enforce stricter isolation
+    networkAclBypass: enablePublicNetworkAccess ? 'AzureServices' : 'None'
   }
 }
 
@@ -239,6 +245,9 @@ resource documentsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/
 
 @description('Cosmos DB account name')
 output accountName string = cosmosAccount.name
+
+@description('Cosmos DB account resource ID')
+output accountId string = cosmosAccount.id
 
 @description('Cosmos DB account endpoint')
 output accountEndpoint string = cosmosAccount.properties.documentEndpoint

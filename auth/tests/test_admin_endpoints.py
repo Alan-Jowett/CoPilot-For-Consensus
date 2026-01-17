@@ -11,6 +11,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from copilot_metrics.noop_metrics import NoOpMetricsCollector
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -38,6 +40,9 @@ def client(mock_auth_service):
 
         # Set the mock auth service
         main.auth_service = mock_auth_service
+
+        # Ensure tests start with a fresh metrics collector so counters don't leak across tests.
+        main.metrics = NoOpMetricsCollector()
 
         return TestClient(main.app)
 
@@ -93,6 +98,14 @@ class TestListPendingAssignments:
         assert data["total"] == 2
         assert data["limit"] == 50
         assert data["skip"] == 0
+
+        # Verify metrics increment happened with tags (regression test for passing dict as value).
+        import main
+
+        assert main.metrics.get_counter_total(
+            "admin_list_pending_total",
+            tags={"admin": "github:admin"},
+        ) == 1.0
 
     def test_list_pending_with_filters(self, client, mock_auth_service, admin_token):
         """Test listing with user_id and role filters."""
@@ -408,3 +421,117 @@ class TestRevokeUserRoles:
         )
 
         assert response.status_code == 403
+
+
+class TestDenyRoleAssignment:
+    """Test POST /admin/users/{user_id}/deny endpoint."""
+
+    def test_deny_assignment_success(self, client, mock_auth_service, admin_token):
+        """Test successfully denying a role assignment as admin."""
+        mock_auth_service.validate_token.return_value = {
+            "sub": "github:admin",
+            "email": "admin@example.com",
+            "roles": ["admin"],
+        }
+
+        updated_record = {
+            "user_id": "github:123",
+            "roles": [],
+            "status": "denied",
+            "denied_by": "github:admin",
+            "denied_at": "2025-01-17T00:00:00Z",
+        }
+        mock_auth_service.role_store.deny_role_assignment.return_value = updated_record
+
+        response = client.post(
+            "/admin/users/github:123/deny",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "denied"
+        assert data["roles"] == []
+
+        # Verify role store was called correctly
+        mock_auth_service.role_store.deny_role_assignment.assert_called_once()
+        call_kwargs = mock_auth_service.role_store.deny_role_assignment.call_args[1]
+        assert call_kwargs["user_id"] == "github:123"
+        assert call_kwargs["admin_user_id"] == "github:admin"
+
+    def test_deny_assignment_user_not_found(self, client, mock_auth_service, admin_token):
+        """Test denying assignment for non-existent user."""
+        mock_auth_service.validate_token.return_value = {
+            "sub": "github:admin",
+            "email": "admin@example.com",
+            "roles": ["admin"],
+        }
+
+        mock_auth_service.role_store.deny_role_assignment.side_effect = ValueError("User record not found")
+
+        response = client.post(
+            "/admin/users/github:999/deny",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+        assert response.status_code == 404
+
+    def test_deny_assignment_invalid_status(self, client, mock_auth_service, admin_token):
+        """Test denying assignment for user with non-pending status returns 409 Conflict."""
+        mock_auth_service.validate_token.return_value = {
+            "sub": "github:admin",
+            "email": "admin@example.com",
+            "roles": ["admin"],
+        }
+
+        # Simulate status validation error (user is not in "pending" status)
+        mock_auth_service.role_store.deny_role_assignment.side_effect = ValueError(
+            "Cannot deny: user status is 'approved', expected 'pending'"
+        )
+
+        response = client.post(
+            "/admin/users/github:123/deny",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+        assert response.status_code == 409
+        assert "Cannot deny" in response.json()["detail"]
+
+    def test_deny_assignment_no_admin(self, client, mock_auth_service, non_admin_token):
+        """Test that non-admin users cannot deny assignments."""
+        mock_auth_service.validate_token.return_value = {
+            "sub": "github:user",
+            "email": "user@example.com",
+            "roles": ["contributor"],
+        }
+
+        response = client.post(
+            "/admin/users/github:123/deny",
+            headers={"Authorization": f"Bearer {non_admin_token}"},
+        )
+
+        assert response.status_code == 403
+
+    def test_deny_assignment_with_cookie(self, client, mock_auth_service):
+        """Test denying assignment using auth_token cookie."""
+        mock_auth_service.validate_token.return_value = {
+            "sub": "github:admin",
+            "email": "admin@example.com",
+            "roles": ["admin"],
+        }
+
+        updated_record = {
+            "user_id": "github:123",
+            "roles": [],
+            "status": "denied",
+            "denied_by": "github:admin",
+        }
+        mock_auth_service.role_store.deny_role_assignment.return_value = updated_record
+
+        response = client.post(
+            "/admin/users/github:123/deny",
+            cookies={"auth_token": "valid.jwt.token"},
+        )
+
+        assert response.status_code == 200
+        mock_auth_service.role_store.deny_role_assignment.assert_called_once()

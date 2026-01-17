@@ -9,7 +9,7 @@ import signal
 import sys
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any,cast
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -31,6 +31,8 @@ from copilot_storage import (
 )
 from copilot_archive_store import create_archive_store
 from copilot_error_reporting import create_error_reporter
+from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_AzureServiceBus
+from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_Rabbitmq
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -197,6 +199,22 @@ def main():
 
         # Service-owned identity constants (not deployment settings)
         service_name = "ingestion"
+
+        # Message bus identity:
+        # - RabbitMQ: use a stable queue name per service.
+        # - Azure Service Bus: use topic/subscription (do NOT use queue_name).
+        message_bus_type = str(config.message_bus.message_bus_type).lower()
+        if message_bus_type == "rabbitmq":
+            rabbitmq_cfg = cast(DriverConfig_MessageBus_Rabbitmq, config.message_bus.driver)
+            config.message_bus.driver = replace(rabbitmq_cfg, queue_name=service_name)
+        elif message_bus_type == "azure_service_bus":
+            asb_cfg = cast(DriverConfig_MessageBus_AzureServiceBus, config.message_bus.driver)
+            config.message_bus.driver = replace(
+                asb_cfg,
+                topic_name="copilot.events",
+                subscription_name=service_name,
+                queue_name=None,
+            )
 
         # Metrics: stamp per-service identifier onto driver config
         if str(config.metrics.metrics_type).lower() == "pushgateway" and hasattr(config.metrics.driver, "job"):

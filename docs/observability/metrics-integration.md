@@ -5,6 +5,8 @@
 
 How to integrate metrics collection into services using `copilot_metrics`, Pushgateway, Prometheus, and Grafana.
 
+For the complete inventory of metrics emitted by the codebase (including Azure/OpenTelemetry canonical names), see [metrics-catalog.md](metrics-catalog.md).
+
 ## Overview
 Pipeline: Service → MetricsCollector → Pushgateway → Prometheus → Grafana. Dependencies: `prometheus-client>=0.20.0` and `copilot_metrics` adapter.
 

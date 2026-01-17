@@ -58,6 +58,9 @@ param azureOpenAIAllowedCidrs array = []
 @description('Enable public network access to Key Vault. Set to false for production with Private Link.')
 param enablePublicNetworkAccess bool = true
 
+@description('Enable private network access (Private Link). When true, disables public access and creates Private Endpoints.')
+param enablePrivateAccess bool = false
+
 @description('Enable Azure RBAC authorization for Key Vault with per-secret access control. STRONGLY RECOMMENDED for production to enforce least-privilege principles.')
 param enableRbacAuthorization bool = true
 
@@ -77,6 +80,12 @@ var coreKeyVaultName = '${projectPrefix}corekv${take(uniqueSuffix, 10)}'
 // OpenAI account name must be globally unique and lowercase
 var openaiAccountName = toLower('${take(projectPrefix, 10)}-oai-core-${take(uniqueSuffix, 5)}')
 
+// Core infrastructure note: Core RG has no VNet and cannot use Private Endpoints.
+// For production, keep public access enabled but use network ACLs (IP allowlists) for security.
+// The enablePrivateAccess parameter is accepted for consistency but ignored in core.bicep.
+// Always use enablePublicNetworkAccess to control Core resources' public access.
+var effectiveEnablePublicNetworkAccess = enablePublicNetworkAccess
+
 // Create a dedicated managed identity for OpenAI in the Core RG
 resource openaiIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: '${projectName}-core-openai-id'
@@ -93,13 +102,17 @@ module coreKeyVaultModule 'modules/keyvault.bicep' = {
     tenantId: subscription().tenantId
     managedIdentityPrincipalIds: []  // No read access needed at Core level; env identities will be granted access via RBAC
     secretWriterPrincipalIds: []  // Secrets will be written by this template, not deployment scripts
-    enablePublicNetworkAccess: enablePublicNetworkAccess
+    enablePublicNetworkAccess: effectiveEnablePublicNetworkAccess
     enableRbacAuthorization: enableRbacAuthorization
     tags: tags
   }
 }
 
 // Module: Azure OpenAI
+// NOTE: If public network access is enabled but networkDefaultAction is Deny with an empty allowlist,
+// all traffic will be blocked (including from Container Apps), resulting in 403 firewall/VNet errors.
+// For dev, default to Allow unless an explicit CIDR allowlist is provided.
+var openaiNetworkDefaultAction = (environment == 'dev' && length(azureOpenAIAllowedCidrs) == 0) ? 'Allow' : 'Deny'
 module openaiModule 'modules/openai.bicep' = {
   name: 'coreOpenaiDeployment'
   params: {
@@ -114,8 +127,8 @@ module openaiModule 'modules/openai.bicep' = {
     embeddingModelName: azureOpenAIEmbeddingModelName
     embeddingDeploymentCapacity: azureOpenAIEmbeddingDeploymentCapacity
     identityResourceId: openaiIdentity.id
-    enablePublicNetworkAccess: environment == 'dev'  // For dev enable public endpoint, but defaultAction remains Deny; use azureOpenAIAllowedCidrs to allow specific IPs
-    networkDefaultAction: 'Deny'
+    enablePublicNetworkAccess: effectiveEnablePublicNetworkAccess
+    networkDefaultAction: openaiNetworkDefaultAction
     ipRules: azureOpenAIAllowedCidrs
     tags: tags
   }

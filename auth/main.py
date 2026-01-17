@@ -228,7 +228,7 @@ async def login(
         logger.info(f"Initiated login for provider={provider}, aud={aud}")
 
         # Record metrics
-        metrics.increment("login_initiated_total", {"provider": provider, "audience": aud})
+        metrics.increment("login_initiated_total", tags={"provider": provider, "audience": aud})
 
         return RedirectResponse(url=authorization_url, status_code=302)
 
@@ -286,7 +286,7 @@ async def callback(
         audiences = _get_audience_list(service.config.service_settings.audiences)
         metrics.increment(
             "callback_success_total",
-            {"audience": audiences[0] if audiences else "copilot-for-consensus"},
+            tags={"audience": audiences[0] if audiences else "copilot-for-consensus"},
         )
 
         # Create response with JWT cookie for seamless SSO integration with services like Grafana
@@ -321,11 +321,11 @@ async def callback(
 
     except ValueError as e:
         logger.error(f"Callback validation failed: {e}")
-        metrics.increment("callback_failed_total", {"error": "validation_error"})
+        metrics.increment("callback_failed_total", tags={"error": "validation_error"})
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error during callback: {e}")
-        metrics.increment("callback_failed_total", {"error": "internal_error"})
+        metrics.increment("callback_failed_total", tags={"error": "internal_error"})
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -434,7 +434,7 @@ def userinfo(request: Request) -> JSONResponse:
             try:
                 claims = service.validate_token(token=token, audience=audience)
                 # Successfully validated - return user info
-                metrics.increment("userinfo_success_total", {"audience": audience})
+                metrics.increment("userinfo_success_total", tags={"audience": audience})
                 return JSONResponse(
                     content={
                         "sub": claims.get("sub"),
@@ -451,14 +451,14 @@ def userinfo(request: Request) -> JSONResponse:
 
         # Token didn't match any configured audience
         logger.warning(f"Token validation failed for all configured audiences: {validation_errors}")
-        metrics.increment("userinfo_failed_total", {"error": "invalid_audience"})
+        metrics.increment("userinfo_failed_total", tags={"error": "invalid_audience"})
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token does not match any configured audience"
         )
 
     except Exception as e:
         logger.error(f"Token validation failed: {e}")
-        metrics.increment("userinfo_failed_total", {"error": "token_error"})
+        metrics.increment("userinfo_failed_total", tags={"error": "token_error"})
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
@@ -693,7 +693,7 @@ async def list_pending_assignments(
             },
         )
 
-        metrics.increment("admin_list_pending_total", {"admin": admin_user_id})
+        metrics.increment("admin_list_pending_total", tags={"admin": admin_user_id})
 
         return JSONResponse(
             content={
@@ -749,7 +749,7 @@ async def search_users(
             },
         )
 
-        metrics.increment("admin_search_users_total", {"admin": admin_user_id, "search_by": search_by.value})
+        metrics.increment("admin_search_users_total", tags={"admin": admin_user_id, "search_by": search_by.value})
 
         return JSONResponse(
             content={
@@ -803,7 +803,7 @@ async def get_user_roles(
             },
         )
 
-        metrics.increment("admin_view_roles_total", {"admin": admin_user_id})
+        metrics.increment("admin_view_roles_total", tags={"admin": admin_user_id})
 
         return JSONResponse(content=user_record)
 
@@ -857,7 +857,7 @@ async def assign_user_roles(
 
         metrics.increment(
             "admin_assign_roles_total",
-            {
+            tags={
                 "admin": admin_user_id,
                 "roles": ",".join(role_request.roles),
             },
@@ -915,7 +915,7 @@ async def revoke_user_roles(
 
         metrics.increment(
             "admin_revoke_roles_total",
-            {
+            tags={
                 "admin": admin_user_id,
                 "roles": ",".join(role_request.roles),
             },
@@ -928,6 +928,63 @@ async def revoke_user_roles(
     except Exception as e:
         logger.exception(f"Failed to revoke roles: {e}")
         raise HTTPException(status_code=500, detail="Failed to revoke roles")
+
+
+@app.post("/admin/users/{user_id}/deny")
+async def deny_role_assignment(
+    user_id: str,
+    request: Request,
+) -> JSONResponse:
+    """Deny a pending role assignment request.
+
+    Requires admin role. Sets the user's status to 'denied' and clears any roles.
+    Logs the action for audit purposes.
+
+    Args:
+        user_id: User identifier
+        request: FastAPI request
+
+    Returns:
+        JSON with updated user record
+    """
+    # Validate admin role
+    admin_user_id, admin_email = require_admin_role(request)
+    service = _require_auth_service()
+
+    try:
+        updated_record = service.role_store.deny_role_assignment(
+            user_id=user_id,
+            admin_user_id=admin_user_id,
+            admin_email=admin_email,
+        )
+
+        logger.info(
+            f"Admin {admin_user_id} denied role assignment for user {user_id}",
+            extra={
+                "event": "admin_deny_assignment",
+                "admin_user_id": admin_user_id,
+                "target_user_id": user_id,
+            },
+        )
+
+        metrics.increment("admin_deny_assignment_total", {"admin": admin_user_id})
+
+        return JSONResponse(content=updated_record)
+
+    except ValueError as e:
+        # Distinguish between "user not found" and status validation errors
+        message = str(e)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message)
+        # For existing users with invalid status (e.g., already approved/denied),
+        # return a conflict to better reflect the state of the resource
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=message,
+        )
+    except Exception as e:
+        logger.exception(f"Failed to deny role assignment: {e}")
+        raise HTTPException(status_code=500, detail="Failed to deny role assignment")
 
 
 if __name__ == "__main__":

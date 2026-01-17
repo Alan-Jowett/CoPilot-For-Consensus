@@ -465,7 +465,26 @@ export async function fetchPendingRoleAssignments(
   })
   const r = await fetchWithAuth(`${AUTH_API_BASE}/admin/role-assignments/pending?${queryParams}`)
   if (!r.ok) throw new Error(`Failed to fetch pending assignments: ${r.status}`)
-  return r.json()
+
+  const json = await r.json()
+
+  // The admin endpoint has evolved over time. Some deployments return a simple
+  // array of assignments; others return a paginated object.
+  if (Array.isArray(json)) {
+    return {
+      assignments: json as PendingRoleAssignment[],
+      total: json.length,
+      limit: params.limit ?? 50,
+      skip: params.skip ?? 0,
+    }
+  }
+
+  const assignments = Array.isArray(json?.assignments) ? json.assignments : []
+  const total = typeof json?.total === 'number' ? json.total : assignments.length
+  const limit = typeof json?.limit === 'number' ? json.limit : params.limit ?? 50
+  const skip = typeof json?.skip === 'number' ? json.skip : params.skip ?? 0
+
+  return { assignments, total, limit, skip }
 }
 
 export async function fetchUserRoles(userId: string): Promise<UserRoleRecord> {
@@ -517,6 +536,17 @@ export async function revokeUserRoles(userId: string, roles: string[]): Promise<
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
     throw new Error(error.detail || `Failed to revoke roles: ${r.status}`)
+  }
+  return r.json()
+}
+
+export async function denyRoleAssignment(userId: string): Promise<UserRoleRecord> {
+  const r = await fetchWithAuth(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/deny`, {
+    method: 'POST',
+  })
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
+    throw new Error(error.detail || `Failed to deny role assignment: ${r.status}`)
   }
   return r.json()
 }

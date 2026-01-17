@@ -330,7 +330,15 @@ tr:hover { background-color: var(--bg-hover); }
 .nav-logout-btn:hover { background-color: var(--color-danger-hover); }
 
 /* Success and Error Messages */
-.success-message { background: var(--color-success); opacity: 0.1; color: var(--color-success); padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid var(--color-success); }
+.success-message {
+  padding: 12px 16px;
+  margin: 16px 0;
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  font-size: 14px;
+}
 .error-message { background: #f8d7da; color: #721c24; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #dc3545; }
 
 /* Action Buttons */
@@ -766,5 +774,49 @@ tr:hover { background-color: var(--bg-hover); }
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Pending Assignments Action Controls */
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.action-btn.small {
+  padding: 4px 10px;
+  font-size: 14px;
+  min-width: 32px;
+  border-radius: 4px;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.small:disabled {
+  opacity: 0.6;
+}
+
+.bulk-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.bulk-actions-bar strong {
+  color: var(--color-primary);
+}
+
+[data-theme="dark"] .success-message {
+  background-color: #1a3d24;
+  color: #7dd99b;
+  border-color: #2d5a3a;
 }
 
