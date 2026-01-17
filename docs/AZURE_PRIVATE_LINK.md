@@ -19,7 +19,7 @@ Private network access provides several security benefits:
 
 ## Supported Resources
 
-The following Azure resources support Private Link configuration:
+The following Azure resources in the **environment infrastructure** (`main.bicep`) support Private Link configuration:
 
 | Resource | Private Link Group ID | DNS Zone |
 |----------|----------------------|----------|
@@ -28,26 +28,30 @@ The following Azure resources support Private Link configuration:
 | Azure Storage (Blob) | `blob` | `privatelink.blob.core.windows.net` (Azure Commercial) |
 | Azure Service Bus | `namespace` | `privatelink.servicebus.windows.net` |
 | Azure AI Search | `searchService` | `privatelink.search.windows.net` |
-| Azure OpenAI | `account` | `privatelink.openai.azure.com` |
 
 **Note**: DNS zone names are automatically adjusted for different Azure cloud environments (Commercial, Government, China).
+
+**Important**: Azure OpenAI and Core Key Vault are deployed in the Core resource group (`core.bicep`) which has no VNet and therefore cannot use Private Endpoints. These resources should use public network access with IP-based network ACLs for security instead of Private Link.
 
 ## Configuration
 
 ### Parameter: `enablePrivateAccess`
 
-The infrastructure uses a single boolean parameter `enablePrivateAccess` to control private network access:
+The infrastructure uses a single boolean parameter `enablePrivateAccess` to control private network access for **environment infrastructure resources** (deployed via `main.bicep`):
 
-- **`enablePrivateAccess=true`**: Disables public network access and creates Private Endpoints
+- **`enablePrivateAccess=true`**: Disables public network access and creates Private Endpoints for environment resources
 - **`enablePrivateAccess=false`** (default): Uses public endpoints for easier development/testing
 
-When `enablePrivateAccess=true`, the deployment automatically:
+**Important**: The `enablePrivateAccess` parameter **only affects environment resources** in `main.bicep` (Key Vault, Cosmos DB, Storage, Service Bus, AI Search). Core shared resources deployed via `core.bicep` (Azure OpenAI, Core Key Vault) do not support Private Link because they are in a separate resource group without a VNet. For production security, use IP-based network ACLs on Core resources instead.
 
-1. Disables public network access on all resources
+When `enablePrivateAccess=true` for environment resources, the deployment automatically:
+
+1. Disables public network access on environment resources (Key Vault, Cosmos DB, Storage, Service Bus, AI Search)
 2. Creates a dedicated subnet for Private Endpoints
-3. Creates Private Endpoints for each resource
+3. Creates Private Endpoints for each environment resource
 4. Creates Private DNS Zones for name resolution
 5. Links Private DNS Zones to the VNet
+6. Keeps Core resources (OpenAI, Core Key Vault) on public endpoints with network ACL restrictions
 
 ### Environment Defaults
 
@@ -99,7 +103,7 @@ az deployment group create \
 
 ## Network Architecture
 
-When `enablePrivateAccess=true`, the infrastructure creates the following network topology:
+When `enablePrivateAccess=true`, the infrastructure creates the following network topology for **environment resources**:
 
 ```
 Virtual Network (e.g., 10.0.0.0/16)
@@ -116,7 +120,7 @@ Virtual Network (e.g., 10.0.0.0/16)
 │       ├── UI Service
 │       └── Gateway Service
 └── Private Endpoint Subnet (10.0.2.0/24)
-    ├── Key Vault Private Endpoint
+    ├── Environment Key Vault Private Endpoint
     ├── Cosmos DB Private Endpoint
     ├── Storage Account Private Endpoint
     ├── Service Bus Private Endpoint
@@ -127,9 +131,14 @@ Private DNS Zones (linked to VNet)
 ├── privatelink.documents.azure.com
 ├── privatelink.blob.core.windows.net
 ├── privatelink.servicebus.windows.net
-├── privatelink.search.windows.net
-└── privatelink.openai.azure.com
+└── privatelink.search.windows.net
+
+Core Resources (separate Core RG, public endpoints with network ACLs)
+├── Azure OpenAI (public endpoint with IP restrictions)
+└── Core Key Vault (public endpoint with IP restrictions)
 ```
+
+**Note**: The diagram shows the Environment Key Vault which is deployed in `main.bicep` and gets a Private Endpoint. The Core Key Vault (in `core.bicep`) remains on a public endpoint with IP-based network ACLs.
 
 ### VNet Integration
 
@@ -166,11 +175,13 @@ When enabling Private Link, ensure your VNet address space accommodates both sub
 
 Private Link has additional costs:
 
-- **Private Endpoint**: ~$7.20/month per endpoint (~6 endpoints = ~$43/month)
-- **Private DNS Zone**: ~$0.50/month per zone (~6 zones = ~$3/month)
+- **Private Endpoint**: ~$7.20/month per endpoint (~4–5 endpoints = ~$29–36/month)
+  - 4 always-on endpoints: Environment Key Vault, Cosmos DB, Storage, Service Bus
+  - 1 conditional endpoint: AI Search (only if `vectorStoreBackend=azure_ai_search`)
+- **Private DNS Zone**: ~$0.50/month per zone (~5 zones = ~$2.50/month)
 - **Data processing**: $0.01/GB processed through Private Link
 
-**Total additional cost**: ~$46-50/month for private network access in production.
+**Total additional cost**: ~$31.50–38.50/month for private network access in production (excluding data processing charges).
 
 ## Migrating from Public to Private Access
 

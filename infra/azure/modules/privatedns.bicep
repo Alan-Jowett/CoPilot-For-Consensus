@@ -16,6 +16,7 @@ param tags object = {}
 // Define Private DNS Zone names for Azure services
 // Reference: https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-dns
 // Note: Blob storage DNS zone uses environment().suffixes.storage for cloud-specific suffix
+// OpenAI Private Endpoints are not currently created (OpenAI is in Core RG without VNet)
 var privateDnsZoneNames = {
   keyVault: 'privatelink.vaultcore.azure.net'
   cosmosDb: 'privatelink.documents.azure.com'
@@ -23,8 +24,6 @@ var privateDnsZoneNames = {
   blob: 'privatelink.blob.${environment().suffixes.storage}'  // Resolves to 'core.windows.net' in Azure Commercial
   serviceBus: 'privatelink.servicebus.windows.net'
   aiSearch: 'privatelink.search.windows.net'
-  cognitiveServices: 'privatelink.cognitiveservices.azure.com'
-  openai: 'privatelink.openai.azure.com'
 }
 
 // Create Private DNS Zones
@@ -54,12 +53,6 @@ resource serviceBusDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
 
 resource aiSearchDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: privateDnsZoneNames.aiSearch
-  location: 'global'
-  tags: tags
-}
-
-resource openaiDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: privateDnsZoneNames.openai
   location: 'global'
   tags: tags
 }
@@ -125,18 +118,6 @@ resource aiSearchDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLi
   }
 }
 
-resource openaiDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  parent: openaiDnsZone
-  name: 'openai-link'
-  location: 'global'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: vnetId
-    }
-  }
-}
-
 // Outputs
 @description('Private DNS Zone resource IDs keyed by service type')
 output privateDnsZoneIds object = {
@@ -145,7 +126,6 @@ output privateDnsZoneIds object = {
   blob: blobDnsZone.id
   serviceBus: serviceBusDnsZone.id
   aiSearch: aiSearchDnsZone.id
-  openai: openaiDnsZone.id
 }
 
 @description('Private DNS Zone names keyed by service type')

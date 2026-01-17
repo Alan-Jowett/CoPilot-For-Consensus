@@ -80,9 +80,11 @@ var coreKeyVaultName = '${projectPrefix}corekv${take(uniqueSuffix, 10)}'
 // OpenAI account name must be globally unique and lowercase
 var openaiAccountName = toLower('${take(projectPrefix, 10)}-oai-core-${take(uniqueSuffix, 5)}')
 
-// Compute effective public network access settings
-// When enablePrivateAccess is true, force public access to false for all resources
-var effectiveEnablePublicNetworkAccess = enablePrivateAccess ? false : enablePublicNetworkAccess
+// Core infrastructure note: Core RG has no VNet and cannot use Private Endpoints.
+// For production, keep public access enabled but use network ACLs (IP allowlists) for security.
+// The enablePrivateAccess parameter is accepted for consistency but ignored in core.bicep.
+// Always use enablePublicNetworkAccess to control Core resources' public access.
+var effectiveEnablePublicNetworkAccess = enablePublicNetworkAccess
 
 // Create a dedicated managed identity for OpenAI in the Core RG
 resource openaiIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {

@@ -90,7 +90,9 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' = {
     publicNetworkAccess: enablePublicNetworkAccess ? 'Enabled' : 'Disabled'
     enableFreeTier: false
     disableLocalAuth: false
-    networkAclBypass: 'AzureServices'
+    // Only allow Azure services to bypass network restrictions when public access is enabled
+    // When using Private Link (public access disabled), enforce stricter isolation
+    networkAclBypass: enablePublicNetworkAccess ? 'AzureServices' : 'None'
   }
 }
 

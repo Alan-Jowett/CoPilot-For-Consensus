@@ -524,6 +524,8 @@ module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
 }
 
 // Module: Private DNS Zones (for Private Link)
+// Note: Non-null assertions (!) are safe here because this module is only deployed when
+// both deployContainerApps and enablePrivateAccess are true, which ensures vnetModule is deployed
 module privateDnsModule 'modules/privatedns.bicep' = if (deployContainerApps && enablePrivateAccess) {
   name: 'privateDnsDeployment'
   params: {
