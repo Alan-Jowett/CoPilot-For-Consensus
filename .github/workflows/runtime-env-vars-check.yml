@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Runtime Environment Variables Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  # Cancel any in-progress instance of this workflow for the same PR.
+  # Allow running concurrently with any commits on any other branch.
+  group: runtime-env-vars-check-${{ github.event.pull_request.number || github.sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-runtime-env-vars:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6
+        with:
+          python-version: '3.10'
+
+      - name: Run runtime environment variables check
+        run: |
+          python scripts/check_no_runtime_env_vars.py --root .
