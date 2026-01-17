@@ -252,11 +252,12 @@ class EmbeddingService:
                         logger.info(f"All {len(chunk_ids)} chunks already have embeddings, skipping")
                         return
                     else:
-                        # No chunks found at all - this is a race condition
-                        error_msg = f"No chunks found in database for {len(chunk_ids)} IDs"
-                        logger.warning(error_msg)
-                        # Raise retryable error to trigger retry logic
-                        raise DocumentNotFoundError(error_msg)
+                        # No chunks found at all. This can happen if chunks were deleted
+                        # or if the event references stale IDs. Treat as a no-op.
+                        logger.warning(
+                            f"No chunks found in database for {len(chunk_ids)} IDs; skipping"
+                        )
+                        return
 
                 # Validate all chunks have MongoDB _id (fail fast to prevent inconsistent state)
                 chunks_without_id = [c.get("_id", "unknown") for c in chunks if not c.get("_id")]
