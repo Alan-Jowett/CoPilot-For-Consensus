@@ -51,6 +51,10 @@ from copilot_config.generated.adapters.metrics import (
     DriverConfig_Metrics_Prometheus,
     DriverConfig_Metrics_Pushgateway,
 )
+from copilot_config.generated.adapters.event_retry import (
+    DriverConfig_EventRetry_Default,
+    DriverConfig_EventRetry_Noop,
+)
 from copilot_config.generated.adapters.vector_store import (
     DriverConfig_VectorStore_AzureAiSearch,
     DriverConfig_VectorStore_Faiss,
@@ -307,13 +311,18 @@ def main():
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter(config.error_reporter)
 
-        # Create retry configuration from environment variables (with defaults)
+        # Create retry configuration from schematized config
+        if config.event_retry.event_retry_type == "noop":
+            retry_driver = cast(DriverConfig_EventRetry_Noop, config.event_retry.driver)
+        else:
+            retry_driver = cast(DriverConfig_EventRetry_Default, config.event_retry.driver)
+
         event_retry_config = RetryConfig(
-            max_attempts=int(os.environ.get("RETRY_MAX_ATTEMPTS", "8")),
-            base_delay_ms=int(os.environ.get("RETRY_BASE_DELAY_MS", "250")),
-            backoff_factor=float(os.environ.get("RETRY_BACKOFF_FACTOR", "2.0")),
-            max_delay_ms=int(os.environ.get("RETRY_MAX_DELAY_MS", "60000")),  # 60 seconds default
-            ttl_seconds=int(os.environ.get("RETRY_TTL_SECONDS", "1800")),  # 30 minutes default
+            max_attempts=int(retry_driver.max_attempts),
+            base_delay_ms=int(retry_driver.base_delay_ms),
+            backoff_factor=float(retry_driver.backoff_factor),
+            max_delay_ms=int(retry_driver.max_delay_ms),
+            ttl_seconds=int(retry_driver.ttl_seconds),
         )
         logger.info(f"Retry configuration: max_attempts={event_retry_config.max_attempts}, "
                    f"base_delay_ms={event_retry_config.base_delay_ms}, ttl_seconds={event_retry_config.ttl_seconds}")
