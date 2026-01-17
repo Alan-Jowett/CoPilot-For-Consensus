@@ -987,6 +987,7 @@ def test_delete_source_cascade_service_layer(tmp_path):
 
     # Verify deletion counts
     assert deletion_counts["archives_docstore"] == 2
+    assert deletion_counts["archives_archivestore"] == 2  # Should match archives_docstore
     assert deletion_counts["threads"] == 1
     assert deletion_counts["messages"] == 2
     assert deletion_counts["chunks"] == 1

@@ -230,9 +230,8 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         cascade: bool = Query(
             False,
             description=(
-                "Delete all associated data from document stores (archives, threads, messages, chunks, summaries). "
-                "Embeddings in vectorstore are NOT deleted automatically and will always show count of 0. "
-                "See endpoint documentation for embeddings cleanup workflow."
+                "Whether to delete associated data from document stores "
+                "(archives, threads, messages, chunks, summaries) when deleting the source."
             )
         )
     ):
@@ -247,6 +246,8 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         - Summaries/reports from document_store
         
         The returned deletion_counts field reflects only these document-store deletions.
+        Embeddings in vectorstore are NOT deleted automatically and will always show
+        count of 0 in the response.
         
         **Important: Embeddings in vectorstore are NOT deleted.**
         
@@ -266,7 +267,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         """
         try:
             result = service.delete_source(source_name, cascade=cascade)
-            if result is False:
+            if isinstance(result, bool) and not result:
                 raise HTTPException(status_code=404, detail=f"Source '{source_name}' not found")
 
             if cascade:

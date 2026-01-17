@@ -320,14 +320,19 @@ class IngestionService:
         - Embeddings from vectorstore (via chunk IDs)
         - Summaries/reports from document_store
 
-        IMPORTANT: If cascade delete fails, the source itself will NOT be deleted.
-        This ensures data consistency by preventing orphaned source records.
-        
-        However, if the method fails partway through (e.g., after deleting some
-        collections but before completing), the system may be left in a partially
-        deleted state. The method continues processing even if some deletions fail,
-        logging errors and returning partial counts. Retry the operation to clean up
-        remaining data.
+        IMPORTANT: This method only deletes data associated with the source; it does
+        not delete the source record itself. Callers are expected to delete the
+        source record only if this method completes without raising an exception.
+
+        If this method raises an exception (for example, because a backend is
+        unavailable), callers should treat the cascade delete as failed and MUST NOT
+        delete the source record.
+
+        However, if the method completes without raising (even if it fails partway
+        through, such as after deleting some collections but before completing all
+        operations), the system may be left in a partially deleted state. The method
+        continues processing even if some deletions fail, logging errors and
+        returning partial counts. Retry the operation to clean up remaining data.
 
         Args:
             source_name: Name of the source to delete
@@ -336,7 +341,7 @@ class IngestionService:
             Dictionary with counts of deleted items per collection
 
         Raises:
-            ValueError: If document store is not configured or deletion fails
+            ValueError: If document store is not configured or deletion fails completely
         """
         if not self.document_store:
             raise ValueError("Document store not configured")
@@ -496,7 +501,7 @@ class IngestionService:
 
             # Step 6: Delete summaries/reports (query by source or archive_id)
             try:
-                # Try querying by source first
+                # Try querying by source first; if not found, try by archive_id
                 summaries = self.document_store.query_documents(
                     "summaries",
                     {"source": source_name}
