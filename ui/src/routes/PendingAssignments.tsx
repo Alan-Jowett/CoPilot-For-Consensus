@@ -2,13 +2,16 @@
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
 import { useEffect, useState, useCallback } from 'react'
-import { fetchPendingRoleAssignments, PendingRoleAssignment } from '../api'
+import { fetchPendingRoleAssignments, PendingRoleAssignment, assignUserRoles, denyRoleAssignment } from '../api'
 
 export function PendingAssignments() {
   const [assignments, setAssignments] = useState<PendingRoleAssignment[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [filters, setFilters] = useState({
     user_id: '',
     role: '',
@@ -19,10 +22,13 @@ export function PendingAssignments() {
   const loadAssignments = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setSuccessMessage(null)
     try {
       const data = await fetchPendingRoleAssignments(filters)
       setAssignments(Array.isArray(data.assignments) ? data.assignments : [])
       setTotal(data.total)
+      // Clear selection when data changes
+      setSelectedIds(new Set())
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Failed to load pending assignments'
       setError(message)
@@ -53,6 +59,138 @@ export function PendingAssignments() {
 
   const handlePrevPage = () => {
     setFilters((prev) => ({ ...prev, skip: Math.max(0, prev.skip - prev.limit) }))
+  }
+
+  const handleApprove = async (assignment: PendingRoleAssignment) => {
+    setProcessingIds((prev) => new Set(prev).add(assignment.user_id))
+    setError(null)
+    setSuccessMessage(null)
+    try {
+      await assignUserRoles(assignment.user_id, assignment.requested_roles)
+      setSuccessMessage(`Approved role assignment for ${assignment.user_id}`)
+      // Reload assignments
+      await loadAssignments()
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to approve role assignment'
+      setError(message)
+    } finally {
+      setProcessingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(assignment.user_id)
+        return next
+      })
+    }
+  }
+
+  const handleReject = async (assignment: PendingRoleAssignment) => {
+    setProcessingIds((prev) => new Set(prev).add(assignment.user_id))
+    setError(null)
+    setSuccessMessage(null)
+    try {
+      await denyRoleAssignment(assignment.user_id)
+      setSuccessMessage(`Rejected role assignment for ${assignment.user_id}`)
+      // Reload assignments
+      await loadAssignments()
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to reject role assignment'
+      setError(message)
+    } finally {
+      setProcessingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(assignment.user_id)
+        return next
+      })
+    }
+  }
+
+  const handleToggleSelect = (userId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(userId)) {
+        next.delete(userId)
+      } else {
+        next.add(userId)
+      }
+      return next
+    })
+  }
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === assignments.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(assignments.map((a) => a.user_id)))
+    }
+  }
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.size === 0) return
+
+    setError(null)
+    setSuccessMessage(null)
+    const selectedAssignments = assignments.filter((a) => selectedIds.has(a.user_id))
+    let successCount = 0
+    let failCount = 0
+
+    for (const assignment of selectedAssignments) {
+      setProcessingIds((prev) => new Set(prev).add(assignment.user_id))
+      try {
+        await assignUserRoles(assignment.user_id, assignment.requested_roles)
+        successCount++
+      } catch (e: unknown) {
+        failCount++
+      }
+      setProcessingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(assignment.user_id)
+        return next
+      })
+    }
+
+    if (successCount > 0) {
+      setSuccessMessage(`Approved ${successCount} role assignment${successCount > 1 ? 's' : ''}`)
+    }
+    if (failCount > 0) {
+      setError(`Failed to approve ${failCount} role assignment${failCount > 1 ? 's' : ''}`)
+    }
+
+    // Reload assignments
+    await loadAssignments()
+  }
+
+  const handleBulkReject = async () => {
+    if (selectedIds.size === 0) return
+
+    setError(null)
+    setSuccessMessage(null)
+    const selectedAssignments = assignments.filter((a) => selectedIds.has(a.user_id))
+    let successCount = 0
+    let failCount = 0
+
+    for (const assignment of selectedAssignments) {
+      setProcessingIds((prev) => new Set(prev).add(assignment.user_id))
+      try {
+        await denyRoleAssignment(assignment.user_id)
+        successCount++
+      } catch (e: unknown) {
+        failCount++
+      }
+      setProcessingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(assignment.user_id)
+        return next
+      })
+    }
+
+    if (successCount > 0) {
+      setSuccessMessage(`Rejected ${successCount} role assignment${successCount > 1 ? 's' : ''}`)
+    }
+    if (failCount > 0) {
+      setError(`Failed to reject ${failCount} role assignment${failCount > 1 ? 's' : ''}`)
+    }
+
+    // Reload assignments
+    await loadAssignments()
   }
 
   return (
@@ -90,6 +228,7 @@ export function PendingAssignments() {
       </div>
 
       {error && <div className="error-message">{error}</div>}
+      {successMessage && <div className="success-message">{successMessage}</div>}
 
       <div className="reports-table">
         {loading ? (
@@ -100,46 +239,107 @@ export function PendingAssignments() {
           </div>
         ) : (
           <>
+            {/* Bulk actions bar */}
+            {selectedIds.size > 0 && (
+              <div className="bulk-actions-bar">
+                <div>
+                  <strong>{selectedIds.size}</strong> selected
+                </div>
+                <div className="button-group">
+                  <button className="action-btn edit" onClick={handleBulkApprove}>
+                    ✓ Approve Selected
+                  </button>
+                  <button className="action-btn delete" onClick={handleBulkReject}>
+                    ✕ Reject Selected
+                  </button>
+                </div>
+              </div>
+            )}
+
             <table>
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === assignments.length && assignments.length > 0}
+                      onChange={handleSelectAll}
+                      aria-label="Select all assignments"
+                    />
+                  </th>
                   <th>User ID</th>
                   <th>Email</th>
                   <th>Name</th>
                   <th>Requested Roles</th>
                   <th>Requested At</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {assignments.map((assignment, idx) => (
-                  <tr key={`${assignment.user_id}-${idx}`}>
-                    <td>
-                      <span className="citation-id">{assignment.user_id}</span>
-                    </td>
-                    <td>{assignment.user_email || 'N/A'}</td>
-                    <td>{assignment.user_name || 'N/A'}</td>
-                    <td>
-                      <div className="role-badges">
-                        {(assignment.requested_roles ?? []).map((role) => (
-                          <span key={role} className="badge">
-                            {role}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="timestamp">
-                        {new Date(assignment.requested_at).toLocaleString()}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`badge ${assignment.status === 'pending' ? 'warning' : ''}`}>
-                        {assignment.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {assignments.map((assignment, idx) => {
+                  const isProcessing = processingIds.has(assignment.user_id)
+                  const isSelected = selectedIds.has(assignment.user_id)
+                  return (
+                    <tr key={`${assignment.user_id}-${idx}`}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelect(assignment.user_id)}
+                          disabled={isProcessing}
+                          aria-label={`Select ${assignment.user_id}`}
+                        />
+                      </td>
+                      <td>
+                        <span className="citation-id">{assignment.user_id}</span>
+                      </td>
+                      <td>{assignment.user_email || 'N/A'}</td>
+                      <td>{assignment.user_name || 'N/A'}</td>
+                      <td>
+                        <div className="role-badges">
+                          {(assignment.requested_roles ?? []).map((role) => (
+                            <span key={role} className="badge">
+                              {role}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="timestamp">
+                          {new Date(assignment.requested_at).toLocaleString()}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`badge ${assignment.status === 'pending' ? 'warning' : ''}`}>
+                          {assignment.status}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="action-buttons">
+                          <button
+                            className="action-btn edit small"
+                            onClick={() => handleApprove(assignment)}
+                            disabled={isProcessing}
+                            aria-label={`Approve ${assignment.user_id}`}
+                            title="Approve and assign roles"
+                          >
+                            {isProcessing ? '⏳' : '✓'}
+                          </button>
+                          <button
+                            className="action-btn delete small"
+                            onClick={() => handleReject(assignment)}
+                            disabled={isProcessing}
+                            aria-label={`Reject ${assignment.user_id}`}
+                            title="Reject role assignment"
+                          >
+                            {isProcessing ? '⏳' : '✕'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
 
