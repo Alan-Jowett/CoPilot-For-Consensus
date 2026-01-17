@@ -927,6 +927,184 @@ def test_archive_ingested_event_without_file_path():
             assert "file_hash_sha256" in event["data"]
 
 
+def test_delete_source_cascade_service_layer(tmp_path):
+    """Test delete_source_cascade method at service layer."""
+    config = make_config(storage_path=str(tmp_path))
+    publisher = _make_noop_publisher()
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
+    document_store = _make_inmemory_store()
+
+    service = IngestionService(
+        config=config,
+        publisher=publisher,
+        document_store=document_store,
+        logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
+    )
+
+    # Add test data across multiple collections
+    document_store.insert_document("archives", {
+        "_id": "archive-1",
+        "source": "test-source",
+        "file_hash": "hash1",
+    })
+    document_store.insert_document("archives", {
+        "_id": "archive-2",
+        "source": "test-source",
+        "file_hash": "hash2",
+    })
+    document_store.insert_document("threads", {
+        "_id": "thread-1",
+        "source": "test-source",
+    })
+    document_store.insert_document("messages", {
+        "_id": "message-1",
+        "source": "test-source",
+    })
+    document_store.insert_document("messages", {
+        "_id": "message-2",
+        "source": "test-source",
+    })
+    document_store.insert_document("chunks", {
+        "_id": "chunk-1",
+        "source": "test-source",
+    })
+    document_store.insert_document("summaries", {
+        "_id": "summary-1",
+        "source": "test-source",
+    })
+
+    # Execute cascade delete
+    deletion_counts = service.delete_source_cascade("test-source")
+
+    # Verify deletion counts
+    assert deletion_counts["archives_docstore"] == 2
+    assert deletion_counts["threads"] == 1
+    assert deletion_counts["messages"] == 2
+    assert deletion_counts["chunks"] == 1
+    assert deletion_counts["summaries"] == 1
+
+    # Verify data was actually deleted
+    assert len(document_store.query_documents("archives", {"source": "test-source"})) == 0
+    assert len(document_store.query_documents("threads", {"source": "test-source"})) == 0
+    assert len(document_store.query_documents("messages", {"source": "test-source"})) == 0
+    assert len(document_store.query_documents("chunks", {"source": "test-source"})) == 0
+    assert len(document_store.query_documents("summaries", {"source": "test-source"})) == 0
+
+
+def test_delete_source_without_cascade_service_layer(tmp_path):
+    """Test delete_source method without cascade at service layer."""
+    config = make_config(storage_path=str(tmp_path))
+    publisher = _make_noop_publisher()
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
+    document_store = _make_inmemory_store()
+
+    service = IngestionService(
+        config=config,
+        publisher=publisher,
+        document_store=document_store,
+        logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
+    )
+
+    # Create a source in document store
+    document_store.insert_document("sources", {
+        "_id": "source-1",
+        "name": "test-source",
+        "source_type": "http",
+        "url": "http://example.com/archive.mbox",
+        "enabled": True,
+    })
+
+    # Add associated data
+    document_store.insert_document("archives", {
+        "_id": "archive-1",
+        "source": "test-source",
+        "file_hash": "hash1",
+    })
+
+    # Delete source without cascade
+    result = service.delete_source("test-source", cascade=False)
+
+    # Should return True (source deleted)
+    assert result is True
+
+    # Verify source was deleted
+    sources = document_store.query_documents("sources", {"name": "test-source"})
+    assert len(sources) == 0
+
+    # Verify associated data was NOT deleted
+    archives = document_store.query_documents("archives", {"source": "test-source"})
+    assert len(archives) == 1
+
+
+def test_delete_source_with_cascade_service_layer(tmp_path):
+    """Test delete_source method with cascade=True at service layer."""
+    config = make_config(storage_path=str(tmp_path))
+    publisher = _make_noop_publisher()
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
+    document_store = _make_inmemory_store()
+
+    service = IngestionService(
+        config=config,
+        publisher=publisher,
+        document_store=document_store,
+        logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
+    )
+
+    # Create a source in document store
+    document_store.insert_document("sources", {
+        "_id": "source-1",
+        "name": "test-source",
+        "source_type": "http",
+        "url": "http://example.com/archive.mbox",
+        "enabled": True,
+    })
+
+    # Add associated data
+    document_store.insert_document("archives", {
+        "_id": "archive-1",
+        "source": "test-source",
+        "file_hash": "hash1",
+    })
+    document_store.insert_document("threads", {
+        "_id": "thread-1",
+        "source": "test-source",
+    })
+
+    # Delete source with cascade
+    result = service.delete_source("test-source", cascade=True)
+
+    # Should return deletion counts dict
+    assert isinstance(result, dict)
+    assert "archives_docstore" in result
+    assert result["archives_docstore"] == 1
+    assert result["threads"] == 1
+
+    # Verify source was deleted
+    sources = document_store.query_documents("sources", {"name": "test-source"})
+    assert len(sources) == 0
+
+    # Verify associated data was deleted
+    archives = document_store.query_documents("archives", {"source": "test-source"})
+    assert len(archives) == 0
+    threads = document_store.query_documents("threads", {"source": "test-source"})
+    assert len(threads) == 0
+
+
 
 
 

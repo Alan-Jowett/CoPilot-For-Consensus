@@ -4,7 +4,7 @@
 """Unit tests for ingestion API endpoints."""
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from app.api import create_api_router
 from app.service import IngestionService
