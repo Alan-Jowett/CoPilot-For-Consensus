@@ -86,7 +86,8 @@ jobs:
             copilot_summarization \
             copilot_vectorstore \
             copilot_draft_diff \
-            copilot_startup
+            copilot_startup \
+            copilot_event_retry
 
       - name: Install ingestion service dependencies (for pyright)
         run: |
