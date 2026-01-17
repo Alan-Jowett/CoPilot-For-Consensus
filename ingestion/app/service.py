@@ -292,16 +292,20 @@ class IngestionService:
     def _extract_doc_ids(documents: list[dict[str, Any]]) -> list[str]:
         """Extract document IDs from a list of documents.
 
+        Uses explicit None checks to handle falsy but valid IDs (e.g., 0, empty string).
+
         Args:
             documents: List of document dictionaries
 
         Returns:
             List of document IDs as strings
         """
-        doc_ids = []
+        doc_ids: list[str] = []
         for doc in documents:
-            doc_id = doc.get("_id") or doc.get("id")
-            if doc_id:
+            doc_id = doc.get("_id")
+            if doc_id is None:
+                doc_id = doc.get("id")
+            if doc_id is not None:
                 doc_ids.append(str(doc_id))
         return doc_ids
 
@@ -316,8 +320,14 @@ class IngestionService:
         - Embeddings from vectorstore (via chunk IDs)
         - Summaries/reports from document_store
 
-        Note: If cascade delete fails, the source itself will NOT be deleted.
+        IMPORTANT: If cascade delete fails, the source itself will NOT be deleted.
         This ensures data consistency by preventing orphaned source records.
+        
+        However, if the method fails partway through (e.g., after deleting some
+        collections but before completing), the system may be left in a partially
+        deleted state. The method continues processing even if some deletions fail,
+        logging errors and returning partial counts. Retry the operation to clean up
+        remaining data.
 
         Args:
             source_name: Name of the source to delete

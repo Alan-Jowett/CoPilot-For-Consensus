@@ -946,6 +946,10 @@ def test_delete_source_cascade_service_layer(tmp_path):
         archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
     )
 
+    # Verify archive_store starts empty (no archives from previous tests)
+    # This helps diagnose test failures related to archive_store state
+    assert service.archive_store is not None, "archive_store should be initialized"
+
     # Add test data across multiple collections
     document_store.insert_document("archives", {
         "_id": "archive-1",

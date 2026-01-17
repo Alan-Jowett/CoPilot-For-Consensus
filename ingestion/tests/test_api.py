@@ -468,6 +468,11 @@ class TestSourcesEndpoints:
 
         # Mock delete_document to fail for one specific thread
         original_delete = service.document_store.delete_document
+        
+        # NOTE: The document_store fixture uses an in-memory driver, so calling the
+        # original delete_document implementation here is safe and side-effect free.
+        # We do this deliberately to preserve realistic cascade-delete behavior while
+        # injecting a controlled failure for a single thread ID.
         def mock_delete(collection, doc_id):
             if collection == "threads" and doc_id == "thread-123":
                 raise Exception("Simulated deletion failure")
