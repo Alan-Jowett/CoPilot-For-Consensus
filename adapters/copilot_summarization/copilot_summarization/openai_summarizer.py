@@ -218,7 +218,7 @@ class OpenAISummarizer(Summarizer):
         # 2. Parse summary_text to extract citation markers and references
         # 3. Map extracted citations to Citation objects with message_id, chunk_id, offset
         # For now, return empty list so consumers can rely on citations field always being present
-        citations = []
+        citations: list[Citation] = []
 
         backend = "azure" if self.is_azure else "openai"
 

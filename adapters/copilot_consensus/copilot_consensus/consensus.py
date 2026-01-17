@@ -331,6 +331,7 @@ class MockConsensusDetector(ConsensusDetector):
             Configured MockConsensusDetector
         """
         level_val = driver_config.level if driver_config.level is not None else "consensus"
+        level: ConsensusLevel
         if isinstance(level_val, ConsensusLevel):
             level = level_val
         else:

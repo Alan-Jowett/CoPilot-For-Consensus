@@ -1533,10 +1533,13 @@ class IngestionService:
             enabled_sources_list = _enabled_sources(self._startup_sources)
             sources_enabled_count = len(enabled_sources_list)
         else:
-            all_sources = self.list_sources(enabled_only=False)
+            all_sources_raw = self.list_sources(enabled_only=False)
             # Use list_sources with enabled_only=True to avoid double filtering
-            enabled_sources_list = self.list_sources(enabled_only=True)
-            sources_enabled_count = len(enabled_sources_list)
+            enabled_sources_list_raw = self.list_sources(enabled_only=True)
+            # Cast to match the type of _startup_sources for consistency
+            all_sources = all_sources_raw  # type: ignore[assignment]
+            enabled_sources_list = enabled_sources_list_raw  # type: ignore[assignment]
+            sources_enabled_count = len(enabled_sources_list_raw)
 
         return {
             "sources_configured": len(all_sources),

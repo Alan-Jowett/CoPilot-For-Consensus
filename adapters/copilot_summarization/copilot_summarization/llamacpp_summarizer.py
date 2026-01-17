@@ -140,7 +140,7 @@ class LlamaCppSummarizer(Summarizer):
             latency_ms = int((time.time() - start_time) * 1000)
 
             # Create citations (placeholder - would need context chunks to generate real citations)
-            citations = []
+            citations: list[Citation] = []
 
             logger.info(
                 "Successfully generated summary for thread %s (tokens: %d+%d, latency: %dms)",

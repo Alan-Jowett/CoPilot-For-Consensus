@@ -128,7 +128,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         Uses thread-safe locking to prevent race conditions with concurrent updates.
         """
         delay = self.jwks_fetch_retry_delay
-        last_error = None
+        last_error: Exception | None = None
 
         for attempt in range(1, self.jwks_fetch_retries + 1):
             try:
