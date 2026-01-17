@@ -24,6 +24,11 @@ from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
 
 logger = get_logger(__name__)
 
@@ -39,6 +44,7 @@ class ChunkingService:
         chunker: ThreadChunker,
         metrics_collector: MetricsCollector | None = None,
         error_reporter: ErrorReporter | None = None,
+        retry_config: RetryConfig | None = None,
     ):
         """Initialize chunking service.
 
@@ -49,6 +55,7 @@ class ChunkingService:
             chunker: Chunking strategy implementation
             metrics_collector: Metrics collector (optional)
             error_reporter: Error reporter (optional)
+            retry_config: Retry configuration for race condition handling (optional)
         """
         self.document_store = document_store
         self.publisher = publisher
@@ -56,6 +63,7 @@ class ChunkingService:
         self.chunker = chunker
         self.metrics_collector = metrics_collector
         self.error_reporter = error_reporter
+        self.retry_config = retry_config or RetryConfig()
 
         # Stats
         self.messages_processed = 0
@@ -198,12 +206,12 @@ class ChunkingService:
             # Don't fail service startup on requeue errors
 
     def _handle_json_parsed(self, event: dict[str, Any]):
-        """Handle JSONParsed event.
+        """Handle JSONParsed event with retry logic for race conditions.
 
-        This is an event handler for message queue consumption. Exceptions are
-        logged and re-raised to allow message requeue for transient failures
-        (e.g., database unavailable). Only exceptions due to bad event data
-        should be caught and not re-raised.
+        This is an event handler for message queue consumption. Wraps the processing
+        logic with retry handling to address race conditions where documents are not
+        yet queryable. Exceptions are logged and re-raised to allow message requeue
+        for transient failures (e.g., database unavailable).
 
         Args:
             event: Event dictionary
@@ -214,8 +222,21 @@ class ChunkingService:
 
             logger.info(f"Received JSONParsed event: {json_parsed.data.get('archive_id')}")
 
-            # Process the messages
-            self.process_messages(json_parsed.data)
+            # Process with retry logic for race condition handling
+            # Generate idempotency key from message doc IDs
+            message_doc_ids = json_parsed.data.get("message_doc_ids", [])
+            idempotency_key = f"chunking-{'-'.join(str(mid) for mid in message_doc_ids[:3])}"
+            
+            # Wrap processing with retry logic
+            handle_event_with_retry(
+                handler=lambda e: self.process_messages(e.get("data", {})),
+                event=event,
+                config=self.retry_config,
+                idempotency_key=idempotency_key,
+                metrics_collector=self.metrics_collector,
+                error_reporter=self.error_reporter,
+                service_name="chunking",
+            )
 
         except Exception as e:
             logger.error(f"Error handling JSONParsed event: {e}", exc_info=True)
@@ -263,15 +284,11 @@ class ChunkingService:
             )
 
             if not messages:
-                error_msg = "No messages found in database"
+                error_msg = f"No messages found in database for {len(message_doc_ids)} IDs"
                 logger.warning(error_msg)
-                self._publish_chunking_failed(
-                    message_doc_ids,
-                    error_msg,
-                    "MessageNotFoundError",
-                    0,
-                )
-                return
+                # Raise retryable error to trigger retry logic for race conditions
+                # This handles cases where events arrive before documents are queryable
+                raise DocumentNotFoundError(error_msg)
 
             # Process each message
             all_chunks = []
