@@ -46,6 +46,7 @@ from copilot_config.generated.adapters.metrics import (
 )
 from copilot_config.generated.services.chunking import ServiceConfig_Chunking
 from copilot_message_bus import create_publisher, create_subscriber
+from copilot_event_retry import RetryConfig
 
 # Create FastAPI app
 app = FastAPI(title="Chunking Service", version=__version__)
@@ -232,6 +233,17 @@ def main():
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter(config.error_reporter)
 
+        # Create retry configuration from environment variables (with defaults)
+        retry_config = RetryConfig(
+            max_attempts=int(os.environ.get("RETRY_MAX_ATTEMPTS", "8")),
+            base_delay_ms=int(os.environ.get("RETRY_BASE_DELAY_MS", "250")),
+            backoff_factor=float(os.environ.get("RETRY_BACKOFF_FACTOR", "2.0")),
+            max_delay_seconds=int(os.environ.get("RETRY_MAX_DELAY_SECONDS", "60")),
+            ttl_minutes=int(os.environ.get("RETRY_TTL_MINUTES", "30")),
+        )
+        logger.info(f"Retry configuration: max_attempts={retry_config.max_attempts}, "
+                   f"base_delay_ms={retry_config.base_delay_ms}, ttl_minutes={retry_config.ttl_minutes}")
+
         # Create chunking service
         chunking_service = ChunkingService(
             document_store=document_store,
@@ -240,6 +252,7 @@ def main():
             chunker=chunker,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
+            retry_config=retry_config,
         )
 
         # Start subscriber in a separate thread (non-daemon to fail fast)

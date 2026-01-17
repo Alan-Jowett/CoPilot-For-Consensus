@@ -536,6 +536,7 @@ Comprehensive documentation is available throughout the repository:
 - **[docs/architecture/overview.md](./docs/architecture/overview.md)**: Detailed system architecture, design patterns, and service interactions
 - **[docs/schemas/data-storage.md](./docs/schemas/data-storage.md)**: Database schemas and message bus event definitions
 - **[docs/operations/forward-progress.md](./docs/operations/forward-progress.md)**: Idempotency, retry logic, and error handling patterns
+- **[docs/retry-mechanism.md](./docs/retry-mechanism.md)**: Event retry mechanism for handling race conditions in distributed systems
 - **[docs/observability/service-monitoring.md](./docs/observability/service-monitoring.md)**: Observability, metrics, and logging best practices
 - **[docs/operations/runbooks/failed-queue-operations.md](./docs/operations/runbooks/failed-queue-operations.md)**: Failed queue management and troubleshooting
 

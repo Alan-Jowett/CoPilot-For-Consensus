@@ -57,6 +57,7 @@ from copilot_config.generated.adapters.vector_store import (
     DriverConfig_VectorStore_Qdrant,
 )
 from copilot_config.generated.services.embedding import ServiceConfig_Embedding
+from copilot_event_retry import RetryConfig
 
 # Create FastAPI app
 app = FastAPI(title="Embedding Service", version=__version__)
@@ -306,6 +307,17 @@ def main():
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter(config.error_reporter)
 
+        # Create retry configuration from environment variables (with defaults)
+        event_retry_config = RetryConfig(
+            max_attempts=int(os.environ.get("RETRY_MAX_ATTEMPTS", "8")),
+            base_delay_ms=int(os.environ.get("RETRY_BASE_DELAY_MS", "250")),
+            backoff_factor=float(os.environ.get("RETRY_BACKOFF_FACTOR", "2.0")),
+            max_delay_seconds=int(os.environ.get("RETRY_MAX_DELAY_SECONDS", "60")),
+            ttl_minutes=int(os.environ.get("RETRY_TTL_MINUTES", "30")),
+        )
+        logger.info(f"Retry configuration: max_attempts={event_retry_config.max_attempts}, "
+                   f"base_delay_ms={event_retry_config.base_delay_ms}, ttl_minutes={event_retry_config.ttl_minutes}")
+
         # Create embedding service
         embedding_service = EmbeddingService(
             document_store=document_store,
@@ -334,6 +346,7 @@ def main():
                     else "message_embeddings"
                 )
             ),
+            event_retry_config=event_retry_config,
         )
 
         # Start subscriber in a separate thread (non-daemon to fail fast)
