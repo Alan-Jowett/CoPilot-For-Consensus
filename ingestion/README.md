@@ -82,13 +82,51 @@ The service exposes a REST API on port 8080 (configurable via `HTTP_PORT` enviro
 - `GET /ingestion/api/sources/{name}` - Get specific source details
 - `POST /ingestion/api/sources` - Create a new source
 - `PUT /ingestion/api/sources/{name}` - Update an existing source
-- `DELETE /ingestion/api/sources/{name}` - Delete a source
+- `DELETE /ingestion/api/sources/{name}` - Delete a source (supports `?cascade=true` for cascade delete)
 
 #### Source Operations
 
 - `POST /ingestion/api/sources/{name}/trigger` - Trigger manual ingestion for a source
   - **Hash Override:** Explicitly triggering ingestion will delete any existing checksums for the source, forcing re-ingestion of all files even if they were previously processed. This allows manual re-processing of content when needed.
 - `GET /ingestion/api/sources/{name}/status` - Get source ingestion status
+
+#### Cascade Delete
+
+When deleting a source, you can use the `cascade=true` query parameter to delete all associated data:
+
+```bash
+# Delete source only (default behavior)
+curl -X DELETE http://localhost:8080/ingestion/api/sources/my-source
+
+# Delete source and ALL associated data
+curl -X DELETE "http://localhost:8080/ingestion/api/sources/my-source?cascade=true"
+```
+
+**Cascade delete removes:**
+- Archives from document_store and archive_store
+- Threads from document_store
+- Messages from document_store
+- Chunks from document_store
+- Summaries/reports from document_store
+
+**Note:** Embeddings in vectorstore are logged for manual cleanup as the ingestion service doesn't have direct access to the vectorstore. The embedding service should handle cleanup of orphaned embeddings.
+
+**Response with cascade=true:**
+```json
+{
+  "message": "Source 'my-source' and all associated data deleted successfully",
+  "cascade": true,
+  "deletion_counts": {
+    "archives_docstore": 5,
+    "archives_archivestore": 5,
+    "threads": 12,
+    "messages": 134,
+    "chunks": 456,
+    "embeddings": 0,
+    "summaries": 8
+  }
+}
+```
 
 #### File Upload
 
