@@ -16,13 +16,42 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+def _find_repo_root() -> Path:
+    """Determine the repository root in a robust way.
+
+    Resolution order:
+      1. Use REPO_ROOT environment variable if set.
+      2. Walk up from this file looking for a marker (e.g., .git, pyproject.toml).
+      3. Fall back to the historical parent.parent.parent.parent behavior.
+    """
+    env_root = os.environ.get("REPO_ROOT")
+    if env_root:
+        try:
+            return Path(env_root).resolve()
+        except OSError:
+            logger.warning("Invalid REPO_ROOT value %r; falling back to automatic detection.", env_root)
+
+    current = Path(__file__).resolve()
+    markers = (".git", "pyproject.toml")
+
+    for candidate in (current, *current.parents):
+        for marker in markers:
+            if (candidate / marker).exists():
+                return candidate
+
+    # Fallback to previous fixed-depth behavior to avoid breaking existing setups
+    return current.parent.parent.parent.parent
+
+
 # Default schema directory
-# Try to find repository root via environment variable or relative path
-_REPO_ROOT = Path(os.environ.get("REPO_ROOT", Path(__file__).parent.parent.parent.parent))
+_REPO_ROOT = _find_repo_root()
 _DEFAULT_SCHEMA_DIR = _REPO_ROOT / "docs" / "schemas" / "documents"
 
 # Global registry: collection name -> set of allowed field names
 _COLLECTION_SCHEMAS: dict[str, set[str]] = {}
+
+# Track which unknown fields have been logged (to avoid log spam)
+_UNKNOWN_FIELDS_LOGGED: set[str] = set()
 
 
 def _load_schema_fields(schema_path: Path) -> set[str]:
@@ -90,6 +119,19 @@ def _initialize_registry(schema_dir: Path | None = None) -> None:
             logger.debug(f"Schema file not found for collection '{collection_name}': {schema_path}")
 
 
+def reset_registry() -> None:
+    """Reset the schema registry to its initial state.
+    
+    This function is primarily intended for testing purposes to ensure
+    tests start with a clean state. It clears all loaded schemas so they
+    will be reloaded on next access.
+    """
+    global _COLLECTION_SCHEMAS, _UNKNOWN_FIELDS_LOGGED
+    _COLLECTION_SCHEMAS.clear()
+    _UNKNOWN_FIELDS_LOGGED.clear()
+    logger.debug("Schema registry has been reset")
+
+
 def get_collection_fields(collection: str) -> set[str] | None:
     """Get the set of allowed fields for a collection.
 
@@ -150,10 +192,14 @@ def sanitize_document(doc: dict[str, Any], collection: str, preserve_extra: bool
         # If schema is available and preserve_extra is False, keep only schema-defined fields
         if allowed_fields is not None and not preserve_extra:
             if key not in allowed_fields:
-                logger.debug(
-                    f"Removing unknown field '{key}' from collection '{collection}' "
-                    f"(not in schema)"
-                )
+                # Log at warning level for first occurrence of this field in this collection
+                cache_key = f"{collection}:{key}"
+                if cache_key not in _UNKNOWN_FIELDS_LOGGED:
+                    _UNKNOWN_FIELDS_LOGGED.add(cache_key)
+                    logger.warning(
+                        f"Removing unknown field '{key}' from collection '{collection}' "
+                        f"(not in schema). This warning will only appear once per field."
+                    )
                 continue
 
         sanitized[key] = value

@@ -54,17 +54,21 @@ _ALLOWED_SOURCE_FIELDS: set[str] = {
 
 
 def _prune_source_fields(source_dict: dict[str, Any]) -> dict[str, Any]:
-    """Drop document-store/system fields not accepted by SourceConfig.
+    """Filter source fields to only those accepted by SourceConfig.
 
-    Note: The storage layer now sanitizes documents on read, so this function
-    is primarily needed for:
+    Note: The storage layer now sanitizes documents on read, removing system
+    fields like _etag, _rid, _ts, id, and collection. This function serves as
+    an additional validation/filtering step for:
     - Manually-constructed source dicts (e.g., in tests or API requests)
-    - Additional validation before SourceConfig.from_mapping()
+    - Documents from external sources that haven't been through storage
+    - Final validation before SourceConfig.from_mapping()
 
     This function may be deprecated in a future release once all callers
     are updated to pass pre-sanitized documents.
 
-    The fetcher SourceConfig is strict and rejects unknown fields.
+    The fetcher SourceConfig is strict and rejects unknown fields, so this
+    function filters to only the fields defined in _ALLOWED_SOURCE_FIELDS
+    (which includes _id and all SourceConfig fields).
     """
     pruned: dict[str, Any] = {}
     for key, value in source_dict.items():
@@ -1172,7 +1176,7 @@ class IngestionService:
         if doc_id is None:
             raise ValueError(
                 f"Source document for '{source_name}' is missing the required '_id' field. "
-                "This may indicate a storage layer issue."
+                f"Available fields: {list(doc.keys())}. This may indicate a storage layer issue."
             )
 
         return str(doc_id)

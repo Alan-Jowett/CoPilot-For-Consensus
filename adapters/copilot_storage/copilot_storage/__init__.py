@@ -19,6 +19,7 @@ from .document_store import (  # noqa: E402
 from .factory import create_document_store  # noqa: E402
 from .schema_registry import (  # noqa: E402
     get_collection_fields,
+    reset_registry,
     sanitize_document,
     sanitize_documents,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "DocumentValidationError",
     "ValidatingDocumentStore",
     "get_collection_fields",
+    "reset_registry",
     "sanitize_document",
     "sanitize_documents",
 ]

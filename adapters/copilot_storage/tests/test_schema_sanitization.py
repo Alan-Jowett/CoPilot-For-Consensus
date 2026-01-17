@@ -22,6 +22,26 @@ def store() -> DocumentStore:
     return store
 
 
+def _insert_with_backend_fields(store: InMemoryDocumentStore, collection: str, doc: dict) -> None:
+    """Helper to insert a document with simulated backend system fields.
+    
+    This helper directly accesses internal storage to simulate what backend
+    implementations (Cosmos/Mongo) actually store, including system fields
+    that would normally be added by those backends.
+    
+    This is necessary for testing sanitization because:
+    1. insert_document() goes through the public API which may not add system fields
+    2. We need to verify that system fields added by backends are properly removed
+    3. This pattern is only used for testing - production code uses public API
+    
+    Args:
+        store: InMemoryDocumentStore instance
+        collection: Collection name
+        doc: Document with system fields to store
+    """
+    store.collections[collection][doc["_id"]] = doc.copy()
+
+
 def test_get_document_removes_system_fields(store: DocumentStore):
     """Test that get_document removes backend system fields."""
     # Insert a document with system fields (simulating Cosmos DB)
@@ -31,7 +51,7 @@ def test_get_document_removes_system_fields(store: DocumentStore):
         "source_type": "local",
         "url": "/data/test.mbox",
         "enabled": True,
-        # System fields that should be removed
+        # System fields that would be added by Cosmos DB
         "_etag": "00000000-0000-0000-0000-000000000000",
         "_rid": "abc123==",
         "_ts": 1700000000,
@@ -41,9 +61,8 @@ def test_get_document_removes_system_fields(store: DocumentStore):
         "collection": "sources",
     }
     
-    # Directly insert into the in-memory store bypassing insert_document
-    # to simulate what backends actually store
-    store.collections["sources"]["test-id-123"] = doc_with_system_fields.copy()
+    # Use helper to simulate backend behavior
+    _insert_with_backend_fields(store, "sources", doc_with_system_fields)
     
     # Retrieve the document
     result = store.get_document("sources", "test-id-123")
@@ -80,7 +99,7 @@ def test_get_document_removes_unknown_fields(store: DocumentStore):
         "legacy_field": 12345,
     }
     
-    store.collections["sources"]["test-id-456"] = doc_with_unknown_fields.copy()
+    _insert_with_backend_fields(store, "sources", doc_with_unknown_fields)
     
     # Retrieve the document
     result = store.get_document("sources", "test-id-456")
@@ -119,7 +138,7 @@ def test_get_document_preserves_required_fields(store: DocumentStore):
         "files_skipped": 5,
     }
     
-    store.collections["sources"]["test-id-789"] = complete_doc.copy()
+    _insert_with_backend_fields(store, "sources", complete_doc)
     
     # Retrieve the document
     result = store.get_document("sources", "test-id-789")
@@ -178,8 +197,8 @@ def test_query_documents_removes_system_fields(store: DocumentStore):
         "collection": "archives",
     }
     
-    store.collections["archives"]["archive-1"] = doc1.copy()
-    store.collections["archives"]["archive-2"] = doc2.copy()
+    _insert_with_backend_fields(store, "archives", doc1)
+    _insert_with_backend_fields(store, "archives", doc2)
     
     # Query documents
     results = store.query_documents("archives", {"source": "test-source"})
@@ -214,7 +233,7 @@ def test_query_documents_removes_unknown_fields(store: DocumentStore):
         "legacy_metadata": {"old": "data"},
     }
     
-    store.collections["messages"]["msg-1"] = doc1.copy()
+    _insert_with_backend_fields(store, "messages", doc1)
     
     # Query documents
     results = store.query_documents("messages", {"thread_id": "t" * 16})
@@ -244,7 +263,7 @@ def test_aggregate_documents_removes_system_fields(store: DocumentStore):
         "collection": "threads",
     }
     
-    store.collections["threads"]["thread-1"] = doc.copy()
+    _insert_with_backend_fields(store, "threads", doc)
     
     # Aggregate with $match
     results = store.aggregate_documents(
@@ -281,7 +300,7 @@ def test_sanitization_with_unknown_collection(store: DocumentStore):
         "collection": "unknown_collection",
     }
     
-    store.collections["unknown_collection"]["doc-1"] = doc.copy()
+    _insert_with_backend_fields(store, "unknown_collection", doc)
     
     # Retrieve the document
     result = store.get_document("unknown_collection", "doc-1")
@@ -315,7 +334,7 @@ def test_query_documents_returns_empty_list_when_no_matches(store: DocumentStore
         "url": "/data/test.mbox",
         "enabled": True,
     }
-    store.collections["sources"]["source-1"] = doc.copy()
+    _insert_with_backend_fields(store, "sources", doc)
     
     # Query for a different name
     results = store.query_documents("sources", {"name": "other-source"})
