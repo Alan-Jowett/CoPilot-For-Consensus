@@ -49,10 +49,10 @@ class RoleStore:
             # Check both locations
             local_candidate = Path(__file__).resolve().parents[1].parent / "docs" / "schemas" / "role_store"
             if local_candidate.exists():
-                schema_dir = local_candidate
+                schema_dir = str(local_candidate)
             else:
                 # Fallback: assume we're in the repo and go up to find docs
-                schema_dir = Path(__file__).resolve().parents[1] / "docs" / "schemas" / "role_store"
+                schema_dir = str(Path(__file__).resolve().parents[1] / "docs" / "schemas" / "role_store")
 
         schema_provider = create_schema_provider(schema_dir=str(schema_dir))
         try:

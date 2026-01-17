@@ -71,6 +71,7 @@ def create_identity_providers(
     if github is not None:
         try:
             github = _with_default_redirect_uri(github, "github_redirect_uri")
+            assert github is not None  # Type narrowing: _with_default_redirect_uri preserves non-None
             provider = create_identity_provider(
                 "github",
                 github,
@@ -91,6 +92,7 @@ def create_identity_providers(
     if google is not None:
         try:
             google = _with_default_redirect_uri(google, "google_redirect_uri")
+            assert google is not None  # Type narrowing: _with_default_redirect_uri preserves non-None
             provider = create_identity_provider(
                 "google",
                 google,
@@ -111,6 +113,7 @@ def create_identity_providers(
     if microsoft is not None:
         try:
             microsoft = _with_default_redirect_uri(microsoft, "microsoft_redirect_uri")
+            assert microsoft is not None  # Type narrowing: _with_default_redirect_uri preserves non-None
             provider = create_identity_provider(
                 "microsoft",
                 microsoft,
@@ -131,6 +134,7 @@ def create_identity_providers(
 
     # Provider discovery (best-effort)
     for name, provider in list(providers.items()):
+        provider: _OidcProvider  # Type annotation for loop variable
         discover = getattr(provider, "discover", None)
         if callable(discover):
             try:
