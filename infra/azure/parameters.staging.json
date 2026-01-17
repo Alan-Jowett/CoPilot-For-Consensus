@@ -47,6 +47,9 @@
     "enableMultiRegionCosmos": {
       "value": false
     },
+    "enablePrivateAccess": {
+      "value": false
+    },
     "deployContainerApps": {
       "value": true
     },

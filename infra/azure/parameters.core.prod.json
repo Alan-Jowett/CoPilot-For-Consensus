@@ -39,6 +39,9 @@
       "value": []
     },
     "enablePublicNetworkAccess": {
+      "value": true
+    },
+    "enablePrivateAccess": {
       "value": false
     },
     "enableRbacAuthorization": {
