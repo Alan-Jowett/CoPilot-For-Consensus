@@ -98,9 +98,6 @@ class SummarizationService:
         self.summarization_failures = 0
         self.last_processing_time = 0.0
 
-        # Batch processing state
-        self._pending_batch_threads: list[tuple[str, int, int, str]] = []  # (thread_id, top_k, context_window_tokens, prompt_template)
-
     def start(self, enable_startup_requeue: bool = True):
         """Start the summarization service and subscribe to events.
 

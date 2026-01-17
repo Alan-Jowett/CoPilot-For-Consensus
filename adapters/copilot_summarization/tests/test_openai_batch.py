@@ -3,11 +3,26 @@
 
 """Tests for OpenAI Batch API functionality."""
 
+from contextlib import contextmanager
 from unittest.mock import Mock, patch, mock_open
 
 import pytest
 from copilot_summarization.models import Thread
 from copilot_summarization.openai_summarizer import OpenAISummarizer
+
+
+@contextmanager
+def mock_tempfile_and_cleanup():
+    """Context manager that mocks tempfile creation and cleanup for batch tests."""
+    temp_mock = Mock(name='/tmp/test.jsonl')
+    temp_mock.__enter__ = Mock(return_value=temp_mock)
+    temp_mock.__exit__ = Mock()
+    temp_mock.write = Mock()
+    
+    with patch('builtins.open', mock_open()):
+        with patch('tempfile.NamedTemporaryFile', return_value=temp_mock):
+            with patch('os.unlink'):
+                yield
 
 
 class TestOpenAIBatchMode:
@@ -29,29 +44,27 @@ class TestOpenAIBatchMode:
         mock_client.batches.create = Mock(return_value=mock_batch)
 
         with patch.dict('sys.modules', {'openai': mock_module}):
-            with patch('builtins.open', mock_open()):
-                with patch('tempfile.NamedTemporaryFile', return_value=Mock(name='/tmp/test.jsonl', __enter__=Mock(return_value=Mock(name='/tmp/test.jsonl', write=Mock())), __exit__=Mock())):
-                    with patch('os.unlink'):
-                        summarizer = OpenAISummarizer(api_key="test-key", model="gpt-4o-mini")
+            with mock_tempfile_and_cleanup():
+                summarizer = OpenAISummarizer(api_key="test-key", model="gpt-4o-mini")
 
-                        threads = [
-                            Thread(
-                                thread_id="thread-1",
-                                messages=["Message 1"],
-                                prompt="Summarize: Message 1"
-                            ),
-                            Thread(
-                                thread_id="thread-2",
-                                messages=["Message 2"],
-                                prompt="Summarize: Message 2"
-                            ),
-                        ]
+                threads = [
+                    Thread(
+                        thread_id="thread-1",
+                        messages=["Message 1"],
+                        prompt="Summarize: Message 1"
+                    ),
+                    Thread(
+                        thread_id="thread-2",
+                        messages=["Message 2"],
+                        prompt="Summarize: Message 2"
+                    ),
+                ]
 
-                        batch_id = summarizer.create_batch(threads)
+                batch_id = summarizer.create_batch(threads)
 
-                        assert batch_id == "batch-xyz789"
-                        mock_client.files.create.assert_called_once()
-                        mock_client.batches.create.assert_called_once()
+                assert batch_id == "batch-xyz789"
+                mock_client.files.create.assert_called_once()
+                mock_client.batches.create.assert_called_once()
 
     def test_get_batch_status(self, mock_openai_module):
         """Test getting batch job status."""
@@ -143,26 +156,24 @@ class TestOpenAIBatchMode:
         mock_client.batches.create = Mock(return_value=mock_batch)
 
         with patch.dict('sys.modules', {'openai': mock_module}):
-            with patch('builtins.open', mock_open()):
-                with patch('tempfile.NamedTemporaryFile', return_value=Mock(name='/tmp/test.jsonl', __enter__=Mock(return_value=Mock(name='/tmp/test.jsonl', write=Mock())), __exit__=Mock())):
-                    with patch('os.unlink'):
-                        summarizer = OpenAISummarizer(
-                            api_key="azure-key",
-                            model="gpt-4o-mini",
-                            base_url="https://test.openai.azure.com",
-                            api_version="2023-12-01",
-                            deployment_name="gpt-4o-mini-deployment"
-                        )
+            with mock_tempfile_and_cleanup():
+                summarizer = OpenAISummarizer(
+                    api_key="azure-key",
+                    model="gpt-4o-mini",
+                    base_url="https://test.openai.azure.com",
+                    api_version="2023-12-01",
+                    deployment_name="gpt-4o-mini-deployment"
+                )
 
-                        threads = [
-                            Thread(
-                                thread_id="thread-1",
-                                messages=["Message 1"],
-                                prompt="Summarize: Message 1"
-                            ),
-                        ]
+                threads = [
+                    Thread(
+                        thread_id="thread-1",
+                        messages=["Message 1"],
+                        prompt="Summarize: Message 1"
+                    ),
+                ]
 
-                        batch_id = summarizer.create_batch(threads)
+                batch_id = summarizer.create_batch(threads)
 
-                        assert batch_id == "batch-xyz789"
-                        assert summarizer.is_azure is True
+                assert batch_id == "batch-xyz789"
+                assert summarizer.is_azure is True
