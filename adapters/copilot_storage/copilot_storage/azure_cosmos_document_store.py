@@ -263,8 +263,15 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
 
         try:
-            # Generate ID if not provided
-            doc_id = doc.get("id", str(uuid.uuid4()))
+            # Cosmos DB requires a native "id" field as the document key.
+            # Our canonical identifier across services/schemas is "_id".
+            # Keep them aligned when possible so services can remain storage-agnostic.
+            if "id" in doc and doc.get("id") is not None:
+                doc_id = doc["id"]
+            elif "_id" in doc and doc.get("_id") is not None:
+                doc_id = doc["_id"]
+            else:
+                doc_id = str(uuid.uuid4())
 
             # Validate document ID meets Cosmos DB requirements
             if not self._is_valid_document_id(doc_id):

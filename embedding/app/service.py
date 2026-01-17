@@ -237,9 +237,8 @@ class EmbeddingService:
                     # Store embeddings in vector store
                     self._store_embeddings(embeddings)
 
-                    # Update chunk status in document database by Mongo _id
-                    # All chunks validated to have _id above
-                    batch_doc_ids = [chunk["_id"] for chunk in batch]
+                    # Update chunk status in the document database using canonical IDs.
+                    batch_doc_ids = [str(chunk["_id"]) for chunk in batch]
                     self._update_chunk_status_by_doc_ids(batch_doc_ids)
                     # Track canonical chunk IDs for events/metrics
                     batch_chunk_ids = [chunk["_id"] for chunk in batch]
