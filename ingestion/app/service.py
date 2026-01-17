@@ -169,9 +169,20 @@ class IngestionService:
         # Sources cache for dynamic source management from document store
         self._sources_cache: list[dict[str, Any]] | None = None
 
-        # Determine source storage backend from config
+        # Determine source storage backend from config with validation
+        raw_sources_store_type = settings.sources_store_type or "document_store"
+        
+        # Validate sources_store_type value
+        if raw_sources_store_type not in ("file", "document_store"):
+            self.logger.warning(
+                "Invalid sources_store_type in config; defaulting to 'document_store'",
+                sources_store_type=raw_sources_store_type,
+            )
+            raw_sources_store_type = "document_store"
+        
+        self._sources_store_type = raw_sources_store_type
+        
         # If document_store is not available, fall back to file mode regardless of config
-        self._sources_store_type = settings.sources_store_type or "document_store"
         if self._sources_store_type == "document_store" and not self.document_store:
             self.logger.warning(
                 "sources_store_type is 'document_store' but document_store is not configured; "

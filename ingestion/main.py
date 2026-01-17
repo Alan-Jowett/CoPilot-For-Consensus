@@ -315,7 +315,16 @@ def main():
 
         # Load sources based on configured storage backend
         sources_store_type = config.service_settings.sources_store_type or "document_store"
-        sources: list[dict] = []
+        
+        # Validate sources_store_type value
+        if sources_store_type not in ("file", "document_store"):
+            log.warning(
+                "Invalid sources_store_type in config; defaulting to 'document_store'",
+                sources_store_type=sources_store_type,
+            )
+            sources_store_type = "document_store"
+        
+        sources: list[dict[str, Any]] = []
         
         if sources_store_type == "file":
             # File backend: load from configured path or legacy env var

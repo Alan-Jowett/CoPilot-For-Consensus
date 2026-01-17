@@ -291,3 +291,32 @@ class TestSourceBackends:
         assert len(all_sources) == 2
         source_names = {s["name"] for s in all_sources}
         assert source_names == {"existing-source", "new-source"}
+
+    def test_invalid_sources_store_type_defaults_to_document_store(self, tmp_path):
+        """Test that invalid sources_store_type value defaults to document_store with warning."""
+        # Create config with invalid backend type
+        config = make_config(storage_path=str(tmp_path / "storage"))
+        config.service_settings.sources_store_type = "redis"  # Invalid value
+
+        document_store = _make_inmemory_store()
+
+        # Create service - should default to document_store backend despite invalid config
+        service = IngestionService(
+            config,
+            _make_noop_publisher(),
+            sources=[],
+            document_store=document_store,
+            logger=_make_silent_logger(),
+            metrics=_make_noop_metrics(),
+            error_reporter=_make_silent_error_reporter(),
+            archive_store=make_archive_store(str(tmp_path / "storage")),
+        )
+
+        # Verify it defaulted to document_store mode
+        assert service._sources_store_type == "document_store"
+
+        # Verify it works as document_store backend
+        service.create_source(make_source(name="test-source", enabled=True))
+        sources = service.list_sources()
+        assert len(sources) == 1
+        assert sources[0]["name"] == "test-source"

@@ -112,7 +112,7 @@
             "source": "env",
             "env_var": "INGESTION_SOURCES_STORE_TYPE",
             "default": "document_store",
-            "description": "Backend for storing and loading ingestion sources (document_store or file)"
+            "description": "Backend for storing and loading ingestion sources: 'document_store' (default, production) or 'file' (dev/legacy). Invalid values will cause a validation warning and default to 'document_store'."
         },
         "sources_file_path": {
             "type": "string",
