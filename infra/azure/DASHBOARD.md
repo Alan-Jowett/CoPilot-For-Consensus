@@ -85,6 +85,10 @@ $dashboardUrl = (az deployment group show `
 Write-Host "Dashboard URL: $dashboardUrl"
 ```
 
+**Note**: The dashboard URL output is for **Azure Public Cloud** only. For Azure Government or Azure China, manually construct the URL using the appropriate portal domain:
+- Azure Government: `https://portal.azure.us/#@<tenant-id>/dashboard/arm<dashboard-resource-id>`
+- Azure China: `https://portal.azure.cn/#@<tenant-id>/dashboard/arm<dashboard-resource-id>`
+
 Or navigate manually in Azure Portal:
 1. Go to **Azure Portal** (https://portal.azure.com)
 2. Click **Dashboard** in the left navigation

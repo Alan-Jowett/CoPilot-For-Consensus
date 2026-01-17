@@ -268,7 +268,7 @@ requests
                   Query: '''
 traces
 | where timestamp > ago(24h)
-| extend severityLevel = tostring(customDimensions.severityLevel)
+| extend severityLevel = coalesce(tostring(customDimensions.severityLevel), tostring(severityLevel), "Information")
 | where severityLevel in ("Error", "Warning", "Information")
 | summarize ErrorsPerHour = countif(severityLevel == "Error"), 
             WarningsPerHour = countif(severityLevel == "Warning"), 
@@ -567,5 +567,5 @@ output dashboardId string = dashboard.id
 @description('Dashboard name')
 output dashboardName string = dashboard.name
 
-@description('URL to access the dashboard in Azure Portal')
+@description('URL to access the dashboard in Azure Portal (Azure Public Cloud only; for Azure Government or Azure China, manually construct URL using portal domain)')
 output dashboardUrl string = 'https://portal.azure.com/#@${subscription().tenantId}/dashboard/arm${dashboard.id}'
