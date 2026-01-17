@@ -43,6 +43,7 @@ PRIORITY_ADAPTERS = [
 ADAPTER_DEPENDENCIES = {
     "copilot_config": [],  # Config has no dependencies - must install first!
     "copilot_schema_validation": [],  # Schema validation has no dependencies
+    "copilot_event_retry": [],  # Event retry has no adapter dependencies (stdlib only)
     "copilot_storage": ["copilot_config", "copilot_schema_validation"],  # Storage depends on copilot-config and schema-validation for tests
     "copilot_message_bus": ["copilot_config", "copilot_schema_validation"],  # Message-bus depends on both
     "copilot_secrets": ["copilot_logging"],  # Secrets depends on logging
@@ -58,6 +59,7 @@ ADAPTER_DEPENDENCIES = {
     "copilot_auth": ["copilot_config", "copilot_logging"],  # Auth depends on config and logging
     "copilot_draft_diff": ["copilot_config"],  # Draft diff depends on copilot-config
     "copilot_consensus": ["copilot_config"],  # Consensus depends on copilot-config
+    "copilot_startup": ["copilot_config"],  # Startup depends on copilot-config
 }
 
 def get_adapters_dir():
