@@ -62,7 +62,7 @@ interface ApiErrorLike {
 }
 
 function isApiErrorLike(error: unknown): error is ApiErrorLike {
-  return typeof error === 'object' && error !== null && Object.hasOwn(error, 'detail')
+  return typeof error === 'object' && error != null && Object.hasOwn(error, 'detail')
 }
 
 function formatErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -75,7 +75,7 @@ function formatErrorMessage(error: unknown, fallbackMessage: string): string {
         return JSON.stringify(error.detail)
       } catch (e) {
         // If JSON.stringify fails (e.g., circular references), fall through to fallback message
-        console.warn('Failed to stringify error.detail:', e)
+        console.warn('Failed to stringify error.detail:', error.detail, 'Error:', e)
       }
     }
   }
