@@ -4,7 +4,9 @@
 """OpenAI/Azure OpenAI summarization implementation."""
 
 import importlib
+import json
 import logging
+import tempfile
 import time
 
 from typing import Any
@@ -232,3 +234,190 @@ class OpenAISummarizer(Summarizer):
             tokens_completion=tokens_completion,
             latency_ms=latency_ms
         )
+
+    def create_batch(self, threads: list[Thread]) -> str:
+        """Create a batch job for multiple thread summarizations.
+
+        Args:
+            threads: List of Thread objects to summarize in batch
+
+        Returns:
+            Batch job ID for polling and retrieval
+
+        Raises:
+            Exception: If batch creation fails
+        """
+        start_time = time.time()
+
+        logger.info("Creating batch job for %d threads with %s",
+                   len(threads),
+                   "Azure OpenAI" if self.is_azure else "OpenAI")
+
+        # Create JSONL file with batch requests
+        batch_requests = []
+        for thread in threads:
+            request = {
+                "custom_id": thread.thread_id,
+                "method": "POST",
+                "url": "/v1/chat/completions",
+                "body": {
+                    "model": self.effective_model,
+                    "messages": [{"role": "user", "content": thread.prompt}],
+                    "max_tokens": thread.context_window_tokens
+                }
+            }
+            batch_requests.append(request)
+
+        # Write to temporary JSONL file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+            for request in batch_requests:
+                f.write(json.dumps(request) + '\n')
+            batch_file_path = f.name
+
+        try:
+            # Upload the JSONL file
+            with open(batch_file_path, 'rb') as f:
+                batch_file = self.client.files.create(
+                    file=f,
+                    purpose="batch"
+                )
+
+            logger.info("Uploaded batch file %s for %d threads", batch_file.id, len(threads))
+
+            # Create the batch job
+            batch_job = self.client.batches.create(
+                input_file_id=batch_file.id,
+                endpoint="/v1/chat/completions",
+                completion_window="24h"
+            )
+
+            logger.info("Created batch job %s for %d threads (duration: %.2fs)",
+                       batch_job.id, len(threads), time.time() - start_time)
+
+            return batch_job.id
+
+        except Exception as e:
+            logger.error("Failed to create batch job: %s", str(e))
+            raise
+        finally:
+            # Clean up temporary file
+            import os
+            try:
+                os.unlink(batch_file_path)
+            except Exception:
+                pass
+
+    def get_batch_status(self, batch_id: str) -> dict[str, Any]:
+        """Get the status of a batch job.
+
+        Args:
+            batch_id: The batch job ID
+
+        Returns:
+            Dictionary with status information including:
+            - status: "validating", "in_progress", "finalizing", "completed", "failed", "expired", "cancelling", "cancelled"
+            - request_counts: dict with total, completed, failed counts
+            - output_file_id: ID of output file (if completed)
+            - error_file_id: ID of error file (if any errors)
+
+        Raises:
+            Exception: If status retrieval fails
+        """
+        try:
+            batch_job = self.client.batches.retrieve(batch_id)
+
+            status_info = {
+                "status": batch_job.status,
+                "request_counts": {
+                    "total": batch_job.request_counts.total,
+                    "completed": batch_job.request_counts.completed,
+                    "failed": batch_job.request_counts.failed
+                }
+            }
+
+            if batch_job.output_file_id:
+                status_info["output_file_id"] = batch_job.output_file_id
+
+            if batch_job.error_file_id:
+                status_info["error_file_id"] = batch_job.error_file_id
+
+            return status_info
+
+        except Exception as e:
+            logger.error("Failed to get batch status for %s: %s", batch_id, str(e))
+            raise
+
+    def retrieve_batch_results(self, batch_id: str) -> list[Summary]:
+        """Retrieve results from a completed batch job.
+
+        Args:
+            batch_id: The batch job ID
+
+        Returns:
+            List of Summary objects, one per thread in the original batch
+
+        Raises:
+            Exception: If batch is not completed or retrieval fails
+        """
+        start_time = time.time()
+
+        logger.info("Retrieving results for batch job %s", batch_id)
+
+        try:
+            # Get batch job details
+            batch_job = self.client.batches.retrieve(batch_id)
+
+            if batch_job.status != "completed":
+                raise RuntimeError(f"Batch job {batch_id} is not completed (status: {batch_job.status})")
+
+            if not batch_job.output_file_id:
+                raise RuntimeError(f"Batch job {batch_id} has no output file")
+
+            # Download the output file
+            output_content = self.client.files.content(batch_job.output_file_id)
+            output_text = output_content.read()
+
+            # Parse JSONL output
+            summaries = []
+            backend = "azure" if self.is_azure else "openai"
+
+            for line in output_text.decode('utf-8').strip().split('\n'):
+                if not line.strip():
+                    continue
+
+                result = json.loads(line)
+                thread_id = result["custom_id"]
+                response_body = result["response"]["body"]
+
+                # Extract summary text
+                summary_text = response_body["choices"][0]["message"]["content"]
+                if summary_text is None:
+                    logger.warning("Batch result for thread %s has no content", thread_id)
+                    summary_text = ""
+
+                # Extract token usage
+                usage = response_body.get("usage", {})
+                tokens_prompt = usage.get("prompt_tokens", 0)
+                tokens_completion = usage.get("completion_tokens", 0)
+
+                # Create Summary object
+                summary = Summary(
+                    thread_id=thread_id,
+                    summary_markdown=summary_text,
+                    citations=[],
+                    llm_backend=backend,
+                    llm_model=self.effective_model,
+                    tokens_prompt=tokens_prompt,
+                    tokens_completion=tokens_completion,
+                    latency_ms=0  # Batch mode doesn't track per-request latency
+                )
+                summaries.append(summary)
+
+            logger.info("Retrieved %d summaries from batch job %s (duration: %.2fs)",
+                       len(summaries), batch_id, time.time() - start_time)
+
+            return summaries
+
+        except Exception as e:
+            logger.error("Failed to retrieve batch results for %s: %s", batch_id, str(e))
+            raise
