@@ -288,6 +288,23 @@ class IngestionService:
 
         return deleted_count
 
+    @staticmethod
+    def _extract_doc_ids(documents: list[dict[str, Any]]) -> list[str]:
+        """Extract document IDs from a list of documents.
+
+        Args:
+            documents: List of document dictionaries
+
+        Returns:
+            List of document IDs as strings
+        """
+        doc_ids = []
+        for doc in documents:
+            doc_id = doc.get("_id") or doc.get("id")
+            if doc_id:
+                doc_ids.append(str(doc_id))
+        return doc_ids
+
     def delete_source_cascade(self, source_name: str) -> dict[str, int]:
         """Delete a source and all associated data (cascade delete).
 
@@ -332,7 +349,7 @@ class IngestionService:
                 "archives",
                 {"source": source_name}
             )
-            archive_ids = [archive.get("_id") or archive.get("id") for archive in archives if archive.get("_id") or archive.get("id")]
+            archive_ids = self._extract_doc_ids(archives)
 
             self.logger.info(
                 "Found archives to delete",
@@ -346,18 +363,17 @@ class IngestionService:
                     "threads",
                     {"source": source_name}
                 )
-                for thread in threads:
-                    thread_id = thread.get("_id") or thread.get("id")
-                    if thread_id:
-                        try:
-                            self.document_store.delete_document("threads", str(thread_id))
-                            deletion_counts["threads"] += 1
-                        except Exception as e:
-                            self.logger.warning(
-                                "Failed to delete thread",
-                                thread_id=thread_id,
-                                error=str(e),
-                            )
+                thread_ids = self._extract_doc_ids(threads)
+                for thread_id in thread_ids:
+                    try:
+                        self.document_store.delete_document("threads", thread_id)
+                        deletion_counts["threads"] += 1
+                    except Exception as e:
+                        self.logger.warning(
+                            "Failed to delete thread",
+                            thread_id=thread_id,
+                            error=str(e),
+                        )
                 self.logger.info(
                     "Deleted threads",
                     source_name=source_name,
@@ -383,19 +399,16 @@ class IngestionService:
                     for archive_id in archive_ids:
                         archive_messages = self.document_store.query_documents(
                             "messages",
-                            {"archive_id": str(archive_id)}
+                            {"archive_id": archive_id}
                         )
                         messages.extend(archive_messages)
 
-                message_ids = []
-                for message in messages:
-                    message_id = message.get("_id") or message.get("id")
-                    if message_id:
-                        message_ids.append(str(message_id))
-                        try:
-                            self.document_store.delete_document("messages", str(message_id))
-                            deletion_counts["messages"] += 1
-                        except Exception as e:
+                message_ids = self._extract_doc_ids(messages)
+                for message_id in message_ids:
+                    try:
+                        self.document_store.delete_document("messages", message_id)
+                        deletion_counts["messages"] += 1
+                    except Exception as e:
                             self.logger.warning(
                                 "Failed to delete message",
                                 message_id=message_id,
@@ -432,19 +445,17 @@ class IngestionService:
                         )
                         chunks.extend(message_chunks)
 
-                for chunk in chunks:
-                    chunk_id = chunk.get("_id") or chunk.get("id")
-                    if chunk_id:
-                        chunk_ids.append(str(chunk_id))
-                        try:
-                            self.document_store.delete_document("chunks", str(chunk_id))
-                            deletion_counts["chunks"] += 1
-                        except Exception as e:
-                            self.logger.warning(
-                                "Failed to delete chunk",
-                                chunk_id=chunk_id,
-                                error=str(e),
-                            )
+                chunk_ids = self._extract_doc_ids(chunks)
+                for chunk_id in chunk_ids:
+                    try:
+                        self.document_store.delete_document("chunks", chunk_id)
+                        deletion_counts["chunks"] += 1
+                    except Exception as e:
+                        self.logger.warning(
+                            "Failed to delete chunk",
+                            chunk_id=chunk_id,
+                            error=str(e),
+                        )
                 self.logger.info(
                     "Deleted chunks",
                     source_name=source_name,
@@ -467,7 +478,7 @@ class IngestionService:
                     "Embeddings may exist for deleted chunks - manual cleanup may be needed",
                     source_name=source_name,
                     chunk_count=len(chunk_ids),
-                    message="The embedding service should handle cleanup of orphaned embeddings",
+                    message="The embedding service should handle cleanup of embeddings associated with deleted chunks",
                 )
 
             # Step 6: Delete summaries/reports (query by source or archive_id)
@@ -482,22 +493,21 @@ class IngestionService:
                     for archive_id in archive_ids:
                         archive_summaries = self.document_store.query_documents(
                             "summaries",
-                            {"archive_id": str(archive_id)}
+                            {"archive_id": archive_id}
                         )
                         summaries.extend(archive_summaries)
 
-                for summary in summaries:
-                    summary_id = summary.get("_id") or summary.get("id")
-                    if summary_id:
-                        try:
-                            self.document_store.delete_document("summaries", str(summary_id))
-                            deletion_counts["summaries"] += 1
-                        except Exception as e:
-                            self.logger.warning(
-                                "Failed to delete summary",
-                                summary_id=summary_id,
-                                error=str(e),
-                            )
+                summary_ids = self._extract_doc_ids(summaries)
+                for summary_id in summary_ids:
+                    try:
+                        self.document_store.delete_document("summaries", summary_id)
+                        deletion_counts["summaries"] += 1
+                    except Exception as e:
+                        self.logger.warning(
+                            "Failed to delete summary",
+                            summary_id=summary_id,
+                            error=str(e),
+                        )
                 self.logger.info(
                     "Deleted summaries",
                     source_name=source_name,
@@ -514,7 +524,7 @@ class IngestionService:
             # Step 7: Delete archives from archive_store
             for archive_id in archive_ids:
                 try:
-                    success = self.archive_store.delete_archive(str(archive_id))
+                    success = self.archive_store.delete_archive(archive_id)
                     if success:
                         deletion_counts["archives_archivestore"] += 1
                 except Exception as e:
@@ -533,7 +543,7 @@ class IngestionService:
             # Step 8: Delete archives from document_store
             for archive_id in archive_ids:
                 try:
-                    self.document_store.delete_document("archives", str(archive_id))
+                    self.document_store.delete_document("archives", archive_id)
                     deletion_counts["archives_docstore"] += 1
                 except Exception as e:
                     self.logger.warning(
