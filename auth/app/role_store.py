@@ -113,7 +113,7 @@ class RoleStore:
             return roles, status
 
         # No record -> create one
-        roles: list[str] = []
+        roles = []
         status = "pending"
 
         # Special case: auto-promote first user to admin if no admins exist
