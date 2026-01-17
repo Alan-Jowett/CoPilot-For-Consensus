@@ -98,6 +98,8 @@ class AzureMonitorMetricsCollector(MetricsCollector):
         self._histograms: dict[str, Any] = {}
         self._gauges: dict[str, Any] = {}
         # Store the latest gauge values per metric and per tag-set.
+        self._meter: Any = None
+        self._provider: Any = None
         # Keyed by fully qualified metric name (e.g. "copilot.queue_depth").
         # The inner dict is keyed by a stable, sorted tuple of (key, value) tag pairs.
         self._gauge_values: dict[str, dict[tuple[tuple[str, str], ...], float]] = {}

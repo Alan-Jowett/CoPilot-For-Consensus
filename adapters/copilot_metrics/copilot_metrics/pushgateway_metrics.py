@@ -95,7 +95,7 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
             raise
 
     @classmethod
-    def from_config(
+    def from_config(  # type: ignore[override]
         cls,
         driver_config: DriverConfig_Metrics_Pushgateway,
     ) -> "PrometheusPushGatewayMetricsCollector":
