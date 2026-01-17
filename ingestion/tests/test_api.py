@@ -4,6 +4,8 @@
 """Unit tests for ingestion API endpoints."""
 
 import pytest
+from unittest.mock import Mock, patch
+
 from app.api import create_api_router
 from app.service import IngestionService
 from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
@@ -435,8 +437,6 @@ class TestSourcesEndpoints:
 
     def test_delete_source_cascade_partial_failure(self, client, service):
         """Test cascade delete with partial failures - verifies non-blocking error handling."""
-        from unittest.mock import Mock, patch
-        
         # Create a source
         source_data = {
             "name": "test-source",
@@ -487,8 +487,6 @@ class TestSourcesEndpoints:
 
     def test_delete_source_cascade_with_archive_store(self, client, service):
         """Test cascade delete verifies archive_store deletions."""
-        from unittest.mock import Mock, patch
-        
         # Create a source
         source_data = {
             "name": "test-source",
@@ -506,7 +504,7 @@ class TestSourcesEndpoints:
                 "file_hash": "abc123",
             })
 
-        # Track archive_store delete calls using Mock
+        # Track archive_store delete calls
         delete_archive_calls = []
         
         def track_delete_archive(archive_id):
@@ -514,7 +512,7 @@ class TestSourcesEndpoints:
             return True
         
         # Use patch.object as context manager for clean teardown
-        with patch.object(service.archive_store, 'delete_archive', Mock(side_effect=track_delete_archive)):
+        with patch.object(service.archive_store, 'delete_archive', side_effect=track_delete_archive):
             response = client.delete("/api/sources/test-source?cascade=true")
 
         assert response.status_code == 200
