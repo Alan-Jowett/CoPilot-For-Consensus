@@ -231,12 +231,10 @@ def test_schema_directory_does_not_exist():
         # Registry should be empty (not lazily initialized with default dir)
         # because we explicitly initialized it
         # The function should have logged a warning but not loaded any schemas
-        # So registry is empty, and get_collection_fields will try to lazy-init
-        # To avoid that, we need to check the registry directly
+        # Check the registry directly to avoid triggering lazy init
         from copilot_storage.schema_registry import _COLLECTION_SCHEMAS
         
         # After init with non-existent dir, registry should be empty
-        # (no schemas were loaded)
         assert len(_COLLECTION_SCHEMAS) == 0
 
 

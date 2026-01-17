@@ -51,7 +51,8 @@ _DEFAULT_SCHEMA_DIR = _REPO_ROOT / "docs" / "schemas" / "documents"
 _COLLECTION_SCHEMAS: dict[str, set[str]] = {}
 
 # Track which unknown fields have been logged (to avoid log spam)
-_UNKNOWN_FIELDS_LOGGED: set[str] = set()
+# Uses tuple (collection, field) as key to avoid delimiter issues
+_UNKNOWN_FIELDS_LOGGED: set[tuple[str, str]] = set()
 
 
 def _load_schema_fields(schema_path: Path) -> set[str]:
@@ -193,7 +194,8 @@ def sanitize_document(doc: dict[str, Any], collection: str, preserve_extra: bool
         if allowed_fields is not None and not preserve_extra:
             if key not in allowed_fields:
                 # Log at warning level for first occurrence of this field in this collection
-                cache_key = f"{collection}:{key}"
+                # Use tuple for cache key to avoid delimiter collision issues
+                cache_key = (collection, key)
                 if cache_key not in _UNKNOWN_FIELDS_LOGGED:
                     _UNKNOWN_FIELDS_LOGGED.add(cache_key)
                     logger.warning(
