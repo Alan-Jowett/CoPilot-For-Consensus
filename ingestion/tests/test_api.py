@@ -487,7 +487,7 @@ class TestSourcesEndpoints:
 
     def test_delete_source_cascade_with_archive_store(self, client, service):
         """Test cascade delete verifies archive_store deletions."""
-        from unittest.mock import Mock
+        from unittest.mock import Mock, patch
         
         # Create a source
         source_data = {
@@ -506,19 +506,16 @@ class TestSourcesEndpoints:
                 "file_hash": "abc123",
             })
 
-        # Track archive_store delete calls
-        original_delete_archive = service.archive_store.delete_archive
+        # Track archive_store delete calls using Mock
         delete_archive_calls = []
         
         def track_delete_archive(archive_id):
             delete_archive_calls.append(archive_id)
-            # Return True to simulate successful deletion
             return True
         
-        service.archive_store.delete_archive = Mock(side_effect=track_delete_archive)
-
-        # Delete with cascade
-        response = client.delete("/api/sources/test-source?cascade=true")
+        # Use patch.object as context manager for clean teardown
+        with patch.object(service.archive_store, 'delete_archive', Mock(side_effect=track_delete_archive)):
+            response = client.delete("/api/sources/test-source?cascade=true")
 
         assert response.status_code == 200
         data = response.json()
@@ -529,9 +526,6 @@ class TestSourcesEndpoints:
         
         # Verify deletion count includes archive_store
         assert data["deletion_counts"]["archives_archivestore"] == 1
-        
-        # Restore original method
-        service.archive_store.delete_archive = original_delete_archive
 
 
 class TestSourceStatusEndpoint:
