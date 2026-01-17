@@ -142,13 +142,20 @@ function Invoke-Az {
 
         # Redact any secret values passed via --value
         $redacted = @()
-        for ($i = 0; $i -lt $AzArgs.Count; $i++) {
+        $i = 0
+        while ($i -lt $AzArgs.Count) {
             $arg = $AzArgs[$i]
-            $redacted += $arg
+
             if ($arg -eq "--value" -and ($i + 1) -lt $AzArgs.Count) {
+                # Include the flag itself, but redact the following value.
+                $redacted += $arg
                 $redacted += "***REDACTED***"
-                $i++
+                $i += 2
+                continue
             }
+
+            $redacted += $arg
+            $i++
         }
         return $redacted
     }
