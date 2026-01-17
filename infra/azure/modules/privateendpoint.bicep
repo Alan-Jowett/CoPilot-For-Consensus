@@ -69,5 +69,5 @@ output privateEndpointId string = privateEndpoint.id
 @description('Private Endpoint name')
 output privateEndpointName string = privateEndpoint.name
 
-@description('Private IP address assigned to the private endpoint')
-output privateIpAddress string = privateEndpoint.properties.customDnsConfigs[0].ipAddresses[0]
+@description('Private IP address assigned to the private endpoint (may be empty immediately after creation)')
+output privateIpAddress string = length(privateEndpoint.properties.customDnsConfigs) > 0 ? privateEndpoint.properties.customDnsConfigs[0].ipAddresses[0] : ''

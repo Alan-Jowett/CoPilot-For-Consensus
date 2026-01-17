@@ -25,10 +25,12 @@ The following Azure resources support Private Link configuration:
 |----------|----------------------|----------|
 | Azure Key Vault | `vault` | `privatelink.vaultcore.azure.net` |
 | Azure Cosmos DB | `Sql` | `privatelink.documents.azure.com` |
-| Azure Storage (Blob) | `blob` | `privatelink.blob.core.windows.net` |
+| Azure Storage (Blob) | `blob` | `privatelink.blob.core.windows.net` (Azure Commercial) |
 | Azure Service Bus | `namespace` | `privatelink.servicebus.windows.net` |
 | Azure AI Search | `searchService` | `privatelink.search.windows.net` |
 | Azure OpenAI | `account` | `privatelink.openai.azure.com` |
+
+**Note**: DNS zone names are automatically adjusted for different Azure cloud environments (Commercial, Government, China).
 
 ## Configuration
 

@@ -15,11 +15,12 @@ param tags object = {}
 
 // Define Private DNS Zone names for Azure services
 // Reference: https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-dns
+// Note: Blob storage DNS zone uses environment().suffixes.storage for cloud-specific suffix
 var privateDnsZoneNames = {
   keyVault: 'privatelink.vaultcore.azure.net'
   cosmosDb: 'privatelink.documents.azure.com'
   cosmosDbSql: 'privatelink.documents.azure.com'
-  blob: 'privatelink.blob.${environment().suffixes.storage}'
+  blob: 'privatelink.blob.${environment().suffixes.storage}'  // Resolves to 'core.windows.net' in Azure Commercial
   serviceBus: 'privatelink.servicebus.windows.net'
   aiSearch: 'privatelink.search.windows.net'
   cognitiveServices: 'privatelink.cognitiveservices.azure.com'
