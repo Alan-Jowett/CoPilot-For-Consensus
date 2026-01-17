@@ -80,6 +80,28 @@ class ValidatingDocumentStore(DocumentStore):
         self._strict = strict
         self._validate_reads = validate_reads
 
+        # Keys injected by some document stores (e.g., Cosmos DB) that should not
+        # be validated against the application JSON schemas.
+        self._validation_metadata_keys: set[str] = {
+            "_attachments",
+            "_etag",
+            "_rid",
+            "_self",
+            "_ts",
+            "collection",
+            "id",
+        }
+
+    def _strip_store_metadata_for_validation(self, doc: dict[str, Any]) -> dict[str, Any]:
+        """Return a copy of doc with store metadata removed.
+
+        Some backends inject system/envelope fields on read. Our JSON Schemas
+        describe the logical document shape and typically set
+        additionalProperties=false, so we must exclude these injected fields
+        before validation.
+        """
+        return {k: v for k, v in doc.items() if k not in self._validation_metadata_keys}
+
     def _collection_to_schema_name(self, collection: str) -> str:
         """Convert collection name to schema name.
 
@@ -218,7 +240,10 @@ class ValidatingDocumentStore(DocumentStore):
 
         # Optionally validate on read
         if doc is not None and self._validate_reads:
-            is_valid, errors = self._validate_document(collection, doc)
+            is_valid, errors = self._validate_document(
+                collection,
+                self._strip_store_metadata_for_validation(doc),
+            )
             if not is_valid:
                 self._handle_validation_failure(collection, errors)
 
@@ -317,9 +342,10 @@ class ValidatingDocumentStore(DocumentStore):
             raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
 
         merged_doc = {**current_doc, **patch}
+        merged_doc_for_validation = self._strip_store_metadata_for_validation(merged_doc)
 
         # Validate the merged document
-        is_valid, errors = self._validate_document(collection, merged_doc)
+        is_valid, errors = self._validate_document(collection, merged_doc_for_validation)
 
         if not is_valid:
             self._handle_validation_failure(collection, errors)

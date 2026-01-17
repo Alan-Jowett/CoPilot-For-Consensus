@@ -326,6 +326,78 @@ class TestValidatingDocumentStore:
 
         assert "status" in str(exc_info.value).lower()
 
+    @requires_schema_validation
+    def test_update_document_ignores_store_metadata_fields(self):
+        """Updating should ignore store-injected metadata for schema validation.
+
+        Some backends (e.g., Azure Cosmos DB) inject system/envelope properties
+        on read (id, collection, _etag, etc.). Our schemas often set
+        additionalProperties=false, so validation must strip these keys.
+        """
+
+        class _MetadataInjectingStore:
+            def __init__(self, inner):
+                self._inner = inner
+
+            def connect(self):
+                return self._inner.connect()
+
+            def disconnect(self):
+                return self._inner.disconnect()
+
+            def insert_document(self, collection, doc):
+                return self._inner.insert_document(collection, doc)
+
+            def get_document(self, collection, doc_id):
+                doc = self._inner.get_document(collection, doc_id)
+                if doc is None:
+                    return None
+                return {
+                    **doc,
+                    "id": "cosmos-id",
+                    "collection": collection,
+                    "_etag": "etag",
+                    "_rid": "rid",
+                    "_self": "self",
+                    "_ts": 123,
+                    "_attachments": "att",
+                }
+
+            def update_document(self, collection, doc_id, patch):
+                return self._inner.update_document(collection, doc_id, patch)
+
+            def delete_document(self, collection, doc_id):
+                return self._inner.delete_document(collection, doc_id)
+
+            def query_documents(self, collection, filter_dict, limit=100):
+                return self._inner.query_documents(collection, filter_dict, limit)
+
+        base = _create_base_inmemory_store()
+        base.connect()
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "_id": {"type": "string"},
+                "name": {"type": "string"},
+                "enabled": {"type": "boolean"},
+            },
+            "required": ["name"],
+            "additionalProperties": False,
+        }
+
+        provider = MockSchemaProvider({"sources": schema})
+        metadata_base = _MetadataInjectingStore(base)
+        store = ValidatingDocumentStore(metadata_base, provider, strict=True)
+
+        doc_id = base.insert_document("sources", {"name": "test-source", "enabled": True})
+
+        # Should not raise, even though current_doc has extra store metadata.
+        store.update_document("sources", doc_id, {"enabled": False})
+
+        updated = base.get_document("sources", doc_id)
+        assert updated["enabled"] is False
+
     def test_update_nonexistent_document(self):
         """Test updating a non-existent document raises DocumentNotFoundError."""
         base = _create_base_inmemory_store()

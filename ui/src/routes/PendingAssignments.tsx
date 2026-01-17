@@ -21,7 +21,7 @@ export function PendingAssignments() {
     setError(null)
     try {
       const data = await fetchPendingRoleAssignments(filters)
-      setAssignments(data.assignments)
+      setAssignments(Array.isArray(data.assignments) ? data.assignments : [])
       setTotal(data.total)
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Failed to load pending assignments'
@@ -121,7 +121,7 @@ export function PendingAssignments() {
                     <td>{assignment.user_name || 'N/A'}</td>
                     <td>
                       <div className="role-badges">
-                        {assignment.requested_roles.map((role) => (
+                        {(assignment.requested_roles ?? []).map((role) => (
                           <span key={role} className="badge">
                             {role}
                           </span>
