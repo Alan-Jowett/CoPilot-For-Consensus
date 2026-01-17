@@ -49,6 +49,7 @@ See [Two-RG Deployment Guide](#two-rg-deployment-guide) for detailed instruction
 - **[Azure OpenAI Configuration Guide](OPENAI_CONFIGURATION.md)** - Detailed guide for configuring Azure OpenAI, model selection, and cost optimization
 - **[Bicep Architecture](BICEP_ARCHITECTURE.md)** - Infrastructure architecture and module design
 - **[GitHub OIDC Setup](GITHUB_OIDC_SETUP.md)** - Configure GitHub Actions for automated deployments
+- **[Azure Portal Dashboard](DASHBOARD.md)** - OpenTelemetry metrics visualization and customization guide
 - **[Azure Private Link](../../docs/AZURE_PRIVATE_LINK.md)** - Configure private network access with Private Link for production deployments
 
 ## Table of Contents
@@ -1587,7 +1588,151 @@ Access Application Insights in Azure Portal:
 2. Open the Application Insights resource
 3. Use "Logs" for KQL queries, "Metrics" for dashboards
 
+### Azure Portal Dashboard
+
+The deployment automatically creates an Azure Portal Dashboard that visualizes OpenTelemetry metrics from your services:
+
+**Dashboard includes:**
+- **Request Count**: HTTP requests per service over time
+- **Request Duration**: P50, P95, and P99 latency percentiles
+- **Failed Requests**: Failed HTTP requests by service and status code
+- **Log Event Rates**: Errors, warnings, and info logs per hour
+- **Custom Metrics**: Service-specific counters (ingestion, parsing, etc.)
+- **Service Durations**: Processing latency for each service
+- **Failure Rates**: Service-specific failure counters
+
+**Accessing the Dashboard:**
+**Bash (Linux/macOS):**
+```bash
+# Get dashboard URL from deployment outputs
+DASHBOARD_URL=$(az deployment group show \
+  --name copilot-deployment \
+  --resource-group copilot-rg \
+  --query properties.outputs.dashboardUrl.value -o tsv)
+
+echo "Dashboard URL: $DASHBOARD_URL"
+# Or open directly in browser:
+# macOS: open "$DASHBOARD_URL"
+# Linux: xdg-open "$DASHBOARD_URL"
+```
+
+**PowerShell (Windows):**
+```powershell
+# Get dashboard URL from deployment outputs
+$dashboardUrl = (az deployment group show `
+  --name copilot-deployment `
+  --resource-group copilot-rg `
+  --query properties.outputs.dashboardUrl.value -o tsv)
+
+Write-Host "Dashboard URL: $dashboardUrl"
+# Or open directly in browser:
+# start $dashboardUrl
+```
+
+Or navigate manually:
+1. Go to Azure Portal (https://portal.azure.com)
+2. Search for "Dashboards" or click the Dashboard hub
+3. Find dashboard named: `<project>-dashboard-<env>-<suffix>`
+
+**Customizing the Dashboard:**
+
+To add or remove metrics from the dashboard:
+
+1. **Edit the Dashboard in Portal** (Quick, temporary changes):
+   - Open the dashboard in Azure Portal
+   - Click "Edit" in the top toolbar
+   - Add tiles by dragging from the Tile Gallery
+   - Click "Done customizing" to save
+   - **Note**: Changes made in Portal will be lost on next deployment
+
+2. **Edit the Bicep Template** (Permanent, Infrastructure-as-Code approach):
+   - Edit `infra/azure/modules/dashboard.bicep`
+   - Add new tile definitions in the `parts` array
+   - Each tile requires: `position`, `metadata` with KQL query, `inputs`
+   - Redeploy using `./deploy.env.sh` to apply changes
+
+**Example: Adding a New Metric Tile**
+
+```bicep
+// Add this to the parts array in dashboard.bicep
+{
+  position: {
+    x: 0
+    y: 17
+    colSpan: 6
+    rowSpan: 4
+  }
+  metadata: {
+    type: 'Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart'
+    settings: {
+      content: {
+        Query: '''
+customMetrics
+| where timestamp > ago(1h)
+| where name == "copilot.ingestion_files_total"
+| summarize FileCount = sum(value) by bin(timestamp, 5m)
+| render timechart
+'''
+        ControlType: 'FrameControlChart'
+        SpecificChart: 'Line'
+      }
+    }
+  }
+  inputs: [
+    {
+      name: 'resourceTypeMode'
+      value: 'workspace'
+    }
+    {
+      name: 'ComponentId'
+      value: {
+        ResourceId: logAnalyticsWorkspaceResourceId
+      }
+    }
+    {
+      name: 'TimeRange'
+      value: 'PT1H'
+    }
+  ]
+}
+```
+
+**Available Metrics:**
+
+See [../../docs/observability/metrics-catalog.md](../../docs/observability/metrics-catalog.md) for the complete list of metrics emitted by the system. Metrics are available in Application Insights under:
+- `requests` table: HTTP request telemetry
+- `traces` table: Application logs with severity levels
+- `customMetrics` table: Service-specific counters and histograms
+  - Naming pattern: `copilot.<service>_<metric>_<type>`
+  - Examples: `copilot.parsing_duration_seconds`, `copilot.ingestion_files_total`
+
+**Troubleshooting:**
+
+If metrics are not appearing in the dashboard:
+1. Verify Application Insights is receiving data:
+   **Bash:**
+   ```bash
+   # Check recent traces
+   az monitor app-insights query \
+     --app <app-insights-name> \
+     --resource-group copilot-rg \
+     --analytics-query "traces | where timestamp > ago(1h) | take 10"
+   ```
+
+   **PowerShell:**
+   ```powershell
+   # Check recent traces
+   az monitor app-insights query `
+     --app <app-insights-name> `
+     --resource-group copilot-rg `
+     --analytics-query "traces | where timestamp > ago(1h) | take 10"
+   ```
+2. Ensure Container Apps have correct Application Insights connection string
+3. Check that OpenTelemetry instrumentation is enabled in services
+4. Verify dashboard queries use correct metric names (see metrics-catalog.md)
+
 ### Log Analytics
+
 
 All container logs are aggregated in Log Analytics:
 
@@ -1598,14 +1743,6 @@ ContainerAppConsoleLogs_CL
 | project TimeGenerated, ContainerAppName_s, Log_s
 | order by TimeGenerated desc
 ```
-
-### Pre-Built Dashboards
-
-The deployment includes Application Insights dashboards for:
-- Service health and availability
-- Request throughput and latency
-- Error rates and exceptions
-- Resource utilization
 
 ## Troubleshooting
 
