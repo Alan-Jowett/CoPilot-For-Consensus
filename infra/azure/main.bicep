@@ -66,6 +66,9 @@ param vnetAddressSpace string = '10.0.0.0/16'
 @description('Container Apps subnet address prefix (CIDR notation)')
 param subnetAddressPrefix string = '10.0.0.0/23'
 
+@description('Private Endpoints subnet address prefix (CIDR notation)')
+param privateEndpointSubnetPrefix string = '10.0.2.0/24'
+
 @description('Whether to create Microsoft Entra app registration for OAuth')
 param deployEntraApp bool = false
 
@@ -115,6 +118,9 @@ param githubOAuthClientSecret string = ''
 
 @description('Enable public network access to Key Vault. Set to false for production with Private Link.')
 param enablePublicNetworkAccess bool = true
+
+@description('Enable private network access (Private Link). When true, disables public access and creates Private Endpoints.')
+param enablePrivateAccess bool = false
 
 @description('Enable Azure RBAC authorization for Key Vault with per-secret access control. STRONGLY RECOMMENDED for production to enforce least-privilege principles.')
 param enableRbacAuthorization bool = true
@@ -174,6 +180,10 @@ var identityPrefix = '${projectName}-${environment}'
 var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
 var entraAppIdentityName = '${identityPrefix}-entraapp-id'
 
+// Compute effective public network access settings
+// When enablePrivateAccess is true, force public access to false for all resources
+var effectiveEnablePublicNetworkAccess = enablePrivateAccess ? false : enablePublicNetworkAccess
+
 // Module: User-Assigned Managed Identities
 module identitiesModule 'modules/identities.bicep' = {
   name: 'identitiesDeployment'
@@ -216,7 +226,7 @@ module keyVaultModule 'modules/keyvault.bicep' = {
       [jwtKeysIdentity!.properties.principalId],
       deployEntraApp ? [entraAppIdentity!.properties.principalId] : []
     ) : []
-    enablePublicNetworkAccess: enablePublicNetworkAccess
+    enablePublicNetworkAccess: effectiveEnablePublicNetworkAccess
     enableRbacAuthorization: enableRbacAuthorization
     tags: tags
   }
@@ -243,6 +253,7 @@ module serviceBusModule 'modules/servicebus.bicep' = {
     identityResourceIds: identitiesModule.outputs.identityResourceIds
     senderServices: serviceBusSenderServices
     receiverServices: serviceBusReceiverServices
+    enablePublicNetworkAccess: effectiveEnablePublicNetworkAccess
   }
 }
 
@@ -255,6 +266,7 @@ module cosmosModule 'modules/cosmos.bicep' = {
     enableMultiRegion: enableMultiRegionCosmos
     cosmosDbAutoscaleMinRu: cosmosDbAutoscaleMinRu
     cosmosDbAutoscaleMaxRu: cosmosDbAutoscaleMaxRu
+    enablePublicNetworkAccess: effectiveEnablePublicNetworkAccess
     tags: tags
   }
 }
@@ -299,7 +311,7 @@ module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
       identitiesModule.outputs.identityPrincipalIdsByName.ingestion
       identitiesModule.outputs.identityPrincipalIdsByName.parsing
     ]
-    networkDefaultAction: environment == 'prod' ? 'Deny' : 'Allow'
+    networkDefaultAction: effectiveEnablePublicNetworkAccess ? 'Allow' : 'Deny'
     tags: tags
   }
 }
@@ -336,7 +348,7 @@ module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps && vect
     sku: environment == 'prod' ? 'standard' : 'basic'
     embeddingServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.embedding
     summarizationServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.summarization
-    enablePublicNetworkAccess: environment != 'prod'  // Disable for production (Private Link), enable for dev/staging
+    enablePublicNetworkAccess: effectiveEnablePublicNetworkAccess
     tags: tags
   }
 }
@@ -505,8 +517,110 @@ module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
     environment: environment
     vnetAddressSpace: vnetAddressSpace
     subnetAddressPrefix: subnetAddressPrefix
+    privateEndpointSubnetPrefix: privateEndpointSubnetPrefix
+    enablePrivateEndpointSubnet: enablePrivateAccess
     tags: tags
   }
+}
+
+// Module: Private DNS Zones (for Private Link)
+module privateDnsModule 'modules/privatedns.bicep' = if (deployContainerApps && enablePrivateAccess) {
+  name: 'privateDnsDeployment'
+  params: {
+    location: location
+    vnetId: vnetModule!.outputs.vnetId
+    tags: tags
+  }
+}
+
+// Module: Private Endpoints for Key Vault
+module keyVaultPrivateEndpointModule 'modules/privateendpoint.bicep' = if (deployContainerApps && enablePrivateAccess) {
+  name: 'keyVaultPrivateEndpointDeployment'
+  params: {
+    location: location
+    privateEndpointName: '${keyVaultName}-pe'
+    subnetId: vnetModule!.outputs.privateEndpointSubnetId
+    serviceResourceId: keyVaultModule.outputs.keyVaultId
+    groupIds: ['vault']
+    privateDnsZoneIds: [privateDnsModule!.outputs.privateDnsZoneIds.keyVault]
+    tags: tags
+  }
+  dependsOn: [
+    keyVaultModule
+    privateDnsModule
+  ]
+}
+
+// Module: Private Endpoints for Cosmos DB
+module cosmosPrivateEndpointModule 'modules/privateendpoint.bicep' = if (deployContainerApps && enablePrivateAccess) {
+  name: 'cosmosPrivateEndpointDeployment'
+  params: {
+    location: location
+    privateEndpointName: '${cosmosAccountName}-pe'
+    subnetId: vnetModule!.outputs.privateEndpointSubnetId
+    serviceResourceId: cosmosModule.outputs.accountId
+    groupIds: ['Sql']
+    privateDnsZoneIds: [privateDnsModule!.outputs.privateDnsZoneIds.cosmosDb]
+    tags: tags
+  }
+  dependsOn: [
+    cosmosModule
+    privateDnsModule
+  ]
+}
+
+// Module: Private Endpoints for Service Bus
+module serviceBusPrivateEndpointModule 'modules/privateendpoint.bicep' = if (deployContainerApps && enablePrivateAccess) {
+  name: 'serviceBusPrivateEndpointDeployment'
+  params: {
+    location: location
+    privateEndpointName: '${serviceBusNamespaceName}-pe'
+    subnetId: vnetModule!.outputs.privateEndpointSubnetId
+    serviceResourceId: serviceBusModule.outputs.namespaceResourceId
+    groupIds: ['namespace']
+    privateDnsZoneIds: [privateDnsModule!.outputs.privateDnsZoneIds.serviceBus]
+    tags: tags
+  }
+  dependsOn: [
+    serviceBusModule
+    privateDnsModule
+  ]
+}
+
+// Module: Private Endpoints for Storage Account
+module storagePrivateEndpointModule 'modules/privateendpoint.bicep' = if (deployContainerApps && enablePrivateAccess) {
+  name: 'storagePrivateEndpointDeployment'
+  params: {
+    location: location
+    privateEndpointName: '${storageAccountName}-pe'
+    subnetId: vnetModule!.outputs.privateEndpointSubnetId
+    serviceResourceId: storageModule!.outputs.accountId
+    groupIds: ['blob']
+    privateDnsZoneIds: [privateDnsModule!.outputs.privateDnsZoneIds.blob]
+    tags: tags
+  }
+  dependsOn: [
+    storageModule
+    privateDnsModule
+  ]
+}
+
+// Module: Private Endpoints for AI Search (optional, only when using azure_ai_search)
+module aiSearchPrivateEndpointModule 'modules/privateendpoint.bicep' = if (deployContainerApps && enablePrivateAccess && vectorStoreBackend == 'azure_ai_search') {
+  name: 'aiSearchPrivateEndpointDeployment'
+  params: {
+    location: location
+    privateEndpointName: '${aiSearchServiceName}-pe'
+    subnetId: vnetModule!.outputs.privateEndpointSubnetId
+    serviceResourceId: aiSearchModule!.outputs.serviceId
+    groupIds: ['searchService']
+    privateDnsZoneIds: [privateDnsModule!.outputs.privateDnsZoneIds.aiSearch]
+    tags: tags
+  }
+  dependsOn: [
+    aiSearchModule
+    privateDnsModule
+  ]
 }
 
 // Calculate redirect URIs for OAuth callback
