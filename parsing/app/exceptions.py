@@ -12,7 +12,7 @@ class ParsingError(Exception):
 class MessageParsingError(ParsingError):
     """Raised when parsing an individual message fails."""
 
-    def __init__(self, message: str, message_index: int = None):
+    def __init__(self, message: str, message_index: int | None = None):
         """Initialize MessageParsingError with context.
 
         Args:
@@ -26,7 +26,7 @@ class MessageParsingError(ParsingError):
 class MboxFileError(ParsingError):
     """Raised when opening or reading an mbox file fails."""
 
-    def __init__(self, message: str, file_path: str = None):
+    def __init__(self, message: str, file_path: str | None = None):
         """Initialize MboxFileError with context.
 
         Args:
@@ -40,7 +40,7 @@ class MboxFileError(ParsingError):
 class RequiredFieldMissingError(ParsingError):
     """Raised when a required field is missing from a message."""
 
-    def __init__(self, field_name: str, message_id: str = None):
+    def __init__(self, field_name: str, message_id: str | None = None):
         """Initialize RequiredFieldMissingError.
 
         Args:

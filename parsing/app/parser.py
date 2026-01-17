@@ -315,7 +315,7 @@ class MessageParser:
                 if content_type == "text/plain":
                     try:
                         payload = part.get_payload(decode=True)
-                        if payload:
+                        if payload and isinstance(payload, bytes):
                             charset = part.get_content_charset() or 'utf-8'
                             body = payload.decode(charset, errors='replace')
                             break
@@ -330,7 +330,7 @@ class MessageParser:
                     if content_type == "text/html":
                         try:
                             payload = part.get_payload(decode=True)
-                            if payload:
+                            if payload and isinstance(payload, bytes):
                                 charset = part.get_content_charset() or 'utf-8'
                                 body = payload.decode(charset, errors='replace')
                                 break
@@ -340,7 +340,7 @@ class MessageParser:
             # Simple message
             try:
                 payload = message.get_payload(decode=True)
-                if payload:
+                if payload and isinstance(payload, bytes):
                     charset = message.get_content_charset() or 'utf-8'
                     body = payload.decode(charset, errors='replace')
                 else:

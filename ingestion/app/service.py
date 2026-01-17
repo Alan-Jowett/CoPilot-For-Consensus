@@ -218,7 +218,7 @@ class IngestionService:
 
         # Source status tracking
         self._source_status: dict[str, dict[str, Any]] = {}
-        self._stats = {
+        self._stats: dict[str, int | str | None] = {
             "total_files_ingested": 0,
             "last_ingestion_at": None,
         }
@@ -977,7 +977,7 @@ class IngestionService:
             - None value indicates success
             - Exception object indicates failure with details
         """
-        results = {}
+        results: dict[str, Exception | None] = {}
 
         for source in self._get_enabled_sources_for_ingestion():
             self.logger.info("Starting source ingestion", source_name=source.name)
@@ -1856,6 +1856,8 @@ class IngestionService:
 
         # Update global stats
         if status == "success":
-            self._stats["total_files_ingested"] += files_processed
+            total_ingested = self._stats["total_files_ingested"]
+            if isinstance(total_ingested, int):
+                self._stats["total_files_ingested"] = total_ingested + files_processed
             self._stats["last_ingestion_at"] = now
 

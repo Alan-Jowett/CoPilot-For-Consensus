@@ -11,7 +11,7 @@ class DraftDetector:
 
     DEFAULT_PATTERN = r'(draft-[a-z0-9-]+-\d+)|(RFC\s*\d+)|(rfc\d+)'
 
-    def __init__(self, pattern: str = None):
+    def __init__(self, pattern: str | None = None):
         """Initialize draft detector.
 
         Args:
