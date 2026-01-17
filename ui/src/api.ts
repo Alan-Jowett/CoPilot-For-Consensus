@@ -302,7 +302,13 @@ export async function createIngestionSource(source: IngestionSource): Promise<{ 
   })
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
-    throw new Error(error.detail || `Failed to create source: ${r.status}`)
+    // Ensure error.detail is converted to string (handles object, string, undefined)
+    const errorMessage = typeof error.detail === 'string' 
+      ? error.detail 
+      : error.detail 
+        ? JSON.stringify(error.detail)
+        : `Failed to create source: ${r.status}`
+    throw new Error(errorMessage)
   }
   return r.json()
 }
@@ -316,7 +322,13 @@ export async function updateIngestionSource(name: string, source: IngestionSourc
   if (r.status === 404) throw new Error('NOT_FOUND')
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
-    throw new Error(error.detail || `Failed to update source: ${r.status}`)
+    // Ensure error.detail is converted to string (handles object, string, undefined)
+    const errorMessage = typeof error.detail === 'string' 
+      ? error.detail 
+      : error.detail 
+        ? JSON.stringify(error.detail)
+        : `Failed to update source: ${r.status}`
+    throw new Error(errorMessage)
   }
   return r.json()
 }
@@ -336,7 +348,13 @@ export async function triggerIngestionSource(name: string): Promise<{ source_nam
   })
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
-    throw new Error(error.detail || `Failed to trigger ingestion: ${r.status}`)
+    // Ensure error.detail is converted to string (handles object, string, undefined)
+    const errorMessage = typeof error.detail === 'string' 
+      ? error.detail 
+      : error.detail 
+        ? JSON.stringify(error.detail)
+        : `Failed to trigger ingestion: ${r.status}`
+    throw new Error(errorMessage)
   }
   return r.json()
 }
@@ -509,7 +527,13 @@ export async function searchUsers(
   const r = await fetchWithAuth(`${AUTH_API_BASE}/admin/users/search?${params}`)
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
-    throw new Error(error.detail || `Failed to search users: ${r.status}`)
+    // Ensure error.detail is converted to string (handles object, string, undefined)
+    const errorMessage = typeof error.detail === 'string' 
+      ? error.detail 
+      : error.detail 
+        ? JSON.stringify(error.detail)
+        : `Failed to search users: ${r.status}`
+    throw new Error(errorMessage)
   }
   return r.json()
 }
@@ -522,7 +546,13 @@ export async function assignUserRoles(userId: string, roles: string[]): Promise<
   })
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
-    throw new Error(error.detail || `Failed to assign roles: ${r.status}`)
+    // Ensure error.detail is converted to string (handles object, string, undefined)
+    const errorMessage = typeof error.detail === 'string' 
+      ? error.detail 
+      : error.detail 
+        ? JSON.stringify(error.detail)
+        : `Failed to assign roles: ${r.status}`
+    throw new Error(errorMessage)
   }
   return r.json()
 }
@@ -535,7 +565,13 @@ export async function revokeUserRoles(userId: string, roles: string[]): Promise<
   })
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
-    throw new Error(error.detail || `Failed to revoke roles: ${r.status}`)
+    // Ensure error.detail is converted to string (handles object, string, undefined)
+    const errorMessage = typeof error.detail === 'string' 
+      ? error.detail 
+      : error.detail 
+        ? JSON.stringify(error.detail)
+        : `Failed to revoke roles: ${r.status}`
+    throw new Error(errorMessage)
   }
   return r.json()
 }
@@ -546,7 +582,13 @@ export async function denyRoleAssignment(userId: string): Promise<UserRoleRecord
   })
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
-    throw new Error(error.detail || `Failed to deny role assignment: ${r.status}`)
+    // Ensure error.detail is converted to string (handles object, string, undefined)
+    const errorMessage = typeof error.detail === 'string' 
+      ? error.detail 
+      : error.detail 
+        ? JSON.stringify(error.detail)
+        : `Failed to deny role assignment: ${r.status}`
+    throw new Error(errorMessage)
   }
   return r.json()
 }
