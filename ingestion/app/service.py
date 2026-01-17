@@ -821,6 +821,7 @@ class IngestionService:
                 # Proceed with default values to avoid blocking the pipeline
 
             archive_doc = {
+                "id": archive_id,  # Cosmos-native identifier (kept in sync with canonical _id)
                 "_id": archive_id,  # Canonical identifier
                 "file_hash": file_hash,
                 "file_size_bytes": file_size_bytes,

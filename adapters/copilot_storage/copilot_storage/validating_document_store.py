@@ -334,8 +334,23 @@ class ValidatingDocumentStore(DocumentStore):
             DocumentValidationError: If strict=True and validation fails
             DocumentNotFoundError: If document does not exist
         """
-        # Fetch current document and merge with patch to validate the result
+        # Fetch current document and merge with patch to validate the result.
+        # Some backends (e.g., Cosmos DB) may store a different native document id
+        # ("id") than the application-level canonical key (often stored in "_id").
+        # In that case, get_document(collection, doc_id) can miss even though a
+        # document exists with _id == doc_id.
         current_doc = self._store.get_document(collection, doc_id)
+        effective_doc_id = doc_id
+
+        if current_doc is None:
+            candidates = self._store.query_documents(collection, {"_id": doc_id}, limit=1)
+            if candidates:
+                current_doc = candidates[0]
+                resolved_id = current_doc.get("id")
+                if resolved_id is None:
+                    resolved_id = current_doc.get("_id")
+                if resolved_id is not None:
+                    effective_doc_id = str(resolved_id)
 
         # Raise DocumentNotFoundError if document doesn't exist
         if current_doc is None:
@@ -351,7 +366,7 @@ class ValidatingDocumentStore(DocumentStore):
             self._handle_validation_failure(collection, errors)
 
         # Delegate to underlying store
-        self._store.update_document(collection, doc_id, patch)
+        self._store.update_document(collection, effective_doc_id, patch)
 
     def delete_document(self, collection: str, doc_id: str) -> None:
         """Delete a document by its ID.

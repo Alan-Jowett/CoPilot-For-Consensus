@@ -33,9 +33,32 @@ def mock_azure_exporter(monkeypatch):
     try:
         import azure.monitor.opentelemetry.exporter as am_exporter
 
+        try:
+            from opentelemetry.sdk.metrics.export import MetricExportResult
+        except Exception:  # pragma: no cover
+            MetricExportResult = None
+
         class MockExporter:
-            def __init__(self, connection_string):
+            def __init__(self, connection_string=None, **kwargs):
                 self.connection_string = connection_string
+                self.kwargs = kwargs
+                # OpenTelemetry expects these on MetricExporter implementations.
+                self._preferred_temporality = {}
+                self._preferred_aggregation = {}
+
+            def export(self, metrics_data, timeout_millis=None):
+                _ = (metrics_data, timeout_millis)
+                if MetricExportResult is None:
+                    return None
+                return MetricExportResult.SUCCESS
+
+            def force_flush(self, timeout_millis=None, timeout=None, **kwargs):
+                _ = (timeout_millis, timeout, kwargs)
+                return True
+
+            def shutdown(self, timeout_millis=None, timeout=None, **kwargs):
+                _ = (timeout_millis, timeout, kwargs)
+                return True
 
         monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
         return MockExporter
@@ -514,7 +537,7 @@ class TestAzureMonitorMetricsCollector:
         # Verify gauge is tracked
         assert "queue_depth" in collector._gauges
         assert "test.queue_depth" in collector._gauge_values
-        assert collector._gauge_values["test.queue_depth"] == 15.0
+        assert collector._gauge_values["test.queue_depth"][()] == 15.0
 
     @pytest.mark.skipif(
         sys.modules.get('azure.monitor.opentelemetry.exporter') is None

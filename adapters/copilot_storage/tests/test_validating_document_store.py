@@ -77,6 +77,52 @@ class TestValidatingDocumentStore:
         assert store._collection_to_schema_name("chunks") == "chunks"
         assert store._collection_to_schema_name("summaries") == "summaries"
 
+    def test_update_document_falls_back_to_query_by__id_when_missing(self):
+        """If get_document misses, allow update via query({_id: doc_id}).
+
+        This models Cosmos DB behavior where the native document id ("id") can
+        differ from the application-level canonical key (often stored in "_id").
+        """
+
+        class FakeStore:
+            def __init__(self):
+                self.updated: list[tuple[str, str, dict]] = []
+
+            def connect(self):
+                return None
+
+            def disconnect(self):
+                return None
+
+            def insert_document(self, collection: str, doc: dict):
+                raise NotImplementedError
+
+            def get_document(self, collection: str, doc_id: str):
+                # Simulate "miss" when asked by canonical id
+                return None
+
+            def query_documents(self, collection: str, filter_dict: dict, limit: int = 100):
+                if collection == "archives" and filter_dict == {"_id": "9b548dcbf26aec88"}:
+                    return [{"id": "cosmos-generated-id", "_id": "9b548dcbf26aec88", "status": "pending"}]
+                return []
+
+            def update_document(self, collection: str, doc_id: str, patch: dict):
+                self.updated.append((collection, doc_id, patch))
+
+            def delete_document(self, collection: str, doc_id: str):
+                raise NotImplementedError
+
+        base = FakeStore()
+        store = ValidatingDocumentStore(store=base, schema_provider=None, strict=True)
+
+        store.update_document(
+            "archives",
+            "9b548dcbf26aec88",
+            {"status": "completed"},
+        )
+
+        assert base.updated == [("archives", "cosmos-generated-id", {"status": "completed"})]
+
     @requires_schema_validation
     def test_insert_valid_document_strict_mode(self):
         """Test inserting a valid document in strict mode."""

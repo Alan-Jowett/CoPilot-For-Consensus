@@ -171,7 +171,9 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
       ingress: {
         external: false  // Internal-only access
         targetPort: 6333
-        allowInsecure: false
+        // Allow HTTP within the Container Apps environment so services can reach Qdrant
+        // via the ingress port (80) without needing TLS configuration in the clients.
+        allowInsecure: true
       }
     }
     template: {
@@ -476,7 +478,9 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'QDRANT_PORT'
-              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
+              // Container Apps ingress listens on 80/443; targetPort routes to 6333.
+              // Clients should use the ingress port, not the container port.
+              value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
               name: 'QDRANT_COLLECTION'
@@ -1184,7 +1188,9 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'QDRANT_PORT'
-              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
+              // Container Apps ingress listens on 80/443; targetPort routes to 6333.
+              // Clients should use the ingress port, not the container port.
+              value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
               name: 'QDRANT_COLLECTION'
@@ -1421,11 +1427,13 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'QDRANT_HOST'
-              value: 'qdrant'
+              value: '${projectPrefix}-qdrant-${environment}'
             }
             {
               name: 'QDRANT_PORT'
-              value: '6333'
+              // Container Apps ingress listens on 80/443; targetPort routes to 6333.
+              // Clients should use the ingress port, not the container port.
+              value: '80'
             }
             {
               name: 'QDRANT_COLLECTION'
@@ -1606,7 +1614,9 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'QDRANT_PORT'
-              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
+              // Container Apps ingress listens on 80/443; targetPort routes to 6333.
+              // Clients should use the ingress port, not the container port.
+              value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
               name: 'QDRANT_COLLECTION'
