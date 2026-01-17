@@ -7,7 +7,7 @@ import json
 import os
 import signal
 import sys
-from dataclasses import asdict, replace
+from dataclasses import replace
 from pathlib import Path
 
 # Add app directory to path

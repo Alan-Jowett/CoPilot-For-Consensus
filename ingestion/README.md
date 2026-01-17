@@ -163,7 +163,7 @@ curl -X DELETE http://localhost:8080/ingestion/api/sources/ietf-quic
 | `HTTP_PORT` | `8080` | HTTP API server port |
 | `INGESTION_SCHEDULE_INTERVAL_SECONDS` | `21600` | Interval between scheduled ingestions (6 hours) |
 | `INGESTION_SOURCES_STORE_TYPE` | `document_store` | Backend for source storage: `document_store` (default, production) or `file` (dev/legacy) |
-| `INGESTION_SOURCES_FILE_PATH` | `None` | Path to sources JSON file (only used when `SOURCES_STORE_TYPE=file`) |
+| `INGESTION_SOURCES_FILE_PATH` | `None` | Path to sources JSON file (only used when `INGESTION_SOURCES_STORE_TYPE=file`) |
 | `STORAGE_PATH` | `/data/raw_archives` | Archive storage location |
 | `MESSAGE_BUS_TYPE` | `rabbitmq` | `rabbitmq` or `noop` |
 | `MESSAGE_BUS_HOST` | `messagebus` | RabbitMQ hostname |

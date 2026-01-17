@@ -1404,7 +1404,7 @@ class IngestionService:
             return _enabled_sources(self._startup_sources)
         else:
             # Use document store sources (default)
-            sources = self.list_sources(enabled_only=True)
+            sources = self.list_sources(enabled_only=False)
             return _enabled_sources(sources)
 
     def _update_source_status(

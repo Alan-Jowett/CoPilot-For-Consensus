@@ -3,10 +3,8 @@
 
 """Tests for configurable source storage backends."""
 
-import tempfile
 from unittest.mock import patch
 
-import pytest
 from app.service import IngestionService
 from copilot_config.generated.adapters.document_store import (
     AdapterConfig_DocumentStore,
@@ -27,10 +25,6 @@ from copilot_config.generated.adapters.message_bus import (
 from copilot_config.generated.adapters.metrics import (
     AdapterConfig_Metrics,
     DriverConfig_Metrics_Noop,
-)
-from copilot_config.generated.services.ingestion import (
-    ServiceConfig_Ingestion,
-    ServiceSettings_Ingestion,
 )
 from copilot_error_reporting import create_error_reporter
 from copilot_logging import create_logger
