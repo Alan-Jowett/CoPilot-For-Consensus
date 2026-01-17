@@ -703,7 +703,7 @@ class TestDenyRoleAssignment:
         }
         mock_store.query_documents.return_value = [existing_record]
 
-        result = role_store.deny_role_assignment(
+        role_store.deny_role_assignment(
             user_id="github:123",
             admin_user_id="github:admin",
         )

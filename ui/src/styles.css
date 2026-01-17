@@ -782,6 +782,15 @@ tr:hover { background-color: var(--bg-hover); }
   border-radius: 4px;
 }
 
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.small:disabled {
+  opacity: 0.6;
+}
+
 .bulk-actions-bar {
   display: flex;
   justify-content: space-between;

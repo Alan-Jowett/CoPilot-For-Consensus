@@ -972,7 +972,16 @@ async def deny_role_assignment(
         return JSONResponse(content=updated_record)
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        # Distinguish between "user not found" and status validation errors
+        message = str(e)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message)
+        # For existing users with invalid status (e.g., already approved/denied),
+        # return a conflict to better reflect the state of the resource
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=message,
+        )
     except Exception as e:
         logger.exception(f"Failed to deny role assignment: {e}")
         raise HTTPException(status_code=500, detail="Failed to deny role assignment")

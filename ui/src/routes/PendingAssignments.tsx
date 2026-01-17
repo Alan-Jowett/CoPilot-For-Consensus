@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { fetchPendingRoleAssignments, PendingRoleAssignment, assignUserRoles, denyRoleAssignment } from '../api'
 
 export function PendingAssignments() {
@@ -12,6 +12,7 @@ export function PendingAssignments() {
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const selectAllRef = useRef<HTMLInputElement>(null)
   const [filters, setFilters] = useState({
     user_id: '',
     role: '',
@@ -40,6 +41,14 @@ export function PendingAssignments() {
   useEffect(() => {
     loadAssignments()
   }, [loadAssignments])
+
+  // Set indeterminate state for Select All checkbox when partial selection
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate =
+        selectedIds.size > 0 && selectedIds.size < assignments.length
+    }
+  }, [selectedIds.size, assignments.length])
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters((prev) => ({ ...prev, [field]: value, skip: 0 }))
@@ -273,6 +282,7 @@ export function PendingAssignments() {
                 <tr>
                   <th>
                     <input
+                      ref={selectAllRef}
                       type="checkbox"
                       checked={selectedIds.size === assignments.length && assignments.length > 0}
                       onChange={handleSelectAll}
