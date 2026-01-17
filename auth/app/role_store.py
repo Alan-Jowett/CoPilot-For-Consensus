@@ -401,6 +401,80 @@ class RoleStore:
             logger.exception(f"Failed to revoke roles: {exc}")
             raise
 
+    def deny_role_assignment(
+        self,
+        user_id: str,
+        admin_user_id: str,
+        admin_email: str | None = None,
+    ) -> dict[str, Any]:
+        """Deny a pending role assignment request.
+
+        Args:
+            user_id: User identifier
+            admin_user_id: ID of the admin performing the action
+            admin_email: Email of the admin performing the action
+
+        Returns:
+            Updated user role record
+
+        Raises:
+            ValueError: If user record not found or status is not pending
+        """
+        record = self._find_user_record(user_id)
+
+        if not record:
+            raise ValueError(f"User record not found: {user_id}")
+
+        # Validate that the user's current status is "pending"
+        current_status = record.get("status", "pending")
+        if current_status != "pending":
+            raise ValueError(f"Cannot deny: user status is '{current_status}', expected 'pending'")
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Update status to denied, clear roles
+        updated_doc = {
+            **record,
+            "roles": [],
+            "status": "denied",
+            "updated_at": now,
+            "denied_by": admin_user_id,
+            "denied_at": now,
+        }
+
+        try:
+            # Remove _id from the update doc
+            update_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+
+            if "_id" in record:
+                self.store.update_document(self.collection, record["_id"], update_doc)
+            else:
+                from copilot_storage.document_store import DocumentNotFoundError
+
+                try:
+                    self.store.update_document(self.collection, user_id, update_doc)
+                except DocumentNotFoundError:
+                    insert_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+                    self.store.insert_document(self.collection, insert_doc)
+
+            # Log audit event
+            logger.info(
+                f"Role assignment denied for user {user_id} by admin {admin_user_id}",
+                extra={
+                    "event": "role_assignment_denied",
+                    "user_id": user_id,
+                    "admin_user_id": admin_user_id,
+                    "admin_email": admin_email,
+                    "timestamp": now,
+                },
+            )
+
+            return updated_doc
+
+        except Exception as exc:
+            logger.exception(f"Failed to deny role assignment: {exc}")
+            raise
+
     def find_by_role(self, role: str) -> list[dict[str, Any]]:
         """Find all users with a specific role.
 

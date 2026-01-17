@@ -539,3 +539,14 @@ export async function revokeUserRoles(userId: string, roles: string[]): Promise<
   }
   return r.json()
 }
+
+export async function denyRoleAssignment(userId: string): Promise<UserRoleRecord> {
+  const r = await fetchWithAuth(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/deny`, {
+    method: 'POST',
+  })
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
+    throw new Error(error.detail || `Failed to deny role assignment: ${r.status}`)
+  }
+  return r.json()
+}
