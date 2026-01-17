@@ -8,6 +8,11 @@
 mypy==1.13.0
 pyright==1.1.390
 
+# Type stubs for third-party libraries
+types-requests>=2.32.0
+types-jsonschema>=4.0.0
+types-beautifulsoup4>=4.12.0
+
 # Linting and formatting
 ruff==0.8.4
 pylint==3.3.2
