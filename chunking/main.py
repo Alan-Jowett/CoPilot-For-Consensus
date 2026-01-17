@@ -238,11 +238,11 @@ def main():
             max_attempts=int(os.environ.get("RETRY_MAX_ATTEMPTS", "8")),
             base_delay_ms=int(os.environ.get("RETRY_BASE_DELAY_MS", "250")),
             backoff_factor=float(os.environ.get("RETRY_BACKOFF_FACTOR", "2.0")),
-            max_delay_seconds=int(os.environ.get("RETRY_MAX_DELAY_SECONDS", "60")),
-            ttl_minutes=int(os.environ.get("RETRY_TTL_MINUTES", "30")),
+            max_delay_ms=int(os.environ.get("RETRY_MAX_DELAY_MS", "60000")),  # 60 seconds default
+            ttl_seconds=int(os.environ.get("RETRY_TTL_SECONDS", "1800")),  # 30 minutes default
         )
         logger.info(f"Retry configuration: max_attempts={retry_config.max_attempts}, "
-                   f"base_delay_ms={retry_config.base_delay_ms}, ttl_minutes={retry_config.ttl_minutes}")
+                   f"base_delay_ms={retry_config.base_delay_ms}, ttl_seconds={retry_config.ttl_seconds}")
 
         # Create chunking service
         chunking_service = ChunkingService(

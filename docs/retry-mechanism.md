@@ -45,8 +45,8 @@ Retry behavior can be configured via environment variables (without requiring re
 | `RETRY_MAX_ATTEMPTS` | `8` | Maximum number of retry attempts before giving up |
 | `RETRY_BASE_DELAY_MS` | `250` | Initial delay in milliseconds before first retry |
 | `RETRY_BACKOFF_FACTOR` | `2.0` | Exponential backoff multiplier for each retry |
-| `RETRY_MAX_DELAY_SECONDS` | `60` | Maximum delay cap between retries (in seconds) |
-| `RETRY_TTL_MINUTES` | `30` | Total time-to-live for retries (abandon after this duration) |
+| `RETRY_MAX_DELAY_MS` | `60000` | Maximum delay cap between retries (in milliseconds, 60 seconds) |
+| `RETRY_TTL_SECONDS` | `1800` | Total time-to-live for retries in seconds (30 minutes) |
 
 ### Default Retry Schedule
 
