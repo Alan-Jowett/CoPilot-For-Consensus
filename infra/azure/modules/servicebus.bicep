@@ -43,6 +43,9 @@ param receiverServices array = [
 @description('Shared topic name used for fan-out messaging')
 param eventsTopicName string = 'copilot.events'
 
+@description('Enable public network access (set to false for production with Private Link)')
+param enablePublicNetworkAccess bool = true
+
 // Service Bus Namespace
 resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
   name: namespaceName
@@ -55,7 +58,7 @@ resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview
     disableLocalAuth: true
     zoneRedundant: sku == 'Premium'
     minimumTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: enablePublicNetworkAccess ? 'Enabled' : 'Disabled'
   }
 }
 
@@ -119,11 +122,11 @@ resource receiverRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-0
 @description('The resource ID of the Service Bus namespace')
 output namespaceName string = serviceBusNamespace.name
 
-@description('The fully qualified domain name of the Service Bus namespace')
-output namespaceFullyQualifiedName string = '${serviceBusNamespace.name}.servicebus.windows.net'
-
 @description('The namespace resource ID for use by dependent resources')
 output namespaceResourceId string = serviceBusNamespace.id
+
+@description('The fully qualified domain name of the Service Bus namespace')
+output namespaceFullyQualifiedName string = '${serviceBusNamespace.name}.servicebus.windows.net'
 
 @description('Shared topic name deployed to the namespace')
 output topicName string = eventsTopic.name

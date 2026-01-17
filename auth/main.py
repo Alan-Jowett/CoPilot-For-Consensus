@@ -930,6 +930,63 @@ async def revoke_user_roles(
         raise HTTPException(status_code=500, detail="Failed to revoke roles")
 
 
+@app.post("/admin/users/{user_id}/deny")
+async def deny_role_assignment(
+    user_id: str,
+    request: Request,
+) -> JSONResponse:
+    """Deny a pending role assignment request.
+
+    Requires admin role. Sets the user's status to 'denied' and clears any roles.
+    Logs the action for audit purposes.
+
+    Args:
+        user_id: User identifier
+        request: FastAPI request
+
+    Returns:
+        JSON with updated user record
+    """
+    # Validate admin role
+    admin_user_id, admin_email = require_admin_role(request)
+    service = _require_auth_service()
+
+    try:
+        updated_record = service.role_store.deny_role_assignment(
+            user_id=user_id,
+            admin_user_id=admin_user_id,
+            admin_email=admin_email,
+        )
+
+        logger.info(
+            f"Admin {admin_user_id} denied role assignment for user {user_id}",
+            extra={
+                "event": "admin_deny_assignment",
+                "admin_user_id": admin_user_id,
+                "target_user_id": user_id,
+            },
+        )
+
+        metrics.increment("admin_deny_assignment_total", {"admin": admin_user_id})
+
+        return JSONResponse(content=updated_record)
+
+    except ValueError as e:
+        # Distinguish between "user not found" and status validation errors
+        message = str(e)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message)
+        # For existing users with invalid status (e.g., already approved/denied),
+        # return a conflict to better reflect the state of the resource
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=message,
+        )
+    except Exception as e:
+        logger.exception(f"Failed to deny role assignment: {e}")
+        raise HTTPException(status_code=500, detail="Failed to deny role assignment")
+
+
 if __name__ == "__main__":
     # Load configuration
     config = load_auth_config()

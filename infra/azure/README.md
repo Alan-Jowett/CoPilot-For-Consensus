@@ -50,6 +50,7 @@ See [Two-RG Deployment Guide](#two-rg-deployment-guide) for detailed instruction
 - **[Bicep Architecture](BICEP_ARCHITECTURE.md)** - Infrastructure architecture and module design
 - **[GitHub OIDC Setup](GITHUB_OIDC_SETUP.md)** - Configure GitHub Actions for automated deployments
 - **[Azure Portal Dashboard](DASHBOARD.md)** - OpenTelemetry metrics visualization and customization guide
+- **[Azure Private Link](../../docs/AZURE_PRIVATE_LINK.md)** - Configure private network access with Private Link for production deployments
 
 ## Table of Contents
 
