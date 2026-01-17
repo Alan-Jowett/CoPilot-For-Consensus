@@ -413,7 +413,7 @@ module jwtKeysModule 'modules/jwtkeys.bicep' = if (deployContainerApps) {
 }
 
 resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
-  name: '${keyVaultName}/azure-connection-string'
+  name: '${keyVaultName}/azure-monitor-connection-string'
   properties: {
     value: appInsightsModule!.outputs.connectionString
     contentType: 'text/plain'
