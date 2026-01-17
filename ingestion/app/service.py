@@ -32,6 +32,7 @@ logger: Logger = get_logger(__name__)
 
 
 _ALLOWED_SOURCE_FIELDS: set[str] = {
+    "_id",
     "name",
     "source_type",
     "url",
@@ -41,25 +42,33 @@ _ALLOWED_SOURCE_FIELDS: set[str] = {
     "folder",
     "enabled",
     "schedule",
+    "created_at",
+    "updated_at",
+    "last_run_at",
+    "last_run_status",
+    "last_error",
+    "next_run_at",
+    "files_processed",
+    "files_skipped",
 }
 
 
 def _prune_source_fields(source_dict: dict[str, Any]) -> dict[str, Any]:
     """Drop document-store/system fields not accepted by SourceConfig.
 
-    Cosmos DB documents (and some in-memory stores) may include system fields
-    like _etag/_rid/_ts, plus application-level fields like id/collection.
+    Note: The storage layer now sanitizes documents on read, so this function
+    is primarily needed for:
+    - Manually-constructed source dicts (e.g., in tests)
+    - Backward compatibility with older storage systems
+    - Additional validation before SourceConfig.from_mapping()
+
     The fetcher SourceConfig is strict and rejects unknown fields.
     """
     pruned: dict[str, Any] = {}
     for key, value in source_dict.items():
-        if key.startswith("_"):
-            continue
-        if key in {"id", "collection"}:
-            continue
-        if key not in _ALLOWED_SOURCE_FIELDS:
-            continue
-        pruned[key] = value
+        # Only keep fields that SourceConfig accepts
+        if key in _ALLOWED_SOURCE_FIELDS:
+            pruned[key] = value
     return pruned
 
 
@@ -90,9 +99,16 @@ def _source_from_mapping(source: dict[str, Any]) -> SourceConfig:
 
 
 def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
-    """Remove fields that should not be exposed or are not JSON serializable."""
-    sanitized = _prune_source_fields(source_dict.copy())
-
+    """Remove fields that should not be exposed or are not JSON serializable.
+    
+    Note: Documents from storage are already sanitized by the storage layer.
+    This function is primarily for sanitizing source_dict before external exposure
+    (e.g., hiding passwords).
+    """
+    # Make a copy to avoid modifying the original
+    sanitized = dict(source_dict)
+    
+    # Ensure password is not exposed
     if "password" in sanitized and sanitized["password"]:
         sanitized["password"] = None
 
@@ -1058,10 +1074,6 @@ class IngestionService:
         for source in sources:
             source_dict = _sanitize_source_dict(source)
 
-            # Ensure password is not exposed
-            if "password" in source_dict and source_dict["password"]:
-                source_dict["password"] = None
-
             if enabled_only and not source_dict.get("enabled", True):
                 continue
 
@@ -1152,14 +1164,11 @@ class IngestionService:
             return None
 
         doc = docs[0]
-        # Try "id" first (Cosmos DB), then "_id" (MongoDB/InMemory).
-        # Use explicit None checks so falsy but valid IDs (e.g., 0, "") are preserved.
-        doc_id = doc.get("id")
-        if doc_id is None:
-            doc_id = doc.get("_id")
+        # Get the document ID (already sanitized by storage layer)
+        doc_id = doc.get("_id")
 
         if doc_id is None:
-            raise ValueError(f"Source document for '{source_name}' has no id field")
+            raise ValueError(f"Source document for '{source_name}' has no _id field")
 
         return str(doc_id)
 
