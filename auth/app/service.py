@@ -133,9 +133,8 @@ def create_identity_providers(
             logger.error(f"Failed to initialize provider microsoft: {e}")
 
     # Provider discovery (best-effort)
-    for name, provider in list(providers.items()):
-        provider: _OidcProvider  # Type annotation for loop variable
-        discover = getattr(provider, "discover", None)
+    for name, oidc_provider in list(providers.items()):
+        discover = getattr(oidc_provider, "discover", None)
         if callable(discover):
             try:
                 discover()
