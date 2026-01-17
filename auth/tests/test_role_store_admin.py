@@ -580,3 +580,166 @@ class TestSearchUsers:
         # Should only find Alice, not crash on Bob's missing email
         assert len(results) == 1
         assert results[0]["user_id"] == "github:123"
+
+
+class TestDenyRoleAssignment:
+    """Test deny_role_assignment method."""
+
+    def test_deny_pending_assignment_success(self, role_store, mock_store):
+        """Test successfully denying a pending role assignment."""
+        # Mock existing pending user record
+        existing_record = {
+            "_id": ObjectId(),
+            "user_id": "github:123",
+            "email": "user@example.com",
+            "name": "Test User",
+            "roles": [],
+            "status": "pending",
+            "requested_at": "2025-01-17T00:00:00Z",
+        }
+        mock_store.query_documents.return_value = [existing_record]
+
+        result = role_store.deny_role_assignment(
+            user_id="github:123",
+            admin_user_id="github:admin",
+            admin_email="admin@example.com",
+        )
+
+        # Verify the result
+        assert result["user_id"] == "github:123"
+        assert result["status"] == "denied"
+        assert result["roles"] == []
+        assert result["denied_by"] == "github:admin"
+        assert "denied_at" in result
+        assert "updated_at" in result
+
+        # Verify update_document was called
+        mock_store.update_document.assert_called_once()
+
+    def test_deny_user_not_found(self, role_store, mock_store):
+        """Test denying a role assignment for non-existent user."""
+        mock_store.query_documents.return_value = []
+
+        with pytest.raises(ValueError, match="User record not found: github:999"):
+            role_store.deny_role_assignment(
+                user_id="github:999",
+                admin_user_id="github:admin",
+            )
+
+    def test_deny_non_pending_status_rejected(self, role_store, mock_store):
+        """Test denying a role assignment for user with non-pending status."""
+        # Mock existing approved user record
+        existing_record = {
+            "_id": ObjectId(),
+            "user_id": "github:123",
+            "email": "user@example.com",
+            "name": "Test User",
+            "roles": ["contributor"],
+            "status": "approved",
+            "approved_at": "2025-01-17T00:00:00Z",
+        }
+        mock_store.query_documents.return_value = [existing_record]
+
+        with pytest.raises(ValueError, match="Cannot deny: user status is 'approved', expected 'pending'"):
+            role_store.deny_role_assignment(
+                user_id="github:123",
+                admin_user_id="github:admin",
+            )
+
+        # Verify update_document was NOT called (operation rejected)
+        mock_store.update_document.assert_not_called()
+
+    def test_deny_already_denied_status_rejected(self, role_store, mock_store):
+        """Test denying a role assignment for user already denied."""
+        # Mock existing denied user record
+        existing_record = {
+            "_id": ObjectId(),
+            "user_id": "github:123",
+            "email": "user@example.com",
+            "name": "Test User",
+            "roles": [],
+            "status": "denied",
+            "denied_at": "2025-01-16T00:00:00Z",
+        }
+        mock_store.query_documents.return_value = [existing_record]
+
+        with pytest.raises(ValueError, match="Cannot deny: user status is 'denied', expected 'pending'"):
+            role_store.deny_role_assignment(
+                user_id="github:123",
+                admin_user_id="github:admin",
+            )
+
+    def test_deny_clears_roles(self, role_store, mock_store):
+        """Test that denying clears any existing roles."""
+        # Mock pending user with some roles (edge case)
+        existing_record = {
+            "_id": ObjectId(),
+            "user_id": "github:123",
+            "email": "user@example.com",
+            "name": "Test User",
+            "roles": ["reader"],  # Has a role despite being pending
+            "status": "pending",
+            "requested_at": "2025-01-17T00:00:00Z",
+        }
+        mock_store.query_documents.return_value = [existing_record]
+
+        result = role_store.deny_role_assignment(
+            user_id="github:123",
+            admin_user_id="github:admin",
+        )
+
+        # Verify roles are cleared
+        assert result["roles"] == []
+        assert result["status"] == "denied"
+
+    def test_deny_without_id_field(self, role_store, mock_store):
+        """Test denying when record has no _id field (fallback path)."""
+        # Mock record without _id
+        existing_record = {
+            "user_id": "github:123",
+            "email": "user@example.com",
+            "roles": [],
+            "status": "pending",
+        }
+        mock_store.query_documents.return_value = [existing_record]
+
+        result = role_store.deny_role_assignment(
+            user_id="github:123",
+            admin_user_id="github:admin",
+        )
+
+        # Verify update was called with user_id as key (fallback behavior)
+        mock_store.update_document.assert_called_once()
+        call_args = mock_store.update_document.call_args
+        assert call_args[0][1] == "github:123"  # Second arg is the document ID
+
+    def test_deny_excludes_id_from_update(self, role_store, mock_store):
+        """Test that _id field is excluded from update document."""
+        existing_record = {
+            "_id": ObjectId(),
+            "user_id": "github:123",
+            "email": "user@example.com",
+            "roles": [],
+            "status": "pending",
+        }
+        mock_store.query_documents.return_value = [existing_record]
+
+        role_store.deny_role_assignment(
+            user_id="github:123",
+            admin_user_id="github:admin",
+        )
+
+        # Verify update_document was called
+        mock_store.update_document.assert_called_once()
+
+        # Get the update document that was passed (third argument)
+        call_args = mock_store.update_document.call_args
+        update_doc = call_args[0][2]
+
+        # Verify _id is NOT in the update document
+        assert "_id" not in update_doc, "update document should not contain _id field"
+        # Verify other fields are present
+        assert update_doc["user_id"] == "github:123"
+        assert update_doc["roles"] == []
+        assert update_doc["status"] == "denied"
+        assert "denied_by" in update_doc

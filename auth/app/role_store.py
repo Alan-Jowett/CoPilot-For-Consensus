@@ -418,12 +418,17 @@ class RoleStore:
             Updated user role record
 
         Raises:
-            ValueError: If user record not found
+            ValueError: If user record not found or status is not pending
         """
         record = self._find_user_record(user_id)
 
         if not record:
             raise ValueError(f"User record not found: {user_id}")
+
+        # Validate that the user's current status is "pending"
+        current_status = record.get("status", "pending")
+        if current_status != "pending":
+            raise ValueError(f"Cannot deny: user status is '{current_status}', expected 'pending'")
 
         now = datetime.now(timezone.utc).isoformat()
 

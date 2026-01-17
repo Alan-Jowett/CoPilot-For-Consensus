@@ -130,7 +130,7 @@ export function PendingAssignments() {
     setSuccessMessage(null)
     const selectedAssignments = assignments.filter((a) => selectedIds.has(a.user_id))
     let successCount = 0
-    let failCount = 0
+    const failures: Array<{ userId: string; error: string }> = []
 
     for (const assignment of selectedAssignments) {
       setProcessingIds((prev) => new Set(prev).add(assignment.user_id))
@@ -138,7 +138,8 @@ export function PendingAssignments() {
         await assignUserRoles(assignment.user_id, assignment.requested_roles)
         successCount++
       } catch (e: unknown) {
-        failCount++
+        const errorMsg = e instanceof Error ? e.message : 'Unknown error'
+        failures.push({ userId: assignment.user_id, error: errorMsg })
       }
       setProcessingIds((prev) => {
         const next = new Set(prev)
@@ -150,8 +151,9 @@ export function PendingAssignments() {
     if (successCount > 0) {
       setSuccessMessage(`Approved ${successCount} role assignment${successCount > 1 ? 's' : ''}`)
     }
-    if (failCount > 0) {
-      setError(`Failed to approve ${failCount} role assignment${failCount > 1 ? 's' : ''}`)
+    if (failures.length > 0) {
+      const failureDetails = failures.map((f) => `${f.userId}: ${f.error}`).join('; ')
+      setError(`Failed to approve ${failures.length} assignment${failures.length > 1 ? 's' : ''}: ${failureDetails}`)
     }
 
     // Reload assignments
@@ -165,7 +167,7 @@ export function PendingAssignments() {
     setSuccessMessage(null)
     const selectedAssignments = assignments.filter((a) => selectedIds.has(a.user_id))
     let successCount = 0
-    let failCount = 0
+    const failures: Array<{ userId: string; error: string }> = []
 
     for (const assignment of selectedAssignments) {
       setProcessingIds((prev) => new Set(prev).add(assignment.user_id))
@@ -173,7 +175,8 @@ export function PendingAssignments() {
         await denyRoleAssignment(assignment.user_id)
         successCount++
       } catch (e: unknown) {
-        failCount++
+        const errorMsg = e instanceof Error ? e.message : 'Unknown error'
+        failures.push({ userId: assignment.user_id, error: errorMsg })
       }
       setProcessingIds((prev) => {
         const next = new Set(prev)
@@ -185,8 +188,9 @@ export function PendingAssignments() {
     if (successCount > 0) {
       setSuccessMessage(`Rejected ${successCount} role assignment${successCount > 1 ? 's' : ''}`)
     }
-    if (failCount > 0) {
-      setError(`Failed to reject ${failCount} role assignment${failCount > 1 ? 's' : ''}`)
+    if (failures.length > 0) {
+      const failureDetails = failures.map((f) => `${f.userId}: ${f.error}`).join('; ')
+      setError(`Failed to reject ${failures.length} assignment${failures.length > 1 ? 's' : ''}: ${failureDetails}`)
     }
 
     // Reload assignments
@@ -246,10 +250,18 @@ export function PendingAssignments() {
                   <strong>{selectedIds.size}</strong> selected
                 </div>
                 <div className="button-group">
-                  <button className="action-btn edit" onClick={handleBulkApprove}>
+                  <button
+                    className="action-btn edit"
+                    onClick={handleBulkApprove}
+                    disabled={processingIds.size > 0}
+                  >
                     ✓ Approve Selected
                   </button>
-                  <button className="action-btn delete" onClick={handleBulkReject}>
+                  <button
+                    className="action-btn delete"
+                    onClick={handleBulkReject}
+                    disabled={processingIds.size > 0}
+                  >
                     ✕ Reject Selected
                   </button>
                 </div>
