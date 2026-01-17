@@ -41,6 +41,9 @@
     "enablePublicNetworkAccess": {
       "value": false
     },
+    "enablePrivateAccess": {
+      "value": true
+    },
     "enableRbacAuthorization": {
       "value": true
     },
