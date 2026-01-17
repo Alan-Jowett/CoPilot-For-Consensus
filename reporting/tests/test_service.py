@@ -798,7 +798,7 @@ def test_get_reports_with_metadata_filters(reporting_service, mock_document_stor
         elif collection == "archives":
             return [
                 {
-                    "archive_id": "archive1",
+                    "_id": "archive1",
                     "source": "test-source",
                     "source_url": "http://example.com",
                     "ingestion_date": "2025-01-01T00:00:00Z",
@@ -826,9 +826,9 @@ def test_get_reports_with_metadata_filters(reporting_service, mock_document_stor
 def test_get_available_sources(reporting_service, mock_document_store):
     """Test that get_available_sources returns unique source list."""
     mock_document_store.query_documents.return_value = [
-        {"archive_id": "arch1", "source": "source-a"},
-        {"archive_id": "arch2", "source": "source-b"},
-        {"archive_id": "arch3", "source": "source-a"},  # Duplicate
+        {"_id": "arch1", "source": "source-a"},
+        {"_id": "arch2", "source": "source-b"},
+        {"_id": "arch3", "source": "source-a"},  # Duplicate
     ]
 
     sources = reporting_service.get_available_sources()
@@ -889,7 +889,7 @@ def test_search_reports_by_topic_with_vector_store():
         elif collection == "archives":
             return [
                 {
-                    "archive_id": "archive1",
+                    "_id": "archive1",
                     "source": "test-source",
                     "source_url": "http://example.com",
                     "ingestion_date": "2025-01-01T00:00:00Z",

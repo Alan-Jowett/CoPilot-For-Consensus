@@ -484,10 +484,10 @@ class ReportingService:
         if archive_ids:
             archives = self.document_store.query_documents(
                 "archives",
-                filter_dict={"archive_id": {"$in": list(archive_ids)}},
+                filter_dict={"_id": {"$in": list(archive_ids)}},
                 limit=len(archive_ids),
             )
-            archives_map = {a.get("archive_id"): a for a in archives if a.get("archive_id")}
+            archives_map = {a.get("_id"): a for a in archives if a.get("_id")}
 
         # Now process summaries with pre-fetched data
         for summary in summaries:
@@ -639,7 +639,7 @@ class ReportingService:
         try:
             results = self.document_store.query_documents(
                 "archives",
-                filter_dict={"archive_id": archive_id},
+                filter_dict={"_id": archive_id},
                 limit=1,
             )
             return results[0] if results else None
