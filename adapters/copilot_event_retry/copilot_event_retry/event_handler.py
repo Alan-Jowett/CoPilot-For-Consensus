@@ -44,7 +44,7 @@ class RetryExhaustedError(Exception):
 
 
 def handle_event_with_retry(
-    handler: Callable[[dict[str, Any]], None],
+    handler: Callable[[dict[str, Any]], Any],
     event: dict[str, Any],
     config: RetryConfig | None = None,
     idempotency_key: str | None = None,
@@ -59,7 +59,7 @@ def handle_event_with_retry(
     TTL enforcement, and dead letter queue integration.
     
     Args:
-        handler: Event handler function to call
+        handler: Event handler function to call (return value is ignored)
         event: Event data dictionary
         config: Retry configuration (uses defaults if None)
         idempotency_key: Optional idempotency key for deduplication
