@@ -20,6 +20,7 @@ Exit codes:
 - 1: Violations found
 """
 import argparse
+import fnmatch
 import re
 import sys
 from pathlib import Path
@@ -174,8 +175,12 @@ def is_allowlisted(
     rel_path_str = str(rel_path)
 
     for file_glob, patterns in allowlist.items():
-        # Check if file matches glob pattern
-        if Path(rel_path_str).match(file_glob):
+        # Check if file matches glob pattern using fnmatch for more robust matching
+        # Convert both to forward slashes for consistent matching across platforms
+        normalized_rel_path = str(rel_path).replace('\\', '/')
+        normalized_glob = file_glob.replace('\\', '/')
+        
+        if fnmatch.fnmatch(normalized_rel_path, normalized_glob):
             # If no specific patterns, entire file is allowlisted
             if not patterns:
                 return True
