@@ -8,12 +8,10 @@ from typing import TypeAlias, cast
 from copilot_config.adapter_factory import create_adapter
 from copilot_config.generated.adapters.logger import (
     AdapterConfig_Logger,
-    DriverConfig_Logger_AzureMonitor,
     DriverConfig_Logger_Silent,
     DriverConfig_Logger_Stdout,
 )
 
-from .azure_monitor_logger import AzureMonitorLogger
 from .logger import Logger
 from .silent_logger import SilentLogger
 from .stdout_logger import StdoutLogger
@@ -25,7 +23,6 @@ _default_logger: Logger | None = None
 _DriverConfig: TypeAlias = (
     DriverConfig_Logger_Stdout
     | DriverConfig_Logger_Silent
-    | DriverConfig_Logger_AzureMonitor
 )
 
 
@@ -39,12 +36,6 @@ def _build_silent(config: _DriverConfig) -> Logger:
     if not isinstance(config, DriverConfig_Logger_Silent):
         raise TypeError("driver config must be DriverConfig_Logger_Silent")
     return SilentLogger.from_config(config)
-
-
-def _build_azure_monitor(config: _DriverConfig) -> Logger:
-    if not isinstance(config, DriverConfig_Logger_AzureMonitor):
-        raise TypeError("driver config must be DriverConfig_Logger_AzureMonitor")
-    return AzureMonitorLogger.from_config(config)
 
 
 def create_logger(
@@ -69,7 +60,6 @@ def create_logger(
         drivers={
             "stdout": _build_stdout,
             "silent": _build_silent,
-            "azure_monitor": _build_azure_monitor,
         },
     )
 

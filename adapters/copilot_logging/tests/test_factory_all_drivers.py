@@ -13,7 +13,6 @@ from pathlib import Path
 from copilot_logging.factory import create_logger
 from copilot_config.generated.adapters.logger import (
     AdapterConfig_Logger,
-    DriverConfig_Logger_AzureMonitor,
     DriverConfig_Logger_Silent,
     DriverConfig_Logger_Stdout,
 )
@@ -84,7 +83,6 @@ class TestLoggerAllDrivers:
         driver_cls_by_name = {
             "stdout": DriverConfig_Logger_Stdout,
             "silent": DriverConfig_Logger_Silent,
-            "azure_monitor": DriverConfig_Logger_AzureMonitor,
         }
 
         for driver in drivers_enum:

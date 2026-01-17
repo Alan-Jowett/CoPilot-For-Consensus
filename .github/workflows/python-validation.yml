@@ -398,8 +398,7 @@ jobs:
           run_gate "Logging adapter typed config safety" \
             adapters/copilot_logging/copilot_logging/factory.py \
             adapters/copilot_logging/copilot_logging/stdout_logger.py \
-            adapters/copilot_logging/copilot_logging/silent_logger.py \
-            adapters/copilot_logging/copilot_logging/azure_monitor_logger.py
+            adapters/copilot_logging/copilot_logging/silent_logger.py
 
           run_gate "Metrics adapter typed config safety" \
             adapters/copilot_metrics/copilot_metrics/factory.py \

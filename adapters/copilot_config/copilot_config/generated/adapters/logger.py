@@ -12,19 +12,6 @@ from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
-class DriverConfig_Logger_AzureMonitor:
-    """Configuration for logger adapter using azure_monitor driver."""
-    console_log: bool = False
-    # Also log to console when using Azure Monitor
-    instrumentation_key: Optional[str] = None
-    # Application Insights instrumentation key for Azure Monitor logging
-    level: str = 'INFO'
-    # Logging level
-    name: str = 'copilot'
-    # Logger name for identification
-
-
-@dataclass
 class DriverConfig_Logger_Silent:
     """Configuration for logger adapter using silent driver."""
     level: str = 'INFO'
@@ -45,5 +32,5 @@ class DriverConfig_Logger_Stdout:
 @dataclass
 class AdapterConfig_Logger:
     """Configuration for logger adapter."""
-    logger_type: Literal["azure_monitor", "silent", "stdout"]
-    driver: Union[DriverConfig_Logger_AzureMonitor, DriverConfig_Logger_Silent, DriverConfig_Logger_Stdout]
+    logger_type: Literal["silent", "stdout"]
+    driver: Union[DriverConfig_Logger_Silent, DriverConfig_Logger_Stdout]
