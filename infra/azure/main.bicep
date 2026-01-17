@@ -352,6 +352,21 @@ module appInsightsModule 'modules/appinsights.bicep' = if (deployContainerApps) 
   }
 }
 
+// Module: Azure Portal Dashboard (OpenTelemetry metrics visualization)
+module dashboardModule 'modules/dashboard.bicep' = if (deployContainerApps) {
+  name: 'dashboardDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    logAnalyticsWorkspaceResourceId: appInsightsModule!.outputs.workspaceId
+    tags: tags
+  }
+  dependsOn: [
+    appInsightsModule
+  ]
+}
+
 // Store Application Insights secrets securely in Key Vault
 // These must NOT be passed as plaintext environment variables to Container Apps
 // Secret names use hyphens (KV requirement); secret_provider maps to schema names
@@ -622,6 +637,10 @@ output aiSearchServiceId string = (deployContainerApps && vectorStoreBackend == 
 output qdrantAppName string = (deployContainerApps && vectorStoreBackend == 'qdrant') ? containerAppsModule!.outputs.qdrantAppName : ''
 output qdrantInternalEndpoint string = (deployContainerApps && vectorStoreBackend == 'qdrant') ? containerAppsModule!.outputs.qdrantInternalEndpoint : ''
 output appInsightsId string = deployContainerApps ? appInsightsModule!.outputs.appInsightsId : ''
+// Dashboard outputs
+output dashboardId string = deployContainerApps ? dashboardModule!.outputs.dashboardId : ''
+output dashboardName string = deployContainerApps ? dashboardModule!.outputs.dashboardName : ''
+output dashboardUrl string = deployContainerApps ? dashboardModule!.outputs.dashboardUrl : ''
 output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.outputs.containerAppsEnvId : ''
 output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
 output githubOAuthRedirectUri string = deployContainerApps ? containerAppsModule!.outputs.githubOAuthRedirectUri : ''
