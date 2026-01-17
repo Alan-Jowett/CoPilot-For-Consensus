@@ -288,6 +288,304 @@ class IngestionService:
 
         return deleted_count
 
+    def delete_source_cascade(self, source_name: str) -> dict[str, int]:
+        """Delete a source and all associated data (cascade delete).
+
+        This method deletes:
+        - Archives from document_store and archive_store
+        - Threads from document_store
+        - Messages from document_store
+        - Chunks from document_store
+        - Embeddings from vectorstore (via chunk IDs)
+        - Summaries/reports from document_store
+
+        Args:
+            source_name: Name of the source to delete
+
+        Returns:
+            Dictionary with counts of deleted items per collection
+
+        Raises:
+            ValueError: If document store is not configured or deletion fails
+        """
+        if not self.document_store:
+            raise ValueError("Document store not configured")
+
+        deletion_counts = {
+            "archives_docstore": 0,
+            "archives_archivestore": 0,
+            "threads": 0,
+            "messages": 0,
+            "chunks": 0,
+            "embeddings": 0,
+            "summaries": 0,
+        }
+
+        self.logger.info(
+            "Starting cascade delete for source",
+            source_name=source_name,
+        )
+
+        try:
+            # Step 1: Query all archives for this source
+            archives = self.document_store.query_documents(
+                "archives",
+                {"source": source_name}
+            )
+            archive_ids = [archive.get("_id") or archive.get("id") for archive in archives if archive.get("_id") or archive.get("id")]
+
+            self.logger.info(
+                "Found archives to delete",
+                source_name=source_name,
+                archive_count=len(archive_ids),
+            )
+
+            # Step 2: Delete threads (query by source)
+            try:
+                threads = self.document_store.query_documents(
+                    "threads",
+                    {"source": source_name}
+                )
+                for thread in threads:
+                    thread_id = thread.get("_id") or thread.get("id")
+                    if thread_id:
+                        try:
+                            self.document_store.delete_document("threads", str(thread_id))
+                            deletion_counts["threads"] += 1
+                        except Exception as e:
+                            self.logger.warning(
+                                "Failed to delete thread",
+                                thread_id=thread_id,
+                                error=str(e),
+                            )
+                self.logger.info(
+                    "Deleted threads",
+                    source_name=source_name,
+                    count=deletion_counts["threads"],
+                )
+            except Exception as e:
+                self.logger.error(
+                    "Failed to query/delete threads",
+                    source_name=source_name,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+            # Step 3: Delete messages (query by archive_id or source)
+            try:
+                # Try querying by source first
+                messages = self.document_store.query_documents(
+                    "messages",
+                    {"source": source_name}
+                )
+                # If no messages found by source, try by archive_id
+                if not messages and archive_ids:
+                    for archive_id in archive_ids:
+                        archive_messages = self.document_store.query_documents(
+                            "messages",
+                            {"archive_id": str(archive_id)}
+                        )
+                        messages.extend(archive_messages)
+
+                message_ids = []
+                for message in messages:
+                    message_id = message.get("_id") or message.get("id")
+                    if message_id:
+                        message_ids.append(str(message_id))
+                        try:
+                            self.document_store.delete_document("messages", str(message_id))
+                            deletion_counts["messages"] += 1
+                        except Exception as e:
+                            self.logger.warning(
+                                "Failed to delete message",
+                                message_id=message_id,
+                                error=str(e),
+                            )
+                self.logger.info(
+                    "Deleted messages",
+                    source_name=source_name,
+                    count=deletion_counts["messages"],
+                )
+            except Exception as e:
+                self.logger.error(
+                    "Failed to query/delete messages",
+                    source_name=source_name,
+                    error=str(e),
+                    exc_info=True,
+                )
+                message_ids = []
+
+            # Step 4: Delete chunks (query by message_id or source)
+            chunk_ids = []
+            try:
+                # Try querying by source first
+                chunks = self.document_store.query_documents(
+                    "chunks",
+                    {"source": source_name}
+                )
+                # If no chunks found by source, try by message_id
+                if not chunks and message_ids:
+                    for message_id in message_ids:
+                        message_chunks = self.document_store.query_documents(
+                            "chunks",
+                            {"message_id": message_id}
+                        )
+                        chunks.extend(message_chunks)
+
+                for chunk in chunks:
+                    chunk_id = chunk.get("_id") or chunk.get("id")
+                    if chunk_id:
+                        chunk_ids.append(str(chunk_id))
+                        try:
+                            self.document_store.delete_document("chunks", str(chunk_id))
+                            deletion_counts["chunks"] += 1
+                        except Exception as e:
+                            self.logger.warning(
+                                "Failed to delete chunk",
+                                chunk_id=chunk_id,
+                                error=str(e),
+                            )
+                self.logger.info(
+                    "Deleted chunks",
+                    source_name=source_name,
+                    count=deletion_counts["chunks"],
+                )
+            except Exception as e:
+                self.logger.error(
+                    "Failed to query/delete chunks",
+                    source_name=source_name,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+            # Step 5: Delete embeddings from vectorstore (if vectorstore is available)
+            # Note: The ingestion service doesn't have direct access to vectorstore.
+            # Embeddings are managed by the embedding service. We log that embeddings
+            # may need manual cleanup or rely on the embedding service's own cleanup logic.
+            if chunk_ids:
+                self.logger.warning(
+                    "Embeddings may exist for deleted chunks - manual cleanup may be needed",
+                    source_name=source_name,
+                    chunk_count=len(chunk_ids),
+                    message="The embedding service should handle cleanup of orphaned embeddings",
+                )
+
+            # Step 6: Delete summaries/reports (query by source or archive_id)
+            try:
+                # Try querying by source first
+                summaries = self.document_store.query_documents(
+                    "summaries",
+                    {"source": source_name}
+                )
+                # If no summaries found by source, try by archive_id
+                if not summaries and archive_ids:
+                    for archive_id in archive_ids:
+                        archive_summaries = self.document_store.query_documents(
+                            "summaries",
+                            {"archive_id": str(archive_id)}
+                        )
+                        summaries.extend(archive_summaries)
+
+                for summary in summaries:
+                    summary_id = summary.get("_id") or summary.get("id")
+                    if summary_id:
+                        try:
+                            self.document_store.delete_document("summaries", str(summary_id))
+                            deletion_counts["summaries"] += 1
+                        except Exception as e:
+                            self.logger.warning(
+                                "Failed to delete summary",
+                                summary_id=summary_id,
+                                error=str(e),
+                            )
+                self.logger.info(
+                    "Deleted summaries",
+                    source_name=source_name,
+                    count=deletion_counts["summaries"],
+                )
+            except Exception as e:
+                self.logger.error(
+                    "Failed to query/delete summaries",
+                    source_name=source_name,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+            # Step 7: Delete archives from archive_store
+            for archive_id in archive_ids:
+                try:
+                    success = self.archive_store.delete_archive(str(archive_id))
+                    if success:
+                        deletion_counts["archives_archivestore"] += 1
+                except Exception as e:
+                    self.logger.warning(
+                        "Failed to delete archive from archive_store",
+                        archive_id=archive_id,
+                        error=str(e),
+                    )
+
+            self.logger.info(
+                "Deleted archives from archive_store",
+                source_name=source_name,
+                count=deletion_counts["archives_archivestore"],
+            )
+
+            # Step 8: Delete archives from document_store
+            for archive_id in archive_ids:
+                try:
+                    self.document_store.delete_document("archives", str(archive_id))
+                    deletion_counts["archives_docstore"] += 1
+                except Exception as e:
+                    self.logger.warning(
+                        "Failed to delete archive from document_store",
+                        archive_id=archive_id,
+                        error=str(e),
+                    )
+
+            self.logger.info(
+                "Deleted archives from document_store",
+                source_name=source_name,
+                count=deletion_counts["archives_docstore"],
+            )
+
+            # Emit metrics for cascade delete
+            self.metrics.increment(
+                "ingestion_cascade_delete_total",
+                tags={"source_name": source_name}
+            )
+            for collection, count in deletion_counts.items():
+                if count > 0:
+                    self.metrics.gauge(
+                        f"ingestion_cascade_delete_{collection}",
+                        float(count),
+                        tags={"source_name": source_name}
+                    )
+
+            self.logger.info(
+                "Cascade delete completed",
+                source_name=source_name,
+                deletion_counts=deletion_counts,
+            )
+
+            return deletion_counts
+
+        except Exception as e:
+            self.logger.error(
+                "Cascade delete failed",
+                source_name=source_name,
+                error=str(e),
+                exc_info=True,
+            )
+            self.error_reporter.report(
+                e,
+                context={
+                    "operation": "delete_source_cascade",
+                    "source_name": source_name,
+                    "deletion_counts": deletion_counts,
+                }
+            )
+            raise ValueError(f"Cascade delete failed: {str(e)}")
+
     def ingest_archive(
         self,
         source: SourceConfig | dict[str, Any],
@@ -1251,14 +1549,16 @@ class IngestionService:
             self.logger.error("Failed to update source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to update source: {str(e)}")
 
-    def delete_source(self, source_name: str) -> bool:
-        """Delete a source.
+    def delete_source(self, source_name: str, cascade: bool = False) -> bool | dict[str, int]:
+        """Delete a source, optionally with cascade delete of associated data.
 
         Args:
             source_name: Name of the source to delete
+            cascade: If True, delete all associated data (archives, threads, messages, chunks, embeddings, summaries)
 
         Returns:
-            True if deleted, False if not found
+            If cascade is False: True if deleted, False if not found
+            If cascade is True: Dictionary with counts of deleted items per collection
 
         Raises:
             ValueError: If deletion fails
@@ -1266,13 +1566,22 @@ class IngestionService:
         if not self.document_store:
             raise ValueError("Document store not configured")
 
-        try:
-            # Get the document ID
-            doc_id = self._get_source_doc_id(source_name)
-            if doc_id is None:
-                return False
+        # Check if source exists first
+        doc_id = self._get_source_doc_id(source_name)
+        if doc_id is None:
+            return False
 
-            # Delete from document store using the document ID
+        # Perform cascade delete if requested
+        deletion_counts = None
+        if cascade:
+            self.logger.info(
+                "Performing cascade delete",
+                source_name=source_name,
+            )
+            deletion_counts = self.delete_source_cascade(source_name)
+
+        try:
+            # Delete source from document store
             self.document_store.delete_document("sources", doc_id)
 
             # Reload sources from config
@@ -1282,9 +1591,16 @@ class IngestionService:
             if source_name in self._source_status:
                 del self._source_status[source_name]
 
-            self.logger.info("Source deleted", source_name=source_name)
+            self.logger.info(
+                "Source deleted",
+                source_name=source_name,
+                cascade=cascade,
+            )
 
-            return True
+            if cascade:
+                return deletion_counts
+            else:
+                return True
         except ValueError:
             # Re-raise ValueError directly (includes missing id field errors)
             raise

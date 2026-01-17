@@ -332,6 +332,107 @@ class TestSourcesEndpoints:
 
         assert response.status_code == 404
 
+    def test_delete_source_with_cascade(self, client, service):
+        """Test deleting a source with cascade=true."""
+        # Create a source
+        source_data = {
+            "name": "test-source",
+            "source_type": "http",
+            "url": "https://example.com/archive.mbox",
+            "enabled": True,
+        }
+        client.post("/api/sources", json=source_data)
+
+        # Add some mock data to document store to simulate associated data
+        if service.document_store:
+            # Add an archive
+            service.document_store.insert_document("archives", {
+                "_id": "archive-123",
+                "source": "test-source",
+                "file_hash": "abc123",
+            })
+            # Add a thread
+            service.document_store.insert_document("threads", {
+                "_id": "thread-123",
+                "source": "test-source",
+            })
+            # Add a message
+            service.document_store.insert_document("messages", {
+                "_id": "message-123",
+                "source": "test-source",
+            })
+            # Add a chunk
+            service.document_store.insert_document("chunks", {
+                "_id": "chunk-123",
+                "source": "test-source",
+            })
+            # Add a summary
+            service.document_store.insert_document("summaries", {
+                "_id": "summary-123",
+                "source": "test-source",
+            })
+
+        # Delete with cascade
+        response = client.delete("/api/sources/test-source?cascade=true")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["cascade"] is True
+        assert "deletion_counts" in data
+        assert "deleted successfully" in data["message"]
+
+        # Verify associated data was deleted
+        if service.document_store:
+            archives_after = service.document_store.query_documents("archives", {"source": "test-source"})
+            assert len(archives_after) == 0
+
+            threads_after = service.document_store.query_documents("threads", {"source": "test-source"})
+            assert len(threads_after) == 0
+
+            messages_after = service.document_store.query_documents("messages", {"source": "test-source"})
+            assert len(messages_after) == 0
+
+            chunks_after = service.document_store.query_documents("chunks", {"source": "test-source"})
+            assert len(chunks_after) == 0
+
+            summaries_after = service.document_store.query_documents("summaries", {"source": "test-source"})
+            assert len(summaries_after) == 0
+
+    def test_delete_source_without_cascade(self, client, service):
+        """Test deleting a source without cascade (default behavior)."""
+        # Create a source
+        source_data = {
+            "name": "test-source",
+            "source_type": "http",
+            "url": "https://example.com/archive.mbox",
+            "enabled": True,
+        }
+        client.post("/api/sources", json=source_data)
+
+        # Add some mock data to document store to simulate associated data
+        if service.document_store:
+            # Add an archive
+            service.document_store.insert_document("archives", {
+                "_id": "archive-456",
+                "source": "test-source",
+                "file_hash": "def456",
+            })
+
+        # Delete without cascade (default)
+        response = client.delete("/api/sources/test-source")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["cascade"] is False
+        assert "deleted successfully" in data["message"]
+
+        # Verify associated data was NOT deleted
+        if service.document_store:
+            archives_after = service.document_store.query_documents("archives", {"source": "test-source"})
+            assert len(archives_after) == 1  # Archive should still exist
+
 
 class TestSourceStatusEndpoint:
     """Tests for source status endpoint."""

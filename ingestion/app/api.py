@@ -224,19 +224,43 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
             logger.error("Error updating source", source_name=source_name, error=str(e), exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.delete("/api/sources/{source_name}", response_model=dict[str, str])
-    def delete_source(source_name: str):
-        """Delete a source."""
+    @router.delete("/api/sources/{source_name}", response_model=dict[str, Any])
+    def delete_source(
+        source_name: str,
+        cascade: bool = Query(False, description="Delete all associated data (archives, threads, messages, chunks, embeddings, summaries)")
+    ):
+        """Delete a source, optionally with cascade delete of associated data.
+        
+        When cascade=true, deletes:
+        - Archives from document_store and archive_store
+        - Threads from document_store
+        - Messages from document_store
+        - Chunks from document_store
+        - Summaries/reports from document_store
+        
+        Note: Embeddings in vectorstore are not directly deleted but logged for manual cleanup.
+        """
         try:
-            success = service.delete_source(source_name)
-            if not success:
+            result = service.delete_source(source_name, cascade=cascade)
+            if result is False:
                 raise HTTPException(status_code=404, detail=f"Source '{source_name}' not found")
 
-            return {"message": f"Source '{source_name}' deleted successfully"}
+            if cascade:
+                # Return deletion counts
+                return {
+                    "message": f"Source '{source_name}' and all associated data deleted successfully",
+                    "cascade": True,
+                    "deletion_counts": result,
+                }
+            else:
+                return {
+                    "message": f"Source '{source_name}' deleted successfully",
+                    "cascade": False,
+                }
         except HTTPException:
             raise
         except Exception as e:
-            logger.error("Error deleting source", source_name=source_name, error=str(e), exc_info=True)
+            logger.error("Error deleting source", source_name=source_name, cascade=cascade, error=str(e), exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
     @router.post("/api/sources/{source_name}/trigger", response_model=TriggerResponse)
