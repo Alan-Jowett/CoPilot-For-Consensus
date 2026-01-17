@@ -57,12 +57,26 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
 // Helper to format error messages from API responses
 // Ensures error.detail is always converted to a readable string
-function formatErrorMessage(error: any, fallbackMessage: string): string {
-  if (typeof error.detail === 'string') {
-    return error.detail
-  }
-  if (error.detail) {
-    return JSON.stringify(error.detail)
+interface ApiErrorLike {
+  detail?: unknown
+}
+
+function isApiErrorLike(error: unknown): error is ApiErrorLike {
+  return typeof error === 'object' && error !== null && 'detail' in error
+}
+
+function formatErrorMessage(error: unknown, fallbackMessage: string): string {
+  if (isApiErrorLike(error)) {
+    if (typeof error.detail === 'string') {
+      return error.detail
+    }
+    if (error.detail !== undefined) {
+      try {
+        return JSON.stringify(error.detail)
+      } catch {
+        // If JSON.stringify fails, fall through to fallback message
+      }
+    }
   }
   return fallbackMessage
 }
