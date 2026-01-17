@@ -476,6 +476,27 @@ class TestDenyRoleAssignment:
 
         assert response.status_code == 404
 
+    def test_deny_assignment_invalid_status(self, client, mock_auth_service, admin_token):
+        """Test denying assignment for user with non-pending status returns 409 Conflict."""
+        mock_auth_service.validate_token.return_value = {
+            "sub": "github:admin",
+            "email": "admin@example.com",
+            "roles": ["admin"],
+        }
+
+        # Simulate status validation error (user is not in "pending" status)
+        mock_auth_service.role_store.deny_role_assignment.side_effect = ValueError(
+            "Cannot deny: user status is 'approved', expected 'pending'"
+        )
+
+        response = client.post(
+            "/admin/users/github:123/deny",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+        assert response.status_code == 409
+        assert "Cannot deny" in response.json()["detail"]
+
     def test_deny_assignment_no_admin(self, client, mock_auth_service, non_admin_token):
         """Test that non-admin users cannot deny assignments."""
         mock_auth_service.validate_token.return_value = {
