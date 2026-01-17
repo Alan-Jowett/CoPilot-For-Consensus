@@ -241,7 +241,7 @@ class EmbeddingService:
                     batch_doc_ids = [str(chunk["_id"]) for chunk in batch]
                     self._update_chunk_status_by_doc_ids(batch_doc_ids)
                     # Track canonical chunk IDs for events/metrics
-                    batch_chunk_ids = [chunk["_id"] for chunk in batch]
+                    batch_chunk_ids = [str(chunk["_id"]) for chunk in batch]
 
                     all_generated_count += len(embeddings)
                     processed_chunk_ids.extend(batch_chunk_ids)
