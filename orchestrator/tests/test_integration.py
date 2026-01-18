@@ -9,6 +9,7 @@ import pytest
 from app.service import OrchestrationService
 from copilot_message_bus import create_publisher, create_subscriber
 from copilot_storage import create_document_store
+from copilot_event_retry.event_handler import DocumentNotFoundError
 from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
 from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
 
@@ -217,16 +218,20 @@ def test_end_to_end_orchestration(service, document_store):
 
 @pytest.mark.integration
 def test_orchestration_with_no_chunks(service, document_store):
-    """Test orchestration when no chunks are found."""
+    """Test orchestration when no chunks are found.
+
+    Missing chunks are treated as a retryable race condition and should raise
+    DocumentNotFoundError so the outer retry wrapper can re-attempt.
+    """
     # Process event with non-existent chunk IDs
     event_data = {
         "chunk_ids": ["non-existent-1", "non-existent-2"],
         "embedding_count": 2,
     }
 
-    service.process_embeddings(event_data)
+    with pytest.raises(DocumentNotFoundError, match="No chunks found in database"):
+        service.process_embeddings(event_data)
 
-    # Should not orchestrate any threads
     assert service.threads_orchestrated == 0
 
 

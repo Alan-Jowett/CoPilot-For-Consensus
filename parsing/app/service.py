@@ -429,6 +429,10 @@ class ParsingService:
                                 },
                             )
 
+        except DocumentNotFoundError:
+            # Treat missing documents/archives as a retryable race condition handled by
+            # the outer handle_event_with_retry wrapper.
+            raise
         except Exception as e:
             duration = time.monotonic() - start_time
             logger.error(f"Failed to parse archive {archive_id} after {duration:.2f}s: {e}", exc_info=True)

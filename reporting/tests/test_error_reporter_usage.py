@@ -154,6 +154,15 @@ def test_error_reporter_called_on_nested_exception_in_process_summary(
         notify_enabled=True,
     )
 
+    def query_documents_side_effect(collection: str, **kwargs):
+        if collection == "summaries":
+            return []
+        if collection == "threads":
+            return [{"_id": sample_event_data["thread_id"]}]
+        return []
+
+    mock_document_store.query_documents.side_effect = query_documents_side_effect
+
     # Mock webhook to fail
     with patch("app.service.requests.post") as mock_post:
         mock_post.side_effect = Exception("Webhook connection failed")

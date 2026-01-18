@@ -319,6 +319,10 @@ class EmbeddingService:
 
                 return
 
+            except DocumentNotFoundError:
+                # Treat missing documents as a retryable race condition handled by
+                # the outer handle_event_with_retry wrapper.
+                raise
             except Exception as e:
                 retry_count += 1
                 error_msg = str(e)
