@@ -9,7 +9,7 @@
 # via scripts/install_adapters.py and are not included in this lockfile.
 
 python-dotenv>=1.2.1
-prometheus-client>=0.23.1
+prometheus-client>=0.24.1
 fastapi>=0.127.0
 uvicorn[standard]>=0.40.0
 httpx>=0.28.1  # Required for FastAPI TestClient
