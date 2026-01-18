@@ -14,6 +14,8 @@ from copilot_message_bus import (
     EventSubscriber,
     ReportDeliveryFailedEvent,
     ReportPublishedEvent,
+    SourceCleanupProgressEvent,
+    SourceDeletionRequestedEvent,
     SummaryCompleteEvent,
 )
 from copilot_logging import get_logger
@@ -94,7 +96,15 @@ class ReportingService:
             callback=self._handle_summary_complete,
         )
 
-        logger.info("Subscribed to summary.complete events")
+        # Subscribe to SourceDeletionRequested events for cascade cleanup
+        self.subscriber.subscribe(
+            event_type="SourceDeletionRequested",
+            exchange="copilot.events",
+            routing_key="source.deletion.requested",
+            callback=self._handle_source_deletion_requested,
+        )
+
+        logger.info("Subscribed to summary.complete and source.deletion.requested events")
         logger.info("Reporting service is ready")
 
     def _handle_summary_complete(self, event: dict[str, Any]):
@@ -981,6 +991,184 @@ class ReportingService:
         )
 
         return results[0] if results else None
+
+    def _handle_source_deletion_requested(self, event: dict[str, Any]):
+        """Handle SourceDeletionRequested event to clean up reporting-owned data.
+
+        This handler deletes summaries and reports associated with a source.
+        The handler is idempotent - deleting already-deleted data is a no-op.
+
+        Args:
+            event: SourceDeletionRequested event payload
+        """
+        start_time = time.time()
+        data = event.get("data", {})
+        source_name = data.get("source_name")
+        correlation_id = data.get("correlation_id")
+        archive_ids = data.get("archive_ids", [])
+
+        if not source_name:
+            logger.error("SourceDeletionRequested event missing source_name", event=event)
+            return
+
+        logger.info(
+            "Starting cascade cleanup for source in reporting service",
+            source_name=source_name,
+            correlation_id=correlation_id,
+            archive_count=len(archive_ids),
+        )
+
+        deletion_counts = {
+            "summaries": 0,
+        }
+
+        try:
+            # Delete summaries for the source
+            try:
+                # Try querying by source first
+                summaries = self.document_store.query_documents(
+                    "summaries",
+                    {"source": source_name}
+                ) or []
+
+                # If no summaries found by source and we have archive_ids, try by archive_id
+                if not summaries and archive_ids:
+                    for archive_id in archive_ids:
+                        archive_summaries = self.document_store.query_documents(
+                            "summaries",
+                            {"archive_id": archive_id}
+                        ) or []
+                        summaries.extend(archive_summaries)
+
+                for summary in summaries:
+                    summary_id = summary.get("_id")
+                    if summary_id:
+                        try:
+                            self.document_store.delete_document("summaries", summary_id)
+                            deletion_counts["summaries"] += 1
+                        except Exception as e:
+                            logger.warning(
+                                "Failed to delete summary during cascade cleanup",
+                                summary_id=summary_id,
+                                source_name=source_name,
+                                error=str(e),
+                            )
+                logger.info(
+                    "Deleted summaries for source",
+                    source_name=source_name,
+                    count=deletion_counts["summaries"],
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to query/delete summaries during cascade cleanup",
+                    source_name=source_name,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+            # Emit metrics
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "reporting_cascade_cleanup_total",
+                    tags={"source_name": source_name}
+                )
+                if deletion_counts["summaries"] > 0:
+                    self.metrics_collector.gauge(
+                        "reporting_cascade_cleanup_summaries",
+                        float(deletion_counts["summaries"]),
+                        tags={"source_name": source_name}
+                    )
+
+            processing_time = time.time() - start_time
+            logger.info(
+                "Cascade cleanup completed in reporting service",
+                source_name=source_name,
+                correlation_id=correlation_id,
+                deletion_counts=deletion_counts,
+                processing_time_seconds=processing_time,
+            )
+
+            # Publish SourceCleanupProgress event
+            try:
+                completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                progress_event = SourceCleanupProgressEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "service_name": "reporting",
+                        "status": "completed",
+                        "deletion_counts": deletion_counts,
+                        "completed_at": completed_at,
+                    }
+                )
+                self.publisher.publish(
+                    event=progress_event.to_dict(),
+                    routing_key="source.cleanup.progress",
+                    exchange="copilot.events",
+                )
+                logger.info(
+                    "Published SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    status="completed",
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to publish SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+        except Exception as e:
+            logger.error(
+                "Cascade cleanup failed in reporting service",
+                source_name=source_name,
+                correlation_id=correlation_id,
+                error=str(e),
+                exc_info=True,
+            )
+
+            # Publish failure progress event
+            try:
+                completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                progress_event = SourceCleanupProgressEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "service_name": "reporting",
+                        "status": "failed",
+                        "deletion_counts": deletion_counts,
+                        "error_summary": f"Reporting cleanup failed: {str(e)[:200]}",
+                        "completed_at": completed_at,
+                    }
+                )
+                self.publisher.publish(
+                    event=progress_event.to_dict(),
+                    routing_key="source.cleanup.progress",
+                    exchange="copilot.events",
+                )
+            except Exception as pub_error:
+                logger.error(
+                    "Failed to publish failure SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    error=str(pub_error),
+                    exc_info=True,
+                )
+
+            if self.error_reporter:
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "source_cascade_cleanup",
+                        "service": "reporting",
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "deletion_counts": deletion_counts,
+                    }
+                )
 
     def get_stats(self) -> dict[str, Any]:
         """Get service statistics.

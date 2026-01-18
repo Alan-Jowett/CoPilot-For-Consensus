@@ -19,6 +19,8 @@ from copilot_message_bus import (
     EventPublisher,
     EventSubscriber,
     JSONParsedEvent,
+    SourceCleanupProgressEvent,
+    SourceDeletionRequestedEvent,
 )
 from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
@@ -82,7 +84,15 @@ class ChunkingService:
             callback=self._handle_json_parsed,
         )
 
-        logger.info("Subscribed to json.parsed events")
+        # Subscribe to SourceDeletionRequested events for cascade cleanup
+        self.subscriber.subscribe(
+            event_type="SourceDeletionRequested",
+            exchange="copilot.events",
+            routing_key="source.deletion.requested",
+            callback=self._handle_source_deletion_requested,
+        )
+
+        logger.info("Subscribed to json.parsed and source.deletion.requested events")
         logger.info("Chunking service is ready")
 
     def _requeue_incomplete_messages(self):
@@ -579,6 +589,184 @@ class ChunkingService:
         except Exception as e:
             logger.error(f"Failed to publish ChunkingFailed event: {e}", exc_info=True)
             raise
+
+    def _handle_source_deletion_requested(self, event: dict[str, Any]):
+        """Handle SourceDeletionRequested event to clean up chunking-owned data.
+
+        This handler deletes chunks associated with a source by source_name and/or archive_id.
+        The handler is idempotent - deleting already-deleted data is a no-op.
+
+        Args:
+            event: SourceDeletionRequested event payload
+        """
+        start_time = time.time()
+        data = event.get("data", {})
+        source_name = data.get("source_name")
+        correlation_id = data.get("correlation_id")
+        archive_ids = data.get("archive_ids", [])
+
+        if not source_name:
+            logger.error("SourceDeletionRequested event missing source_name", event=event)
+            return
+
+        logger.info(
+            "Starting cascade cleanup for source in chunking service",
+            source_name=source_name,
+            correlation_id=correlation_id,
+            archive_count=len(archive_ids),
+        )
+
+        deletion_counts = {
+            "chunks": 0,
+        }
+
+        try:
+            # Delete chunks for the source
+            try:
+                # Try querying by source first
+                chunks = self.document_store.query_documents(
+                    "chunks",
+                    {"source": source_name}
+                ) or []
+
+                # If no chunks found by source and we have archive_ids, try by archive_id
+                if not chunks and archive_ids:
+                    for archive_id in archive_ids:
+                        archive_chunks = self.document_store.query_documents(
+                            "chunks",
+                            {"archive_id": archive_id}
+                        ) or []
+                        chunks.extend(archive_chunks)
+
+                for chunk in chunks:
+                    chunk_id = chunk.get("_id")
+                    if chunk_id:
+                        try:
+                            self.document_store.delete_document("chunks", chunk_id)
+                            deletion_counts["chunks"] += 1
+                        except Exception as e:
+                            logger.warning(
+                                "Failed to delete chunk during cascade cleanup",
+                                chunk_id=chunk_id,
+                                source_name=source_name,
+                                error=str(e),
+                            )
+                logger.info(
+                    "Deleted chunks for source",
+                    source_name=source_name,
+                    count=deletion_counts["chunks"],
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to query/delete chunks during cascade cleanup",
+                    source_name=source_name,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+            # Emit metrics
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "chunking_cascade_cleanup_total",
+                    tags={"source_name": source_name}
+                )
+                if deletion_counts["chunks"] > 0:
+                    self.metrics_collector.gauge(
+                        "chunking_cascade_cleanup_chunks",
+                        float(deletion_counts["chunks"]),
+                        tags={"source_name": source_name}
+                    )
+
+            processing_time = time.time() - start_time
+            logger.info(
+                "Cascade cleanup completed in chunking service",
+                source_name=source_name,
+                correlation_id=correlation_id,
+                deletion_counts=deletion_counts,
+                processing_time_seconds=processing_time,
+            )
+
+            # Publish SourceCleanupProgress event
+            try:
+                completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                progress_event = SourceCleanupProgressEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "service_name": "chunking",
+                        "status": "completed",
+                        "deletion_counts": deletion_counts,
+                        "completed_at": completed_at,
+                    }
+                )
+                self.publisher.publish(
+                    event=progress_event.to_dict(),
+                    routing_key="source.cleanup.progress",
+                    exchange="copilot.events",
+                )
+                logger.info(
+                    "Published SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    status="completed",
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to publish SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+        except Exception as e:
+            logger.error(
+                "Cascade cleanup failed in chunking service",
+                source_name=source_name,
+                correlation_id=correlation_id,
+                error=str(e),
+                exc_info=True,
+            )
+
+            # Publish failure progress event
+            try:
+                completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                progress_event = SourceCleanupProgressEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "service_name": "chunking",
+                        "status": "failed",
+                        "deletion_counts": deletion_counts,
+                        "error_summary": f"Chunking cleanup failed: {str(e)[:200]}",
+                        "completed_at": completed_at,
+                    }
+                )
+                self.publisher.publish(
+                    event=progress_event.to_dict(),
+                    routing_key="source.cleanup.progress",
+                    exchange="copilot.events",
+                )
+            except Exception as pub_error:
+                logger.error(
+                    "Failed to publish failure SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    error=str(pub_error),
+                    exc_info=True,
+                )
+
+            if self.error_reporter:
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "source_cascade_cleanup",
+                        "service": "chunking",
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "deletion_counts": deletion_counts,
+                    }
+                )
 
     def get_stats(self) -> dict[str, Any]:
         """Get service statistics.
