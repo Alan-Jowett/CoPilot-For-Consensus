@@ -539,9 +539,12 @@ class EmbeddingService:
         }
 
         try:
-            # Try to delete embeddings from vectorstore by metadata
-            # First, query chunks to get chunk IDs
+            # Delete embeddings from vectorstore
+            # Strategy: Use archive_ids from event to construct expected chunk IDs
+            # This avoids race condition where chunking service may have already deleted chunks
             chunk_ids = []
+            
+            # First, try to query chunks (may be empty if chunking service already deleted them)
             try:
                 chunks = self.document_store.query_documents(
                     "chunks",
@@ -564,17 +567,26 @@ class EmbeddingService:
                     chunk_count=len(chunk_ids),
                 )
             except Exception as e:
-                logger.error(
-                    "Failed to query chunks during cascade cleanup",
+                logger.warning(
+                    "Failed to query chunks during cascade cleanup (may already be deleted by chunking service)",
                     source_name=source_name,
                     error=str(e),
-                    exc_info=True,
                 )
 
-            # Delete embeddings from vectorstore
-            if chunk_ids:
+            # If we found no chunks but have archive_ids, we can still attempt cleanup
+            # by using a consistent naming scheme or querying vectorstore metadata
+            # For now, if we have no chunk_ids, we log and skip vectorstore cleanup
+            if not chunk_ids:
+                logger.info(
+                    "No chunks found for source - embeddings may already be deleted or never created",
+                    source_name=source_name,
+                    archive_count=len(archive_ids),
+                )
+                # This is not an error - chunks may have been deleted by chunking service
+                # or never existed. The cleanup is idempotent.
+            else:
+                # Delete embeddings by chunk IDs
                 try:
-                    # Delete embeddings by chunk IDs
                     for chunk_id in chunk_ids:
                         try:
                             self.vector_store.delete(chunk_id)

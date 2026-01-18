@@ -24,12 +24,10 @@ When `DELETE /api/sources/{source_name}?cascade=true` is called:
    - `requested_at`: Timestamp of deletion request
 
 3. Ingestion service performs its local cleanup:
-   - Deletes threads from document store
-   - Deletes messages from document store
-   - Deletes chunks from document store
-   - Deletes summaries from document store
    - Deletes archives from document store and archive store
    - Publishes `SourceCleanupProgress` event with status "completed"
+   
+   **Note**: The ingestion service's current `delete_source_cascade()` method also deletes threads, messages, chunks, and summaries as a legacy synchronous operation. This provides backward compatibility and ensures cleanup happens even if other services are unavailable. The distributed event-driven handlers in parsing, chunking, embedding, and reporting services provide additional resilience and will skip already-deleted data (idempotent behavior).
 
 4. Deletes the source record itself
 
@@ -57,6 +55,30 @@ Each service subscribes to `SourceDeletionRequested` events and handles cleanup 
 - Deletes: Derived reports and summaries
 - Aggregates progress from all services
 - Publishes: `SourceCleanupCompleted` event with overall status
+
+**Note**: Aggregation logic is not yet implemented. Currently, the reporting service only deletes its own summaries and does not aggregate progress events or publish SourceCleanupCompleted. This is planned for a future enhancement.
+
+#### Aggregation Logic (Future Enhancement)
+
+When implemented, the orchestrator/reporting service will:
+
+- Subscribe to `SourceCleanupProgress` events on the `copilot.events` exchange
+- Group all progress events by `correlation_id` (one correlation per cascade cleanup operation)
+- Maintain a record for each active cleanup that tracks:
+  - Expected services (e.g., `["ingestion", "parsing", "chunking", "embedding", "reporting"]`)
+  - Per-service deletion counts and status (`in_progress`, `completed`, or `failed`)
+  - Running aggregate `total_deletion_counts` across all services
+- Update the aggregate record when new `SourceCleanupProgress` events arrive:
+  - Increment deletion counters by the deltas in the event
+  - Mark the emitting service as `completed` or `failed` based on event payload
+- Determine when cleanup is finished (all services completed/failed or timeout reached)
+- Publish `SourceCleanupCompleted` event with:
+  - `source_name` and `correlation_id` from original request
+  - `completed_at` timestamp
+  - `total_deletion_counts` aggregated across services
+  - `services_completed` list of successful services
+  - `services_failed` list of failed services
+  - `overall_status`: `"success"`, `"partial_success"`, or `"failed"`
 
 ## Event Schemas
 
@@ -152,7 +174,8 @@ Schema: `docs/schemas/events/SourceCleanupCompleted.schema.json`
 ### Idempotency
 - Each handler uses `correlation_id` as the idempotency key
 - Deleting already-deleted data is a no-op success
-- Services track completed cleanup operations to avoid duplicate work
+- Services rely on idempotent delete operations; they do not currently persist per-`correlation_id` completion state, so repeated events may trigger redundant but safe cleanup work
+- Future enhancement: Implement correlation_id tracking to skip already-processed cleanup requests
 
 ### Partial Failure Handling
 - Cleanup continues even if some operations fail
