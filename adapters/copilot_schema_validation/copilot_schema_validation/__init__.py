@@ -38,6 +38,10 @@ from .models import (
     ReportDeliveryFailedEvent,
     # Reporting Service Events
     ReportPublishedEvent,
+    # Source Cascade Cleanup Events
+    SourceCleanupCompletedEvent,
+    SourceCleanupProgressEvent,
+    SourceDeletionRequestedEvent,
     SummarizationFailedEvent,
     # Orchestration Service Events
     SummarizationRequestedEvent,
@@ -87,6 +91,9 @@ __all__ = [
     "SummarizationFailedEvent",
     "ReportPublishedEvent",
     "ReportDeliveryFailedEvent",
+    "SourceDeletionRequestedEvent",
+    "SourceCleanupProgressEvent",
+    "SourceCleanupCompletedEvent",
     "ArchiveMetadata",
     # Identifier generators
     "generate_archive_id_from_bytes",

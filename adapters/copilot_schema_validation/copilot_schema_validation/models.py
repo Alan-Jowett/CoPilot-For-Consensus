@@ -403,6 +403,74 @@ class ReportDeliveryFailedEvent(BaseEvent):
 
 
 # ============================================================================
+# Source Cascade Cleanup Events
+# ============================================================================
+
+@dataclass
+class SourceDeletionRequestedEvent(BaseEvent):
+    """Event published when a source is deleted with cascade semantics.
+
+    Schema: docs/schemas/events/SourceDeletionRequested.schema.json
+
+    Published by: Ingestion Service
+    Consumed by: All services (Parsing, Chunking, Embedding, Orchestrator, Reporting)
+    Routing Key: source.deletion.requested
+
+    Data fields:
+        source_name: Name of the source being deleted
+        correlation_id: Stable idempotency key for tracking cleanup across services
+        requested_at: Timestamp when deletion was requested (ISO 8601)
+        archive_ids: Optional list of archive IDs to accelerate downstream deletes
+        delete_mode: Deletion mode (currently only 'hard' is supported)
+        reason: Optional reason for deletion
+        requested_by: Optional identifier of who/what requested the deletion
+    """
+    event_type: str = field(default="SourceDeletionRequested", init=False)
+
+
+@dataclass
+class SourceCleanupProgressEvent(BaseEvent):
+    """Event published by services to report progress during cascade cleanup.
+
+    Schema: docs/schemas/events/SourceCleanupProgress.schema.json
+
+    Published by: All services handling cascade cleanup
+    Routing Key: source.cleanup.progress
+
+    Data fields:
+        source_name: Name of the source being cleaned up
+        correlation_id: Correlation ID from the original SourceDeletionRequested event
+        service_name: Name of the service reporting progress
+        status: Current status (started, in_progress, completed, failed)
+        deletion_counts: Counts of deleted items per collection/resource type
+        error_summary: Optional non-sensitive summary of errors encountered
+        completed_at: Timestamp when cleanup completed (for status=completed or failed)
+    """
+    event_type: str = field(default="SourceCleanupProgress", init=False)
+
+
+@dataclass
+class SourceCleanupCompletedEvent(BaseEvent):
+    """Event published when cascade cleanup has completed across all services.
+
+    Schema: docs/schemas/events/SourceCleanupCompleted.schema.json
+
+    Published by: Orchestrator or Reporting Service (aggregator)
+    Routing Key: source.cleanup.completed
+
+    Data fields:
+        source_name: Name of the source that was cleaned up
+        correlation_id: Correlation ID from the original SourceDeletionRequested event
+        completed_at: Timestamp when overall cleanup completed
+        total_deletion_counts: Aggregate counts of deleted items across all services
+        services_completed: List of services that successfully completed cleanup
+        services_failed: List of services that failed cleanup
+        overall_status: Overall cleanup status (success, partial_success, failed)
+    """
+    event_type: str = field(default="SourceCleanupCompleted", init=False)
+
+
+# ============================================================================
 # Data Models (used internally by services)
 # ============================================================================
 

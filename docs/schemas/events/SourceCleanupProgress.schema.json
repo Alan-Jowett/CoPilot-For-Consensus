@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/source-cleanup-progress.schema.json",
+  "title": "SourceCleanupProgress Event",
+  "description": "Event published by services to report progress during cascade cleanup of a deleted source.",
+  "allOf": [
+    { "$ref": "./event-envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "SourceCleanupProgress" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "source_name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Name of the source being cleaned up"
+            },
+            "correlation_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Correlation ID from the original SourceDeletionRequested event"
+            },
+            "service_name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Name of the service reporting progress (e.g., 'parsing', 'chunking', 'embedding')"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["started", "in_progress", "completed", "failed"],
+              "description": "Current status of cleanup in this service"
+            },
+            "deletion_counts": {
+              "type": "object",
+              "description": "Counts of deleted items per collection/resource type",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "error_summary": {
+              "type": "string",
+              "description": "Optional non-sensitive summary of errors encountered"
+            },
+            "completed_at": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Timestamp when cleanup completed (for status=completed or failed)"
+            }
+          },
+          "required": [
+            "source_name",
+            "correlation_id",
+            "service_name",
+            "status"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event_type", "event_id", "timestamp", "version", "data"],
+      "additionalProperties": false
+    }
+  ]
+}

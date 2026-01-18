@@ -1017,3 +1017,118 @@ def test_schema_validation_enforced_for_chunks(chunking_service):
     # Validate each chunk against the schema
     for chunk in chunks:
         assert_valid_document_schema(chunk, "chunks")
+
+
+def test_cascade_cleanup_handler():
+    """Test that chunking service handles SourceDeletionRequested events and deletes chunks."""
+    from copilot_config.generated.adapters.document_store import (
+        AdapterConfig_DocumentStore,
+        DriverConfig_DocumentStore_Inmemory,
+    )
+    from copilot_storage import create_document_store
+    from copilot_chunking import create_chunker
+    from copilot_config.generated.adapters.chunking import (
+        AdapterConfig_Chunking,
+        DriverConfig_Chunking_Semantic,
+    )
+    from unittest.mock import Mock
+    
+    # Create test service
+    document_store = create_document_store(
+        AdapterConfig_DocumentStore(
+            document_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        )
+    )
+    
+    # Create a mock publisher that captures events
+    class MockPublisher:
+        def __init__(self):
+            self.published_events = []
+        
+        def connect(self):
+            pass
+        
+        def disconnect(self):
+            pass
+        
+        def publish(self, event, routing_key, exchange):
+            self.published_events.append({
+                "event": event,
+                "routing_key": routing_key,
+                "exchange": exchange,
+            })
+    
+    mock_publisher = MockPublisher()
+    
+    class MockSubscriber:
+        def connect(self):
+            pass
+        
+        def disconnect(self):
+            pass
+        
+        def subscribe(self, event_type, exchange, routing_key, callback):
+            pass
+    
+    chunker = create_chunker(
+        AdapterConfig_Chunking(
+            chunking_type="semantic",
+            driver=DriverConfig_Chunking_Semantic(chunk_size=512, chunk_overlap=50),
+        )
+    )
+    
+    from app.service import ChunkingService
+    service = ChunkingService(
+        document_store=document_store,
+        publisher=mock_publisher,
+        subscriber=MockSubscriber(),
+        chunker=chunker,
+        metrics_collector=Mock(),
+    )
+    
+    # Add test data
+    document_store.insert_document("chunks", {
+        "_id": "chunk-1",
+        "source": "test-source",
+        "text": "Test chunk 1"
+    })
+    document_store.insert_document("chunks", {
+        "_id": "chunk-2",
+        "source": "test-source",
+        "text": "Test chunk 2"
+    })
+    
+    # Simulate SourceDeletionRequested event
+    event = {
+        "event_type": "SourceDeletionRequested",
+        "event_id": "test-event-123",
+        "timestamp": "2025-01-18T00:00:00Z",
+        "version": "1.0",
+        "data": {
+            "source_name": "test-source",
+            "correlation_id": "test-correlation-123",
+            "requested_at": "2025-01-18T00:00:00Z",
+            "archive_ids": ["archive-1"],
+            "delete_mode": "hard"
+        }
+    }
+    
+    # Call the handler
+    service._handle_source_deletion_requested(event)
+    
+    # Verify data was deleted
+    chunks = document_store.query_documents("chunks", {"source": "test-source"})
+    assert len(chunks) == 0, "Chunks should be deleted"
+    
+    # Verify SourceCleanupProgress event was published
+    assert len(mock_publisher.published_events) == 1, "Should publish one progress event"
+    
+    progress_event = mock_publisher.published_events[0]
+    assert progress_event["routing_key"] == "source.cleanup.progress"
+    assert progress_event["event"]["event_type"] == "SourceCleanupProgress"
+    assert progress_event["event"]["data"]["source_name"] == "test-source"
+    assert progress_event["event"]["data"]["service_name"] == "chunking"
+    assert progress_event["event"]["data"]["status"] == "completed"
+    assert progress_event["event"]["data"]["correlation_id"] == "test-correlation-123"
+    assert progress_event["event"]["data"]["deletion_counts"]["chunks"] == 2

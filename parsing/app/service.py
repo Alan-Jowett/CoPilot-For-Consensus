@@ -16,6 +16,8 @@ from copilot_message_bus import (
     EventSubscriber,
     JSONParsedEvent,
     ParsingFailedEvent,
+    SourceCleanupProgressEvent,
+    SourceDeletionRequestedEvent,
 )
 from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
@@ -110,7 +112,15 @@ class ParsingService:
             callback=self._handle_archive_ingested,
         )
 
-        logger.info("Subscribed to archive.ingested events")
+        # Subscribe to SourceDeletionRequested events for cascade cleanup
+        self.subscriber.subscribe(
+            event_type="SourceDeletionRequested",
+            exchange="copilot.events",
+            routing_key="source.deletion.requested",
+            callback=self._handle_source_deletion_requested,
+        )
+
+        logger.info("Subscribed to archive.ingested and source.deletion.requested events")
         logger.info("Parsing service is ready")
 
     def _build_archive_ingested_event_data(self, doc: dict[str, Any]) -> dict[str, Any]:
@@ -797,6 +807,211 @@ class ParsingService:
             if self.error_reporter:
                 self.error_reporter.report(e, context={"archive_id": archive_id})
             raise
+
+    def _handle_source_deletion_requested(self, event: dict[str, Any]):
+        """Handle SourceDeletionRequested event to clean up parsing-owned data.
+
+        This handler deletes parsing-owned data for a source including:
+        - Threads associated with the source
+        - Messages associated with the source
+        - Archive metadata (if managed by parsing service)
+
+        The handler is idempotent - deleting already-deleted data is a no-op.
+
+        Args:
+            event: SourceDeletionRequested event payload
+        """
+        start_time = time.time()
+        data = event.get("data", {})
+        source_name = data.get("source_name")
+        correlation_id = data.get("correlation_id")
+        archive_ids = data.get("archive_ids", [])
+
+        if not source_name:
+            logger.error("SourceDeletionRequested event missing source_name", event=event)
+            return
+
+        logger.info(
+            "Starting cascade cleanup for source in parsing service",
+            source_name=source_name,
+            correlation_id=correlation_id,
+            archive_count=len(archive_ids),
+        )
+
+        deletion_counts = {
+            "threads": 0,
+            "messages": 0,
+        }
+
+        try:
+            # Delete threads for the source
+            try:
+                threads = self.document_store.query_documents(
+                    "threads",
+                    {"source": source_name}
+                ) or []
+                for thread in threads:
+                    thread_id = thread.get("_id")
+                    if thread_id:
+                        try:
+                            self.document_store.delete_document("threads", thread_id)
+                            deletion_counts["threads"] += 1
+                        except Exception as e:
+                            logger.warning(
+                                "Failed to delete thread during cascade cleanup",
+                                thread_id=thread_id,
+                                source_name=source_name,
+                                error=str(e),
+                            )
+                logger.info(
+                    "Deleted threads for source",
+                    source_name=source_name,
+                    count=deletion_counts["threads"],
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to query/delete threads during cascade cleanup",
+                    source_name=source_name,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+            # Delete messages for the source
+            try:
+                messages = self.document_store.query_documents(
+                    "messages",
+                    {"source": source_name}
+                ) or []
+                for message in messages:
+                    message_id = message.get("_id")
+                    if message_id:
+                        try:
+                            self.document_store.delete_document("messages", message_id)
+                            deletion_counts["messages"] += 1
+                        except Exception as e:
+                            logger.warning(
+                                "Failed to delete message during cascade cleanup",
+                                message_id=message_id,
+                                source_name=source_name,
+                                error=str(e),
+                            )
+                logger.info(
+                    "Deleted messages for source",
+                    source_name=source_name,
+                    count=deletion_counts["messages"],
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to query/delete messages during cascade cleanup",
+                    source_name=source_name,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+            # Emit metrics
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "parsing_cascade_cleanup_total",
+                    tags={"source_name": source_name}
+                )
+                for collection, count in deletion_counts.items():
+                    if count > 0:
+                        self.metrics_collector.gauge(
+                            f"parsing_cascade_cleanup_{collection}",
+                            float(count),
+                            tags={"source_name": source_name}
+                        )
+
+            processing_time = time.time() - start_time
+            logger.info(
+                "Cascade cleanup completed in parsing service",
+                source_name=source_name,
+                correlation_id=correlation_id,
+                deletion_counts=deletion_counts,
+                processing_time_seconds=processing_time,
+            )
+
+            # Publish SourceCleanupProgress event
+            try:
+                completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                progress_event = SourceCleanupProgressEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "service_name": "parsing",
+                        "status": "completed",
+                        "deletion_counts": deletion_counts,
+                        "completed_at": completed_at,
+                    }
+                )
+                self.publisher.publish(
+                    event=progress_event.to_dict(),
+                    routing_key="source.cleanup.progress",
+                    exchange="copilot.events",
+                )
+                logger.info(
+                    "Published SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    status="completed",
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to publish SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+        except Exception as e:
+            logger.error(
+                "Cascade cleanup failed in parsing service",
+                source_name=source_name,
+                correlation_id=correlation_id,
+                error=str(e),
+                exc_info=True,
+            )
+
+            # Publish failure progress event
+            try:
+                completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                progress_event = SourceCleanupProgressEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "service_name": "parsing",
+                        "status": "failed",
+                        "deletion_counts": deletion_counts,
+                        "error_summary": f"Parsing cleanup failed: {str(e)[:200]}",
+                        "completed_at": completed_at,
+                    }
+                )
+                self.publisher.publish(
+                    event=progress_event.to_dict(),
+                    routing_key="source.cleanup.progress",
+                    exchange="copilot.events",
+                )
+            except Exception as pub_error:
+                logger.error(
+                    "Failed to publish failure SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    error=str(pub_error),
+                    exc_info=True,
+                )
+
+            if self.error_reporter:
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "source_cascade_cleanup",
+                        "service": "parsing",
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "deletion_counts": deletion_counts,
+                    }
+                )
 
     def get_stats(self) -> dict[str, Any]:
         """Get parsing statistics.
