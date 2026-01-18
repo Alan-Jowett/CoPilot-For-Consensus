@@ -271,14 +271,29 @@ class ReportingService:
         # Update thread document with summary_id to mark as complete
         logger.info(f"Updating thread {thread_id} with summary_id {report_id}")
         # Threads use thread_id as document _id; update by ID.
-        # If the thread document is missing, treat the update as best-effort and continue.
         try:
+            thread_docs = list(
+                self.document_store.query_documents(
+                    "threads",
+                    filter_dict={"_id": thread_id},
+                    limit=1,
+                )
+            )
+            if not thread_docs:
+                raise DocumentNotFoundError(
+                    f"Thread {thread_id} not found in database"
+                )
+
             self.document_store.update_document(
                 "threads",
                 thread_id,
                 {"summary_id": report_id},
             )
         except Exception as e:
+            # Raise retryable error so the event retry wrapper can handle race conditions.
+            if isinstance(e, DocumentNotFoundError):
+                raise
+
             logger.warning(
                 f"Failed to update thread {thread_id} with summary_id {report_id}: {e}",
                 exc_info=True,

@@ -373,10 +373,9 @@ class OrchestrationService:
         )
 
         if not chunks:
-            logger.warning(
-                f"No chunks found in database for {len(chunk_ids)} IDs; skipping"
-            )
-            return []
+            message = f"No chunks found in database for {len(chunk_ids)} IDs"
+            logger.warning(message)
+            raise DocumentNotFoundError(message)
 
         for chunk in chunks:
             thread_id = chunk.get("thread_id")

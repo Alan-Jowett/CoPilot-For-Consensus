@@ -228,7 +228,7 @@ Integration tests should verify:
 
 1. **Tune retry parameters** based on observed behavior:
    - Increase `max_attempts` if documents take longer to become queryable
-   - Increase `ttl_minutes` for slower backends
+   - Increase `ttl_seconds` for slower backends
    - Adjust `base_delay_ms` based on typical latency
 
 2. **Alert on DLQ metrics**:

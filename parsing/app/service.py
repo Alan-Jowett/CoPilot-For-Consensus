@@ -271,6 +271,9 @@ class ParsingService:
                     # Raise retryable error to trigger retry logic for race conditions
                     # This handles cases where events arrive before archives are stored
                     raise DocumentNotFoundError(error_msg)
+            except DocumentNotFoundError:
+                # Re-raise so the handle_event_with_retry wrapper can retry.
+                raise
             except Exception as e:
                 error_msg = f"Failed to retrieve archive from ArchiveStore: {str(e)}"
                 logger.error(error_msg, exc_info=True)
