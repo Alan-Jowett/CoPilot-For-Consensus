@@ -8,29 +8,32 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Literal
 
 
 @dataclass
 class DriverConfig_Logger_Silent:
     """Configuration for logger adapter using silent driver."""
-    level: str = 'INFO'
+
+    level: str = "INFO"
     # Logging level for silent logger
-    name: Optional[str] = None
+    name: str | None = None
     # Logger name (optional)
 
 
 @dataclass
 class DriverConfig_Logger_Stdout:
     """Configuration for logger adapter using stdout driver."""
-    level: str = 'INFO'
+
+    level: str = "INFO"
     # Logging level for stdout logger
-    name: Optional[str] = None
+    name: str | None = None
     # Logger name (optional)
 
 
 @dataclass
 class AdapterConfig_Logger:
     """Configuration for logger adapter."""
+
     logger_type: Literal["silent", "stdout"]
-    driver: Union[DriverConfig_Logger_Silent, DriverConfig_Logger_Stdout]
+    driver: DriverConfig_Logger_Silent | DriverConfig_Logger_Stdout

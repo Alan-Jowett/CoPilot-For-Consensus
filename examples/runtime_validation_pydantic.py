@@ -29,8 +29,10 @@ except ImportError:
 # Example 1: Message Event Validation
 # ====================================
 
+
 class EventType(str, Enum):
     """Valid event types in the system."""
+
     JSON_PARSED = "json_parsed"
     CHUNKS_PREPARED = "chunks_prepared"
     CHUNKS_EMBEDDED = "chunks_embedded"
@@ -44,6 +46,7 @@ class MessageEvent(BaseModel):
     This ensures all events have required fields and validates
     their types at runtime.
     """
+
     model_config = ConfigDict(
         use_enum_values=True,  # Convert enum to string
         validate_assignment=True,  # Validate on attribute assignment
@@ -57,27 +60,28 @@ class MessageEvent(BaseModel):
 
 class ChunksPreparedEvent(MessageEvent):
     """Event emitted when chunks are prepared."""
+
     event_type: Literal[EventType.CHUNKS_PREPARED] = EventType.CHUNKS_PREPARED
     chunk_count: int = Field(..., gt=0, description="Number of chunks created")
     chunk_ids: list[str] = Field(..., min_length=1)
 
-    @field_validator('chunk_ids')
+    @field_validator("chunk_ids")
     @classmethod
     def validate_chunk_ids(cls, v: list[str], info) -> list[str]:
         """Ensure chunk_ids count matches chunk_count."""
-        chunk_count = info.data.get('chunk_count')
+        chunk_count = info.data.get("chunk_count")
         if chunk_count is not None and len(v) != chunk_count:
-            raise ValueError(
-                f"chunk_ids length ({len(v)}) doesn't match chunk_count ({chunk_count})"
-            )
+            raise ValueError(f"chunk_ids length ({len(v)}) doesn't match chunk_count ({chunk_count})")
         return v
 
 
 # Example 2: API Response Validation
 # ===================================
 
+
 class DocumentSummary(BaseModel):
     """Model for document summary API responses."""
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -87,7 +91,7 @@ class DocumentSummary(BaseModel):
                 "summary": "The working group discussed...",
                 "consensus_level": "high",
                 "created_at": "2025-01-15T10:30:00Z",
-                "updated_at": "2025-01-15T10:30:00Z"
+                "updated_at": "2025-01-15T10:30:00Z",
             }
         }
     )
@@ -103,26 +107,27 @@ class DocumentSummary(BaseModel):
 
 class PaginatedResponse(BaseModel):
     """Generic paginated response model."""
+
     items: list[DocumentSummary]
     total: int = Field(..., ge=0)
     page: int = Field(..., ge=1)
     page_size: int = Field(..., ge=1, le=100)
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_pagination(self):
         """Ensure pagination values are consistent."""
         if len(self.items) > self.page_size:
-            raise ValueError(
-                f"items length ({len(self.items)}) exceeds page_size ({self.page_size})"
-            )
+            raise ValueError(f"items length ({len(self.items)}) exceeds page_size ({self.page_size})")
         return self
 
 
 # Example 3: Configuration Validation
 # ====================================
 
+
 class DatabaseConfig(BaseModel):
     """MongoDB database configuration."""
+
     host: str = Field(..., min_length=1)
     port: int = Field(..., ge=1, le=65535)
     database: str = Field(..., min_length=1)
@@ -139,6 +144,7 @@ class DatabaseConfig(BaseModel):
 
 class MessageBusConfig(BaseModel):
     """RabbitMQ message bus configuration."""
+
     host: str = Field(..., min_length=1)
     port: int = Field(..., ge=1, le=65535)
     queue_name: str = Field(..., min_length=1)
@@ -148,28 +154,25 @@ class MessageBusConfig(BaseModel):
 
 class ServiceConfig(BaseModel):
     """Complete service configuration model."""
+
     service_name: str = Field(..., min_length=1)
     database: DatabaseConfig
     message_bus: MessageBusConfig
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
 
-    @field_validator('service_name')
+    @field_validator("service_name")
     @classmethod
     def validate_service_name(cls, v: str) -> str:
         """Ensure service name follows naming convention."""
-        valid_services = [
-            'ingestion', 'parsing', 'chunking', 'embedding',
-            'orchestrator', 'summarization', 'reporting'
-        ]
+        valid_services = ["ingestion", "parsing", "chunking", "embedding", "orchestrator", "summarization", "reporting"]
         if v not in valid_services:
-            raise ValueError(
-                f"service_name '{v}' not in valid services: {valid_services}"
-            )
+            raise ValueError(f"service_name '{v}' not in valid services: {valid_services}")
         return v
 
 
 # Usage Examples
 # ==============
+
 
 def example_event_validation():
     """Demonstrate event validation."""
@@ -177,11 +180,7 @@ def example_event_validation():
 
     # Valid event
     try:
-        event = ChunksPreparedEvent(
-            document_id="doc_123",
-            chunk_count=3,
-            chunk_ids=["chunk_1", "chunk_2", "chunk_3"]
-        )
+        event = ChunksPreparedEvent(document_id="doc_123", chunk_count=3, chunk_ids=["chunk_1", "chunk_2", "chunk_3"])
         print("✓ Valid event created:")
         print(f"  {event.model_dump_json(indent=2)}")
     except ValidationError as e:
@@ -192,7 +191,7 @@ def example_event_validation():
     try:
         invalid_event = ChunksPreparedEvent(
             document_id="doc_123",
-            chunk_count=3
+            chunk_count=3,
             # Missing chunk_ids!
         )
         print(f"✗ Should have failed but got: {invalid_event}")
@@ -206,7 +205,7 @@ def example_event_validation():
         invalid_event = ChunksPreparedEvent(
             document_id="doc_123",
             chunk_count=3,
-            chunk_ids=["chunk_1", "chunk_2"]  # Only 2 chunks, not 3!
+            chunk_ids=["chunk_1", "chunk_2"],  # Only 2 chunks, not 3!
         )
         print(f"✗ Should have failed but got: {invalid_event}")
     except ValidationError as e:
@@ -227,12 +226,12 @@ def example_api_response_validation():
                 "summary": "Test summary",
                 "consensus_level": "high",
                 "created_at": "2025-01-15T10:30:00Z",
-                "updated_at": "2025-01-15T10:30:00Z"
+                "updated_at": "2025-01-15T10:30:00Z",
             }
         ],
         "total": 100,
         "page": 1,
-        "page_size": 10
+        "page_size": 10,
     }
 
     try:
@@ -252,12 +251,12 @@ def example_api_response_validation():
                 # Missing 'subject'!
                 "summary": "Test summary",
                 "created_at": "2025-01-15T10:30:00Z",
-                "updated_at": "2025-01-15T10:30:00Z"
+                "updated_at": "2025-01-15T10:30:00Z",
             }
         ],
         "total": 1,
         "page": 1,
-        "page_size": 10
+        "page_size": 10,
     }
 
     try:
@@ -275,17 +274,9 @@ def example_config_validation():
     # Valid configuration
     config_data = {
         "service_name": "chunking",
-        "database": {
-            "host": "localhost",
-            "port": 27017,
-            "database": "consensus"
-        },
-        "message_bus": {
-            "host": "messagebus",
-            "port": 5672,
-            "queue_name": "chunking_queue"
-        },
-        "log_level": "INFO"
+        "database": {"host": "localhost", "port": 27017, "database": "consensus"},
+        "message_bus": {"host": "messagebus", "port": 5672, "queue_name": "chunking_queue"},
+        "log_level": "INFO",
     }
 
     try:
@@ -304,13 +295,9 @@ def example_config_validation():
         "database": {
             "host": "localhost",
             "port": 99999,  # Invalid port!
-            "database": "consensus"
+            "database": "consensus",
         },
-        "message_bus": {
-            "host": "messagebus",
-            "port": 5672,
-            "queue_name": "chunking_queue"
-        }
+        "message_bus": {"host": "messagebus", "port": 5672, "queue_name": "chunking_queue"},
     }
 
     try:
@@ -332,7 +319,7 @@ def example_external_api_validation():
         "summary": "Summary",
         "consensus_level": "INVALID",  # Not in allowed values!
         "created_at": "2025-01-15T10:30:00Z",
-        "updated_at": "2025-01-15T10:30:00Z"
+        "updated_at": "2025-01-15T10:30:00Z",
     }
 
     try:

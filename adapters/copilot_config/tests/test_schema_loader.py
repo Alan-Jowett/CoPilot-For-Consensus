@@ -99,12 +99,7 @@ class TestFieldSpec:
 
     def test_field_spec_creation(self):
         """Test creating a FieldSpec."""
-        spec = FieldSpec(
-            name="test_field",
-            field_type="string",
-            required=True,
-            env_var="TEST_FIELD"
-        )
+        spec = FieldSpec(name="test_field", field_type="string", required=True, env_var="TEST_FIELD")
 
         assert spec.name == "test_field"
         assert spec.field_type == "string"
@@ -122,16 +117,9 @@ class TestConfigSchema:
             "schema_version": "1.0.0",
             "min_service_version": "1.0.0",
             "service_settings": {
-                "app_name": {
-                    "type": "string",
-                    "source": "env",
-                    "env_var": "APP_NAME",
-                    "default": "test-app"
-                }
+                "app_name": {"type": "string", "source": "env", "env_var": "APP_NAME", "default": "test-app"}
             },
-            "adapters": {
-                "message_bus": {"$ref": "../adapters/message_bus.json"}
-            }
+            "adapters": {"message_bus": {"$ref": "../adapters/message_bus.json"}},
         }
 
         schema = ConfigSchema.from_dict(schema_data)
@@ -148,14 +136,7 @@ class TestConfigSchema:
         schema_data = {
             "service_name": "test-service",
             "schema_version": "1.0.0",
-            "service_settings": {
-                "port": {
-                    "type": "int",
-                    "source": "env",
-                    "env_var": "PORT",
-                    "default": 8080
-                }
-            }
+            "service_settings": {"port": {"type": "int", "source": "env", "env_var": "PORT", "default": 8080}},
         }
         schema_file.write_text(json.dumps(schema_data))
 
@@ -253,13 +234,9 @@ class TestSchemaConfigLoader:
             service_name="test-service",
             fields={
                 "app_name": FieldSpec(
-                    name="app_name",
-                    field_type="string",
-                    required=False,
-                    default="test-app",
-                    env_var="APP_NAME"
+                    name="app_name", field_type="string", required=False, default="test-app", env_var="APP_NAME"
                 )
-            }
+            },
         )
 
         env_provider = EnvConfigProvider(environ={"APP_NAME": "my-app"})
@@ -273,14 +250,7 @@ class TestSchemaConfigLoader:
         """Test loading with missing required field raises error."""
         schema = ConfigSchema(
             service_name="test-service",
-            fields={
-                "api_key": FieldSpec(
-                    name="api_key",
-                    field_type="string",
-                    required=True,
-                    env_var="API_KEY"
-                )
-            }
+            fields={"api_key": FieldSpec(name="api_key", field_type="string", required=True, env_var="API_KEY")},
         )
 
         env_provider = EnvConfigProvider(environ={})
@@ -293,15 +263,7 @@ class TestSchemaConfigLoader:
         """Test loading with default values."""
         schema = ConfigSchema(
             service_name="test-service",
-            fields={
-                "port": FieldSpec(
-                    name="port",
-                    field_type="int",
-                    required=False,
-                    default=8080,
-                    env_var="PORT"
-                )
-            }
+            fields={"port": FieldSpec(name="port", field_type="int", required=False, default=8080, env_var="PORT")},
         )
 
         env_provider = EnvConfigProvider(environ={})
@@ -316,19 +278,9 @@ class TestSchemaConfigLoader:
         schema = ConfigSchema(
             service_name="test-service",
             fields={
-                "port": FieldSpec(
-                    name="port",
-                    field_type="int",
-                    required=False,
-                    env_var="PORT"
-                ),
-                "debug": FieldSpec(
-                    name="debug",
-                    field_type="bool",
-                    required=False,
-                    env_var="DEBUG"
-                )
-            }
+                "port": FieldSpec(name="port", field_type="int", required=False, env_var="PORT"),
+                "debug": FieldSpec(name="debug", field_type="bool", required=False, env_var="DEBUG"),
+            },
         )
 
         env_provider = EnvConfigProvider(environ={"PORT": "9000", "DEBUG": "true"})

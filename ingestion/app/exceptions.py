@@ -6,18 +6,20 @@
 
 class IngestionError(Exception):
     """Base exception for ingestion service errors."""
+
     pass
 
 
 class SourceConfigurationError(IngestionError):
     """Raised when source configuration is invalid or missing required fields."""
+
     pass
 
 
 class FetchError(IngestionError):
     """Raised when fetching archives from a source fails."""
 
-    def __init__(self, message: str, source_name: str = None, retry_count: int = 0):
+    def __init__(self, message: str, source_name: str | None = None, retry_count: int = 0):
         """Initialize FetchError with context.
 
         Args:
@@ -32,13 +34,14 @@ class FetchError(IngestionError):
 
 class ChecksumPersistenceError(IngestionError):
     """Raised when checksum metadata cannot be saved."""
+
     pass
 
 
 class ArchivePublishError(IngestionError):
     """Raised when publishing archive events fails."""
 
-    def __init__(self, message: str, archive_id: str = None):
+    def __init__(self, message: str, archive_id: str | None = None):
         """Initialize ArchivePublishError with context.
 
         Args:

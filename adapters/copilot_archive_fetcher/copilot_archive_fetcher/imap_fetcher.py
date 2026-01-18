@@ -59,8 +59,7 @@ class IMAPFetcher(ArchiveFetcher):
             # Validate required credentials
             if not username or not password:
                 error_msg = (
-                    "IMAP credentials missing: 'username' and 'password' "
-                    "are required in the source configuration."
+                    "IMAP credentials missing: 'username' and 'password' " "are required in the source configuration."
                 )
                 logger.error(error_msg)
                 return False, None, error_msg
@@ -102,10 +101,7 @@ class IMAPFetcher(ArchiveFetcher):
             client.logout()
 
             if failed_msg_ids:
-                error_msg = (
-                    f"Failed to fetch {len(failed_msg_ids)} messages from {folder}: "
-                    f"{failed_msg_ids}"
-                )
+                error_msg = f"Failed to fetch {len(failed_msg_ids)} messages from {folder}: " f"{failed_msg_ids}"
                 logger.error(error_msg)
                 try:
                     os.remove(file_path)

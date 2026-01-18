@@ -160,18 +160,14 @@ def _parse_semver(version: str) -> tuple[int, int, int]:
         ) from exc
 
     if len(parts) < 3:
-        raise ValueError(
-            f"Version must have at least 3 components in 'major.minor.patch' format: {version!r}"
-        )
+        raise ValueError(f"Version must have at least 3 components in 'major.minor.patch' format: {version!r}")
 
     labels = ("major", "minor", "patch")
     numeric_parts = []
     for index, label in enumerate(labels):
         part = parts[index]
         if not part.isdigit():
-            raise ValueError(
-                f"Version {label} component must be an integer, got {part!r} in {version!r}"
-            )
+            raise ValueError(f"Version {label} component must be an integer, got {part!r} in {version!r}")
         numeric_parts.append(int(part))
 
     major, minor, patch = numeric_parts
@@ -202,11 +198,13 @@ def _is_version_compatible(service_version: str, min_required_version: str) -> b
 
 class ConfigValidationError(Exception):
     """Exception raised when configuration validation fails."""
+
     pass
 
 
 class ConfigSchemaError(Exception):
     """Exception raised when schema is invalid or missing."""
+
     pass
 
 
@@ -218,6 +216,7 @@ class FieldSpec:
     is provided for env_var, the loader will resolve the first variable that is
     present in the environment, falling back to the first item if none are set.
     """
+
     name: str
     field_type: str  # "string", "int", "bool", "float", "object", "array"
     required: bool = False
@@ -233,6 +232,7 @@ class FieldSpec:
 @dataclass
 class ConfigSchema:
     """Configuration schema for a microservice."""
+
     service_name: str
     fields: dict[str, FieldSpec] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -242,7 +242,7 @@ class ConfigSchema:
     adapters_schema: dict[str, str] = field(default_factory=dict)  # adapter_type -> schema file path
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'ConfigSchema':
+    def from_dict(cls, data: dict[str, Any]) -> "ConfigSchema":
         """Create ConfigSchema from dictionary.
 
         Args:
@@ -316,7 +316,7 @@ class ConfigSchema:
         )
 
     @classmethod
-    def from_json_file(cls, filepath: str) -> 'ConfigSchema':
+    def from_json_file(cls, filepath: str) -> "ConfigSchema":
         """Load schema from JSON file.
 
         Args:
@@ -389,8 +389,8 @@ class SchemaConfigLoader:
 
         if errors:
             raise ConfigValidationError(
-                f"Configuration validation failed for {self.schema.service_name}:\n" +
-                "\n".join(f"  - {err}" for err in errors)
+                f"Configuration validation failed for {self.schema.service_name}:\n"
+                + "\n".join(f"  - {err}" for err in errors)
             )
 
         return config
@@ -463,6 +463,7 @@ class SchemaConfigLoader:
         Returns:
             Nested configuration dictionary
         """
+        del provider
         obj = {}
         for field_name, field_spec in nested_schema.items():
             nested_key = f"{parent_key}.{field_name}" if parent_key else field_name
@@ -529,7 +530,7 @@ class SchemaConfigLoader:
             return env_key or field_spec.name.upper()
         elif field_spec.source == "secret":
             # For secrets, use secret_name if provided, otherwise use field name
-            return getattr(field_spec, 'secret_name', None) or field_spec.name
+            return getattr(field_spec, "secret_name", None) or field_spec.name
         else:
             return field_spec.name
 
@@ -540,7 +541,7 @@ def _load_config(
     env_provider: ConfigProvider | None = None,
     static_provider: StaticConfigProvider | None = None,
     secret_provider: ConfigProvider | None = None,
-    schema: Optional['ConfigSchema'] = None,
+    schema: Optional["ConfigSchema"] = None,
 ) -> dict[str, Any]:
     """Load and validate configuration for a service (internal function).
 

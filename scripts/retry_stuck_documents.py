@@ -45,6 +45,7 @@ from copilot_logging import create_stdout_logger
 # Import dependencies - these will fail gracefully in main() if not installed
 try:
     from pymongo import MongoClient
+
     PYMONGO_AVAILABLE = True
 except ImportError:
     PYMONGO_AVAILABLE = False
@@ -52,6 +53,7 @@ except ImportError:
 
 try:
     import pika
+
     PIKA_AVAILABLE = True
 except ImportError:
     PIKA_AVAILABLE = False
@@ -59,6 +61,7 @@ except ImportError:
 
 try:
     from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, push_to_gateway
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -95,58 +98,45 @@ class RetryJobMetrics:
             registry: Prometheus collector registry
         """
         self.documents_requeued = Counter(
-            'retry_job_documents_requeued_total',
-            'Total documents requeued for retry',
-            ['collection'],
-            registry=registry
+            "retry_job_documents_requeued_total",
+            "Total documents requeued for retry",
+            ["collection"],
+            registry=registry,
         )
 
         self.documents_skipped_backoff = Counter(
-            'retry_job_documents_skipped_backoff_total',
-            'Documents skipped due to backoff delay',
-            ['collection'],
-            registry=registry
+            "retry_job_documents_skipped_backoff_total",
+            "Documents skipped due to backoff delay",
+            ["collection"],
+            registry=registry,
         )
 
         self.documents_max_retries_exceeded = Counter(
-            'retry_job_documents_max_retries_exceeded_total',
-            'Documents exceeding max retry attempts',
-            ['collection'],
-            registry=registry
+            "retry_job_documents_max_retries_exceeded_total",
+            "Documents exceeding max retry attempts",
+            ["collection"],
+            registry=registry,
         )
 
-        self.runs_total = Counter(
-            'retry_job_runs_total',
-            'Retry job executions',
-            ['status'],
-            registry=registry
-        )
+        self.runs_total = Counter("retry_job_runs_total", "Retry job executions", ["status"], registry=registry)
 
         self.errors_total = Counter(
-            'retry_job_errors_total',
-            'Errors encountered during retry job',
-            ['error_type'],
-            registry=registry
+            "retry_job_errors_total", "Errors encountered during retry job", ["error_type"], registry=registry
         )
 
         self.stuck_documents = Gauge(
-            'retry_job_stuck_documents',
-            'Current count of stuck documents',
-            ['collection'],
-            registry=registry
+            "retry_job_stuck_documents", "Current count of stuck documents", ["collection"], registry=registry
         )
 
         self.failed_documents = Gauge(
-            'retry_job_failed_documents',
-            'Current count of failed documents (max retries)',
-            ['collection'],
-            registry=registry
+            "retry_job_failed_documents",
+            "Current count of failed documents (max retries)",
+            ["collection"],
+            registry=registry,
         )
 
         self.duration_seconds = Histogram(
-            'retry_job_duration_seconds',
-            'Time taken to complete retry job',
-            registry=registry
+            "retry_job_duration_seconds", "Time taken to complete retry job", registry=registry
         )
 
 
@@ -252,7 +242,7 @@ class RetryStuckDocumentsJob:
         self.db = self.mongo_client[self.mongodb_database]
 
         # Test connection
-        self.mongo_client.admin.command('ping')
+        self.mongo_client.admin.command("ping")
         logger.info(f"Connected to MongoDB at {self.mongodb_host}:{self.mongodb_port}")
 
     def disconnect_mongodb(self):
@@ -338,10 +328,7 @@ class RetryStuckDocumentsJob:
         query = {
             "status": {"$in": ["pending", "processing"]},
             "attemptCount": {"$lt": max_attempts},
-            "$or": [
-                {"lastAttemptTime": None},
-                {"lastAttemptTime": {"$lt": stuck_threshold}}
-            ]
+            "$or": [{"lastAttemptTime": None}, {"lastAttemptTime": {"$lt": stuck_threshold}}],
         }
 
         stuck_docs = list(collection.find(query))
@@ -361,10 +348,7 @@ class RetryStuckDocumentsJob:
         """
         collection = self.db[collection_name]
 
-        query = {
-            "attemptCount": {"$gte": max_attempts},
-            "status": {"$nin": ["completed", "failed_max_retries"]}
-        }
+        query = {"attemptCount": {"$gte": max_attempts}, "status": {"$nin": ["completed", "failed_max_retries"]}}
 
         return collection.count_documents(query)
 
@@ -380,18 +364,12 @@ class RetryStuckDocumentsJob:
 
         result = collection.update_one(
             {id_field: doc_id},
-            {
-                "$set": {
-                    "status": "failed_max_retries",
-                    "lastAttemptTime": datetime.now(timezone.utc)
-                }
-            }
+            {"$set": {"status": "failed_max_retries", "lastAttemptTime": datetime.now(timezone.utc)}},
         )
 
         if result.modified_count > 0:
             logger.error(
-                f"Document {doc_id} in {collection_name} exceeded max retries. "
-                f"Marked as failed_max_retries."
+                f"Document {doc_id} in {collection_name} exceeded max retries. " f"Marked as failed_max_retries."
             )
             self.metrics.documents_max_retries_exceeded.labels(collection=collection_name).inc()
 
@@ -406,20 +384,10 @@ class RetryStuckDocumentsJob:
         collection = self.db[collection_name]
 
         collection.update_one(
-            {id_field: doc_id},
-            {
-                "$inc": {"attemptCount": 1},
-                "$set": {"lastAttemptTime": datetime.now(timezone.utc)}
-            }
+            {id_field: doc_id}, {"$inc": {"attemptCount": 1}, "$set": {"lastAttemptTime": datetime.now(timezone.utc)}}
         )
 
-    def publish_retry_event(
-        self,
-        event_type: str,
-        routing_key: str,
-        document: dict[str, Any],
-        collection_name: str
-    ):
+    def publish_retry_event(self, event_type: str, routing_key: str, document: dict[str, Any], collection_name: str):
         """Publish event to trigger document reprocessing.
 
         Args:
@@ -436,7 +404,7 @@ class RetryStuckDocumentsJob:
             "event_id": f"retry-{document.get('_id', 'unknown')}",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
-            "data": event_data
+            "data": event_data,
         }
 
         # Publish to RabbitMQ
@@ -447,7 +415,7 @@ class RetryStuckDocumentsJob:
             properties=pika.BasicProperties(
                 content_type="application/json",
                 delivery_mode=2,  # Persistent
-            )
+            ),
         )
 
         logger.info(f"Published {event_type} event for retry: {routing_key}")
@@ -525,8 +493,7 @@ class RetryStuckDocumentsJob:
             # Check backoff eligibility
             if not self.is_backoff_elapsed(last_attempt_time, attempt_count):
                 logger.debug(
-                    f"Skipping {doc_id} in {collection_name}: "
-                    f"backoff not elapsed (attempt {attempt_count})"
+                    f"Skipping {doc_id} in {collection_name}: " f"backoff not elapsed (attempt {attempt_count})"
                 )
                 self.metrics.documents_skipped_backoff.labels(collection=collection_name).inc()
                 skipped_count += 1
@@ -598,11 +565,7 @@ class RetryStuckDocumentsJob:
 
             # Push metrics to Pushgateway
             try:
-                push_to_gateway(
-                    self.pushgateway_url,
-                    job='retry-job',
-                    registry=self.registry
-                )
+                push_to_gateway(self.pushgateway_url, job="retry-job", registry=self.registry)
                 logger.info(f"Pushed metrics to {self.pushgateway_url}")
             except Exception as e:
                 logger.warning(f"Failed to push metrics to Pushgateway: {e}")
@@ -663,48 +626,40 @@ Environment Variables:
   RETRY_JOB_STUCK_THRESHOLD_HOURS Stuck threshold (default: 24)
 
 For full documentation, see documents/RETRY_POLICY.md
-        """
+        """,
     )
 
-    parser.add_argument(
-        "--once",
-        action="store_true",
-        help="Run once and exit (default: run continuously)"
-    )
+    parser.add_argument("--once", action="store_true", help="Run once and exit (default: run continuously)")
 
     parser.add_argument(
         "--interval",
         type=int,
         default=int(os.getenv("RETRY_JOB_INTERVAL_SECONDS", "900")),
-        help="Interval between runs in seconds (default: 900)"
+        help="Interval between runs in seconds (default: 900)",
     )
 
     parser.add_argument(
         "--base-delay",
         type=int,
         default=int(os.getenv("RETRY_JOB_BASE_DELAY_SECONDS", "300")),
-        help="Base backoff delay in seconds (default: 300)"
+        help="Base backoff delay in seconds (default: 300)",
     )
 
     parser.add_argument(
         "--max-delay",
         type=int,
         default=int(os.getenv("RETRY_JOB_MAX_DELAY_SECONDS", "3600")),
-        help="Max backoff delay in seconds (default: 3600)"
+        help="Max backoff delay in seconds (default: 3600)",
     )
 
     parser.add_argument(
         "--stuck-threshold-hours",
         type=int,
         default=int(os.getenv("RETRY_JOB_STUCK_THRESHOLD_HOURS", "24")),
-        help="Hours before document is 'stuck' (default: 24)"
+        help="Hours before document is 'stuck' (default: 24)",
     )
 
-    parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 

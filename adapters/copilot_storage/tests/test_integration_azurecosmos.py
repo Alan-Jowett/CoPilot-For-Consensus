@@ -56,7 +56,7 @@ def azurecosmos_store():
         except Exception as e:
             if i < max_retries - 1:
                 # Exponential backoff: 2, 4, 8 seconds
-                time.sleep(base_delay_seconds * (2 ** i))
+                time.sleep(base_delay_seconds * (2**i))
             else:
                 pytest.skip(f"Could not connect to Azure Cosmos DB - skipping integration tests: {str(e)}")
 
@@ -184,14 +184,10 @@ class TestAzureCosmosIntegration:
     def test_update_document(self, azurecosmos_store, clean_collection):
         """Test updating a document."""
         # Insert a document
-        doc_id = azurecosmos_store.insert_document(
-            clean_collection, {"name": "Update Test", "age": 25, "city": "NYC"}
-        )
+        doc_id = azurecosmos_store.insert_document(clean_collection, {"name": "Update Test", "age": 25, "city": "NYC"})
 
         # Update the document
-        azurecosmos_store.update_document(
-            clean_collection, doc_id, {"age": 26, "city": "LA"}
-        )
+        azurecosmos_store.update_document(clean_collection, doc_id, {"age": 26, "city": "LA"})
 
         # Verify the update
         updated = azurecosmos_store.get_document(clean_collection, doc_id)
@@ -203,16 +199,12 @@ class TestAzureCosmosIntegration:
         """Test updating a document that doesn't exist."""
 
         with pytest.raises(DocumentNotFoundError):
-            azurecosmos_store.update_document(
-                clean_collection, "nonexistent_id", {"age": 50}
-            )
+            azurecosmos_store.update_document(clean_collection, "nonexistent_id", {"age": 50})
 
     def test_delete_document(self, azurecosmos_store, clean_collection):
         """Test deleting a document."""
         # Insert a document
-        doc_id = azurecosmos_store.insert_document(
-            clean_collection, {"name": "Delete Test", "age": 30}
-        )
+        doc_id = azurecosmos_store.insert_document(clean_collection, {"name": "Delete Test", "age": 30})
 
         # Verify it exists
         doc = azurecosmos_store.get_document(clean_collection, doc_id)
@@ -292,10 +284,7 @@ class TestAzureCosmosEdgeCases:
 
     def test_insert_without_connection(self):
         """Test that operations fail gracefully without connection."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
         # Don't connect
 
         with pytest.raises(DocumentStoreNotConnectedError) as excinfo:
@@ -324,9 +313,7 @@ class TestAzureCosmosAggregate:
         time.sleep(1)
 
         # Aggregate with $match
-        pipeline = [
-            {"$match": {"status": "pending"}}
-        ]
+        pipeline = [{"$match": {"status": "pending"}}]
 
         results = azurecosmos_store.aggregate_documents(clean_collection, pipeline)
 
@@ -342,10 +329,7 @@ class TestAzureCosmosAggregate:
         # Wait for Cosmos DB indexing (eventual consistency model)
         time.sleep(1)
 
-        pipeline = [
-            {"$match": {"type": "test"}},
-            {"$limit": 3}
-        ]
+        pipeline = [{"$match": {"type": "test"}}, {"$limit": 3}]
 
         results = azurecosmos_store.aggregate_documents(clean_collection, pipeline)
 
@@ -361,9 +345,7 @@ class TestAzureCosmosAggregate:
         # Wait for Cosmos DB indexing (eventual consistency model)
         time.sleep(1)
 
-        pipeline = [
-            {"$match": {"message_key": {"$exists": True}}}
-        ]
+        pipeline = [{"$match": {"message_key": {"$exists": True}}}]
 
         results = azurecosmos_store.aggregate_documents(clean_collection, pipeline)
 

@@ -8,19 +8,28 @@ import sys
 from unittest.mock import Mock, patch
 
 import pytest
-
-from copilot_config.generated.services.ingestion import ServiceConfig_Ingestion, ServiceSettings_Ingestion
 from copilot_config.generated.adapters.archive_store import AdapterConfig_ArchiveStore, DriverConfig_ArchiveStore_Local
 from copilot_config.generated.adapters.document_store import (
     AdapterConfig_DocumentStore,
     DriverConfig_DocumentStore_Inmemory,
     DriverConfig_DocumentStore_Mongodb,
 )
-from copilot_config.generated.adapters.error_reporter import AdapterConfig_ErrorReporter, DriverConfig_ErrorReporter_Silent
+from copilot_config.generated.adapters.error_reporter import (
+    AdapterConfig_ErrorReporter,
+    DriverConfig_ErrorReporter_Silent,
+)
 from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Silent
-from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop, DriverConfig_MessageBus_Rabbitmq
+from copilot_config.generated.adapters.message_bus import (
+    AdapterConfig_MessageBus,
+    DriverConfig_MessageBus_Noop,
+    DriverConfig_MessageBus_Rabbitmq,
+)
 from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
-from copilot_config.generated.adapters.secret_provider import AdapterConfig_SecretProvider, DriverConfig_SecretProvider_Local
+from copilot_config.generated.adapters.secret_provider import (
+    AdapterConfig_SecretProvider,
+    DriverConfig_SecretProvider_Local,
+)
+from copilot_config.generated.services.ingestion import ServiceConfig_Ingestion, ServiceSettings_Ingestion
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -95,6 +104,7 @@ def _make_service_config(
 def test_main_imports_successfully():
     """Test that main.py imports successfully without errors."""
     import main as ingestion_main
+
     assert ingestion_main is not None
 
 
@@ -159,7 +169,9 @@ def test_service_fails_when_document_store_connection_fails():
 
                                         # Setup mock document store that fails to connect
                                         mock_store = Mock()
-                                        mock_store.connect = Mock(side_effect=DocumentStoreConnectionError("Connection failed"))
+                                        mock_store.connect = Mock(
+                                            side_effect=DocumentStoreConnectionError("Connection failed")
+                                        )
                                         mock_create_store.return_value = mock_store
 
                                         # Import main after setting up mocks

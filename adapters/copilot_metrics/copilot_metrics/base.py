@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 class _Pushable(Protocol):
     """Protocol for collectors that support push."""
 
-    def push(self) -> None:
-        ...
+    def push(self) -> None: ...
 
 
 class MetricsCollector(ABC):

@@ -8,7 +8,6 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from ..adapters.document_store import AdapterConfig_DocumentStore
 from ..adapters.embedding_backend import AdapterConfig_EmbeddingBackend
@@ -23,19 +22,21 @@ from ..adapters.vector_store import AdapterConfig_VectorStore
 @dataclass
 class ServiceSettings_Reporting:
     """Service-specific settings for reporting."""
-    auth_service_url: Optional[str] = 'http://auth:8090'
-    http_host: Optional[str] = '0.0.0.0'
-    http_port: Optional[int] = 8080
-    jwt_auth_enabled: Optional[bool] = True
-    notify_enabled: Optional[bool] = False
-    notify_webhook_url: Optional[str] = ''
-    service_audience: Optional[str] = 'copilot-for-consensus'
-    webhook_summary_max_length: Optional[int] = 500
+
+    auth_service_url: str | None = "http://auth:8090"
+    http_host: str | None = "0.0.0.0"
+    http_port: int | None = 8080
+    jwt_auth_enabled: bool | None = True
+    notify_enabled: bool | None = False
+    notify_webhook_url: str | None = ""
+    service_audience: str | None = "copilot-for-consensus"
+    webhook_summary_max_length: int | None = 500
 
 
 @dataclass
 class ServiceConfig_Reporting:
     """Top-level configuration for reporting service."""
+
     service_settings: ServiceSettings_Reporting
     document_store: AdapterConfig_DocumentStore
     embedding_backend: AdapterConfig_EmbeddingBackend

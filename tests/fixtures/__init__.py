@@ -8,7 +8,7 @@ documents and events for testing.
 
 Usage:
     from tests.fixtures import create_valid_message, create_valid_chunk
-    
+
     message = create_valid_message(subject="Test")
     chunk = create_valid_chunk(text="Test chunk")
 """

@@ -39,17 +39,13 @@ def generate_keys(output_dir: Path, key_size: int = 2048) -> None:
     print(f"Generating {key_size}-bit RSA key pair...")
 
     # Generate private key
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=key_size,
-        backend=default_backend()
-    )
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=key_size, backend=default_backend())
 
     # Write private key
     private_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
+        encryption_algorithm=serialization.NoEncryption(),
     )
     private_key_path.write_bytes(private_pem)
     print(f"  ✓ Private key saved to {private_key_path}")
@@ -57,8 +53,7 @@ def generate_keys(output_dir: Path, key_size: int = 2048) -> None:
     # Write public key
     public_key = private_key.public_key()
     public_pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
+        encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
     public_key_path.write_bytes(public_pem)
     print(f"  ✓ Public key saved to {public_key_path}")

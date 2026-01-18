@@ -9,6 +9,13 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 import requests
+from copilot_error_reporting import ErrorReporter
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
+from copilot_logging import get_logger
 from copilot_message_bus import (
     EventPublisher,
     EventSubscriber,
@@ -16,15 +23,8 @@ from copilot_message_bus import (
     ReportPublishedEvent,
     SummaryCompleteEvent,
 )
-from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
-from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
-from copilot_event_retry import (
-    DocumentNotFoundError,
-    RetryConfig,
-    handle_event_with_retry,
-)
 
 # Optional dependencies for search/filtering features
 if TYPE_CHECKING:
@@ -129,19 +129,21 @@ class ReportingService:
             # Missing fields indicate malformed events that should NOT be retried
             thread_id = summary_complete.data.get("thread_id")
             summary_id = summary_complete.data.get("summary_id")
-            
+
             if not thread_id or not summary_id:
                 error_msg = "Missing required fields thread_id or summary_id in SummaryComplete event"
                 logger.error(error_msg)
                 # Record metrics for invalid event
                 if self.metrics_collector:
-                    self.metrics_collector.increment("reporting_events_total", tags={"event_type": "summary_complete", "outcome": "validation_error"})
+                    self.metrics_collector.increment(
+                        "reporting_events_total", tags={"event_type": "summary_complete", "outcome": "validation_error"}
+                    )
                     self.metrics_collector.increment("reporting_failures_total", tags={"error_type": "ValidationError"})
                 # Do NOT re-raise to avoid infinite requeue of malformed events
                 return
-                
+
             idempotency_key = f"reporting-{thread_id}-{summary_id}"
-            
+
             # Wrap processing with retry logic
             handle_event_with_retry(
                 handler=lambda e: self.process_summary(e.get("data", {}), e),
@@ -156,7 +158,9 @@ class ReportingService:
 
             # Record metrics
             if self.metrics_collector:
-                self.metrics_collector.increment("reporting_events_total", tags={"event_type": "summary_complete", "outcome": "success"})
+                self.metrics_collector.increment(
+                    "reporting_events_total", tags={"event_type": "summary_complete", "outcome": "success"}
+                )
                 self.metrics_collector.observe("reporting_latency_seconds", self.last_processing_time)
 
         except Exception as e:
@@ -164,7 +168,9 @@ class ReportingService:
 
             # Record metrics
             if self.metrics_collector:
-                self.metrics_collector.increment("reporting_events_total", tags={"event_type": "summary_complete", "outcome": "error"})
+                self.metrics_collector.increment(
+                    "reporting_events_total", tags={"event_type": "summary_complete", "outcome": "error"}
+                )
                 self.metrics_collector.increment("reporting_failures_total", tags={"error_type": type(e).__name__})
 
             # Report error
@@ -196,9 +202,12 @@ class ReportingService:
         else:
             # Fallback to UUID for backward compatibility; log for observability
             import uuid
+
             report_id = str(uuid.uuid4()).replace("-", "")[:16]
             logger.warning(
-                "SummaryComplete event missing required 'summary_id'; generated fallback ID for backward compatibility. This may indicate an older publisher version or misconfiguration.",
+                "SummaryComplete event missing required 'summary_id'; generated fallback ID "
+                "for backward compatibility. "
+                "This may indicate an older publisher version or misconfiguration.",
                 report_id=report_id,
                 event_metadata={
                     "event_type": full_event.get("type"),
@@ -280,9 +289,7 @@ class ReportingService:
                 )
             )
             if not thread_docs:
-                raise DocumentNotFoundError(
-                    f"Thread {thread_id} not found in database"
-                )
+                raise DocumentNotFoundError(f"Thread {thread_id} not found in database")
 
             self.document_store.update_document(
                 "threads",
@@ -311,7 +318,9 @@ class ReportingService:
                 self.notifications_sent += 1
 
                 if self.metrics_collector:
-                    self.metrics_collector.increment("reporting_delivery_total", tags={"channel": "webhook", "status": "success"})
+                    self.metrics_collector.increment(
+                        "reporting_delivery_total", tags={"channel": "webhook", "status": "success"}
+                    )
 
             except Exception as e:
                 # Webhook notifications are best-effort - log and publish failure event but continue
@@ -319,7 +328,9 @@ class ReportingService:
                 self.notifications_failed += 1
 
                 if self.metrics_collector:
-                    self.metrics_collector.increment("reporting_delivery_total", tags={"channel": "webhook", "status": "failed"})
+                    self.metrics_collector.increment(
+                        "reporting_delivery_total", tags={"channel": "webhook", "status": "failed"}
+                    )
 
                 # Publish ReportDeliveryFailed event
                 try:
@@ -331,7 +342,9 @@ class ReportingService:
                         extra={"original_error": str(e), "publish_error": str(publish_error)},
                     )
                     if self.error_reporter:
-                        self.error_reporter.report(publish_error, context={"report_id": report_id, "original_error": str(e)})
+                        self.error_reporter.report(
+                            publish_error, context={"report_id": report_id, "original_error": str(e)}
+                        )
                     # Re-raise original error to trigger requeue
                     raise e from publish_error
 
@@ -354,7 +367,7 @@ class ReportingService:
         payload = {
             "report_id": report_id,
             "thread_id": thread_id,
-            "summary": summary[:self.webhook_summary_max_length],  # Truncate for webhook
+            "summary": summary[: self.webhook_summary_max_length],  # Truncate for webhook
             "url": f"/api/reports/{report_id}",
         }
 
@@ -501,10 +514,16 @@ class ReportingService:
 
         # Always enrich results with thread/archive data for UI display (thread start date, etc.)
         # This ensures thread_metadata.first_message_date is always available for sorting
-        has_filtering = (source or min_participants is not None or max_participants is not None or
-                        min_messages is not None or max_messages is not None or
-                        message_start_date is not None or message_end_date is not None)
-        
+        has_filtering = (
+            source
+            or min_participants is not None
+            or max_participants is not None
+            or min_messages is not None
+            or max_messages is not None
+            or message_start_date is not None
+            or message_end_date is not None
+        )
+
         # Always enrich summaries with thread metadata for consistent UI experience
         enriched_summaries = []
 
@@ -625,12 +644,12 @@ class ReportingService:
 
         # Apply sorting if requested
         if sort_by:
-            reverse = (sort_order == "desc")
-            
+            reverse = sort_order == "desc"
+
             # Helper to parse dates with proper handling of missing values
             def sort_key_with_missing_last(summary: dict[str, Any], field_path: list[str]) -> str:
                 """Get sort key with missing values sorted to the end.
-                
+
                 For ascending order, missing values get a high sentinel (zzz...)
                 For descending order, missing values get a low sentinel (empty string)
                 This ensures missing values always appear at the end regardless of sort direction.
@@ -638,28 +657,25 @@ class ReportingService:
                 value = summary
                 for key in field_path:
                     value = value.get(key, {}) if isinstance(value, dict) else {}
-                
+
                 # If value is missing or empty, return sentinel
                 if not value:
                     return "~~~" if not reverse else ""  # High value for asc, low for desc
-                
+
                 return str(value)
-            
+
             if sort_by == "thread_start_date":
                 # Sort by first_message_date from thread_metadata
                 summaries.sort(
                     key=lambda s: sort_key_with_missing_last(s, ["thread_metadata", "first_message_date"]),
-                    reverse=reverse
+                    reverse=reverse,
                 )
             elif sort_by == "generated_at":
                 # Sort by report generation date
-                summaries.sort(
-                    key=lambda s: sort_key_with_missing_last(s, ["generated_at"]),
-                    reverse=reverse
-                )
+                summaries.sort(key=lambda s: sort_key_with_missing_last(s, ["generated_at"]), reverse=reverse)
 
         # Apply skip and limit
-        return summaries[skip:skip + limit]
+        return summaries[skip : skip + limit]
 
     def _get_thread_by_id(self, thread_id: str) -> dict[str, Any] | None:
         """Get thread metadata by ID.
@@ -756,9 +772,7 @@ class ReportingService:
                         "chunks": [chunk_id],
                     }
                 else:
-                    thread_scores[thread_id]["max_score"] = max(
-                        thread_scores[thread_id]["max_score"], result.score
-                    )
+                    thread_scores[thread_id]["max_score"] = max(thread_scores[thread_id]["max_score"], result.score)
                     thread_scores[thread_id]["avg_score"] = (
                         thread_scores[thread_id]["avg_score"] * thread_scores[thread_id]["chunk_count"] + result.score
                     ) / (thread_scores[thread_id]["chunk_count"] + 1)
@@ -906,7 +920,7 @@ class ReportingService:
         )
 
         # Apply skip and limit
-        return threads[skip:skip + limit]
+        return threads[skip : skip + limit]
 
     def get_thread_by_id(self, thread_id: str) -> dict[str, Any] | None:
         """Get a specific thread by ID.
@@ -960,7 +974,7 @@ class ReportingService:
         )
 
         # Apply skip and limit
-        return messages[skip:skip + limit]
+        return messages[skip : skip + limit]
 
     def get_message_by_id(self, message_doc_id: str) -> dict[str, Any] | None:
         """Get a specific message by its document ID.
@@ -1017,7 +1031,7 @@ class ReportingService:
         )
 
         # Apply skip and limit
-        return chunks[skip:skip + limit]
+        return chunks[skip : skip + limit]
 
     def get_chunk_by_id(self, chunk_id: str) -> dict[str, Any] | None:
         """Get a specific chunk by ID.

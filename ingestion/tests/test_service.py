@@ -9,17 +9,22 @@ import tempfile
 
 import pytest
 from app.service import IngestionService
-from copilot_error_reporting import create_error_reporter
-from copilot_message_bus import create_publisher
-from copilot_logging import create_logger
-from copilot_metrics import create_metrics_collector
-from copilot_storage import create_document_store
-
-from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
-from copilot_config.generated.adapters.error_reporter import AdapterConfig_ErrorReporter, DriverConfig_ErrorReporter_Silent
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.error_reporter import (
+    AdapterConfig_ErrorReporter,
+    DriverConfig_ErrorReporter_Silent,
+)
 from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Silent
 from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
 from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
+from copilot_error_reporting import create_error_reporter
+from copilot_logging import create_logger
+from copilot_message_bus import create_publisher
+from copilot_metrics import create_metrics_collector
+from copilot_storage import create_document_store
 
 from .test_helpers import assert_valid_event_schema, make_archive_store, make_config, make_source
 
@@ -78,7 +83,6 @@ class TestIngestionService:
     @pytest.fixture
     def service(self, config):
         """Create test ingestion service."""
-        from pathlib import Path
 
         publisher = create_publisher(
             AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
@@ -92,7 +96,9 @@ class TestIngestionService:
                 driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"),
             )
         )
-        metrics = create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
+        metrics = create_metrics_collector(
+            AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        )
         error_reporter = create_error_reporter(
             AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
         )
@@ -178,22 +184,34 @@ class TestIngestionService:
             metric_tags = {"source_name": "test-source", "source_type": "local"}
             # Verify metrics were collected (factory returns appropriate collector)
             assert service.metrics is not None
-            assert service.metrics.get_counter_total(
-                "ingestion_sources_total",
-                tags={**metric_tags, "status": "success"},
-            ) == 1.0
-            assert service.metrics.get_counter_total(
-                "ingestion_files_total",
-                tags={**metric_tags, "status": "success"},
-            ) == 1.0
-            assert service.metrics.get_counter_total(
-                "ingestion_documents_total",
-                tags={**metric_tags, "status": "success"},
-            ) == 1.0
-            assert service.metrics.get_gauge_value(
-                "ingestion_files_processed",
-                tags=metric_tags,
-            ) == 1.0
+            assert (
+                service.metrics.get_counter_total(
+                    "ingestion_sources_total",
+                    tags={**metric_tags, "status": "success"},
+                )
+                == 1.0
+            )
+            assert (
+                service.metrics.get_counter_total(
+                    "ingestion_files_total",
+                    tags={**metric_tags, "status": "success"},
+                )
+                == 1.0
+            )
+            assert (
+                service.metrics.get_counter_total(
+                    "ingestion_documents_total",
+                    tags={**metric_tags, "status": "success"},
+                )
+                == 1.0
+            )
+            assert (
+                service.metrics.get_gauge_value(
+                    "ingestion_files_processed",
+                    tags=metric_tags,
+                )
+                == 1.0
+            )
 
     def test_ingest_archive_duplicate(self, service, temp_storage):
         """Test skipping duplicate archive."""
@@ -228,7 +246,9 @@ class TestIngestionService:
                 driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"),
             )
         )
-        metrics = create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
+        metrics = create_metrics_collector(
+            AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        )
         error_reporter = create_error_reporter(
             AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
         )
@@ -299,13 +319,10 @@ class TestIngestionService:
             publisher = service.publisher
             # Verify publisher has published events
             assert publisher is not None
-            assert hasattr(publisher, 'published_events')
+            assert hasattr(publisher, "published_events")
             assert len(publisher.published_events) >= 1
 
-            success_events = [
-                e for e in publisher.published_events
-                if e["event"]["event_type"] == "ArchiveIngested"
-            ]
+            success_events = [e for e in publisher.published_events if e["event"]["event_type"] == "ArchiveIngested"]
             assert len(success_events) >= 1
 
             event = success_events[0]["event"]
@@ -330,7 +347,9 @@ class TestIngestionService:
                 driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"),
             )
         )
-        metrics = create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
+        metrics = create_metrics_collector(
+            AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
+        )
 
         # Add document store
         document_store = create_document_store(
@@ -351,7 +370,7 @@ class TestIngestionService:
 
         assert service.error_reporter is error_reporter
         # Verify error_reporter was created with correct driver
-        assert hasattr(service.error_reporter, 'report')
+        assert hasattr(service.error_reporter, "report")
 
         # Test that error_reporter can be called and records errors
         test_error = Exception("Test error")
@@ -410,10 +429,7 @@ def test_archive_ingested_event_schema_validation():
 
             service.ingest_archive(source, max_retries=1)
 
-            success_events = [
-                e for e in publisher.published_events
-                if e["event"]["event_type"] == "ArchiveIngested"
-            ]
+            success_events = [e for e in publisher.published_events if e["event"]["event_type"] == "ArchiveIngested"]
 
             assert len(success_events) >= 1
 
@@ -447,10 +463,7 @@ def test_archive_ingestion_failed_event_schema_validation():
         with pytest.raises(FetchError):
             service.ingest_archive(source, max_retries=1)
 
-        failure_events = [
-            e for e in publisher.published_events
-            if e["event"]["event_type"] == "ArchiveIngestionFailed"
-        ]
+        failure_events = [e for e in publisher.published_events if e["event"]["event_type"] == "ArchiveIngestionFailed"]
 
         assert len(failure_events) >= 1
 
@@ -806,14 +819,17 @@ def test_archive_deduplication_via_document_store(tmp_path):
     assert service._is_archive_already_stored(file_hash) is False
 
     # Add archive to document store
-    document_store.insert_document("archives", {
-        "_id": "abc123def456abcd",  # First 16 chars of file_hash
-        "file_hash": file_hash,
-        "file_size_bytes": 1024,
-        "source": "test",
-        "ingestion_date": "2026-01-09T00:00:00Z",
-        "status": "pending",
-    })
+    document_store.insert_document(
+        "archives",
+        {
+            "_id": "abc123def456abcd",  # First 16 chars of file_hash
+            "file_hash": file_hash,
+            "file_size_bytes": 1024,
+            "source": "test",
+            "ingestion_date": "2026-01-09T00:00:00Z",
+            "status": "pending",
+        },
+    )
 
     # Now it should be found
     assert service._is_archive_already_stored(file_hash) is True
@@ -841,30 +857,39 @@ def test_delete_archives_for_source_deletes_from_document_store(tmp_path):
     )
 
     # Add some archives to document store
-    document_store.insert_document("archives", {
-        "_id": "1111111111111111",
-        "file_hash": "1111111111111111111111111111111111111111111111111111111111111111",
-        "file_size_bytes": 1024,
-        "source": "test-source",
-        "ingestion_date": "2026-01-09T00:00:00Z",
-        "status": "completed",
-    })
-    document_store.insert_document("archives", {
-        "_id": "2222222222222222",
-        "file_hash": "2222222222222222222222222222222222222222222222222222222222222222",
-        "file_size_bytes": 2048,
-        "source": "other-source",
-        "ingestion_date": "2026-01-09T00:00:00Z",
-        "status": "completed",
-    })
-    document_store.insert_document("archives", {
-        "_id": "3333333333333333",
-        "file_hash": "3333333333333333333333333333333333333333333333333333333333333333",
-        "file_size_bytes": 3072,
-        "source": "test-source",
-        "ingestion_date": "2026-01-09T00:00:00Z",
-        "status": "pending",
-    })
+    document_store.insert_document(
+        "archives",
+        {
+            "_id": "1111111111111111",
+            "file_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+            "file_size_bytes": 1024,
+            "source": "test-source",
+            "ingestion_date": "2026-01-09T00:00:00Z",
+            "status": "completed",
+        },
+    )
+    document_store.insert_document(
+        "archives",
+        {
+            "_id": "2222222222222222",
+            "file_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+            "file_size_bytes": 2048,
+            "source": "other-source",
+            "ingestion_date": "2026-01-09T00:00:00Z",
+            "status": "completed",
+        },
+    )
+    document_store.insert_document(
+        "archives",
+        {
+            "_id": "3333333333333333",
+            "file_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "file_size_bytes": 3072,
+            "source": "test-source",
+            "ingestion_date": "2026-01-09T00:00:00Z",
+            "status": "pending",
+        },
+    )
 
     # Delete archives for test-source
     deleted_count = service.delete_archives_for_source("test-source")
@@ -909,18 +934,15 @@ def test_archive_ingested_event_without_file_path():
             service.ingest_archive(source, max_retries=1)
 
         # Verify ArchiveIngested events do not contain file_path
-        success_events = [
-            e for e in publisher.published_events
-            if e["event"]["event_type"] == "ArchiveIngested"
-        ]
+        success_events = [e for e in publisher.published_events if e["event"]["event_type"] == "ArchiveIngested"]
         assert len(success_events) >= 1
 
         for event_wrapper in success_events:
             event = event_wrapper["event"]
             # file_path should NOT be in the event data (storage-agnostic design)
-            assert "file_path" not in event["data"], (
-                "ArchiveIngested events should not include file_path for storage-agnostic design"
-            )
+            assert (
+                "file_path" not in event["data"]
+            ), "ArchiveIngested events should not include file_path for storage-agnostic design"
             # But archive_id, source_name, etc. should be present
             assert "archive_id" in event["data"]
             assert "source_name" in event["data"]
@@ -951,36 +973,57 @@ def test_delete_source_cascade_service_layer(tmp_path):
     assert service.archive_store is not None, "archive_store should be initialized"
 
     # Add test data across multiple collections
-    document_store.insert_document("archives", {
-        "_id": "archive-1",
-        "source": "test-source",
-        "file_hash": "hash1",
-    })
-    document_store.insert_document("archives", {
-        "_id": "archive-2",
-        "source": "test-source",
-        "file_hash": "hash2",
-    })
-    document_store.insert_document("threads", {
-        "_id": "thread-1",
-        "source": "test-source",
-    })
-    document_store.insert_document("messages", {
-        "_id": "message-1",
-        "source": "test-source",
-    })
-    document_store.insert_document("messages", {
-        "_id": "message-2",
-        "source": "test-source",
-    })
-    document_store.insert_document("chunks", {
-        "_id": "chunk-1",
-        "source": "test-source",
-    })
-    document_store.insert_document("summaries", {
-        "_id": "summary-1",
-        "source": "test-source",
-    })
+    document_store.insert_document(
+        "archives",
+        {
+            "_id": "archive-1",
+            "source": "test-source",
+            "file_hash": "hash1",
+        },
+    )
+    document_store.insert_document(
+        "archives",
+        {
+            "_id": "archive-2",
+            "source": "test-source",
+            "file_hash": "hash2",
+        },
+    )
+    document_store.insert_document(
+        "threads",
+        {
+            "_id": "thread-1",
+            "source": "test-source",
+        },
+    )
+    document_store.insert_document(
+        "messages",
+        {
+            "_id": "message-1",
+            "source": "test-source",
+        },
+    )
+    document_store.insert_document(
+        "messages",
+        {
+            "_id": "message-2",
+            "source": "test-source",
+        },
+    )
+    document_store.insert_document(
+        "chunks",
+        {
+            "_id": "chunk-1",
+            "source": "test-source",
+        },
+    )
+    document_store.insert_document(
+        "summaries",
+        {
+            "_id": "summary-1",
+            "source": "test-source",
+        },
+    )
 
     # Execute cascade delete
     deletion_counts = service.delete_source_cascade("test-source")
@@ -1023,20 +1066,26 @@ def test_delete_source_without_cascade_service_layer(tmp_path):
     )
 
     # Create a source in document store
-    document_store.insert_document("sources", {
-        "_id": "source-1",
-        "name": "test-source",
-        "source_type": "http",
-        "url": "http://example.com/archive.mbox",
-        "enabled": True,
-    })
+    document_store.insert_document(
+        "sources",
+        {
+            "_id": "source-1",
+            "name": "test-source",
+            "source_type": "http",
+            "url": "http://example.com/archive.mbox",
+            "enabled": True,
+        },
+    )
 
     # Add associated data
-    document_store.insert_document("archives", {
-        "_id": "archive-1",
-        "source": "test-source",
-        "file_hash": "hash1",
-    })
+    document_store.insert_document(
+        "archives",
+        {
+            "_id": "archive-1",
+            "source": "test-source",
+            "file_hash": "hash1",
+        },
+    )
 
     # Delete source without cascade
     result = service.delete_source("test-source", cascade=False)
@@ -1073,24 +1122,33 @@ def test_delete_source_with_cascade_service_layer(tmp_path):
     )
 
     # Create a source in document store
-    document_store.insert_document("sources", {
-        "_id": "source-1",
-        "name": "test-source",
-        "source_type": "http",
-        "url": "http://example.com/archive.mbox",
-        "enabled": True,
-    })
+    document_store.insert_document(
+        "sources",
+        {
+            "_id": "source-1",
+            "name": "test-source",
+            "source_type": "http",
+            "url": "http://example.com/archive.mbox",
+            "enabled": True,
+        },
+    )
 
     # Add associated data
-    document_store.insert_document("archives", {
-        "_id": "archive-1",
-        "source": "test-source",
-        "file_hash": "hash1",
-    })
-    document_store.insert_document("threads", {
-        "_id": "thread-1",
-        "source": "test-source",
-    })
+    document_store.insert_document(
+        "archives",
+        {
+            "_id": "archive-1",
+            "source": "test-source",
+            "file_hash": "hash1",
+        },
+    )
+    document_store.insert_document(
+        "threads",
+        {
+            "_id": "thread-1",
+            "source": "test-source",
+        },
+    )
 
     # Delete source with cascade
     result = service.delete_source("test-source", cascade=True)
@@ -1110,10 +1168,3 @@ def test_delete_source_with_cascade_service_layer(tmp_path):
     assert len(archives) == 0
     threads = document_store.query_documents("threads", {"source": "test-source"})
     assert len(threads) == 0
-
-
-
-
-
-
-

@@ -8,7 +8,6 @@ import sys
 from unittest.mock import patch
 
 import pytest
-
 from copilot_config.generated.adapters.document_store import (
     AdapterConfig_DocumentStore,
     DriverConfig_DocumentStore_Inmemory,
@@ -34,10 +33,12 @@ from copilot_config.generated.services.auth import ServiceConfig_Auth, ServiceSe
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+
 def test_main_imports_successfully():
     """Test that main.py imports successfully without errors."""
     # Auth service has a unique structure - just verify it imports
     import main as auth_main
+
     assert auth_main is not None
 
 

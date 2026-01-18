@@ -11,16 +11,11 @@ from .base import EmbeddingProvider
 
 logger = logging.getLogger(__name__)
 
+
 class HuggingFaceEmbeddingProvider(EmbeddingProvider):
     """HuggingFace embedding provider for Transformers models."""
 
-    def __init__(
-        self,
-        model_name: str,
-        device: str,
-        max_length: int,
-        cache_dir: str | None = None
-    ):
+    def __init__(self, model_name: str, device: str, max_length: int, cache_dir: str | None = None):
         """Initialize HuggingFace embedding provider.
 
         Args:
@@ -45,20 +40,12 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
         self.torch = torch
 
         logger.info(f"Loading HuggingFace model: {model_name} on device: {device}")
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            cache_dir=cache_dir
-        )
-        self.model = AutoModel.from_pretrained(
-            model_name,
-            cache_dir=cache_dir
-        ).to(device)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
+        self.model = AutoModel.from_pretrained(model_name, cache_dir=cache_dir).to(device)
         logger.info("HuggingFace model loaded successfully")
 
     @classmethod
-    def from_config(
-        cls, driver_config: DriverConfig_EmbeddingBackend_Huggingface
-    ) -> "HuggingFaceEmbeddingProvider":
+    def from_config(cls, driver_config: DriverConfig_EmbeddingBackend_Huggingface) -> "HuggingFaceEmbeddingProvider":
         """Create provider from configuration.
 
         Configuration defaults are defined in schema:
@@ -103,11 +90,7 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
 
         # Tokenize and encode
         inputs = self.tokenizer(
-            text,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            max_length=self.max_length
+            text, return_tensors="pt", padding=True, truncation=True, max_length=self.max_length
         ).to(self.device)
 
         # Generate embeddings

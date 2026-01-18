@@ -40,6 +40,7 @@ class NoopSubscriber(EventSubscriber):
         Returns:
             NoopSubscriber instance
         """
+        del driver_config
         return cls()
 
     def connect(self) -> None:
@@ -67,6 +68,7 @@ class NoopSubscriber(EventSubscriber):
             callback: Function to call when event is received
             routing_key: Optional routing key (stored but not used)
         """
+        del exchange
         self.callbacks[event_type] = callback
         self.routing_keys[event_type] = routing_key
         # exchange is accepted for interface compatibility; noop ignores it
@@ -107,7 +109,7 @@ class NoopSubscriber(EventSubscriber):
         Raises:
             ValueError: If event doesn't have 'event_type' field
         """
-        event_type = event.get('event_type')
+        event_type = event.get("event_type")
 
         if not event_type:
             raise ValueError("Event must have 'event_type' field")

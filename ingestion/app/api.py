@@ -85,16 +85,16 @@ def _sanitize_filename(filename: str) -> str:
     filename = os.path.basename(filename)
 
     # Remove any non-alphanumeric characters except dots, hyphens, and underscores
-    filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+    filename = re.sub(r"[^a-zA-Z0-9._-]", "_", filename)
 
     # Ensure filename is not empty and doesn't start with a dot
-    if not filename or filename.startswith('.'):
+    if not filename or filename.startswith("."):
         filename = f"upload_{filename}"
 
     # Limit length, preserving compound extensions like .tar.gz
     if len(filename) > 255:
         name, ext = _split_extension(filename)
-        filename = name[:255 - len(ext)] + ext
+        filename = name[: 255 - len(ext)] + ext
 
     return filename
 
@@ -111,10 +111,10 @@ def _split_extension(filename: str) -> tuple:
     lower_filename = filename.lower()
 
     # Check for compound extensions in priority order (longest first)
-    compound_exts = ['.tar.gz', '.tgz']
+    compound_exts = [".tar.gz", ".tgz"]
     for ext in compound_exts:
         if lower_filename.endswith(ext):
-            return (filename[:-len(ext)], ext)
+            return (filename[: -len(ext)], ext)
 
     # Fall back to standard split for simple extensions
     return os.path.splitext(filename)
@@ -202,10 +202,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
     ):
         """Update an existing source."""
         if source_name != source.name:
-            raise HTTPException(
-                status_code=400,
-                detail="Source name in URL must match name in request body"
-            )
+            raise HTTPException(status_code=400, detail="Source name in URL must match name in request body")
 
         try:
             updated_source = service.update_source(source_name, source.model_dump())
@@ -232,36 +229,36 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
             description=(
                 "Whether to delete associated data from document stores "
                 "(archives, threads, messages, chunks, summaries) when deleting the source."
-            )
-        )
+            ),
+        ),
     ):
         """Delete a source, optionally with cascade delete of associated data.
-        
+
         When cascade=true, this endpoint deletes and counts the following:
-        
+
         - Archives from document_store and archive_store
         - Threads from document_store
         - Messages from document_store
         - Chunks from document_store
         - Summaries/reports from document_store
-        
+
         The returned deletion_counts field reflects only these document-store deletions.
         Embeddings in vectorstore are NOT deleted automatically and will always show
         count of 0 in the response.
-        
+
         **Important: Embeddings in vectorstore are NOT deleted.**
-        
+
         Embeddings remain in the vectorstore and are not included in deletion_counts
         (the embeddings count will always be 0). The ingestion service logs a warning
         identifying chunks whose embeddings remain. Operators should:
-        
+
         1. Monitor ingestion service logs for embedding cleanup warnings when sources
            are deleted with cascade=true
         2. Use vectorstore management tools or adapter-specific utilities to manually
            delete embeddings for the identified chunk IDs
         3. Consider implementing automated embedding cleanup in the embedding service
            by subscribing to source deletion events (future enhancement)
-        
+
         Note: If cascade delete fails partway through, some data may remain. The
         operation is idempotent - retry to clean up remaining data.
         """
@@ -357,8 +354,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                     allowed_extensions=list(ALLOWED_EXTENSIONS),
                 )
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+                    status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
                 )
 
             # Create uploads directory in storage path
@@ -390,8 +386,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                     max_size=MAX_UPLOAD_SIZE,
                 )
                 raise HTTPException(
-                    status_code=413,
-                    detail=f"File too large. Maximum size: {MAX_UPLOAD_SIZE / (1024 * 1024):.0f}MB"
+                    status_code=413, detail=f"File too large. Maximum size: {MAX_UPLOAD_SIZE / (1024 * 1024):.0f}MB"
                 )
 
             if file_size == 0:

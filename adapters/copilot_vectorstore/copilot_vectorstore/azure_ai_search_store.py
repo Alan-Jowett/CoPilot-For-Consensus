@@ -83,9 +83,7 @@ class AzureAISearchVectorStore(VectorStore):
         if vector_size <= 0:
             raise ValueError("vector_size parameter must be positive")
         if not use_managed_identity and not api_key:
-            raise ValueError(
-                "Either api_key must be provided when not using managed identity"
-            )
+            raise ValueError("Either api_key must be provided when not using managed identity")
 
         # Import Azure SDK components after parameter validation
         try:
@@ -103,8 +101,7 @@ class AzureAISearchVectorStore(VectorStore):
             )
         except ImportError as e:
             raise ImportError(
-                "azure-search-documents is not installed. "
-                "Install it with: pip install azure-search-documents"
+                "azure-search-documents is not installed. " "Install it with: pip install azure-search-documents"
             ) from e
 
         self._endpoint = endpoint
@@ -130,6 +127,7 @@ class AzureAISearchVectorStore(VectorStore):
         if use_managed_identity:
             try:
                 from azure.identity import DefaultAzureCredential
+
                 if self._managed_identity_client_id:
                     self._credential = DefaultAzureCredential(
                         managed_identity_client_id=self._managed_identity_client_id
@@ -138,12 +136,11 @@ class AzureAISearchVectorStore(VectorStore):
                     self._credential = DefaultAzureCredential()
             except ImportError as e:
                 raise ImportError(
-                    "azure-identity is required for managed identity. "
-                    "Install it with: pip install azure-identity"
+                    "azure-identity is required for managed identity. " "Install it with: pip install azure-identity"
                 ) from e
         else:
             # api_key is schema-validated (required when not using managed identity).
-            self._credential = AzureKeyCredential(cast(str, api_key))
+            self._credential = AzureKeyCredential(cast(str, api_key))  # type: ignore[assignment]
 
         # Initialize clients
         try:
@@ -157,9 +154,7 @@ class AzureAISearchVectorStore(VectorStore):
                 credential=self._credential,
             )
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to connect to Azure AI Search at {endpoint}. Error: {e}"
-            ) from e
+            raise RuntimeError(f"Failed to connect to Azure AI Search at {endpoint}. Error: {e}") from e
 
         # Lazily ensure the index exists on first use.
         # Unit tests may instantiate stores without requiring live Azure access.
@@ -201,11 +196,8 @@ class AzureAISearchVectorStore(VectorStore):
             logger.info(f"Using existing index '{self._index_name}'")
 
             # Validate vector field configuration
-            vector_field = next(
-                (f for f in existing_index.fields if f.name == "embedding"),
-                None
-            )
-            if vector_field and hasattr(vector_field, 'vector_search_dimensions'):
+            vector_field = next((f for f in existing_index.fields if f.name == "embedding"), None)
+            if vector_field and hasattr(vector_field, "vector_search_dimensions"):
                 if vector_field.vector_search_dimensions != self._vector_size:
                     raise ValueError(
                         f"Index '{self._index_name}' exists with different vector size: "
@@ -215,8 +207,9 @@ class AzureAISearchVectorStore(VectorStore):
             # Check for ResourceNotFoundError first (requires azure-search-documents >= 11.0),
             # then fall back to string matching for older SDK versions or other clients
             is_not_found = (
-                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
-                "not found" in str(e).lower() or "does not exist" in str(e).lower()
+                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError))  # type: ignore[truthy-function]
+                or "not found" in str(e).lower()
+                or "does not exist" in str(e).lower()
             )
             if is_not_found:
                 # Create new index
@@ -261,28 +254,29 @@ class AzureAISearchVectorStore(VectorStore):
             # Preferred: Modern azure-search-documents SDK (>= 11.4.0) with
             # HnswParameters class using snake_case keyword arguments
             from azure.search.documents.indexes.models import HnswParameters
+
             hnsw_params = HnswParameters(
                 m=HNSW_M,
                 ef_construction=HNSW_EF_CONSTRUCTION,
                 ef_search=HNSW_EF_SEARCH,
                 metric="cosine",
             )
-            hnsw_config = self._HnswAlgorithmConfiguration(
-                name="hnsw-algorithm",
-                parameters=hnsw_params
-            )
+            hnsw_config = self._HnswAlgorithmConfiguration(name="hnsw-algorithm", parameters=hnsw_params)
         except (ImportError, TypeError):
             # Legacy: Older SDK versions may accept dict with camelCase keys
             # matching the Azure REST API schema ("efConstruction", "efSearch")
             try:
                 hnsw_config = self._HnswAlgorithmConfiguration(
                     name="hnsw-algorithm",
-                    parameters=cast(Any, {
-                        "m": HNSW_M,
-                        "efConstruction": HNSW_EF_CONSTRUCTION,
-                        "efSearch": HNSW_EF_SEARCH,
-                        "metric": "cosine",
-                    })
+                    parameters=cast(
+                        Any,
+                        {
+                            "m": HNSW_M,
+                            "efConstruction": HNSW_EF_CONSTRUCTION,
+                            "efSearch": HNSW_EF_SEARCH,
+                            "metric": "cosine",
+                        },
+                    ),
                 )
             except TypeError:
                 # Fallback to basic configuration
@@ -335,8 +329,7 @@ class AzureAISearchVectorStore(VectorStore):
 
         if len(vector) != self._vector_size:
             raise ValueError(
-                f"Vector dimension ({len(vector)}) doesn't match "
-                f"expected dimension ({self._vector_size})"
+                f"Vector dimension ({len(vector)}) doesn't match " f"expected dimension ({self._vector_size})"
             )
 
         # Prepare document for indexing
@@ -350,8 +343,7 @@ class AzureAISearchVectorStore(VectorStore):
         self._search_client.upload_documents(documents=[document])
         logger.debug(f"Upserted embedding with ID: {id}")
 
-    def add_embeddings(self, ids: list[str], vectors: list[list[float]],
-                      metadatas: list[dict[str, Any]]) -> None:
+    def add_embeddings(self, ids: list[str], vectors: list[list[float]], metadatas: list[dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
 
         Idempotent operation: if any IDs already exist, they will be updated with the new
@@ -373,10 +365,7 @@ class AzureAISearchVectorStore(VectorStore):
         # Validate vector dimensions
         for i, vector in enumerate(vectors):
             if len(vector) != self._vector_size:
-                raise ValueError(
-                    f"Vector at index {i} has dimension {len(vector)}, "
-                    f"expected {self._vector_size}"
-                )
+                raise ValueError(f"Vector at index {i} has dimension {len(vector)}, " f"expected {self._vector_size}")
 
         # Check for duplicate IDs in the batch
         if len(set(ids)) != len(ids):
@@ -420,11 +409,7 @@ class AzureAISearchVectorStore(VectorStore):
         from azure.search.documents.models import VectorizedQuery
 
         # Create vector query
-        vector_query = VectorizedQuery(
-            vector=query_vector,
-            k_nearest_neighbors=top_k,
-            fields="embedding"
-        )
+        vector_query = VectorizedQuery(vector=query_vector, k_nearest_neighbors=top_k, fields="embedding")
 
         # Execute search
         # Use empty string for search_text in vector-only queries
@@ -456,12 +441,14 @@ class AzureAISearchVectorStore(VectorStore):
                 )
                 vector = query_vector
 
-            search_results.append(SearchResult(
-                id=result["id"],
-                score=float(result["@search.score"]),
-                vector=vector,
-                metadata=metadata,
-            ))
+            search_results.append(
+                SearchResult(
+                    id=result["id"],
+                    score=float(result["@search.score"]),
+                    vector=vector,
+                    metadata=metadata,
+                )
+            )
 
         return search_results
 
@@ -483,8 +470,8 @@ class AzureAISearchVectorStore(VectorStore):
             # Check for ResourceNotFoundError first (requires azure-search-documents >= 11.0),
             # then fall back to string matching for older SDK versions or other clients
             is_not_found = (
-                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
-                "not found" in str(e).lower()
+                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError))  # type: ignore[truthy-function]
+                or "not found" in str(e).lower()
             )
             if is_not_found:
                 raise KeyError(f"ID '{id}' not found in vector store") from e
@@ -556,8 +543,8 @@ class AzureAISearchVectorStore(VectorStore):
             # Check for ResourceNotFoundError first (requires azure-search-documents >= 11.0),
             # then fall back to string matching for older SDK versions or other clients
             is_not_found = (
-                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
-                "not found" in str(e).lower()
+                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError))  # type: ignore[truthy-function]
+                or "not found" in str(e).lower()
             )
             if is_not_found:
                 raise KeyError(f"ID '{id}' not found in vector store") from e

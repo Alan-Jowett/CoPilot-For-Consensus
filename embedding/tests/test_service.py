@@ -9,8 +9,8 @@ from unittest.mock import Mock
 
 import pytest
 from app.service import EmbeddingService
-from copilot_metrics import create_metrics_collector
 from copilot_event_retry.event_handler import DocumentNotFoundError
+from copilot_metrics import create_metrics_collector
 
 # Add project root to path to import test fixtures
 # NOTE: This is necessary because tests run from individual service directories
@@ -24,6 +24,7 @@ try:
 except ModuleNotFoundError:
     import importlib.util as _ilu  # noqa: E402
     import types as _types  # noqa: E402
+
     _fixtures_path = _repo_root / "tests" / "fixtures" / "__init__.py"
     _pkg_name = "root_tests"
     if _pkg_name not in sys.modules:
@@ -37,7 +38,7 @@ except ModuleNotFoundError:
     _spec.loader.exec_module(_fixtures)
     create_valid_chunk = _fixtures.create_valid_chunk
 
-from .test_helpers import assert_valid_document_schema
+from .test_helpers import assert_valid_document_schema  # noqa: E402
 
 
 @pytest.fixture
@@ -129,7 +130,9 @@ def test_service_start(embedding_service, mock_subscriber):
     assert call_args[1]["routing_key"] == "chunks.prepared"
 
 
-def test_process_chunks_success(embedding_service, mock_document_store, mock_vector_store, mock_embedding_provider, mock_publisher):
+def test_process_chunks_success(
+    embedding_service, mock_document_store, mock_vector_store, mock_embedding_provider, mock_publisher
+):
     """Test processing chunks successfully."""
     # Use schema-compliant chunk data
     chunk_ids = ["abc123def4567890", "fedcba9876543210", "1234567890abcdef"]
@@ -141,7 +144,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
             chunk_index=0,
             text="This is chunk 1 text.",
             token_count=10,
-            **{"_id": chunk_ids[0]}
+            **{"_id": chunk_ids[0]},
         ),
         create_valid_chunk(
             message_doc_id="abc123def4567890",
@@ -150,7 +153,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
             chunk_index=1,
             text="This is chunk 2 text.",
             token_count=10,
-            **{"_id": chunk_ids[1]}
+            **{"_id": chunk_ids[1]},
         ),
         create_valid_chunk(
             message_doc_id="fedcba9876543210",
@@ -167,7 +170,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
                 "date": "2023-10-15T13:00:00Z",
                 "subject": "Re: Test Subject",
             },
-            **{"_id": chunk_ids[2]}
+            **{"_id": chunk_ids[2]},
         ),
     ]
 
@@ -191,7 +194,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
         filter_dict={
             "_id": {"$in": chunk_ids},
             "embedding_generated": False,
-        }
+        },
     )
 
     # Verify embeddings were generated for each chunk
@@ -341,7 +344,7 @@ def test_process_chunks_missing_mongo_id_raises_error(embedding_service, mock_do
                 "date": "2023-10-15T12:00:00Z",
                 "subject": "Test",
                 "draft_mentions": [],
-            }
+            },
         },
         {
             "chunk_id": "chunk-2",
@@ -358,8 +361,8 @@ def test_process_chunks_missing_mongo_id_raises_error(embedding_service, mock_do
                 "date": "2023-10-15T12:00:00Z",
                 "subject": "Test",
                 "draft_mentions": [],
-            }
-        }
+            },
+        },
     ]
 
     mock_document_store.query_documents.return_value = chunks
@@ -392,7 +395,7 @@ def test_process_chunks_retry_on_failure(embedding_service, mock_document_store,
                 "date": "2023-10-15T12:00:00Z",
                 "subject": "Test",
                 "draft_mentions": [],
-            }
+            },
         }
     ]
 
@@ -418,7 +421,9 @@ def test_process_chunks_retry_on_failure(embedding_service, mock_document_store,
     assert mock_vector_store.add_embeddings.call_count == 2
 
     # Verify success event was published (after retry)
-    success_calls = [call for call in mock_publisher.publish.call_args_list if call[1]["routing_key"] == "embeddings.generated"]
+    success_calls = [
+        call for call in mock_publisher.publish.call_args_list if call[1]["routing_key"] == "embeddings.generated"
+    ]
     assert len(success_calls) == 1, "Should publish exactly one success event after retry"
 
 
@@ -441,7 +446,7 @@ def test_process_chunks_max_retries_exceeded(embedding_service, mock_document_st
                 "date": "2023-10-15T12:00:00Z",
                 "subject": "Test",
                 "draft_mentions": [],
-            }
+            },
         }
     ]
 
@@ -512,7 +517,7 @@ def test_batch_processing(embedding_service, mock_document_store, mock_vector_st
                 "date": "2023-10-15T12:00:00Z",
                 "subject": "Test",
                 "draft_mentions": [],
-            }
+            },
         }
         for i in range(100)
     ]
@@ -544,7 +549,7 @@ def test_handle_chunks_prepared_raises_on_missing_chunk_ids(embedding_service):
         "data": {
             "chunk_count": 3,
             # Missing chunk_ids field - should trigger re-raise
-        }
+        },
     }
 
     # Service should raise an exception for missing chunk_ids field
@@ -562,7 +567,7 @@ def test_handle_chunks_prepared_raises_on_invalid_chunk_ids_type(embedding_servi
         "data": {
             "chunk_ids": "not-an-array",  # Should be list, not string
             "chunk_count": 1,
-        }
+        },
     }
 
     # Service should raise an exception for invalid type
@@ -598,7 +603,7 @@ def test_event_handler_raises_on_process_chunks_error(embedding_service, mock_do
         "data": {
             "chunk_ids": ["chunk-1"],
             "chunk_count": 1,
-        }
+        },
     }
 
     # Set lower retry count for faster test
@@ -618,9 +623,7 @@ def test_publish_embeddings_generated_raises_on_publish_error(embedding_service,
     # Verify exception is raised, not swallowed
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         embedding_service._publish_embeddings_generated(
-            chunk_ids=["chunk-1"],
-            embedding_count=1,
-            avg_generation_time_ms=100.0
+            chunk_ids=["chunk-1"], embedding_count=1, avg_generation_time_ms=100.0
         )
 
 
@@ -632,10 +635,7 @@ def test_publish_embedding_failed_raises_on_publish_error(embedding_service, moc
     # Verify exception is raised, not swallowed
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         embedding_service._publish_embedding_failed(
-            chunk_ids=["chunk-1"],
-            error_message="Test error",
-            error_type="TestError",
-            retry_count=0
+            chunk_ids=["chunk-1"], error_message="Test error", error_type="TestError", retry_count=0
         )
 
 
@@ -644,9 +644,7 @@ def test_publish_embeddings_generated_false_return(embedding_service, mock_publi
     mock_publisher.publish.side_effect = Exception("Publish failed")
 
     with pytest.raises(Exception):
-        embedding_service._publish_embeddings_generated([
-            "chunk-1"
-        ], 1, 10.0)
+        embedding_service._publish_embeddings_generated(["chunk-1"], 1, 10.0)
 
     mock_publisher.publish.assert_called_once()
 
@@ -656,9 +654,7 @@ def test_publish_embedding_failed_false_return(embedding_service, mock_publisher
     mock_publisher.publish.side_effect = Exception("Publish failed")
 
     with pytest.raises(Exception):
-        embedding_service._publish_embedding_failed([
-            "chunk-1"
-        ], "boom", "TestError", 0)
+        embedding_service._publish_embedding_failed(["chunk-1"], "boom", "TestError", 0)
 
     mock_publisher.publish.assert_called_once()
 
@@ -741,6 +737,7 @@ def test_vector_store_documents_total_metric_recorded(
     """Test that vector_store_documents_total metric is recorded when embeddings are stored."""
     # Create a metrics collector
     from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
+
     metrics_collector = create_metrics_collector(
         AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
     )
@@ -777,7 +774,7 @@ def test_vector_store_documents_total_metric_recorded(
                 "date": "2023-10-15T12:00:00Z",
                 "subject": "Test Subject",
                 "draft_mentions": [],
-            }
+            },
         },
         {
             "_id": "chunk-2",
@@ -794,7 +791,7 @@ def test_vector_store_documents_total_metric_recorded(
                 "date": "2023-10-15T12:00:00Z",
                 "subject": "Test Subject",
                 "draft_mentions": [],
-            }
+            },
         },
         {
             "_id": "chunk-3",
@@ -811,7 +808,7 @@ def test_vector_store_documents_total_metric_recorded(
                 "date": "2023-10-15T13:00:00Z",
                 "subject": "Re: Test Subject",
                 "draft_mentions": [],
-            }
+            },
         },
     ]
 
@@ -827,4 +824,3 @@ def test_vector_store_documents_total_metric_recorded(
 
     # Verify vector_store_documents_total metric was recorded
     assert metrics_collector.get_counter_total("vector_store_documents_total") == 3.0
-

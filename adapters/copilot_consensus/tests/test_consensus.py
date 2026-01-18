@@ -2,7 +2,9 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 """Tests for consensus detection."""
+
 from datetime import datetime, timedelta, timezone
+
 import pytest
 from copilot_config.generated.adapters.consensus_detector import (
     AdapterConfig_ConsensusDetector,
@@ -20,8 +22,8 @@ from copilot_consensus import (
 )
 from copilot_consensus.consensus import (
     HeuristicConsensusDetector,
-    MockConsensusDetector,
     MLConsensusDetector,
+    MockConsensusDetector,
 )
 
 
@@ -46,7 +48,7 @@ class TestConsensusSignal:
             confidence=0.8,
             signals=["signal1", "signal2"],
             explanation="Test explanation",
-            metadata={"test": "data"}
+            metadata={"test": "data"},
         )
 
         assert signal.level == ConsensusLevel.CONSENSUS
@@ -57,10 +59,7 @@ class TestConsensusSignal:
 
     def test_consensus_signal_defaults(self):
         """Test consensus signal with default values."""
-        signal = ConsensusSignal(
-            level=ConsensusLevel.NO_CONSENSUS,
-            confidence=0.5
-        )
+        signal = ConsensusSignal(level=ConsensusLevel.NO_CONSENSUS, confidence=0.5)
 
         assert signal.signals == []
         assert signal.explanation == ""
@@ -96,28 +95,26 @@ class TestHeuristicConsensusDetector:
                 subject=data.get("subject", "Test Subject"),
                 content=data.get("content", ""),
                 timestamp=data.get("timestamp", base_time + timedelta(hours=i)),
-                in_reply_to=data.get("in_reply_to")
+                in_reply_to=data.get("in_reply_to"),
             )
             messages.append(msg)
 
-        return Thread(
-            thread_id="test-thread",
-            subject="Test Thread",
-            messages=messages
-        )
+        return Thread(thread_id="test-thread", subject="Test Thread", messages=messages)
 
     def test_strong_consensus_detection(self):
         """Test detection of strong consensus."""
         detector = HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7)
 
-        thread = self.create_test_thread([
-            {"content": "I propose we do X"},
-            {"content": "+1 I agree with this proposal", "author": "user1@example.com"},
-            {"content": "LGTM, sounds good to me", "author": "user2@example.com"},
-            {"content": "I agree, this makes sense", "author": "user3@example.com"},
-            {"content": "+1 from me as well", "author": "user4@example.com"},
-            {"content": "I support this approach", "author": "user5@example.com"},
-        ])
+        thread = self.create_test_thread(
+            [
+                {"content": "I propose we do X"},
+                {"content": "+1 I agree with this proposal", "author": "user1@example.com"},
+                {"content": "LGTM, sounds good to me", "author": "user2@example.com"},
+                {"content": "I agree, this makes sense", "author": "user3@example.com"},
+                {"content": "+1 from me as well", "author": "user4@example.com"},
+                {"content": "I support this approach", "author": "user5@example.com"},
+            ]
+        )
 
         signal = detector.detect(thread)
 
@@ -130,12 +127,14 @@ class TestHeuristicConsensusDetector:
         """Test detection of regular consensus."""
         detector = HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7)
 
-        thread = self.create_test_thread([
-            {"content": "What about option A?"},
-            {"content": "+1 for option A", "author": "user1@example.com"},
-            {"content": "I agree with option A", "author": "user2@example.com"},
-            {"content": "Sounds good, LGTM", "author": "user3@example.com"},
-        ])
+        thread = self.create_test_thread(
+            [
+                {"content": "What about option A?"},
+                {"content": "+1 for option A", "author": "user1@example.com"},
+                {"content": "I agree with option A", "author": "user2@example.com"},
+                {"content": "Sounds good, LGTM", "author": "user3@example.com"},
+            ]
+        )
 
         signal = detector.detect(thread)
 
@@ -147,12 +146,14 @@ class TestHeuristicConsensusDetector:
         """Test detection of dissent."""
         detector = HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7)
 
-        thread = self.create_test_thread([
-            {"content": "Let's go with approach X"},
-            {"content": "I agree with X", "author": "user1@example.com"},
-            {"content": "I disagree, I think we should wait", "author": "user2@example.com"},
-            {"content": "I have concerns about X", "author": "user3@example.com"},
-        ])
+        thread = self.create_test_thread(
+            [
+                {"content": "Let's go with approach X"},
+                {"content": "I agree with X", "author": "user1@example.com"},
+                {"content": "I disagree, I think we should wait", "author": "user2@example.com"},
+                {"content": "I have concerns about X", "author": "user3@example.com"},
+            ]
+        )
 
         signal = detector.detect(thread)
 
@@ -163,11 +164,13 @@ class TestHeuristicConsensusDetector:
         """Test detection of weak consensus."""
         detector = HeuristicConsensusDetector(agreement_threshold=5, min_participants=2, stagnation_days=7)
 
-        thread = self.create_test_thread([
-            {"content": "Should we proceed?"},
-            {"content": "Maybe, let me think", "author": "user1@example.com"},
-            {"content": "I guess so", "author": "user2@example.com"},
-        ])
+        thread = self.create_test_thread(
+            [
+                {"content": "Should we proceed?"},
+                {"content": "Maybe, let me think", "author": "user1@example.com"},
+                {"content": "I guess so", "author": "user2@example.com"},
+            ]
+        )
 
         signal = detector.detect(thread)
 
@@ -178,9 +181,11 @@ class TestHeuristicConsensusDetector:
         """Test detection of no consensus."""
         detector = HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7)
 
-        thread = self.create_test_thread([
-            {"content": "Initial message with no replies"},
-        ])
+        thread = self.create_test_thread(
+            [
+                {"content": "Initial message with no replies"},
+            ]
+        )
 
         signal = detector.detect(thread)
 
@@ -192,10 +197,12 @@ class TestHeuristicConsensusDetector:
 
         # Create thread with old timestamp
         old_time = datetime.now(timezone.utc) - timedelta(days=10)
-        thread = self.create_test_thread([
-            {"content": "Old message", "timestamp": old_time},
-            {"content": "Old reply", "timestamp": old_time + timedelta(hours=1)},
-        ])
+        thread = self.create_test_thread(
+            [
+                {"content": "Old message", "timestamp": old_time},
+                {"content": "Old reply", "timestamp": old_time + timedelta(hours=1)},
+            ]
+        )
 
         signal = detector.detect(thread)
 
@@ -219,10 +226,12 @@ class TestHeuristicConsensusDetector:
         ]
 
         for phrase in agreement_phrases:
-            thread = self.create_test_thread([
-                {"content": "Proposal"},
-                {"content": f"Yes, {phrase}", "author": "user1@example.com"},
-            ])
+            thread = self.create_test_thread(
+                [
+                    {"content": "Proposal"},
+                    {"content": f"Yes, {phrase}", "author": "user1@example.com"},
+                ]
+            )
 
             signal = detector.detect(thread)
             assert signal.metadata["agreement_signals"] >= 1, f"Failed to detect: {phrase}"
@@ -244,10 +253,12 @@ class TestHeuristicConsensusDetector:
         ]
 
         for phrase in dissent_phrases:
-            thread = self.create_test_thread([
-                {"content": "Proposal"},
-                {"content": f"{phrase} because reasons", "author": "user1@example.com"},
-            ])
+            thread = self.create_test_thread(
+                [
+                    {"content": "Proposal"},
+                    {"content": f"{phrase} because reasons", "author": "user1@example.com"},
+                ]
+            )
 
             signal = detector.detect(thread)
             assert signal.level == ConsensusLevel.DISSENT, f"Failed to detect dissent: {phrase}"
@@ -261,11 +272,7 @@ class TestMockConsensusDetector:
         """Test mock detector with default values."""
         detector = MockConsensusDetector(level=ConsensusLevel.CONSENSUS, confidence=0.8)
 
-        thread = Thread(
-            thread_id="test-thread",
-            subject="Test",
-            messages=[]
-        )
+        thread = Thread(thread_id="test-thread", subject="Test", messages=[])
 
         signal = detector.detect(thread)
 
@@ -276,16 +283,9 @@ class TestMockConsensusDetector:
 
     def test_mock_detector_custom(self):
         """Test mock detector with custom values."""
-        detector = MockConsensusDetector(
-            level=ConsensusLevel.STRONG_CONSENSUS,
-            confidence=0.95
-        )
+        detector = MockConsensusDetector(level=ConsensusLevel.STRONG_CONSENSUS, confidence=0.95)
 
-        thread = Thread(
-            thread_id="test-thread",
-            subject="Test",
-            messages=[]
-        )
+        thread = Thread(thread_id="test-thread", subject="Test", messages=[])
 
         signal = detector.detect(thread)
 
@@ -309,11 +309,7 @@ class TestMLConsensusDetector:
         """Test that ML detector raises NotImplementedError."""
         detector = MLConsensusDetector()
 
-        thread = Thread(
-            thread_id="test-thread",
-            subject="Test",
-            messages=[]
-        )
+        thread = Thread(thread_id="test-thread", subject="Test", messages=[])
 
         with pytest.raises(NotImplementedError):
             detector.detect(thread)

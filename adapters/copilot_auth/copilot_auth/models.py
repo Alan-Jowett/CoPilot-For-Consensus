@@ -25,6 +25,7 @@ class User:
         roles: List of roles assigned to the user (e.g., ["contributor", "chair"])
         affiliations: List of organizational affiliations (e.g., ["IETF", "W3C"])
     """
+
     id: str
     email: str
     name: str

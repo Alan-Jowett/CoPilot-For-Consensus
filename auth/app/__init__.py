@@ -13,4 +13,3 @@ SUPPORTED_PROVIDERS = ["github", "google", "microsoft"]
 # Kept for semantic clarity in error messages and potential future distinction
 # if non-OAuth providers (e.g., SAML, LDAP) are introduced.
 OAUTH_PROVIDERS = SUPPORTED_PROVIDERS
-

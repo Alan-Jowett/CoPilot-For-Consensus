@@ -3,7 +3,6 @@
 
 """Mock diff provider implementation for testing."""
 
-
 from .models import DraftDiff
 from .provider import DraftDiffProvider
 
@@ -91,7 +90,7 @@ class MockDiffProvider(DraftDiffProvider):
             metadata={
                 "mock": True,
                 "generated": True,
-            }
+            },
         )
 
     def _generate_mock_diff_content(self, draft_name: str, version_a: str, version_b: str) -> str:

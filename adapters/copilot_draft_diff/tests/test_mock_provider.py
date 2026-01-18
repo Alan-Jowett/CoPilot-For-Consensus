@@ -73,12 +73,10 @@ class TestMockDiffProvider:
             format="text",
             content="Custom predefined content",
             source="mock",
-            url="custom://url"
+            url="custom://url",
         )
 
-        mock_diffs = {
-            ("draft-custom", "01", "02"): predefined
-        }
+        mock_diffs = {("draft-custom", "01", "02"): predefined}
 
         provider = MockDiffProvider(mock_diffs=mock_diffs)
         diff = provider.getdiff("draft-custom", "01", "02")
@@ -96,7 +94,7 @@ class TestMockDiffProvider:
             version_b="06",
             format="html",
             content="<p>Dynamic content</p>",
-            source="mock"
+            source="mock",
         )
 
         provider.add_mock_diff("draft-dynamic", "05", "06", custom_diff)

@@ -9,15 +9,27 @@ This script scans Python files for functions that use mutable default arguments
 (lists, dictionaries, or sets), which can lead to unexpected behavior due to
 shared state across function invocations.
 """
+
 import argparse
 import ast
 import sys
 from pathlib import Path
 
 DEFAULT_EXCLUDES = {
-    ".git", "node_modules", "venv", ".venv", "env", ".env",
-    "__pycache__", "build", "dist", ".pytest_cache", ".mypy_cache",
-    ".tox", ".eggs", "*.egg-info"
+    ".git",
+    "node_modules",
+    "venv",
+    ".venv",
+    "env",
+    ".env",
+    "__pycache__",
+    "build",
+    "dist",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".tox",
+    ".eggs",
+    "*.egg-info",
 }
 
 
@@ -47,7 +59,7 @@ def is_mutable_default(node: ast.AST) -> tuple[bool, str]:
         return True, "set"
     # Constructor calls: list(), dict(), set() with any arguments
     elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-        if node.func.id in ('list', 'dict', 'set'):
+        if node.func.id in ("list", "dict", "set"):
             return True, node.func.id
     return False, ""
 
@@ -59,7 +71,7 @@ def find_mutable_defaults(filepath: Path) -> list[tuple[int, str, str, str]]:
     Returns a list of tuples: (line_number, function_name, param_name, default_type)
     """
     try:
-        with filepath.open('r', encoding='utf-8', errors='ignore') as f:
+        with filepath.open("r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
             tree = ast.parse(content, str(filepath))
     except Exception:
@@ -117,10 +129,10 @@ def load_ignore_file(root: Path, ignore_file: str | None) -> set[str]:
         return set()
 
     excludes = set()
-    with ignore_path.open('r', encoding='utf-8') as f:
+    with ignore_path.open("r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith('#'):
+            if line and not line.startswith("#"):
                 excludes.add(line)
 
     return excludes
@@ -128,24 +140,14 @@ def load_ignore_file(root: Path, ignore_file: str | None) -> set[str]:
 
 def main() -> int:
     """Main entry point for the mutable defaults checker."""
-    parser = argparse.ArgumentParser(
-        description="Check for mutable default arguments in Python functions"
+    parser = argparse.ArgumentParser(description="Check for mutable default arguments in Python functions")
+    parser.add_argument(
+        "--root", type=Path, default=Path("."), help="Root directory to scan (default: current directory)"
     )
     parser.add_argument(
-        "--root",
-        type=Path,
-        default=Path("."),
-        help="Root directory to scan (default: current directory)"
+        "--exclude", action="append", help="Additional patterns to exclude (can be specified multiple times)"
     )
-    parser.add_argument(
-        "--exclude",
-        action="append",
-        help="Additional patterns to exclude (can be specified multiple times)"
-    )
-    parser.add_argument(
-        "--ignore-file",
-        help="File containing additional exclusion patterns (one per line)"
-    )
+    parser.add_argument("--ignore-file", help="File containing additional exclusion patterns (one per line)")
 
     args = parser.parse_args()
 

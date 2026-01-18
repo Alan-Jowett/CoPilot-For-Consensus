@@ -18,23 +18,18 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def test_keypair():
     """Generate RSA keypair for testing."""
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-        backend=default_backend()
-    )
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
 
     public_key = private_key.public_key()
 
     private_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
+        encryption_algorithm=serialization.NoEncryption(),
     )
 
     public_pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
+        encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
     return private_key, public_key, private_pem, public_pem
@@ -46,13 +41,14 @@ def mock_jwks(test_keypair):
     import json
 
     from jwt.algorithms import RSAAlgorithm
+
     _, public_key, _, _ = test_keypair
 
     jwk = RSAAlgorithm.to_jwk(public_key)
     # to_jwk returns a JSON string in PyJWT 2.x, need to parse it
     jwk_dict = json.loads(jwk) if isinstance(jwk, str) else jwk
-    jwk_dict['kid'] = 'test-key'
-    jwk_dict['use'] = 'sig'
+    jwk_dict["kid"] = "test-key"
+    jwk_dict["use"] = "sig"
 
     return {"keys": [jwk_dict]}
 
@@ -71,12 +67,7 @@ def valid_orchestrator_token(test_keypair):
         "iat": int(time.time()),
     }
 
-    token = jwt.encode(
-        payload,
-        private_key,
-        algorithm="RS256",
-        headers={"kid": "test-key"}
-    )
+    token = jwt.encode(payload, private_key, algorithm="RS256", headers={"kid": "test-key"})
 
     return token
 
@@ -95,12 +86,7 @@ def invalid_role_token(test_keypair):
         "iat": int(time.time()),
     }
 
-    token = jwt.encode(
-        payload,
-        private_key,
-        algorithm="RS256",
-        headers={"kid": "test-key"}
-    )
+    token = jwt.encode(payload, private_key, algorithm="RS256", headers={"kid": "test-key"})
 
     return token
 
@@ -257,20 +243,14 @@ def test_protected_endpoint_no_auth(client_with_auth):
 
 def test_protected_endpoint_valid_token(client_with_auth, valid_orchestrator_token, mock_service):
     """Test that valid token with orchestrator role grants access."""
-    response = client_with_auth.get(
-        "/stats",
-        headers={"Authorization": f"Bearer {valid_orchestrator_token}"}
-    )
+    response = client_with_auth.get("/stats", headers={"Authorization": f"Bearer {valid_orchestrator_token}"})
 
     assert response.status_code == 200
 
 
 def test_protected_endpoint_invalid_role(client_with_auth, invalid_role_token):
     """Test that token without orchestrator role is rejected."""
-    response = client_with_auth.get(
-        "/stats",
-        headers={"Authorization": f"Bearer {invalid_role_token}"}
-    )
+    response = client_with_auth.get("/stats", headers={"Authorization": f"Bearer {invalid_role_token}"})
 
     assert response.status_code == 403
     assert "Missing required role: orchestrator" in response.json()["detail"]

@@ -12,7 +12,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from copilot_config.schema_validation import validate_driver_config_against_schema
 
 
@@ -56,9 +55,15 @@ def test_validate_driver_config_required_and_pattern(tmp_path: Path):
     _write(schema_root / "adapters" / "drivers" / "example" / "foo.json", driver_schema)
 
     with pytest.raises(ValueError, match="name parameter is required"):
-        validate_driver_config_against_schema(adapter="example", driver="foo", config=_Cfg(name=None, device="cpu"), schema_dir=str(schema_root))
+        validate_driver_config_against_schema(
+            adapter="example", driver="foo", config=_Cfg(name=None, device="cpu"), schema_dir=str(schema_root)
+        )
 
     with pytest.raises(ValueError, match="device parameter is invalid"):
-        validate_driver_config_against_schema(adapter="example", driver="foo", config=_Cfg(name="ok", device="tpu"), schema_dir=str(schema_root))
+        validate_driver_config_against_schema(
+            adapter="example", driver="foo", config=_Cfg(name="ok", device="tpu"), schema_dir=str(schema_root)
+        )
 
-    validate_driver_config_against_schema(adapter="example", driver="foo", config=_Cfg(name="ok", device="cpu"), schema_dir=str(schema_root))
+    validate_driver_config_against_schema(
+        adapter="example", driver="foo", config=_Cfg(name="ok", device="cpu"), schema_dir=str(schema_root)
+    )

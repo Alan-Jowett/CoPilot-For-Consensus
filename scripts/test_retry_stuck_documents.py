@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 # Add scripts directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from retry_stuck_documents import RetryStuckDocumentsJob
 
@@ -154,7 +154,7 @@ class TestRetryStuckDocumentsJob(unittest.TestCase):
         self.assertEqual(event_data["thread_id"], "thread123")
         self.assertEqual(event_data["archive_id"], "abc123")
 
-    @patch('retry_stuck_documents.MongoClient')
+    @patch("retry_stuck_documents.MongoClient")
     def test_find_stuck_documents(self, mock_mongo_client):
         """Test finding stuck documents."""
         # Mock MongoDB collection
@@ -186,7 +186,7 @@ class TestRetryStuckDocumentsJob(unittest.TestCase):
         self.assertIn("attemptCount", call_args)
         self.assertIn("$or", call_args)
 
-    @patch('retry_stuck_documents.MongoClient')
+    @patch("retry_stuck_documents.MongoClient")
     def test_mark_max_retries_exceeded(self, mock_mongo_client):
         """Test marking documents as failed due to max retries."""
         # Mock MongoDB collection
@@ -215,7 +215,7 @@ class TestRetryStuckDocumentsJob(unittest.TestCase):
         self.assertEqual(update["$set"]["status"], "failed_max_retries")
         self.assertIsNotNone(update["$set"]["lastAttemptTime"])
 
-    @patch('retry_stuck_documents.MongoClient')
+    @patch("retry_stuck_documents.MongoClient")
     def test_update_attempt_count(self, mock_mongo_client):
         """Test updating attempt count."""
         # Mock MongoDB collection
@@ -241,7 +241,7 @@ class TestRetryStuckDocumentsJob(unittest.TestCase):
         self.assertIn("$set", update)
         self.assertIsNotNone(update["$set"]["lastAttemptTime"])
 
-    @patch('retry_stuck_documents.pika')
+    @patch("retry_stuck_documents.pika")
     def test_publish_retry_event(self, mock_pika):
         """Test publishing retry event to RabbitMQ."""
         # Mock RabbitMQ channel
@@ -258,10 +258,7 @@ class TestRetryStuckDocumentsJob(unittest.TestCase):
 
         # Publish event
         self.job.publish_retry_event(
-            event_type="ArchiveIngested",
-            routing_key="archive.ingested",
-            document=doc,
-            collection_name="archives"
+            event_type="ArchiveIngested", routing_key="archive.ingested", document=doc, collection_name="archives"
         )
 
         # Verify publish
@@ -274,6 +271,7 @@ class TestRetryStuckDocumentsJob(unittest.TestCase):
 
         # Check message body
         import json
+
         body = json.loads(call_args[1]["body"])
         self.assertEqual(body["event_type"], "ArchiveIngested")
         self.assertEqual(body["data"]["archive_id"], "abc123")
@@ -359,7 +357,7 @@ class TestProcessCollection(unittest.TestCase):
             mongodb_database="test_copilot",
         )
 
-    @patch('retry_stuck_documents.MongoClient')
+    @patch("retry_stuck_documents.MongoClient")
     def test_process_collection_success(self, mock_mongo_client):
         """Test successful processing of a collection."""
         # Mock MongoDB
@@ -415,7 +413,7 @@ class TestProcessCollection(unittest.TestCase):
         # Should update attempt count 2 times
         self.assertEqual(mock_collection.update_one.call_count, 2)
 
-    @patch('retry_stuck_documents.MongoClient')
+    @patch("retry_stuck_documents.MongoClient")
     def test_process_collection_with_backoff_skip(self, mock_mongo_client):
         """Test processing skips documents not ready due to backoff."""
         # Mock MongoDB
@@ -456,7 +454,7 @@ class TestProcessCollection(unittest.TestCase):
         # Verify document was skipped (backoff not elapsed)
         self.assertEqual(self.job.rabbitmq_channel.basic_publish.call_count, 0)
 
-    @patch('retry_stuck_documents.MongoClient')
+    @patch("retry_stuck_documents.MongoClient")
     def test_process_collection_max_retries_exceeded(self, mock_mongo_client):
         """Test processing marks documents exceeding max retries."""
         # Mock MongoDB
@@ -499,7 +497,7 @@ class TestProcessCollection(unittest.TestCase):
         call_args = mock_collection.update_one.call_args[0][1]
         self.assertEqual(call_args["$set"]["status"], "failed_max_retries")
 
-    @patch('retry_stuck_documents.MongoClient')
+    @patch("retry_stuck_documents.MongoClient")
     def test_process_collection_publish_error_handling(self, mock_mongo_client):
         """Test error handling when publishing fails."""
         # Mock MongoDB
@@ -553,9 +551,9 @@ class TestRunOnce(unittest.TestCase):
             mongodb_database="test_copilot",
         )
 
-    @patch('retry_stuck_documents.push_to_gateway')
-    @patch('retry_stuck_documents.MongoClient')
-    @patch('retry_stuck_documents.pika.BlockingConnection')
+    @patch("retry_stuck_documents.push_to_gateway")
+    @patch("retry_stuck_documents.MongoClient")
+    @patch("retry_stuck_documents.pika.BlockingConnection")
     def test_run_once_success(self, mock_rabbitmq, mock_mongo, mock_push):
         """Test successful run_once execution."""
         # Mock MongoDB connection
@@ -592,9 +590,9 @@ class TestRunOnce(unittest.TestCase):
         # Verify success metric was incremented
         # Note: Can't directly verify counter increment without access to registry
 
-    @patch('retry_stuck_documents.push_to_gateway')
-    @patch('retry_stuck_documents.MongoClient')
-    @patch('retry_stuck_documents.pika.BlockingConnection')
+    @patch("retry_stuck_documents.push_to_gateway")
+    @patch("retry_stuck_documents.MongoClient")
+    @patch("retry_stuck_documents.pika.BlockingConnection")
     def test_run_once_initializes_gauges_before_processing(self, mock_rabbitmq, mock_mongo, mock_push):
         """Test that gauges are initialized to 0 before processing collections."""
         # Mock MongoDB connection failure to ensure gauges are still initialized
@@ -613,18 +611,22 @@ class TestRunOnce(unittest.TestCase):
         def stuck_labels_wrapper(**kwargs):
             gauge = original_stuck_set(**kwargs)
             original_set = gauge.set
+
             def set_wrapper(value):
                 stuck_set_calls.append((kwargs, value))
                 return original_set(value)
+
             gauge.set = set_wrapper
             return gauge
 
         def failed_labels_wrapper(**kwargs):
             gauge = original_failed_set(**kwargs)
             original_set = gauge.set
+
             def set_wrapper(value):
                 failed_set_calls.append((kwargs, value))
                 return original_set(value)
+
             gauge.set = set_wrapper
             return gauge
 
@@ -644,18 +646,18 @@ class TestRunOnce(unittest.TestCase):
         # Verify all gauges were set to 0
         for kwargs, value in stuck_set_calls:
             self.assertEqual(value, 0)
-            self.assertIn(kwargs['collection'], ['archives', 'messages', 'chunks', 'threads'])
+            self.assertIn(kwargs["collection"], ["archives", "messages", "chunks", "threads"])
 
         for kwargs, value in failed_set_calls:
             self.assertEqual(value, 0)
-            self.assertIn(kwargs['collection'], ['archives', 'messages', 'chunks', 'threads'])
+            self.assertIn(kwargs["collection"], ["archives", "messages", "chunks", "threads"])
 
         # Verify metrics were still pushed (in finally block)
         mock_push.assert_called_once()
 
-    @patch('retry_stuck_documents.push_to_gateway')
-    @patch('retry_stuck_documents.MongoClient')
-    @patch('retry_stuck_documents.pika.BlockingConnection')
+    @patch("retry_stuck_documents.push_to_gateway")
+    @patch("retry_stuck_documents.MongoClient")
+    @patch("retry_stuck_documents.pika.BlockingConnection")
     def test_run_once_mongodb_connection_failure(self, mock_rabbitmq, mock_mongo, mock_push):
         """Test run_once handles MongoDB connection failure."""
         # Mock MongoDB connection failure
@@ -670,9 +672,9 @@ class TestRunOnce(unittest.TestCase):
         # Verify metrics were still pushed (in finally block)
         mock_push.assert_called_once()
 
-    @patch('retry_stuck_documents.push_to_gateway')
-    @patch('retry_stuck_documents.MongoClient')
-    @patch('retry_stuck_documents.pika.BlockingConnection')
+    @patch("retry_stuck_documents.push_to_gateway")
+    @patch("retry_stuck_documents.MongoClient")
+    @patch("retry_stuck_documents.pika.BlockingConnection")
     def test_run_once_collection_error_continues(self, mock_rabbitmq, mock_mongo, mock_push):
         """Test run_once continues processing if one collection fails."""
         # Mock MongoDB connection
@@ -682,6 +684,7 @@ class TestRunOnce(unittest.TestCase):
 
         # First collection raises error, subsequent should still process
         call_count = [0]
+
         def find_side_effect(*args, **kwargs):
             call_count[0] += 1
             if call_count[0] == 1:
@@ -711,9 +714,9 @@ class TestRunOnce(unittest.TestCase):
         # Verify metrics were pushed
         mock_push.assert_called_once()
 
-    @patch('retry_stuck_documents.push_to_gateway')
-    @patch('retry_stuck_documents.MongoClient')
-    @patch('retry_stuck_documents.pika.BlockingConnection')
+    @patch("retry_stuck_documents.push_to_gateway")
+    @patch("retry_stuck_documents.MongoClient")
+    @patch("retry_stuck_documents.pika.BlockingConnection")
     def test_run_once_metrics_push_failure(self, mock_rabbitmq, mock_mongo, mock_push):
         """Test run_once handles metrics push failure gracefully."""
         # Mock MongoDB and RabbitMQ connections
@@ -743,5 +746,5 @@ class TestRunOnce(unittest.TestCase):
         mock_push.assert_called_once()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

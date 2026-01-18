@@ -74,9 +74,7 @@ exporter_scrape_errors_total = Gauge(
 def get_archive_status_counts(db) -> dict[str, int]:
     """Get counts of archives by status."""
     try:
-        pipeline = [
-            {"$group": {"_id": "$status", "count": {"$sum": 1}}}
-        ]
+        pipeline = [{"$group": {"_id": "$status", "count": {"$sum": 1}}}]
         results = db.archives.aggregate(pipeline)
         counts = {}
         for result in results:
@@ -91,9 +89,7 @@ def get_archive_status_counts(db) -> dict[str, int]:
 def get_chunks_embedding_status(db) -> dict[str, int]:
     """Get counts of chunks by embedding generation status."""
     try:
-        pipeline = [
-            {"$group": {"_id": "$embedding_generated", "count": {"$sum": 1}}}
-        ]
+        pipeline = [{"$group": {"_id": "$embedding_generated", "count": {"$sum": 1}}}]
         results = db.chunks.aggregate(pipeline)
         counts = {}
         for result in results:
@@ -123,25 +119,9 @@ def get_document_age_metrics(db, collection_name: str, status_field: str = "stat
 
         # Try to use updated_at if available, otherwise created_at
         pipeline = [
-            {
-                "$project": {
-                    "status": f"${status_field}",
-                    "timestamp": {
-                        "$ifNull": ["$updated_at", "$created_at"]
-                    }
-                }
-            },
-            {
-                "$match": {
-                    "timestamp": {"$exists": True}
-                }
-            },
-            {
-                "$group": {
-                    "_id": "$status",
-                    "avg_timestamp": {"$avg": {"$toLong": {"$toDate": "$timestamp"}}}
-                }
-            }
+            {"$project": {"status": f"${status_field}", "timestamp": {"$ifNull": ["$updated_at", "$created_at"]}}},
+            {"$match": {"timestamp": {"$exists": True}}},
+            {"$group": {"_id": "$status", "avg_timestamp": {"$avg": {"$toLong": {"$toDate": "$timestamp"}}}}},
         ]
 
         results = db[collection_name].aggregate(pipeline)
@@ -178,28 +158,15 @@ def get_processing_duration_metrics(db, collection_name: str) -> float:
     """
     try:
         pipeline = [
-            {
-                "$match": {
-                    "created_at": {"$exists": True},
-                    "updated_at": {"$exists": True}
-                }
-            },
+            {"$match": {"created_at": {"$exists": True}, "updated_at": {"$exists": True}}},
             {
                 "$project": {
                     "duration": {
-                        "$subtract": [
-                            {"$toLong": {"$toDate": "$updated_at"}},
-                            {"$toLong": {"$toDate": "$created_at"}}
-                        ]
+                        "$subtract": [{"$toLong": {"$toDate": "$updated_at"}}, {"$toLong": {"$toDate": "$created_at"}}]
                     }
                 }
             },
-            {
-                "$group": {
-                    "_id": None,
-                    "avg_duration_ms": {"$avg": "$duration"}
-                }
-            }
+            {"$group": {"_id": None, "avg_duration_ms": {"$avg": "$duration"}}},
         ]
 
         results = list(db[collection_name].aggregate(pipeline))
@@ -225,17 +192,8 @@ def get_attempt_count_metrics(db, collection_name: str) -> float:
     """
     try:
         pipeline = [
-            {
-                "$match": {
-                    "attemptCount": {"$exists": True}
-                }
-            },
-            {
-                "$group": {
-                    "_id": None,
-                    "avg_attempts": {"$avg": "$attemptCount"}
-                }
-            }
+            {"$match": {"attemptCount": {"$exists": True}}},
+            {"$group": {"_id": None, "avg_attempts": {"$avg": "$attemptCount"}}},
         ]
 
         results = list(db[collection_name].aggregate(pipeline))
@@ -255,56 +213,35 @@ def collect_metrics(client: MongoClient):
         # Archive status counts
         archive_status = get_archive_status_counts(db)
         for status, count in archive_status.items():
-            document_status_count.labels(
-                database=DB_NAME,
-                collection="archives",
-                status=status
-            ).set(count)
+            document_status_count.labels(database=DB_NAME, collection="archives", status=status).set(count)
 
         # Ensure all expected statuses are represented (set to 0 if not present)
         # Note: Using subset of schema statuses that are commonly monitored.
         # Full schema: ['pending', 'processing', 'completed', 'failed', 'failed_max_retries']
         for status in ["pending", "processing", "completed", "failed", "failed_max_retries"]:
             if status not in archive_status:
-                document_status_count.labels(
-                    database=DB_NAME,
-                    collection="archives",
-                    status=status
-                ).set(0)
+                document_status_count.labels(database=DB_NAME, collection="archives", status=status).set(0)
 
         # Chunk embedding status
         chunk_embedding = get_chunks_embedding_status(db)
         for status, count in chunk_embedding.items():
-            chunks_embedding_status.labels(
-                database=DB_NAME,
-                embedding_generated=status
-            ).set(count)
+            chunks_embedding_status.labels(database=DB_NAME, embedding_generated=status).set(count)
 
         # Document age metrics for archives
         archive_ages = get_document_age_metrics(db, "archives", "status")
         for status, age in archive_ages.items():
-            document_age_seconds.labels(
-                database=DB_NAME,
-                collection="archives",
-                status=status
-            ).set(age)
+            document_age_seconds.labels(database=DB_NAME, collection="archives", status=status).set(age)
 
         # Processing duration for archives
         archive_duration = get_processing_duration_metrics(db, "archives")
         if archive_duration > 0:
-            document_processing_duration_seconds.labels(
-                database=DB_NAME,
-                collection="archives"
-            ).set(archive_duration)
+            document_processing_duration_seconds.labels(database=DB_NAME, collection="archives").set(archive_duration)
 
         # Attempt count metrics (if the field exists)
         for collection_name in ["archives", "messages", "chunks"]:
             avg_attempts = get_attempt_count_metrics(db, collection_name)
             if avg_attempts > 0:
-                document_attempt_count.labels(
-                    database=DB_NAME,
-                    collection=collection_name
-                ).set(avg_attempts)
+                document_attempt_count.labels(database=DB_NAME, collection=collection_name).set(avg_attempts)
 
         # Reset error counter on success
         exporter_scrape_errors_total.set(0)

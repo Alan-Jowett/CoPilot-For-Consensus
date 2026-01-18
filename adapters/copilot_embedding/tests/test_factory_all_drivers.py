@@ -11,7 +11,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from copilot_config.generated.adapters.embedding_backend import (
     AdapterConfig_EmbeddingBackend,
     DriverConfig_EmbeddingBackend_AzureOpenai,
@@ -37,15 +36,15 @@ def load_json(path):
 def get_required_fields(driver_schema):
     """Extract required fields from driver schema."""
     required = set()
-    
+
     if "required" in driver_schema:
         required.update(driver_schema["required"])
-    
+
     if "properties" in driver_schema:
         for field, field_schema in driver_schema["properties"].items():
             if isinstance(field_schema, dict) and field_schema.get("required") is True:
                 required.add(field)
-    
+
     return required
 
 
@@ -53,7 +52,7 @@ def get_minimal_config(driver_schema):
     """Build minimal config with required and optional fields from driver schema."""
     config_dict = {}
     required_fields = get_required_fields(driver_schema)
-    
+
     # Map field names to reasonable defaults
     defaults = {
         "dimension": 384,
@@ -66,7 +65,7 @@ def get_minimal_config(driver_schema):
         "deployment_name": "test-deployment",
         "cache_dir": None,
     }
-    
+
     # Add all fields (required and optional) from schema
     if "properties" in driver_schema:
         for field, field_schema in driver_schema["properties"].items():
@@ -76,25 +75,25 @@ def get_minimal_config(driver_schema):
                 config_dict[field] = field_schema["default"]
             elif field in required_fields:
                 config_dict[field] = ""
-    
+
     return config_dict
 
 
 class TestEmbeddingBackendAllDrivers:
     """Test factory creation for all embedding backend drivers."""
-    
+
     def test_all_drivers_instantiate(self):
         """Test that each driver in schema can be instantiated via factory."""
         schema_dir = get_schema_dir()
         schema = load_json(schema_dir / "embedding_backend.json")
         drivers_enum = schema["properties"]["discriminant"]["enum"]
         drivers_dir = schema_dir / "drivers" / "embedding_backend"
-        
+
         for driver in drivers_enum:
             # Load driver schema
             driver_schema_path = drivers_dir / f"embedding_{driver}.json"
             assert driver_schema_path.exists(), f"Driver schema missing: {driver_schema_path}"
-            
+
             driver_schema = load_json(driver_schema_path)
             config_dict = get_minimal_config(driver_schema)
 
@@ -110,7 +109,7 @@ class TestEmbeddingBackendAllDrivers:
                 config = DriverConfig_EmbeddingBackend_Huggingface(**config_dict)
             else:
                 raise AssertionError(f"Unexpected driver in schema: {driver}")
-            
+
             adapter_config = AdapterConfig_EmbeddingBackend(
                 embedding_backend_type=driver,
                 driver=config,
@@ -122,4 +121,3 @@ class TestEmbeddingBackendAllDrivers:
                 assert provider is not None, f"Failed to create provider for driver: {driver}"
             except ImportError as e:
                 pytest.skip(f"Optional dependencies for {driver} not installed: {str(e)}")
-

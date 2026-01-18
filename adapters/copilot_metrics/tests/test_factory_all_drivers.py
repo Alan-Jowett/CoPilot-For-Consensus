@@ -10,7 +10,6 @@ instantiated via the factory with its required parameters.
 import json
 from pathlib import Path
 
-from copilot_metrics.factory import create_metrics_collector
 from copilot_config.generated.adapters.metrics import (
     AdapterConfig_Metrics,
     DriverConfig_Metrics_AzureMonitor,
@@ -18,6 +17,7 @@ from copilot_config.generated.adapters.metrics import (
     DriverConfig_Metrics_Prometheus,
     DriverConfig_Metrics_Pushgateway,
 )
+from copilot_metrics.factory import create_metrics_collector
 
 
 def get_schema_dir():
@@ -55,17 +55,17 @@ def get_minimal_typed_driver_config(driver: str):
 
 class TestMetricsAllDrivers:
     """Test factory creation for all metrics drivers."""
-    
+
     def test_all_drivers_instantiate(self):
         """Test that each driver in schema can be instantiated via factory."""
         schema_dir = get_schema_dir()
         schema = load_json(schema_dir / "metrics.json")
         drivers_enum = schema["properties"]["discriminant"]["enum"]
-        
+
         for driver in drivers_enum:
             driver_config = get_minimal_typed_driver_config(driver)
             config = AdapterConfig_Metrics(metrics_type=driver, driver=driver_config)
-            
+
             # Try to create driver; skip if optional dependencies are missing
             try:
                 collector = create_metrics_collector(config)

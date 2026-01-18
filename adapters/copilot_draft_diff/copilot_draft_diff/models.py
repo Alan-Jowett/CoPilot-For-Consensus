@@ -21,6 +21,7 @@ class DraftDiff:
         url: Optional URL where the diff can be viewed
         metadata: Optional additional metadata as a dictionary
     """
+
     draft_name: str
     version_a: str
     version_b: str

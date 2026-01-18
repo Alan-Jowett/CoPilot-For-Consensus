@@ -8,12 +8,13 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Literal
 
 
 @dataclass
 class DriverConfig_ConsensusDetector_Heuristic:
     """Configuration for consensus_detector adapter using heuristic driver."""
+
     agreement_threshold: int = 3
     # Minimum agreement signals for consensus
     min_participants: int = 2
@@ -25,25 +26,28 @@ class DriverConfig_ConsensusDetector_Heuristic:
 @dataclass
 class DriverConfig_ConsensusDetector_Ml:
     """Configuration for consensus_detector adapter using ml driver."""
-    model_path: Optional[str] = None
+
+    model_path: str | None = None
     # Path to trained model file
 
 
 @dataclass
 class DriverConfig_ConsensusDetector_Mock:
     """Configuration for consensus_detector adapter using mock driver."""
+
     confidence: float = 0.8
     # Confidence score to return
-    level: str = 'consensus'
+    level: str = "consensus"
     # Consensus level to return (strong_consensus, consensus, weak_consensus, no_consensus, dissent, stagnation)
 
 
 @dataclass
 class AdapterConfig_ConsensusDetector:
     """Configuration for consensus_detector adapter."""
+
     consensus_detector_type: Literal["heuristic", "ml", "mock"]
-    driver: Union[
-        DriverConfig_ConsensusDetector_Heuristic,
-        DriverConfig_ConsensusDetector_Ml,
-        DriverConfig_ConsensusDetector_Mock
-    ]
+    driver: (
+        DriverConfig_ConsensusDetector_Heuristic
+        | DriverConfig_ConsensusDetector_Ml
+        | DriverConfig_ConsensusDetector_Mock
+    )

@@ -8,12 +8,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
-from copilot_config.generated.adapters.oidc_providers import (
-    AdapterConfig_OidcProviders,
-    CompositeConfig_OidcProviders,
-    DriverConfig_OidcProviders_Github,
-)
 from copilot_config.generated.adapters.document_store import (
     AdapterConfig_DocumentStore,
     DriverConfig_DocumentStore_Inmemory,
@@ -25,6 +19,11 @@ from copilot_config.generated.adapters.logger import (
 from copilot_config.generated.adapters.metrics import (
     AdapterConfig_Metrics,
     DriverConfig_Metrics_Noop,
+)
+from copilot_config.generated.adapters.oidc_providers import (
+    AdapterConfig_OidcProviders,
+    CompositeConfig_OidcProviders,
+    DriverConfig_OidcProviders_Github,
 )
 from copilot_config.generated.adapters.secret_provider import (
     AdapterConfig_SecretProvider,
@@ -72,9 +71,7 @@ class TestProviderErrors:
                 metrics_type="noop",
                 driver=DriverConfig_Metrics_Noop(),
             ),
-            oidc_providers=AdapterConfig_OidcProviders(
-                oidc_providers=CompositeConfig_OidcProviders()
-            ),
+            oidc_providers=AdapterConfig_OidcProviders(oidc_providers=CompositeConfig_OidcProviders()),
             secret_provider=AdapterConfig_SecretProvider(
                 secret_provider_type="local",
                 driver=DriverConfig_SecretProvider_Local(),
@@ -84,6 +81,7 @@ class TestProviderErrors:
     @pytest.fixture
     def auth_service_no_providers(self, mock_config, monkeypatch):
         """Create an auth service with no providers configured."""
+
         # Mock JWT key paths to avoid file system access
         def mock_write_text(self, content):
             """Mock Path.write_text to avoid filesystem writes in tests."""
@@ -98,6 +96,7 @@ class TestProviderErrors:
                 pass
 
         from app import service
+
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
@@ -113,10 +112,7 @@ class TestProviderErrors:
     async def test_error_message_for_unconfigured_google(self, auth_service_no_providers):
         """Test that attempting to use Google provider gives helpful error when not configured."""
         with pytest.raises(ValueError) as exc_info:
-            await auth_service_no_providers.initiate_login(
-                provider="google",
-                audience="test-audience"
-            )
+            await auth_service_no_providers.initiate_login(provider="google", audience="test-audience")
 
         error_msg = str(exc_info.value)
         assert "google" in error_msg.lower()
@@ -128,10 +124,7 @@ class TestProviderErrors:
     async def test_error_message_for_unconfigured_microsoft(self, auth_service_no_providers):
         """Test that attempting to use Microsoft provider gives helpful error when not configured."""
         with pytest.raises(ValueError) as exc_info:
-            await auth_service_no_providers.initiate_login(
-                provider="microsoft",
-                audience="test-audience"
-            )
+            await auth_service_no_providers.initiate_login(provider="microsoft", audience="test-audience")
 
         error_msg = str(exc_info.value)
         assert "microsoft" in error_msg.lower()
@@ -142,10 +135,7 @@ class TestProviderErrors:
     async def test_error_message_for_unknown_provider(self, auth_service_no_providers):
         """Test that using an unknown provider gives appropriate error."""
         with pytest.raises(ValueError) as exc_info:
-            await auth_service_no_providers.initiate_login(
-                provider="unknown-provider",
-                audience="test-audience"
-            )
+            await auth_service_no_providers.initiate_login(provider="unknown-provider", audience="test-audience")
 
         error_msg = str(exc_info.value)
         assert "unknown provider" in error_msg.lower()
@@ -183,20 +173,24 @@ class TestProviderErrors:
         # Mock JWTManager
         class MockJWTManager:
             """Mock JWT manager for testing - avoids cryptographic operations."""
+
             def __init__(self, **kwargs):
                 pass
 
         from app import service
+
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
         # Mock create_identity_provider to return a mock provider
         original_create = service.create_identity_provider
+
         def mock_create(provider_name, driver_config, *, issuer=None):
             """Mock identity provider factory to avoid real OAuth initialization."""
             mock_provider = MagicMock()
             mock_provider.discover = MagicMock()
             return mock_provider
+
         service.create_identity_provider = mock_create
 
         # Create service
@@ -212,10 +206,7 @@ class TestProviderErrors:
     async def test_configured_provider_listed_in_error(self, auth_service_with_github):
         """Test that configured providers are listed in error message."""
         with pytest.raises(ValueError) as exc_info:
-            await auth_service_with_github.initiate_login(
-                provider="google",
-                audience="test-audience"
-            )
+            await auth_service_with_github.initiate_login(provider="google", audience="test-audience")
 
         error_msg = str(exc_info.value)
         # Should mention that GitHub is configured

@@ -8,7 +8,6 @@ import sys
 from unittest.mock import Mock, patch
 
 import pytest
-
 from copilot_config.generated.adapters.document_store import (
     AdapterConfig_DocumentStore,
     DriverConfig_DocumentStore_Inmemory,
@@ -265,7 +264,9 @@ def test_service_allows_noop_publisher_failure():
                                         except SystemExit as e:
                                             # Only fail if exit code is non-zero
                                             if e.code != 0:
-                                                pytest.fail(f"Service should not fail with noop publisher, but got exit code {e.code}")
+                                                pytest.fail(
+                                                    f"Service should not fail with noop publisher, but got exit code {e.code}"
+                                                )
 
 
 @pytest.mark.skip(reason="Schema validation at startup not yet implemented")

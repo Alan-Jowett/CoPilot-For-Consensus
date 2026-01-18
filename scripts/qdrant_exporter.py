@@ -105,10 +105,7 @@ def get_collections() -> list[str]:
 def get_collection_info(collection_name: str) -> dict[str, Any]:
     """Get detailed information about a specific collection."""
     try:
-        resp = session.get(
-            f"{QDRANT_BASE_URL}/collections/{collection_name}",
-            timeout=(3, 10)
-        )
+        resp = session.get(f"{QDRANT_BASE_URL}/collections/{collection_name}", timeout=(3, 10))
         resp.raise_for_status()
         data = resp.json()
 
@@ -202,18 +199,10 @@ def scrape_qdrant_metrics():
                     metrics = extract_metrics_from_collection_info(info, collection_name)
 
                     # Update Prometheus metrics
-                    vector_count_gauge.labels(collection=collection_name).set(
-                        metrics["vectors_count"]
-                    )
-                    collection_indexed_vectors.labels(collection=collection_name).set(
-                        metrics["indexed_vectors_count"]
-                    )
-                    collection_segments.labels(collection=collection_name).set(
-                        metrics["segments_count"]
-                    )
-                    collection_size_bytes.labels(collection=collection_name).set(
-                        metrics["disk_data_size"]
-                    )
+                    vector_count_gauge.labels(collection=collection_name).set(metrics["vectors_count"])
+                    collection_indexed_vectors.labels(collection=collection_name).set(metrics["indexed_vectors_count"])
+                    collection_segments.labels(collection=collection_name).set(metrics["segments_count"])
+                    collection_size_bytes.labels(collection=collection_name).set(metrics["disk_data_size"])
 
                     print(
                         f"Collection '{collection_name}': "

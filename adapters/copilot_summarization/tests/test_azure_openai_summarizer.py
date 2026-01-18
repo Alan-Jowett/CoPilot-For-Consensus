@@ -17,13 +17,13 @@ class TestAzureOpenAISummarizer:
         """Test creating an Azure OpenAI summarizer."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-        with patch.dict('sys.modules', {'openai': mock_module}):
+        with patch.dict("sys.modules", {"openai": mock_module}):
             summarizer = OpenAISummarizer(
                 api_key="test-azure-key",
                 model="gpt-4",
                 base_url="https://test.openai.azure.com/",
                 api_version="2023-12-01",
-                deployment_name="gpt-4-deployment"
+                deployment_name="gpt-4-deployment",
             )
 
             assert summarizer.api_key == "test-azure-key"
@@ -34,20 +34,16 @@ class TestAzureOpenAISummarizer:
 
             # Verify AzureOpenAI client was created with correct parameters
             mock_azure_class.assert_called_once_with(
-                api_key="test-azure-key",
-                api_version="2023-12-01",
-                azure_endpoint="https://test.openai.azure.com/"
+                api_key="test-azure-key", api_version="2023-12-01", azure_endpoint="https://test.openai.azure.com/"
             )
 
     def test_azure_openai_summarizer_default_api_version(self, mock_openai_module):
         """Test that Azure OpenAI summarizer uses default API version."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-        with patch.dict('sys.modules', {'openai': mock_module}):
+        with patch.dict("sys.modules", {"openai": mock_module}):
             summarizer = OpenAISummarizer(
-                api_key="test-azure-key",
-                model="gpt-4",
-                base_url="https://test.openai.azure.com/"
+                api_key="test-azure-key", model="gpt-4", base_url="https://test.openai.azure.com/"
             )
 
             # With only base_url provided and no Azure-specific args, this is treated as
@@ -58,12 +54,12 @@ class TestAzureOpenAISummarizer:
         """Test that deployment_name defaults to model if not provided."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-        with patch.dict('sys.modules', {'openai': mock_module}):
+        with patch.dict("sys.modules", {"openai": mock_module}):
             summarizer = OpenAISummarizer(
                 api_key="test-azure-key",
                 model="gpt-4",
                 base_url="https://test.openai.azure.com/",
-                api_version="2023-12-01"
+                api_version="2023-12-01",
             )
 
             assert summarizer.deployment_name == "gpt-4"
@@ -79,19 +75,16 @@ class TestAzureOpenAISummarizer:
 
         mock_client.chat.completions.create = Mock(return_value=mock_response)
 
-        with patch.dict('sys.modules', {'openai': mock_module}):
+        with patch.dict("sys.modules", {"openai": mock_module}):
             summarizer = OpenAISummarizer(
                 api_key="test-azure-key",
                 model="gpt-4",
                 base_url="https://test.openai.azure.com/",
                 deployment_name="gpt-4-deployment",
-                api_version="2023-12-01"
+                api_version="2023-12-01",
             )
 
-            thread = Thread(
-                thread_id="test-thread-456",
-                messages=["Message 1 content", "Message 2 content"]
-            )
+            thread = Thread(thread_id="test-thread-456", messages=["Message 1 content", "Message 2 content"])
 
             summary = summarizer.summarize(thread)
 
@@ -117,19 +110,16 @@ class TestAzureOpenAISummarizer:
         """Test Azure OpenAI summarize error handling with various exception types."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-        with patch.dict('sys.modules', {'openai': mock_module}):
+        with patch.dict("sys.modules", {"openai": mock_module}):
             summarizer = OpenAISummarizer(
                 api_key="test-azure-key",
                 model="gpt-4",
                 base_url="https://test.openai.azure.com/",
                 deployment_name="gpt-4-deployment",
-                api_version="2023-12-01"
+                api_version="2023-12-01",
             )
 
-            thread = Thread(
-                thread_id="test-thread-789",
-                messages=["Message 1 content"]
-            )
+            thread = Thread(thread_id="test-thread-789", messages=["Message 1 content"])
 
             # Test IndexError/AttributeError from malformed API response (empty choices)
             mock_client.chat.completions.create = Mock(return_value=Mock(choices=[]))
@@ -149,13 +139,9 @@ class TestAzureOpenAISummarizer:
 
     def test_azure_openai_initialization_without_library(self):
         """Test that initialization fails without openai library."""
-        with patch.dict('sys.modules', {'openai': None}):
+        with patch.dict("sys.modules", {"openai": None}):
             with pytest.raises(ImportError) as exc_info:
-                OpenAISummarizer(
-                    api_key="test-key",
-                    model="gpt-4",
-                    base_url="https://test.openai.azure.com/"
-                )
+                OpenAISummarizer(api_key="test-key", model="gpt-4", base_url="https://test.openai.azure.com/")
 
             assert "openai is required" in str(exc_info.value)
 
@@ -163,7 +149,7 @@ class TestAzureOpenAISummarizer:
         """Test that api_version alone enables Azure mode."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-        with patch.dict('sys.modules', {'openai': mock_module}):
+        with patch.dict("sys.modules", {"openai": mock_module}):
             config = llm_driver_config(
                 "azure_openai_gpt",
                 fields={
@@ -171,7 +157,7 @@ class TestAzureOpenAISummarizer:
                     "azure_openai_model": "gpt-4",
                     "azure_openai_endpoint": "https://test.openai.azure.com/",
                     "azure_openai_api_version": "2024-02-15-preview",
-                }
+                },
             )
             summarizer = OpenAISummarizer.from_config(config)
             assert summarizer.is_azure is True

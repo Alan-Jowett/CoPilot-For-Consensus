@@ -19,9 +19,7 @@ from .base import EventPublisher, EventSubscriber
 logger = logging.getLogger(__name__)
 
 _DriverConfig: TypeAlias = (
-    DriverConfig_MessageBus_Rabbitmq
-    | DriverConfig_MessageBus_AzureServiceBus
-    | DriverConfig_MessageBus_Noop
+    DriverConfig_MessageBus_Rabbitmq | DriverConfig_MessageBus_AzureServiceBus | DriverConfig_MessageBus_Noop
 )
 
 
@@ -84,6 +82,7 @@ def _get_schema_provider() -> Any:
     """
     try:
         from copilot_schema_validation import create_schema_provider  # type: ignore[import-not-found]
+
         return create_schema_provider()
     except ImportError as e:
         raise ImportError(
@@ -134,6 +133,7 @@ def create_publisher(
     # Wrap in validating publisher if enabled
     if enable_validation:
         from .validating_publisher import ValidatingEventPublisher
+
         schema_provider = _get_schema_provider()
         return ValidatingEventPublisher(
             publisher=base_publisher,
@@ -186,6 +186,7 @@ def create_subscriber(
     # Wrap in validating subscriber if enabled
     if enable_validation:
         from .validating_subscriber import ValidatingEventSubscriber
+
         schema_provider = _get_schema_provider()
         return ValidatingEventSubscriber(
             subscriber=base_subscriber,

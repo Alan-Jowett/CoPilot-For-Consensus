@@ -18,7 +18,6 @@ from copilot_storage import (
     create_document_store,
 )
 from copilot_storage.mongo_document_store import MongoDocumentStore
-from copilot_storage.validating_document_store import ValidatingDocumentStore
 
 
 def get_mongodb_config():
@@ -41,9 +40,9 @@ def get_underlying_database(store):
     This is used for test cleanup only. In production, tests should not
     access driver-specific implementation details.
     """
-    if hasattr(store, 'database'):
+    if hasattr(store, "database"):
         return store.database
-    if hasattr(store, '_store') and hasattr(store._store, 'database'):
+    if hasattr(store, "_store") and hasattr(store._store, "database"):
         return store._store.database
     return None
 
@@ -173,14 +172,10 @@ class TestMongoDBIntegration:
     def test_update_document(self, mongodb_store, clean_collection):
         """Test updating a document."""
         # Insert a document
-        doc_id = mongodb_store.insert_document(
-            clean_collection, {"name": "Update Test", "age": 25, "city": "NYC"}
-        )
+        doc_id = mongodb_store.insert_document(clean_collection, {"name": "Update Test", "age": 25, "city": "NYC"})
 
         # Update the document
-        mongodb_store.update_document(
-            clean_collection, doc_id, {"age": 26, "city": "LA"}
-        )
+        mongodb_store.update_document(clean_collection, doc_id, {"age": 26, "city": "LA"})
 
         # Verify the update
         updated = mongodb_store.get_document(clean_collection, doc_id)
@@ -192,16 +187,12 @@ class TestMongoDBIntegration:
         """Test updating a document that doesn't exist."""
 
         with pytest.raises(DocumentNotFoundError):
-            mongodb_store.update_document(
-                clean_collection, "nonexistent_id", {"age": 50}
-            )
+            mongodb_store.update_document(clean_collection, "nonexistent_id", {"age": 50})
 
     def test_delete_document(self, mongodb_store, clean_collection):
         """Test deleting a document."""
         # Insert a document
-        doc_id = mongodb_store.insert_document(
-            clean_collection, {"name": "Delete Test", "age": 30}
-        )
+        doc_id = mongodb_store.insert_document(clean_collection, {"name": "Delete Test", "age": 30})
 
         # Verify it exists
         doc = mongodb_store.get_document(clean_collection, doc_id)
@@ -255,16 +246,12 @@ class TestMongoDBIntegration:
         # Insert multiple documents
         doc_ids = []
         for i in range(5):
-            doc_id = mongodb_store.insert_document(
-                clean_collection, {"index": i, "name": f"User {i}"}
-            )
+            doc_id = mongodb_store.insert_document(clean_collection, {"index": i, "name": f"User {i}"})
             doc_ids.append(doc_id)
 
         # Update some documents
         for i in [0, 2, 4]:
-            mongodb_store.update_document(
-                clean_collection, doc_ids[i], {"updated": True}
-            )
+            mongodb_store.update_document(clean_collection, doc_ids[i], {"updated": True})
 
         # Query and verify
         results = mongodb_store.query_documents(clean_collection, {"updated": True})
@@ -372,16 +359,15 @@ class TestValidationAtAdapterLayer:
         if db is None:
             pytest.skip("Could not access underlying MongoDB database")
 
-        collection_infos = list(db.list_collections(
-            filter={"name": clean_collection}
-        ))
+        collection_infos = list(db.list_collections(filter={"name": clean_collection}))
 
         # If collection exists, check it has no validator
         if collection_infos:
             collection_info = collection_infos[0]
             # Verify no validator is present
-            assert "options" not in collection_info or "validator" not in collection_info.get("options", {}), \
-                "MongoDB collection should NOT have a validator - validation should be at adapter layer"
+            assert "options" not in collection_info or "validator" not in collection_info.get(
+                "options", {}
+            ), "MongoDB collection should NOT have a validator - validation should be at adapter layer"
 
     def test_invalid_document_accepted_by_raw_store(self, mongodb_store, clean_collection):
         """Verify that invalid documents are accepted by the raw MongoDB store.
@@ -421,9 +407,7 @@ class TestMongoDBAggregate:
         mongodb_store.insert_document(clean_collection, {"status": "pending", "value": 30})
 
         # Aggregate with $match
-        pipeline = [
-            {"$match": {"status": "pending"}}
-        ]
+        pipeline = [{"$match": {"status": "pending"}}]
 
         results = mongodb_store.aggregate_documents(clean_collection, pipeline)
 
@@ -457,7 +441,7 @@ class TestMongoDBAggregate:
                         "from": chunks_col,
                         "localField": "message_key",
                         "foreignField": "message_key",
-                        "as": "chunks"
+                        "as": "chunks",
                     }
                 }
             ]
@@ -565,7 +549,7 @@ class TestMongoDBAggregate:
                         "from": refs_col,
                         "localField": "message_key",
                         "foreignField": "message_key",
-                        "as": "refs"
+                        "as": "refs",
                     }
                 }
             ]
@@ -582,6 +566,7 @@ class TestMongoDBAggregate:
 
             # Verify they can be JSON serialized
             import json
+
             json_str = json.dumps(result)
             assert json_str is not None
 
@@ -606,10 +591,7 @@ class TestMongoDBAggregate:
         for i in range(10):
             mongodb_store.insert_document(clean_collection, {"index": i, "type": "test"})
 
-        pipeline = [
-            {"$match": {"type": "test"}},
-            {"$limit": 3}
-        ]
+        pipeline = [{"$match": {"type": "test"}}, {"$limit": 3}]
 
         results = mongodb_store.aggregate_documents(clean_collection, pipeline)
 

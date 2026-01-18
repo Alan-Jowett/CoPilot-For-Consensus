@@ -16,12 +16,12 @@ The hybrid OpenAPI workflow provides:
 """
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 
 
-def load_openapi_spec(spec_path: Path) -> Dict[str, Any]:
+def load_openapi_spec(spec_path: Path) -> dict[str, Any]:
     """Load an OpenAPI specification from a YAML file.
 
     Args:
@@ -45,7 +45,7 @@ def load_openapi_spec(spec_path: Path) -> Dict[str, Any]:
         raise yaml.YAMLError(f"Invalid YAML in {spec_path}: {e}")
 
 
-def print_spec_info(spec: Dict[str, Any], spec_name: str) -> None:
+def print_spec_info(spec: dict[str, Any], spec_name: str) -> None:
     """Print information about an OpenAPI spec.
 
     Args:
@@ -56,20 +56,20 @@ def print_spec_info(spec: Dict[str, Any], spec_name: str) -> None:
     print(f"OpenAPI Spec: {spec_name}")
     print(f"{'='*60}")
 
-    info = spec.get('info', {})
+    info = spec.get("info", {})
     print(f"Title: {info.get('title', 'N/A')}")
     print(f"Version: {info.get('version', 'N/A')}")
     print(f"OpenAPI Version: {spec.get('openapi', 'N/A')}")
 
-    paths = spec.get('paths', {})
+    paths = spec.get("paths", {})
     print(f"\nEndpoints: {len(paths)}")
 
     # Group endpoints by tag
     tags = {}
     for path, methods in paths.items():
         for method, details in methods.items():
-            if method.upper() in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']:
-                endpoint_tags = details.get('tags', ['untagged'])
+            if method.upper() in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
+                endpoint_tags = details.get("tags", ["untagged"])
                 for tag in endpoint_tags:
                     if tag not in tags:
                         tags[tag] = []
@@ -82,7 +82,7 @@ def print_spec_info(spec: Dict[str, Any], spec_name: str) -> None:
             print(f"    {endpoint}")
 
 
-def extract_security_requirements(spec: Dict[str, Any]) -> Dict[str, Any]:
+def extract_security_requirements(spec: dict[str, Any]) -> dict[str, Any]:
     """Extract security requirements from an OpenAPI spec.
 
     Args:
@@ -91,32 +91,29 @@ def extract_security_requirements(spec: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary containing security scheme information
     """
-    security_schemes = spec.get('components', {}).get('securitySchemes', {})
-    global_security = spec.get('security', [])
+    security_schemes = spec.get("components", {}).get("securitySchemes", {})
+    global_security = spec.get("security", [])
 
-    return {
-        'schemes': security_schemes,
-        'global': global_security
-    }
+    return {"schemes": security_schemes, "global": global_security}
 
 
 def validate_gateway_routes() -> None:
     """Validate that gateway routes are properly defined."""
     repo_root = Path(__file__).parent.parent
-    gateway_spec_path = repo_root / 'openapi' / 'gateway.yaml'
+    gateway_spec_path = repo_root / "openapi" / "gateway.yaml"
 
     if not gateway_spec_path.exists():
         print("Error: Gateway spec not found at:", gateway_spec_path)
         return
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Validating Gateway OpenAPI Spec")
-    print("="*60)
+    print("=" * 60)
 
     spec = load_openapi_spec(gateway_spec_path)
 
     # Check required fields
-    required_fields = ['openapi', 'info', 'paths', 'components']
+    required_fields = ["openapi", "info", "paths", "components"]
     missing_fields = [f for f in required_fields if f not in spec]
 
     if missing_fields:
@@ -128,18 +125,18 @@ def validate_gateway_routes() -> None:
     # Check security schemes
     security = extract_security_requirements(spec)
     print(f"\n✓ Security schemes defined: {len(security['schemes'])}")
-    for scheme_name, scheme in security['schemes'].items():
+    for scheme_name, scheme in security["schemes"].items():
         print(f"  - {scheme_name}: {scheme.get('type', 'unknown')}")
 
     # Check paths
-    paths = spec.get('paths', {})
+    paths = spec.get("paths", {})
     print(f"\n✓ Total endpoints: {len(paths)}")
 
     # Count by method
     methods_count = {}
     for path, methods in paths.items():
         for method in methods:
-            if method.upper() in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']:
+            if method.upper() in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
                 methods_count[method.upper()] = methods_count.get(method.upper(), 0) + 1
 
     print("\n  Methods breakdown:")
@@ -152,19 +149,19 @@ def validate_gateway_routes() -> None:
 def compare_specs() -> None:
     """Compare gateway spec with service specs to check alignment."""
     repo_root = Path(__file__).parent.parent
-    gateway_spec_path = repo_root / 'openapi' / 'gateway.yaml'
-    generated_dir = repo_root / 'openapi' / 'generated'
+    gateway_spec_path = repo_root / "openapi" / "gateway.yaml"
+    generated_dir = repo_root / "openapi" / "generated"
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Comparing Gateway and Service Specs")
-    print("="*60)
+    print("=" * 60)
 
     if not gateway_spec_path.exists():
         print("❌ Gateway spec not found")
         return
 
     gateway_spec = load_openapi_spec(gateway_spec_path)
-    gateway_paths = set(gateway_spec.get('paths', {}).keys())
+    gateway_paths = set(gateway_spec.get("paths", {}).keys())
 
     print(f"\nGateway defines {len(gateway_paths)} paths")
 
@@ -174,7 +171,7 @@ def compare_specs() -> None:
         print("   Run: ./scripts/generate_service_openapi.py --all")
         return
 
-    service_specs = list(generated_dir.glob('*.yaml'))
+    service_specs = list(generated_dir.glob("*.yaml"))
 
     if not service_specs:
         print("\n⚠️  No service specs generated yet")
@@ -188,11 +185,11 @@ def compare_specs() -> None:
 
         try:
             service_spec = load_openapi_spec(service_spec_path)
-            service_paths = list(service_spec.get('paths', {}).keys())
+            service_paths = list(service_spec.get("paths", {}).keys())
             print(f"    Endpoints: {len(service_paths)}")
 
             # Check which service paths are exposed in gateway
-            prefix = f'/{service_name}'
+            prefix = f"/{service_name}"
             exposed = [p for p in gateway_paths if p.startswith(prefix)]
             print(f"    Exposed via gateway: {len(exposed)}")
 
@@ -205,9 +202,9 @@ def compare_specs() -> None:
 
 def main():
     """Main example function."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("OpenAPI Specification Example")
-    print("="*60)
+    print("=" * 60)
     print("\nThis example demonstrates the hybrid OpenAPI workflow:")
     print("- Spec-first: Gateway (openapi/gateway.yaml)")
     print("- Code-first: Services (openapi/generated/*.yaml)")
@@ -217,7 +214,7 @@ def main():
 
     # Print detailed gateway info
     repo_root = Path(__file__).parent.parent
-    gateway_spec_path = repo_root / 'openapi' / 'gateway.yaml'
+    gateway_spec_path = repo_root / "openapi" / "gateway.yaml"
 
     if gateway_spec_path.exists():
         gateway_spec = load_openapi_spec(gateway_spec_path)
@@ -226,16 +223,19 @@ def main():
     # Compare specs
     compare_specs()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Example Complete")
-    print("="*60)
+    print("=" * 60)
     print("\nNext steps:")
     print("1. Generate service specs: ./scripts/generate_service_openapi.py --all")
     print("2. Validate specs: openapi-spec-validator openapi/gateway.yaml")
-    print("3. Generate gateway configs: cd infra/gateway && ./generate_gateway_config.py --provider all --output /tmp/gateway")
+    print(
+        "3. Generate gateway configs: cd infra/gateway && "
+        "./generate_gateway_config.py --provider all --output /tmp/gateway"
+    )
     print("4. Review documentation: docs/openapi.md")
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

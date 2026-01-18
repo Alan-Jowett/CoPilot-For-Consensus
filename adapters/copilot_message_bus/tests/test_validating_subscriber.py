@@ -101,9 +101,7 @@ class TestValidatingEventSubscriber:
 
             assert is_valid is True
             assert errors == []
-            mock_validate.assert_called_once_with(
-                event, mock_schema, schema_provider=mock_provider
-            )
+            mock_validate.assert_called_once_with(event, mock_schema, schema_provider=mock_provider)
 
     def test_validate_event_with_invalid_event(self):
         """Test validation fails for invalid event."""

@@ -35,9 +35,7 @@ class AzureCosmosDocumentStore(DocumentStore):
     """Azure Cosmos DB document store implementation using Core (SQL) API."""
 
     @classmethod
-    def from_config(
-        cls, config: DriverConfig_DocumentStore_AzureCosmosdb
-    ) -> "AzureCosmosDocumentStore":
+    def from_config(cls, config: DriverConfig_DocumentStore_AzureCosmosdb) -> "AzureCosmosDocumentStore":
         """Create an AzureCosmosDocumentStore from configuration.
 
         Args:
@@ -77,7 +75,7 @@ class AzureCosmosDocumentStore(DocumentStore):
         database: str = "copilot",
         container: str = "documents",
         partition_key: str = "/collection",
-        **kwargs
+        **kwargs,
     ):
         """Initialize Azure Cosmos DB document store.
 
@@ -121,13 +119,13 @@ class AzureCosmosDocumentStore(DocumentStore):
             True if field name is safe, False otherwise
         """
         # First, ensure the overall string only contains allowed characters
-        if not re.match(r'^[a-zA-Z0-9_.]+$', field_name):
+        if not re.match(r"^[a-zA-Z0-9_.]+$", field_name):
             return False
 
         # Then, validate each component between dots to prevent empty segments
         # or other invalid patterns (e.g., "user..email")
         components = field_name.split(".")
-        if any(not component or not re.match(r'^[a-zA-Z0-9_]+$', component) for component in components):
+        if any(not component or not re.match(r"^[a-zA-Z0-9_]+$", component) for component in components):
             return False
 
         return True
@@ -147,7 +145,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             return False
 
         # Check for invalid characters
-        invalid_chars = ['/', '\\', '#', '?']
+        invalid_chars = ["/", "\\", "#", "?"]
         if any(char in doc_id for char in invalid_chars):
             return False
 
@@ -183,6 +181,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             else:
                 try:
                     from azure.identity import DefaultAzureCredential
+
                     credential = DefaultAzureCredential()
                     self.client = CosmosClient(self.endpoint, credential=credential, **self.client_options)
                     logger.info("AzureCosmosDocumentStore: using managed identity authentication")
@@ -205,24 +204,18 @@ class AzureCosmosDocumentStore(DocumentStore):
             # Get or create container with partition key
             try:
                 self.container = database.create_container_if_not_exists(
-                    id=self.container_name,
-                    partition_key=PartitionKey(path=self.partition_key)
+                    id=self.container_name, partition_key=PartitionKey(path=self.partition_key)
                 )
                 logger.info(
                     f"AzureCosmosDocumentStore: using container '{self.container_name}' "
                     f"with partition key '{self.partition_key}'"
                 )
             except cosmos_exceptions.CosmosHttpResponseError as e:
-                logger.error(
-                    f"AzureCosmosDocumentStore: failed to create/access container - {e}"
-                )
-                raise DocumentStoreConnectionError(
-                    f"Failed to create/access container '{self.container_name}'"
-                ) from e
+                logger.error(f"AzureCosmosDocumentStore: failed to create/access container - {e}")
+                raise DocumentStoreConnectionError(f"Failed to create/access container '{self.container_name}'") from e
 
             logger.info(
-                f"AzureCosmosDocumentStore: connected to "
-                f"{self.endpoint}/{self.database_name}/{self.container_name}"
+                f"AzureCosmosDocumentStore: connected to " f"{self.endpoint}/{self.database_name}/{self.container_name}"
             )
 
         except (cosmos_exceptions.CosmosHttpResponseError, AzureError) as e:
@@ -326,10 +319,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         try:
             # Read document using partition key
-            doc = self.container.read_item(
-                item=doc_id,
-                partition_key=collection
-            )
+            doc = self.container.read_item(item=doc_id, partition_key=collection)
 
             logger.debug(f"AzureCosmosDocumentStore: retrieved document {doc_id} from {collection}")
             return sanitize_document(doc, collection)
@@ -347,9 +337,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             logger.error(f"AzureCosmosDocumentStore: get_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to retrieve document {doc_id} from {collection}") from e
 
-    def query_documents(
-        self, collection: str, filter_dict: dict[str, Any], limit: int = 100
-    ) -> list[dict[str, Any]]:
+    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Returns sanitized documents without backend system fields or
@@ -388,7 +376,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                 if isinstance(value, dict):
                     # Handle MongoDB-style operators
                     # Validate that all keys in the dict are operators (start with '$')
-                    non_operators = [k for k in value.keys() if not k.startswith('$')]
+                    non_operators = [k for k in value.keys() if not k.startswith("$")]
                     if non_operators:
                         logger.warning(
                             f"AzureCosmosDocumentStore: filter dict for '{key}' contains non-operator keys "
@@ -410,8 +398,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                             if not op_value:
                                 # Empty list - no documents match
                                 logger.debug(
-                                    "AzureCosmosDocumentStore: $in operator with empty list "
-                                    "- returning empty result"
+                                    "AzureCosmosDocumentStore: $in operator with empty list " "- returning empty result"
                                 )
                                 return []
 
@@ -452,12 +439,11 @@ class AzureCosmosDocumentStore(DocumentStore):
             if container is None:
                 raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
 
-            items = list(container.query_items(
-                query=query,
-                parameters=parameters,
-                enable_cross_partition_query=False,
-                partition_key=collection
-            ))
+            items = list(
+                container.query_items(
+                    query=query, parameters=parameters, enable_cross_partition_query=False, partition_key=collection
+                )
+            )
 
             logger.debug(
                 f"AzureCosmosDocumentStore: query on {collection} with {filter_dict} "
@@ -478,9 +464,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             logger.error(f"AzureCosmosDocumentStore: query_documents failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to query documents from {collection}") from e
 
-    def update_document(
-        self, collection: str, doc_id: str, patch: dict[str, Any]
-    ) -> None:
+    def update_document(self, collection: str, doc_id: str, patch: dict[str, Any]) -> None:
         """Update a document with the provided patch.
 
         Args:
@@ -499,10 +483,7 @@ class AzureCosmosDocumentStore(DocumentStore):
         try:
             # Read the existing document
             try:
-                existing_doc = self.container.read_item(
-                    item=doc_id,
-                    partition_key=collection
-                )
+                existing_doc = self.container.read_item(item=doc_id, partition_key=collection)
             except cosmos_exceptions.CosmosResourceNotFoundError:
                 logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
                 raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
@@ -516,10 +497,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             merged_doc["collection"] = collection
 
             # Replace document
-            self.container.replace_item(
-                item=doc_id,
-                body=merged_doc
-            )
+            self.container.replace_item(item=doc_id, body=merged_doc)
 
             logger.debug(f"AzureCosmosDocumentStore: updated document {doc_id} in {collection}")
 
@@ -552,10 +530,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         try:
             # Delete document
-            self.container.delete_item(
-                item=doc_id,
-                partition_key=collection
-            )
+            self.container.delete_item(item=doc_id, partition_key=collection)
 
             logger.debug(f"AzureCosmosDocumentStore: deleted document {doc_id} from {collection}")
 
@@ -572,9 +547,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             logger.error(f"AzureCosmosDocumentStore: delete_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to delete document {doc_id} from {collection}") from e
 
-    def aggregate_documents(
-        self, collection: str, pipeline: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def aggregate_documents(self, collection: str, pipeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
 
         Returns sanitized documents without backend system fields or
@@ -609,10 +582,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             # Process remaining stages that require client-side processing
             results = self._process_client_side_stages(results, pipeline)
 
-            logger.debug(
-                f"AzureCosmosDocumentStore: aggregation on {collection} "
-                f"returned {len(results)} documents"
-            )
+            logger.debug(f"AzureCosmosDocumentStore: aggregation on {collection} " f"returned {len(results)} documents")
             return sanitize_documents(results, collection, preserve_extra=True)
 
         except DocumentStoreError:
@@ -628,9 +598,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             logger.error(f"AzureCosmosDocumentStore: aggregate_documents failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to aggregate documents from {collection}") from e
 
-    def _execute_initial_query(
-        self, collection: str, pipeline: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _execute_initial_query(self, collection: str, pipeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Execute initial SQL query for stages that can be pushed down to Cosmos DB.
 
         This handles $match stages that appear before any $lookup stages, and
@@ -672,7 +640,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                 if isinstance(condition, dict):
                     # Handle operators
                     # Validate that all keys in the dict are operators (start with '$')
-                    non_operators = [k for k in condition.keys() if not k.startswith('$')]
+                    non_operators = [k for k in condition.keys() if not k.startswith("$")]
                     if non_operators:
                         logger.warning(
                             f"AzureCosmosDocumentStore: $match condition for '{key}' contains "
@@ -717,9 +685,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
                             query += f" AND c.{key} IN ({', '.join(param_names)})"
                         else:
-                            logger.warning(
-                                f"AzureCosmosDocumentStore: unsupported operator '{op}' in $match, skipping"
-                            )
+                            logger.warning(f"AzureCosmosDocumentStore: unsupported operator '{op}' in $match, skipping")
                 else:
                     # Simple equality check
                     param_name = f"@param{param_counter}"
@@ -736,19 +702,16 @@ class AzureCosmosDocumentStore(DocumentStore):
                     limit_value = stage[stage_name]
                     # Validate limit value to prevent SQL injection
                     if not isinstance(limit_value, int) or limit_value < 1:
-                        raise DocumentStoreError(
-                            f"Invalid limit value '{limit_value}': must be a positive integer"
-                        )
+                        raise DocumentStoreError(f"Invalid limit value '{limit_value}': must be a positive integer")
                     query += f" OFFSET 0 LIMIT {limit_value}"
                     break
 
         # Execute query
-        items = list(container.query_items(
-            query=query,
-            parameters=parameters,
-            enable_cross_partition_query=False,
-            partition_key=collection
-        ))
+        items = list(
+            container.query_items(
+                query=query, parameters=parameters, enable_cross_partition_query=False, partition_key=collection
+            )
+        )
 
         return items
 
@@ -789,21 +752,15 @@ class AzureCosmosDocumentStore(DocumentStore):
             elif stage_name == "$limit":
                 # Validate and apply limit
                 if not isinstance(stage_spec, int) or stage_spec < 1:
-                    raise DocumentStoreError(
-                        f"Invalid limit value '{stage_spec}': must be a positive integer"
-                    )
+                    raise DocumentStoreError(f"Invalid limit value '{stage_spec}': must be a positive integer")
                 results = results[:stage_spec]
 
             else:
-                logger.warning(
-                    f"AzureCosmosDocumentStore: aggregation stage '{stage_name}' not implemented, skipping"
-                )
+                logger.warning(f"AzureCosmosDocumentStore: aggregation stage '{stage_name}' not implemented, skipping")
 
         return results
 
-    def _apply_match_stage(
-        self, documents: list[dict[str, Any]], match_spec: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def _apply_match_stage(self, documents: list[dict[str, Any]], match_spec: dict[str, Any]) -> list[dict[str, Any]]:
         """Apply a $match stage to filter documents.
 
         Args:
@@ -856,9 +813,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         return results
 
-    def _apply_lookup_stage(
-        self, documents: list[dict[str, Any]], lookup_spec: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def _apply_lookup_stage(self, documents: list[dict[str, Any]], lookup_spec: dict[str, Any]) -> list[dict[str, Any]]:
         """Apply a $lookup stage to join with another collection.
 
         Performs client-side join since Cosmos DB doesn't support joins.
@@ -880,28 +835,18 @@ class AzureCosmosDocumentStore(DocumentStore):
             "from": from_collection,
             "localField": local_field,
             "foreignField": foreign_field,
-            "as": as_field
+            "as": as_field,
         }
 
         # Check for missing or non-string values (but not empty strings yet)
-        missing_or_invalid = [
-            field_name for field_name, value in required_fields.items()
-            if not isinstance(value, str)
-        ]
+        missing_or_invalid = [field_name for field_name, value in required_fields.items() if not isinstance(value, str)]
         if missing_or_invalid:
-            raise DocumentStoreError(
-                f"$lookup requires string values for {', '.join(missing_or_invalid)}"
-            )
+            raise DocumentStoreError(f"$lookup requires string values for {', '.join(missing_or_invalid)}")
 
         # Check for empty strings (all values are strings at this point)
-        empty_fields = [
-            field_name for field_name, value in required_fields.items()
-            if value == ""
-        ]
+        empty_fields = [field_name for field_name, value in required_fields.items() if value == ""]
         if empty_fields:
-            raise DocumentStoreError(
-                f"$lookup requires non-empty values for {', '.join(empty_fields)}"
-            )
+            raise DocumentStoreError(f"$lookup requires non-empty values for {', '.join(empty_fields)}")
 
         # At this point, all required fields are non-empty strings.
         from_collection = cast(str, from_collection)
@@ -916,9 +861,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             (as_field, "as"),
         ):
             if not self._is_valid_field_name(field_value):
-                raise DocumentStoreError(
-                    f"Invalid {field_name} '{field_value}' in $lookup"
-                )
+                raise DocumentStoreError(f"Invalid {field_name} '{field_value}' in $lookup")
 
         # Query all documents from the foreign collection
         query = "SELECT * FROM c WHERE c.collection = @collection"
@@ -929,16 +872,17 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
 
         try:
-            foreign_docs = list(container.query_items(
-                query=query,
-                parameters=parameters,
-                enable_cross_partition_query=False,
-                partition_key=from_collection
-            ))
+            foreign_docs = list(
+                container.query_items(
+                    query=query,
+                    parameters=parameters,
+                    enable_cross_partition_query=False,
+                    partition_key=from_collection,
+                )
+            )
         except cosmos_exceptions.CosmosHttpResponseError as e:
             logger.error(
-                f"AzureCosmosDocumentStore: failed to query foreign collection "
-                f"'{from_collection}' in $lookup - {e}"
+                f"AzureCosmosDocumentStore: failed to query foreign collection " f"'{from_collection}' in $lookup - {e}"
             )
             # Raise an exception rather than returning potentially incorrect results
             # If we return documents with empty arrays, subsequent $match stages could

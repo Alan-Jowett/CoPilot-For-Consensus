@@ -112,7 +112,6 @@ def summarizer():
     )
 
 
-
 @pytest.fixture
 def integration_service(
     in_memory_document_store,
@@ -201,8 +200,7 @@ def test_multiple_thread_summarization(integration_service, mock_publisher):
 
     # Verify success event was published
     success_calls = [
-        call for call in mock_publisher.publish.call_args_list
-        if call[1]["routing_key"] == "summary.complete"
+        call for call in mock_publisher.publish.call_args_list if call[1]["routing_key"] == "summary.complete"
     ]
     assert len(success_calls) == 1
 
@@ -249,7 +247,9 @@ def test_service_stats_integration(integration_service):
 
 
 @pytest.mark.integration
-@pytest.mark.skip(reason="LocalLLMSummarizer tested in adapter tests; mocking requests module in integration context is complex")
+@pytest.mark.skip(
+    reason="LocalLLMSummarizer tested in adapter tests; mocking requests module in integration context is complex"
+)
 def test_local_llm_real_content_flows_through(
     in_memory_document_store,
     mock_vector_store,

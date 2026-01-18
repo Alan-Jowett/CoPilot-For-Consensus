@@ -4,7 +4,6 @@
 """Tests for runtime_loader module."""
 
 import os
-from pathlib import Path
 
 import pytest
 from copilot_config.runtime_loader import get_config

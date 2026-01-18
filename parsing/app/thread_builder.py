@@ -52,9 +52,7 @@ class ThreadBuilder:
             if root not in message_map:
                 logger.warning("Root message %s not found in parsed set; using current message's _id", root)
                 if "_id" not in message:
-                    raise KeyError(
-                        "Message missing '_id' field; all messages must have an '_id' before threading."
-                    )
+                    raise KeyError("Message missing '_id' field; all messages must have an '_id' before threading.")
                 root_doc_id = message["_id"]
             else:
                 if "_id" not in message_map[root]:
@@ -199,9 +197,9 @@ class ThreadBuilder:
         while prev != subject:
             prev = subject
             # Remove Re:, Fwd:, etc.
-            subject = re.sub(r'^(Re:|RE:|Fwd:|FWD:|FW:)\s*', '', subject, flags=re.IGNORECASE)
+            subject = re.sub(r"^(Re:|RE:|Fwd:|FWD:|FW:)\s*", "", subject, flags=re.IGNORECASE)
             # Remove [list-name] prefixes
-            subject = re.sub(r'^\[.*?\]\s*', '', subject)
+            subject = re.sub(r"^\[.*?\]\s*", "", subject)
             subject = subject.strip()
 
         return subject

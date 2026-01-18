@@ -6,7 +6,6 @@
 from unittest.mock import Mock
 
 import pytest
-
 from copilot_config.generated.adapters.llm_backend import (
     AdapterConfig_LlmBackend,
     DriverConfig_LlmBackend_AzureOpenaiGpt,

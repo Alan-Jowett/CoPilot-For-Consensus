@@ -31,6 +31,7 @@ class NoopPublisher(EventPublisher):
         Returns:
             NoopPublisher instance
         """
+        del driver_config
         return cls()
 
     def connect(self) -> None:
@@ -58,9 +59,7 @@ class NoopPublisher(EventPublisher):
                 "event": event,
             }
         )
-        logger.debug(
-            f"NoopPublisher: published {event.get('event_type')} to {exchange}/{routing_key}"
-        )
+        logger.debug(f"NoopPublisher: published {event.get('event_type')} to {exchange}/{routing_key}")
 
     def clear_events(self) -> None:
         """Clear all stored events (useful for testing)."""
@@ -77,7 +76,4 @@ class NoopPublisher(EventPublisher):
         """
         if event_type is None:
             return self.published_events
-        return [
-            e for e in self.published_events
-            if e["event"].get("event_type") == event_type
-        ]
+        return [e for e in self.published_events if e["event"].get("event_type") == event_type]

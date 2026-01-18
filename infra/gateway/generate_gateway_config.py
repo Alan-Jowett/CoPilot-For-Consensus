@@ -25,10 +25,10 @@ script_dir = Path(__file__).parent.resolve()
 if str(script_dir) not in sys.path:
     sys.path.insert(0, str(script_dir))
 
-from adapter_base import GatewayAdapter, NginxAdapter
-from azure_adapter import AzureAdapter
-from aws_adapter import AwsAdapter
-from gcp_adapter import GcpAdapter
+from adapter_base import GatewayAdapter, NginxAdapter  # noqa: E402
+from aws_adapter import AwsAdapter  # noqa: E402
+from azure_adapter import AzureAdapter  # noqa: E402
+from gcp_adapter import GcpAdapter  # noqa: E402
 
 
 def get_adapter(provider: str, openapi_spec_path: Path) -> GatewayAdapter:
@@ -45,28 +45,20 @@ def get_adapter(provider: str, openapi_spec_path: Path) -> GatewayAdapter:
         ValueError: If provider is not supported
     """
     adapters = {
-        'nginx': NginxAdapter,
-        'azure': AzureAdapter,
-        'aws': AwsAdapter,
-        'gcp': GcpAdapter,
+        "nginx": NginxAdapter,
+        "azure": AzureAdapter,
+        "aws": AwsAdapter,
+        "gcp": GcpAdapter,
     }
 
     adapter_class = adapters.get(provider.lower())
     if not adapter_class:
-        raise ValueError(
-            f"Unsupported provider: {provider}. "
-            f"Supported providers: {', '.join(adapters.keys())}"
-        )
+        raise ValueError(f"Unsupported provider: {provider}. " f"Supported providers: {', '.join(adapters.keys())}")
 
     return adapter_class(openapi_spec_path)
 
 
-def generate_for_provider(
-    provider: str,
-    openapi_spec_path: Path,
-    output_dir: Path,
-    validate: bool = True
-) -> None:
+def generate_for_provider(provider: str, openapi_spec_path: Path, output_dir: Path, validate: bool = True) -> None:
     """Generate gateway configuration for a specific provider.
 
     Args:
@@ -107,7 +99,7 @@ def generate_for_provider(
 
     # Validate generated configuration
     if validate:
-        print(f"\n🔍 Validating generated configuration...")
+        print("\n🔍 Validating generated configuration...")
         try:
             adapter.validate_config(config_files)
             print("   ✓ Configuration is valid")
@@ -116,7 +108,7 @@ def generate_for_provider(
             sys.exit(1)
 
     # Print deployment instructions
-    print(f"\n📚 Deployment Instructions:")
+    print("\n📚 Deployment Instructions:")
     print("-" * 60)
     print(adapter.deployment_instructions)
     print("-" * 60)
@@ -127,7 +119,7 @@ def generate_for_provider(
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description='Generate cloud-provider gateway configurations from OpenAPI spec',
+        description="Generate cloud-provider gateway configurations from OpenAPI spec",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -142,36 +134,27 @@ Examples:
 
   # Skip validation (faster, but not recommended)
   ./generate_gateway_config.py --provider aws --output dist/gateway/aws --no-validate
-        """
+        """,
     )
 
     parser.add_argument(
-        '--provider',
+        "--provider",
         type=str,
         required=True,
-        choices=['nginx', 'azure', 'aws', 'gcp', 'all'],
-        help='Target cloud provider (or "all" for all providers)'
+        choices=["nginx", "azure", "aws", "gcp", "all"],
+        help='Target cloud provider (or "all" for all providers)',
     )
 
     parser.add_argument(
-        '--spec',
+        "--spec",
         type=Path,
-        default=Path(__file__).parent.parent.parent / 'openapi' / 'gateway.yaml',
-        help='Path to OpenAPI specification (default: openapi/gateway.yaml)'
+        default=Path(__file__).parent.parent.parent / "openapi" / "gateway.yaml",
+        help="Path to OpenAPI specification (default: openapi/gateway.yaml)",
     )
 
-    parser.add_argument(
-        '--output',
-        type=Path,
-        required=True,
-        help='Output directory for generated configuration'
-    )
+    parser.add_argument("--output", type=Path, required=True, help="Output directory for generated configuration")
 
-    parser.add_argument(
-        '--no-validate',
-        action='store_true',
-        help='Skip validation of generated configuration'
-    )
+    parser.add_argument("--no-validate", action="store_true", help="Skip validation of generated configuration")
 
     args = parser.parse_args()
 
@@ -180,32 +163,22 @@ Examples:
         print(f"Error: OpenAPI specification not found: {args.spec}")
         sys.exit(1)
 
-    print(f"\n🌐 Gateway Configuration Generator")
+    print("\n🌐 Gateway Configuration Generator")
     print(f"OpenAPI Spec: {args.spec}")
     print(f"Output Directory: {args.output}")
 
     # Generate for specified provider(s)
-    if args.provider == 'all':
-        providers = ['nginx', 'azure', 'aws', 'gcp']
+    if args.provider == "all":
+        providers = ["nginx", "azure", "aws", "gcp"]
         for provider in providers:
             provider_output = args.output / provider
-            generate_for_provider(
-                provider,
-                args.spec,
-                provider_output,
-                validate=not args.no_validate
-            )
+            generate_for_provider(provider, args.spec, provider_output, validate=not args.no_validate)
     else:
-        generate_for_provider(
-            args.provider,
-            args.spec,
-            args.output,
-            validate=not args.no_validate
-        )
+        generate_for_provider(args.provider, args.spec, args.output, validate=not args.no_validate)
 
-    print(f"\n✨ All configurations generated successfully!")
+    print("\n✨ All configurations generated successfully!")
     print(f"   Output directory: {args.output}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

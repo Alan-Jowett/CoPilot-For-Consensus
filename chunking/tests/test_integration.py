@@ -7,9 +7,8 @@ from datetime import datetime, timezone
 from unittest.mock import Mock
 
 import pytest
-
 from app.service import ChunkingService
-from copilot_chunking import Thread, create_chunker
+from copilot_chunking import create_chunker
 from copilot_config.generated.adapters.chunker import (
     AdapterConfig_Chunker,
     DriverConfig_Chunker_Semantic,
@@ -48,11 +47,7 @@ def test_end_to_end_chunking(document_store):
 
     # Generate message_doc_id using the same logic as the parsing service
     message_doc_id = generate_message_doc_id(
-        archive_id=archive_id,
-        message_id=message_id,
-        date=date,
-        sender_email=sender_email,
-        subject=subject
+        archive_id=archive_id, message_id=message_id, date=date, sender_email=sender_email, subject=subject
     )
 
     messages = [
@@ -62,8 +57,7 @@ def test_end_to_end_chunking(document_store):
             "thread_id": "feedfacefeedface",
             "archive_id": archive_id,
             "body_normalized": (
-                "This is a test message that contains enough text to be split "
-                "into multiple chunks. " * 20
+                "This is a test message that contains enough text to be split " "into multiple chunks. " * 20
             ),
             "from": {"email": sender_email, "name": "Test User"},
             "date": date,
@@ -153,11 +147,7 @@ def test_different_chunking_strategies(document_store):
 
         # Generate message_doc_id using the same logic as the parsing service
         message_doc_id = generate_message_doc_id(
-            archive_id=archive_id,
-            message_id=message_id,
-            date=date,
-            sender_email=sender_email,
-            subject=subject
+            archive_id=archive_id, message_id=message_id, date=date, sender_email=sender_email, subject=subject
         )
 
         messages = [
@@ -233,11 +223,7 @@ def test_oversize_message_handling(document_store):
 
     # Generate message_doc_id using the same logic as the parsing service
     message_doc_id = generate_message_doc_id(
-        archive_id=archive_id,
-        message_id=message_id,
-        date=date,
-        sender_email=sender_email,
-        subject=subject
+        archive_id=archive_id, message_id=message_id, date=date, sender_email=sender_email, subject=subject
     )
 
     messages = [

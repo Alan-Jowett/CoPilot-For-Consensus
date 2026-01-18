@@ -51,6 +51,7 @@ def client(test_service, monkeypatch):
     """Create a test client with mocked service."""
     # Monkey patch the global service
     import main
+
     monkeypatch.setattr(main, "reporting_service", test_service)
 
     return TestClient(app)
@@ -191,19 +192,34 @@ def test_get_reports_sorting_by_thread_start_date(client, test_service, mock_doc
         ],
         # Second call: fetch threads
         [
-            {"thread_id": "thread1", "first_message_date": "2025-01-10T00:00:00Z", "participants": [], "message_count": 5},
-            {"thread_id": "thread2", "first_message_date": "2025-01-12T00:00:00Z", "participants": [], "message_count": 3},
-            {"thread_id": "thread3", "first_message_date": "2025-01-08T00:00:00Z", "participants": [], "message_count": 7},
+            {
+                "thread_id": "thread1",
+                "first_message_date": "2025-01-10T00:00:00Z",
+                "participants": [],
+                "message_count": 5,
+            },
+            {
+                "thread_id": "thread2",
+                "first_message_date": "2025-01-12T00:00:00Z",
+                "participants": [],
+                "message_count": 3,
+            },
+            {
+                "thread_id": "thread3",
+                "first_message_date": "2025-01-08T00:00:00Z",
+                "participants": [],
+                "message_count": 7,
+            },
         ],
         # Third call: fetch archives (empty)
         [],
     ]
-    
+
     response = client.get("/api/reports?sort_by=thread_start_date&sort_order=desc")
-    
+
     assert response.status_code == 200
     data = response.json()
-    
+
     # Verify reports are sorted by thread start date (newest first)
     assert len(data["reports"]) == 3
     assert data["reports"][0]["_id"] == "rpt2"  # thread2: 2025-01-12
@@ -222,18 +238,28 @@ def test_get_reports_sorting_ascending(client, test_service, mock_document_store
         ],
         # Second call: fetch threads
         [
-            {"thread_id": "thread1", "first_message_date": "2025-01-10T00:00:00Z", "participants": [], "message_count": 5},
-            {"thread_id": "thread2", "first_message_date": "2025-01-12T00:00:00Z", "participants": [], "message_count": 3},
+            {
+                "thread_id": "thread1",
+                "first_message_date": "2025-01-10T00:00:00Z",
+                "participants": [],
+                "message_count": 5,
+            },
+            {
+                "thread_id": "thread2",
+                "first_message_date": "2025-01-12T00:00:00Z",
+                "participants": [],
+                "message_count": 3,
+            },
         ],
         # Third call: fetch archives
         [],
     ]
-    
+
     response = client.get("/api/reports?sort_by=thread_start_date&sort_order=asc")
-    
+
     assert response.status_code == 200
     data = response.json()
-    
+
     # Verify reports are sorted by thread start date (oldest first)
     assert len(data["reports"]) == 2
     assert data["reports"][0]["_id"] == "rpt1"  # thread1: 2025-01-10 (older)
@@ -252,19 +278,34 @@ def test_get_reports_sorting_by_generated_at(client, test_service, mock_document
         ],
         # Second call: fetch threads
         [
-            {"thread_id": "thread1", "first_message_date": "2025-01-10T00:00:00Z", "participants": [], "message_count": 5},
-            {"thread_id": "thread2", "first_message_date": "2025-01-12T00:00:00Z", "participants": [], "message_count": 3},
-            {"thread_id": "thread3", "first_message_date": "2025-01-08T00:00:00Z", "participants": [], "message_count": 7},
+            {
+                "thread_id": "thread1",
+                "first_message_date": "2025-01-10T00:00:00Z",
+                "participants": [],
+                "message_count": 5,
+            },
+            {
+                "thread_id": "thread2",
+                "first_message_date": "2025-01-12T00:00:00Z",
+                "participants": [],
+                "message_count": 3,
+            },
+            {
+                "thread_id": "thread3",
+                "first_message_date": "2025-01-08T00:00:00Z",
+                "participants": [],
+                "message_count": 7,
+            },
         ],
         # Third call: fetch archives
         [],
     ]
-    
+
     response = client.get("/api/reports?sort_by=generated_at&sort_order=desc")
-    
+
     assert response.status_code == 200
     data = response.json()
-    
+
     # Verify reports are sorted by generated_at (newest first)
     assert len(data["reports"]) == 3
     assert data["reports"][0]["_id"] == "rpt2"  # 2025-01-17
@@ -283,18 +324,23 @@ def test_get_reports_sorting_with_pagination(client, test_service, mock_document
         ],
         # Second call: fetch threads
         [
-            {"thread_id": f"thread{i}", "first_message_date": f"2025-01-{15-i:02d}T00:00:00Z", "participants": [], "message_count": 5}
+            {
+                "thread_id": f"thread{i}",
+                "first_message_date": f"2025-01-{15-i:02d}T00:00:00Z",
+                "participants": [],
+                "message_count": 5,
+            }
             for i in range(5)
         ],
         # Third call: fetch archives
         [],
     ]
-    
+
     response = client.get("/api/reports?sort_by=thread_start_date&sort_order=desc&limit=2&skip=1")
-    
+
     assert response.status_code == 200
     data = response.json()
-    
+
     # Verify pagination applies after sorting
     assert data["limit"] == 2
     assert data["skip"] == 1
@@ -305,7 +351,7 @@ def test_get_reports_sorting_with_pagination(client, test_service, mock_document
 def test_get_reports_invalid_sort_by(client, test_service, mock_document_store):
     """Test that invalid sort_by parameter is rejected."""
     response = client.get("/api/reports?sort_by=invalid_field")
-    
+
     # FastAPI should return 422 for regex validation failure
     assert response.status_code == 422
 
@@ -314,7 +360,7 @@ def test_get_reports_invalid_sort_by(client, test_service, mock_document_store):
 def test_get_reports_invalid_sort_order(client, test_service, mock_document_store):
     """Test that invalid sort_order parameter is rejected."""
     response = client.get("/api/reports?sort_order=invalid")
-    
+
     # FastAPI should return 422 for regex validation failure
     assert response.status_code == 422
 
@@ -389,6 +435,7 @@ def test_get_thread_summary_not_found(client, test_service, mock_document_store)
 def test_get_reports_service_not_initialized(monkeypatch):
     """Test endpoints when service is not initialized."""
     import main
+
     monkeypatch.setattr(main, "reporting_service", None)
 
     client = TestClient(app)
@@ -403,23 +450,24 @@ def test_get_reports_service_not_initialized(monkeypatch):
     assert response.status_code == 503
 
 
-
-
 @pytest.mark.integration
 def test_get_reports_with_message_date_filters(client, test_service, mock_document_store):
     """Test the GET /api/reports endpoint with message date filters."""
+
     # Setup mocks to return thread data
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":
             return [{"summary_id": "rpt1", "thread_id": "thread1"}]
         elif collection == "threads":
-            return [{
-                "thread_id": "thread1",
-                "first_message_date": "2025-01-10T00:00:00Z",
-                "last_message_date": "2025-01-15T00:00:00Z",
-                "participants": [],
-                "message_count": 5,
-            }]
+            return [
+                {
+                    "thread_id": "thread1",
+                    "first_message_date": "2025-01-10T00:00:00Z",
+                    "last_message_date": "2025-01-15T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                }
+            ]
         return []
 
     mock_document_store.query_documents.side_effect = mock_query
@@ -436,18 +484,21 @@ def test_get_reports_with_message_date_filters(client, test_service, mock_docume
 @pytest.mark.integration
 def test_get_reports_with_message_date_filters_no_overlap(client, test_service, mock_document_store):
     """Test the GET /api/reports endpoint excludes threads with no date overlap."""
+
     # Setup mocks to return thread data
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":
             return [{"summary_id": "rpt1", "thread_id": "thread1"}]
         elif collection == "threads":
-            return [{
-                "thread_id": "thread1",
-                "first_message_date": "2025-01-20T00:00:00Z",
-                "last_message_date": "2025-01-25T00:00:00Z",
-                "participants": [],
-                "message_count": 5,
-            }]
+            return [
+                {
+                    "thread_id": "thread1",
+                    "first_message_date": "2025-01-20T00:00:00Z",
+                    "last_message_date": "2025-01-25T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                }
+            ]
         return []
 
     mock_document_store.query_documents.side_effect = mock_query
@@ -465,22 +516,27 @@ def test_get_reports_with_message_date_filters_no_overlap(client, test_service, 
 @pytest.mark.integration
 def test_get_reports_with_source_filter(client, test_service, mock_document_store):
     """Test the GET /api/reports endpoint with source filter."""
+
     # Setup mocks to return thread and archive data
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":
             return [{"summary_id": "rpt1", "thread_id": "thread1"}]
         elif collection == "threads":
-            return [{
-                "thread_id": "thread1",
-                "archive_id": "archive1",
-                "participants": [],
-                "message_count": 5,
-            }]
+            return [
+                {
+                    "thread_id": "thread1",
+                    "archive_id": "archive1",
+                    "participants": [],
+                    "message_count": 5,
+                }
+            ]
         elif collection == "archives":
-            return [{
-                "_id": "archive1",
-                "source": "test-source",
-            }]
+            return [
+                {
+                    "_id": "archive1",
+                    "source": "test-source",
+                }
+            ]
         return []
 
     mock_document_store.query_documents.side_effect = mock_query
@@ -497,17 +553,20 @@ def test_get_reports_with_source_filter(client, test_service, mock_document_stor
 @pytest.mark.integration
 def test_get_reports_with_metadata_filters(client, test_service, mock_document_store):
     """Test the GET /api/reports endpoint with metadata filters."""
+
     # Setup mocks
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":
             return [{"summary_id": "rpt1", "thread_id": "thread1"}]
         elif collection == "threads":
-            return [{
-                "thread_id": "thread1",
-                "participants": [{"email": "user1@example.com"}, {"email": "user2@example.com"}],
-                "message_count": 10,
-                "archive_id": "archive1",
-            }]
+            return [
+                {
+                    "thread_id": "thread1",
+                    "participants": [{"email": "user1@example.com"}, {"email": "user2@example.com"}],
+                    "message_count": 10,
+                    "archive_id": "archive1",
+                }
+            ]
         elif collection == "archives":
             return [{"_id": "archive1", "source": "test"}]
         return []
@@ -542,11 +601,13 @@ def test_search_reports_by_topic_endpoint(client, test_service):
     # Mock document store
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":
-            return [{
-                "summary_id": "rpt1",
-                "thread_id": "thread1",
-                "content_markdown": "Test",
-            }]
+            return [
+                {
+                    "summary_id": "rpt1",
+                    "thread_id": "thread1",
+                    "content_markdown": "Test",
+                }
+            ]
         return []
 
     test_service.document_store.query_documents.side_effect = mock_query
@@ -865,6 +926,7 @@ def test_get_chunk_by_id_not_found(client, test_service, mock_document_store):
 def test_new_endpoints_service_not_initialized(monkeypatch):
     """Test new endpoints when service is not initialized."""
     import main
+
     monkeypatch.setattr(main, "reporting_service", None)
 
     client = TestClient(app)

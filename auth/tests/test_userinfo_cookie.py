@@ -29,7 +29,7 @@ def mock_auth_service():
                 "name": "Test User",
                 "roles": ["admin"],
                 "affiliations": ["test-org"],
-                "aud": audience
+                "aud": audience,
             }
         else:
             raise ValueError("Invalid token")
@@ -60,10 +60,7 @@ def test_client(mock_auth_service):
 
 def test_userinfo_with_authorization_header(test_client: TestClient):
     """Test that /userinfo works with Authorization header."""
-    response = test_client.get(
-        "/userinfo",
-        headers={"Authorization": "Bearer valid.jwt.token"}
-    )
+    response = test_client.get("/userinfo", headers={"Authorization": "Bearer valid.jwt.token"})
 
     assert response.status_code == 200
     data = response.json()
@@ -77,10 +74,7 @@ def test_userinfo_with_authorization_header(test_client: TestClient):
 
 def test_userinfo_with_cookie(test_client: TestClient):
     """Test that /userinfo works with auth_token cookie."""
-    response = test_client.get(
-        "/userinfo",
-        cookies={"auth_token": "valid.jwt.token"}
-    )
+    response = test_client.get("/userinfo", cookies={"auth_token": "valid.jwt.token"})
 
     assert response.status_code == 200
     data = response.json()
@@ -93,9 +87,7 @@ def test_userinfo_with_cookie(test_client: TestClient):
 def test_userinfo_prefers_authorization_header_over_cookie(test_client: TestClient):
     """Test that Authorization header takes precedence over cookie."""
     response = test_client.get(
-        "/userinfo",
-        headers={"Authorization": "Bearer valid.jwt.token"},
-        cookies={"auth_token": "different.token"}
+        "/userinfo", headers={"Authorization": "Bearer valid.jwt.token"}, cookies={"auth_token": "different.token"}
     )
 
     # Should use the header token (valid.jwt.token)
@@ -114,19 +106,13 @@ def test_userinfo_without_token(test_client: TestClient):
 
 def test_userinfo_with_invalid_token_in_cookie(test_client: TestClient):
     """Test that /userinfo returns 401 with invalid cookie token."""
-    response = test_client.get(
-        "/userinfo",
-        cookies={"auth_token": "invalid.token"}
-    )
+    response = test_client.get("/userinfo", cookies={"auth_token": "invalid.token"})
 
     assert response.status_code == 401
 
 
 def test_userinfo_with_invalid_token_in_header(test_client: TestClient):
     """Test that /userinfo returns 401 with invalid header token."""
-    response = test_client.get(
-        "/userinfo",
-        headers={"Authorization": "Bearer invalid.token"}
-    )
+    response = test_client.get("/userinfo", headers={"Authorization": "Bearer invalid.token"})
 
     assert response.status_code == 401

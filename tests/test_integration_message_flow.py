@@ -88,7 +88,7 @@ class TestEventSchemaValidation:
                 "file_hash_sha256": "abc123def456",
                 "ingestion_started_at": "2023-10-15T12:00:00Z",
                 "ingestion_completed_at": "2023-10-15T12:01:00Z",
-            }
+            },
         }
 
         # validate_event raises AssertionError on failure
@@ -109,7 +109,7 @@ class TestEventSchemaValidation:
                 "message_count": 2,
                 "thread_count": 1,
                 "parsing_duration_seconds": 1.5,
-            }
+            },
         }
 
         # validate_event raises AssertionError on failure
@@ -130,7 +130,7 @@ class TestEventSchemaValidation:
                 "avg_chunk_size_tokens": 256,
                 "chunks_ready": True,
                 "chunking_strategy": "token_window",
-            }
+            },
         }
 
         # validate_event raises AssertionError on failure
@@ -151,7 +151,7 @@ class TestEventSchemaValidation:
                 "llm_model": "llama2",
                 "context_window_tokens": 3000,
                 "prompt_template": "Summarize the following discussion:",
-            }
+            },
         }
 
         # validate_event raises AssertionError on failure
@@ -180,7 +180,7 @@ class TestEventSchemaValidation:
                 "tokens_prompt": 100,
                 "tokens_completion": 50,
                 "latency_ms": 1500,
-            }
+            },
         }
 
         # validate_event raises AssertionError on failure
@@ -197,7 +197,7 @@ class TestEventSchemaValidation:
             "data": {
                 # Missing required fields
                 "archive_id": "a1b2c3d4e5f67890",
-            }
+            },
         }
 
         # Should fail validation
@@ -221,7 +221,7 @@ class TestEventSchemaValidation:
                 "message_count": 1,
                 "thread_count": 1,
                 "parsing_duration_seconds": 1.0,
-            }
+            },
         }
 
         # Should fail validation
@@ -257,7 +257,7 @@ class TestMessageFlowPatterns:
                 "file_hash_sha256": "abc123",
                 "ingestion_started_at": "2023-10-15T12:00:00Z",
                 "ingestion_completed_at": "2023-10-15T12:00:30Z",
-            }
+            },
         }
 
         # Validate event structure (raises AssertionError on failure)
@@ -285,7 +285,7 @@ class TestMessageFlowPatterns:
                 "file_hash_sha256": "abc123",
                 "ingestion_started_at": "2023-10-15T12:00:00Z",
                 "ingestion_completed_at": "2023-10-15T12:00:30Z",
-            }
+            },
         }
 
         validate_event(input_event)
@@ -303,7 +303,7 @@ class TestMessageFlowPatterns:
                 "message_count": 2,
                 "thread_count": 1,
                 "parsing_duration_seconds": 30.0,
-            }
+            },
         }
 
         validate_event(output_event)
@@ -327,7 +327,7 @@ class TestMessageFlowPatterns:
                 "message_count": 2,
                 "thread_count": 1,
                 "parsing_duration_seconds": 30.0,
-            }
+            },
         }
 
         validate_event(input_event)
@@ -345,7 +345,7 @@ class TestMessageFlowPatterns:
                 "avg_chunk_size_tokens": 256,
                 "chunks_ready": True,
                 "chunking_strategy": "token_window",
-            }
+            },
         }
 
         validate_event(output_event)

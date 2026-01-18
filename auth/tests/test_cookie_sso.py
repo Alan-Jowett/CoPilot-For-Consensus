@@ -132,7 +132,9 @@ def test_cookie_secure_flag_from_env(mock_auth_service):
         with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
             # Need to reload the module to pick up new env var
             import importlib
+
             import main
+
             importlib.reload(main)
 
             # Configure mock to return cookie_secure=False
@@ -150,4 +152,6 @@ def test_cookie_secure_flag_from_env(mock_auth_service):
             # This is a bit tricky because "Secure" could appear in other contexts
             # Split by semicolon and check if "Secure" is a standalone attribute
             cookie_attrs = [attr.strip() for attr in set_cookie_header.split(";")]
-            assert "Secure" not in cookie_attrs and "secure" not in [a.lower() for a in cookie_attrs if a.lower() == "secure"]
+            assert "Secure" not in cookie_attrs and "secure" not in [
+                a.lower() for a in cookie_attrs if a.lower() == "secure"
+            ]

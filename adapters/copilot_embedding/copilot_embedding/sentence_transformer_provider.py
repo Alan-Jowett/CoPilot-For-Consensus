@@ -5,7 +5,6 @@
 
 import importlib
 import logging
-
 from typing import Any
 
 from copilot_config.generated.adapters.embedding_backend import (
@@ -20,12 +19,7 @@ logger = logging.getLogger(__name__)
 class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
     """SentenceTransformer embedding provider for local models."""
 
-    def __init__(
-        self,
-        model_name: str = "all-MiniLM-L6-v2",
-        device: str = "cpu",
-        cache_dir: str | None = None
-    ):
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2", device: str = "cpu", cache_dir: str | None = None):
         """Initialize SentenceTransformer provider.
 
         Args:
@@ -53,11 +47,7 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
         self.cache_dir = cache_dir
 
         logger.info(f"Loading SentenceTransformer model: {model_name} on device: {device}")
-        self.model = SentenceTransformer(
-            model_name,
-            device=device,
-            cache_folder=cache_dir
-        )
+        self.model = SentenceTransformer(model_name, device=device, cache_folder=cache_dir)
         logger.info("SentenceTransformer model loaded successfully")
 
     @classmethod

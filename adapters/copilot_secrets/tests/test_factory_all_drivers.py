@@ -11,6 +11,7 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
 from copilot_config.generated.adapters.secret_provider import (
     AdapterConfig_SecretProvider,
     DriverConfig_SecretProvider_AzureKeyVault,
@@ -34,15 +35,15 @@ def load_json(path):
 def get_required_fields(driver_schema):
     """Extract required fields from driver schema."""
     required = set()
-    
+
     if "required" in driver_schema:
         required.update(driver_schema["required"])
-    
+
     if "properties" in driver_schema:
         for field, field_schema in driver_schema["properties"].items():
             if isinstance(field_schema, dict) and field_schema.get("required") is True:
                 required.add(field)
-    
+
     return required
 
 
@@ -50,14 +51,14 @@ def get_minimal_config(driver_schema):
     """Build minimal config with required and optional fields from driver schema."""
     config_dict = {}
     required_fields = get_required_fields(driver_schema)
-    
+
     # Map field names to reasonable defaults
     defaults = {
         "base_path": "/tmp/secrets",
         "vault_url": "https://test.vault.azure.net/",
         "vault_name": "testvault",
     }
-    
+
     # Add all fields (required and optional) from schema
     if "properties" in driver_schema:
         for field, field_schema in driver_schema["properties"].items():
@@ -67,37 +68,34 @@ def get_minimal_config(driver_schema):
                 config_dict[field] = field_schema["default"]
             elif field in required_fields:
                 config_dict[field] = ""
-    
+
     return config_dict
 
 
 class TestSecretProviderAllDrivers:
     """Test factory creation for all secret provider drivers."""
-    
+
     def test_all_drivers_instantiate(self):
         """Test that each driver in schema can be instantiated via factory."""
         schema_dir = get_schema_dir()
         schema = load_json(schema_dir / "secret_provider.json")
         drivers_enum = schema["properties"]["discriminant"]["enum"]
         drivers_dir = schema_dir / "drivers" / "secret_provider"
-        
+
         # Create a temporary directory for local provider testing
         with tempfile.TemporaryDirectory() as tmpdir:
             for driver in drivers_enum:
                 # Load driver schema
                 driver_schema_path = drivers_dir / f"secret_{driver}.json"
                 assert driver_schema_path.exists(), f"Driver schema missing: {driver_schema_path}"
-                
+
                 driver_schema = load_json(driver_schema_path)
                 config_dict = get_minimal_config(driver_schema)
-                
+
                 # For local provider, use the temp directory instead of /tmp/secrets
                 if driver == "local":
                     config_dict["base_path"] = tmpdir
-                
-                # Get all allowed keys from schema
-                allowed_keys = set(driver_schema.get("properties", {}).keys())
-                
+
                 if driver == "local":
                     driver_config = DriverConfig_SecretProvider_Local(**config_dict)
                 elif driver == "azure_key_vault":
@@ -114,8 +112,6 @@ class TestSecretProviderAllDrivers:
                     )
                 except SecretProviderError as e:
                     if driver == "azure_key_vault" and "Azure SDK dependencies" in str(e):
-                        import pytest
-
                         pytest.skip("Azure Key Vault dependencies not installed")
                     raise
 
