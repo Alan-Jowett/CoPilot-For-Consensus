@@ -12,6 +12,7 @@ from typing import Any
 from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_Inmemory
 
 from .document_store import DocumentNotFoundError, DocumentStore
+from .schema_registry import sanitize_document, sanitize_documents
 
 logger = logging.getLogger(__name__)
 
@@ -75,18 +76,21 @@ class InMemoryDocumentStore(DocumentStore):
     def get_document(self, collection: str, doc_id: str) -> dict[str, Any] | None:
         """Retrieve a document by its ID.
 
+        Returns a sanitized document without backend system fields or
+        document store metadata fields.
+
         Args:
             collection: Name of the collection
             doc_id: Document ID
 
         Returns:
-            Document data as dictionary, or None if not found
+            Sanitized document data as dictionary, or None if not found
         """
         doc = self.collections[collection].get(doc_id)
         if doc:
             logger.debug(f"InMemoryDocumentStore: retrieved document {doc_id} from {collection}")
             # Return a deep copy to prevent external mutations affecting stored data
-            return copy.deepcopy(doc)
+            return sanitize_document(copy.deepcopy(doc), collection)
         logger.debug(f"InMemoryDocumentStore: document {doc_id} not found in {collection}")
         return None
 
@@ -95,13 +99,16 @@ class InMemoryDocumentStore(DocumentStore):
     ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
+        Returns sanitized documents without backend system fields or
+        document store metadata fields.
+
         Args:
             collection: Name of the collection
             filter_dict: Filter criteria as dictionary (simple equality checks)
             limit: Maximum number of documents to return
 
         Returns:
-            List of matching documents
+            List of sanitized matching documents
         """
         results = []
 
@@ -122,7 +129,7 @@ class InMemoryDocumentStore(DocumentStore):
             f"InMemoryDocumentStore: query on {collection} with {filter_dict} "
             f"returned {len(results)} documents"
         )
-        return results
+        return sanitize_documents(results, collection)
 
     def update_document(
         self, collection: str, doc_id: str, patch: dict[str, Any]
@@ -183,6 +190,9 @@ class InMemoryDocumentStore(DocumentStore):
     ) -> list[dict[str, Any]]:
         """Execute a simplified aggregation pipeline on a collection.
 
+        Returns sanitized documents without backend system fields or
+        document store metadata fields.
+
         This is a simplified implementation that supports common aggregation stages
         for testing purposes. It supports: $match, $lookup, $limit.
 
@@ -199,7 +209,7 @@ class InMemoryDocumentStore(DocumentStore):
             pipeline: Aggregation pipeline (list of stage dictionaries)
 
         Returns:
-            List of aggregation results
+            List of sanitized aggregation results
         """
         # Start with all documents in the collection
         # Return empty list if collection doesn't exist
@@ -236,7 +246,7 @@ class InMemoryDocumentStore(DocumentStore):
             f"InMemoryDocumentStore: aggregation on {collection} "
             f"returned {len(results)} documents"
         )
-        return results
+        return sanitize_documents(results, collection, preserve_extra=True)
 
     def _apply_match(
         self, documents: list[dict[str, Any]], match_spec: dict[str, Any]

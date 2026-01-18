@@ -478,7 +478,7 @@ def test_get_reports_with_source_filter(client, test_service, mock_document_stor
             }]
         elif collection == "archives":
             return [{
-                "archive_id": "archive1",
+                "_id": "archive1",
                 "source": "test-source",
             }]
         return []
@@ -509,7 +509,7 @@ def test_get_reports_with_metadata_filters(client, test_service, mock_document_s
                 "archive_id": "archive1",
             }]
         elif collection == "archives":
-            return [{"archive_id": "archive1", "source": "test"}]
+            return [{"_id": "archive1", "source": "test"}]
         return []
 
     mock_document_store.query_documents.side_effect = mock_query
@@ -576,9 +576,9 @@ def test_search_reports_by_topic_not_configured(client, test_service):
 def test_get_available_sources_endpoint(client, test_service, mock_document_store):
     """Test the GET /api/sources endpoint."""
     mock_document_store.query_documents.return_value = [
-        {"archive_id": "arch1", "source": "source-a"},
-        {"archive_id": "arch2", "source": "source-b"},
-        {"archive_id": "arch3", "source": "source-a"},
+        {"_id": "arch1", "source": "source-a"},
+        {"_id": "arch2", "source": "source-b"},
+        {"_id": "arch3", "source": "source-a"},
     ]
 
     response = client.get("/api/sources")

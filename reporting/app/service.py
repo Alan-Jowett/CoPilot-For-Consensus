@@ -20,6 +20,11 @@ from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
 
 # Optional dependencies for search/filtering features
 if TYPE_CHECKING:
@@ -50,6 +55,7 @@ class ReportingService:
         webhook_summary_max_length: int = 500,
         vector_store: Optional["VectorStore"] = None,
         embedding_provider: Optional["EmbeddingProvider"] = None,
+        retry_config: RetryConfig | None = None,
     ):
         """Initialize reporting service.
 
@@ -64,6 +70,7 @@ class ReportingService:
             webhook_summary_max_length: Max length for summary in webhook payload
             vector_store: Vector store for topic-based search (optional)
             embedding_provider: Embedding provider for topic search (optional)
+            retry_config: Retry configuration for race condition handling (optional)
         """
         self.document_store = document_store
         self.publisher = publisher
@@ -75,6 +82,7 @@ class ReportingService:
         self.webhook_summary_max_length = webhook_summary_max_length
         self.vector_store = vector_store
         self.embedding_provider = embedding_provider
+        self.retry_config = retry_config or RetryConfig()
 
         # Stats
         self.reports_stored = 0
@@ -98,12 +106,13 @@ class ReportingService:
         logger.info("Reporting service is ready")
 
     def _handle_summary_complete(self, event: dict[str, Any]):
-        """Handle SummaryComplete event.
+        """Handle SummaryComplete event with retry logic for race conditions.
 
-        This is an event handler for message queue consumption. Exceptions are
-        logged and re-raised to allow message requeue for transient failures
-        (e.g., database unavailable). Only exceptions due to bad event data
-        should be caught and not re-raised.
+        This is an event handler for message queue consumption. Wraps the processing
+        logic with retry handling to address race conditions where documents are not
+        yet queryable. Exceptions are logged and re-raised to allow message requeue
+        for transient failures (e.g., database unavailable). Only exceptions due to
+        bad event data should be caught and not re-raised.
 
         Args:
             event: Event dictionary
@@ -116,8 +125,31 @@ class ReportingService:
 
             logger.info(f"Received SummaryComplete event: {summary_complete.data.get('thread_id')}")
 
-            # Process the summary
-            self.process_summary(summary_complete.data, event)
+            # Validate required fields before retry wrapper
+            # Missing fields indicate malformed events that should NOT be retried
+            thread_id = summary_complete.data.get("thread_id")
+            summary_id = summary_complete.data.get("summary_id")
+            
+            if not thread_id or not summary_id:
+                error_msg = "Missing required fields thread_id or summary_id in SummaryComplete event"
+                logger.error(error_msg)
+                # Record metrics for invalid event
+                if self.metrics_collector:
+                    self.metrics_collector.increment("reporting_events_total", tags={"event_type": "summary_complete", "outcome": "validation_error"})
+                    self.metrics_collector.increment("reporting_failures_total", tags={"error_type": "ValidationError"})
+                # Do NOT re-raise to avoid infinite requeue of malformed events
+                return
+                
+            idempotency_key = f"reporting-{thread_id}-{summary_id}"
+            
+            # Wrap processing with retry logic
+            handle_event_with_retry(
+                handler=lambda e: self.process_summary(e.get("data", {}), e),
+                event=event,
+                config=self.retry_config,
+                idempotency_key=idempotency_key,
+                service_name="reporting",
+            )
 
             # Record processing time
             self.last_processing_time = time.time() - start_time
@@ -238,12 +270,34 @@ class ReportingService:
 
         # Update thread document with summary_id to mark as complete
         logger.info(f"Updating thread {thread_id} with summary_id {report_id}")
-        # Threads use thread_id as document _id; update by ID
-        self.document_store.update_document(
-            "threads",
-            thread_id,
-            {"summary_id": report_id},
-        )
+        # Threads use thread_id as document _id; update by ID.
+        try:
+            thread_docs = list(
+                self.document_store.query_documents(
+                    "threads",
+                    filter_dict={"_id": thread_id},
+                    limit=1,
+                )
+            )
+            if not thread_docs:
+                raise DocumentNotFoundError(
+                    f"Thread {thread_id} not found in database"
+                )
+
+            self.document_store.update_document(
+                "threads",
+                thread_id,
+                {"summary_id": report_id},
+            )
+        except Exception as e:
+            # Raise retryable error so the event retry wrapper can handle race conditions.
+            if isinstance(e, DocumentNotFoundError):
+                raise
+
+            logger.warning(
+                f"Failed to update thread {thread_id} with summary_id {report_id}: {e}",
+                exc_info=True,
+            )
 
         # Attempt webhook notification if enabled
         notified = False
@@ -484,10 +538,10 @@ class ReportingService:
         if archive_ids:
             archives = self.document_store.query_documents(
                 "archives",
-                filter_dict={"archive_id": {"$in": list(archive_ids)}},
+                filter_dict={"_id": {"$in": list(archive_ids)}},
                 limit=len(archive_ids),
             )
-            archives_map = {a.get("archive_id"): a for a in archives if a.get("archive_id")}
+            archives_map = {a.get("_id"): a for a in archives if a.get("_id")}
 
         # Now process summaries with pre-fetched data
         for summary in summaries:
@@ -639,7 +693,7 @@ class ReportingService:
         try:
             results = self.document_store.query_documents(
                 "archives",
-                filter_dict={"archive_id": archive_id},
+                filter_dict={"_id": archive_id},
                 limit=1,
             )
             return results[0] if results else None

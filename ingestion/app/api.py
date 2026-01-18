@@ -224,19 +224,68 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
             logger.error("Error updating source", source_name=source_name, error=str(e), exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.delete("/api/sources/{source_name}", response_model=dict[str, str])
-    def delete_source(source_name: str):
-        """Delete a source."""
+    @router.delete("/api/sources/{source_name}", response_model=dict[str, Any])
+    def delete_source(
+        source_name: str,
+        cascade: bool = Query(
+            False,
+            description=(
+                "Whether to delete associated data from document stores "
+                "(archives, threads, messages, chunks, summaries) when deleting the source."
+            )
+        )
+    ):
+        """Delete a source, optionally with cascade delete of associated data.
+        
+        When cascade=true, this endpoint deletes and counts the following:
+        
+        - Archives from document_store and archive_store
+        - Threads from document_store
+        - Messages from document_store
+        - Chunks from document_store
+        - Summaries/reports from document_store
+        
+        The returned deletion_counts field reflects only these document-store deletions.
+        Embeddings in vectorstore are NOT deleted automatically and will always show
+        count of 0 in the response.
+        
+        **Important: Embeddings in vectorstore are NOT deleted.**
+        
+        Embeddings remain in the vectorstore and are not included in deletion_counts
+        (the embeddings count will always be 0). The ingestion service logs a warning
+        identifying chunks whose embeddings remain. Operators should:
+        
+        1. Monitor ingestion service logs for embedding cleanup warnings when sources
+           are deleted with cascade=true
+        2. Use vectorstore management tools or adapter-specific utilities to manually
+           delete embeddings for the identified chunk IDs
+        3. Consider implementing automated embedding cleanup in the embedding service
+           by subscribing to source deletion events (future enhancement)
+        
+        Note: If cascade delete fails partway through, some data may remain. The
+        operation is idempotent - retry to clean up remaining data.
+        """
         try:
-            success = service.delete_source(source_name)
-            if not success:
+            result = service.delete_source(source_name, cascade=cascade)
+            if isinstance(result, bool) and not result:
                 raise HTTPException(status_code=404, detail=f"Source '{source_name}' not found")
 
-            return {"message": f"Source '{source_name}' deleted successfully"}
+            if cascade:
+                # Return deletion counts
+                return {
+                    "message": f"Source '{source_name}' and all associated data deleted successfully",
+                    "cascade": True,
+                    "deletion_counts": result,
+                }
+            else:
+                return {
+                    "message": f"Source '{source_name}' deleted successfully",
+                    "cascade": False,
+                }
         except HTTPException:
             raise
         except Exception as e:
-            logger.error("Error deleting source", source_name=source_name, error=str(e), exc_info=True)
+            logger.error("Error deleting source", source_name=source_name, cascade=cascade, error=str(e), exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
     @router.post("/api/sources/{source_name}/trigger", response_model=TriggerResponse)

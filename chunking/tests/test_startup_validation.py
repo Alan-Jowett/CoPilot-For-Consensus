@@ -22,6 +22,10 @@ from copilot_config.generated.adapters.error_reporter import (
     AdapterConfig_ErrorReporter,
     DriverConfig_ErrorReporter_Console,
 )
+from copilot_config.generated.adapters.event_retry import (
+    AdapterConfig_EventRetry,
+    DriverConfig_EventRetry_Default,
+)
 from copilot_config.generated.adapters.logger import (
     AdapterConfig_Logger,
     DriverConfig_Logger_Stdout,
@@ -106,6 +110,10 @@ def _make_service_config(
         error_reporter=AdapterConfig_ErrorReporter(
             error_reporter_type=error_reporter_type,
             driver=DriverConfig_ErrorReporter_Console(),
+        ),
+        event_retry=AdapterConfig_EventRetry(
+            event_retry_type="default",
+            driver=DriverConfig_EventRetry_Default(),
         ),
         secret_provider=AdapterConfig_SecretProvider(
             secret_provider_type="local",

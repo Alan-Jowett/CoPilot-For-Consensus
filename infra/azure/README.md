@@ -1781,6 +1781,29 @@ ContainerAppConsoleLogs_CL
 - Check Cosmos DB firewall rules (allow Container Apps subnet or enable public access)
 - Ensure Cosmos DB is running and accessible
 
+#### 5. UI Page Truncated or Blank
+
+**Error**: HTML responses are truncated, resulting in a blank or partially rendered SPA page
+
+**Root Cause**: NGINX's `sendfile` directive is incompatible with Azure Container Apps' Envoy ingress proxy, causing response truncation.
+
+**Solution**: This issue has been fixed in the UI and Gateway Dockerfiles by disabling `sendfile`. If you're still experiencing issues:
+- Ensure you're using the latest Docker images with the fix
+- Rebuild the `ui` and `gateway` services
+- See [Azure NGINX Sendfile Fix](../../docs/operations/azure-nginx-sendfile-fix.md) for detailed information
+
+**Verification**:
+```bash
+# Check if the UI is responding with complete HTML
+GATEWAY_URL=$(az deployment group show \
+  --name copilot-deployment \
+  --resource-group copilot-rg \
+  --query properties.outputs.gatewayFqdn.value -o tsv)
+
+curl -sS https://$GATEWAY_URL/ui/ | wc -c
+# Should return > 500 bytes for a complete HTML document
+```
+
 ### Debugging Container Apps
 
 View logs from a specific service:

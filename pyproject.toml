@@ -105,6 +105,7 @@ extraPaths = [
     "adapters/copilot_draft_diff",
     "adapters/copilot_embedding",
     "adapters/copilot_error_reporting",
+    "adapters/copilot_event_retry",
     "adapters/copilot_logging",
     "adapters/copilot_message_bus",
     "adapters/copilot_metrics",

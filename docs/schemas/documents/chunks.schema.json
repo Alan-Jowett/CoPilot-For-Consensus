@@ -30,6 +30,11 @@
       "maxLength": 16,
       "description": "Reference to threads._id (canonical thread identifier we generate)"
     },
+    "archive_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reference to archives._id (canonical archive identifier we generate)"
+    },
     "chunk_index": { "type": "integer", "minimum": 0 },
     "text": { "type": "string", "minLength": 1 },
     "token_count": { "type": "integer", "minimum": 0 },

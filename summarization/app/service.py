@@ -21,6 +21,10 @@ from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from copilot_summarization import Citation, Summarizer, Thread
 from copilot_vectorstore import VectorStore
+from copilot_event_retry import (
+    RetryConfig,
+    handle_event_with_retry,
+)
 
 logger = get_logger(__name__)
 
@@ -49,6 +53,7 @@ class SummarizationService:
         batch_max_threads: int = 50,
         batch_poll_interval_seconds: int = 60,
         batch_timeout_hours: int = 24,
+        event_retry_config: RetryConfig | None = None,
     ):
         """Initialize summarization service.
 
@@ -72,6 +77,7 @@ class SummarizationService:
             batch_max_threads: Maximum threads per batch (default: 50)
             batch_poll_interval_seconds: Polling interval for batch status (default: 60)
             batch_timeout_hours: Maximum wait time for batch completion in hours (default: 24)
+            event_retry_config: Retry configuration for event race condition handling (optional)
         """
         self.document_store = document_store
         self.vector_store = vector_store
@@ -92,6 +98,7 @@ class SummarizationService:
         self.batch_max_threads = batch_max_threads
         self.batch_poll_interval_seconds = batch_poll_interval_seconds
         self.batch_timeout_hours = batch_timeout_hours
+        self.event_retry_config = event_retry_config or RetryConfig()
 
         # Stats
         self.summaries_generated = 0
@@ -161,12 +168,13 @@ class SummarizationService:
             # Don't fail service startup on requeue errors
 
     def _handle_summarization_requested(self, event: dict[str, Any]):
-        """Handle SummarizationRequested event.
+        """Handle SummarizationRequested event with retry logic for race conditions.
 
-        This is an event handler for message queue consumption. Exceptions are
-        logged and re-raised to allow message requeue for transient failures
-        (e.g., database unavailable). Only exceptions due to bad event data
-        should be caught and not re-raised.
+        This is an event handler for message queue consumption. Wraps the processing
+        logic with retry handling to address race conditions where documents are not
+        yet queryable. Exceptions are logged and re-raised to allow message requeue
+        for transient failures (e.g., database unavailable). Only exceptions due to
+        bad event data should be caught and not re-raised.
 
         Args:
             event: Event dictionary
@@ -177,8 +185,28 @@ class SummarizationService:
 
             logger.info(f"Received SummarizationRequested event for {len(summarization_requested.data.get('thread_ids', []))} threads")
 
-            # Process each thread
-            self.process_summarization(summarization_requested.data)
+            # Process with retry logic for race condition handling
+            # Generate idempotency key from thread IDs
+            # Use all thread IDs for uniqueness (limited to reasonable length for key storage)
+            thread_ids = summarization_requested.data.get("thread_ids", [])
+            thread_ids_str = '-'.join(str(tid) for tid in thread_ids)
+            # Hash if too long to keep key manageable
+            if len(thread_ids_str) > 100:
+                thread_ids_hash = hashlib.sha256(thread_ids_str.encode()).hexdigest()[:16]
+                idempotency_key = f"summarization-{thread_ids_hash}"
+            else:
+                idempotency_key = f"summarization-{thread_ids_str}"
+            
+            # Wrap processing with retry logic
+            handle_event_with_retry(
+                handler=lambda e: self.process_summarization(e.get("data", {})),
+                event=event,
+                config=self.event_retry_config,
+                idempotency_key=idempotency_key,
+                metrics_collector=self.metrics_collector,
+                error_reporter=self.error_reporter,
+                service_name="summarization",
+            )
 
         except Exception as e:
             logger.error(f"Error handling SummarizationRequested event: {e}", exc_info=True)
@@ -774,6 +802,10 @@ class SummarizationService:
 
         Returns:
             Dictionary with 'messages' and 'chunks' keys
+            
+        Notes:
+            If no messages are found, returns an empty context; callers are
+            responsible for publishing a `NoContextError` failure event.
         """
         # Query messages from document store
         messages = self.document_store.query_documents(
@@ -782,7 +814,8 @@ class SummarizationService:
         )
 
         if not messages:
-            logger.warning(f"No messages found for thread {thread_id}")
+            error_msg = f"No messages found for thread {thread_id}"
+            logger.warning(error_msg)
             return {"messages": [], "chunks": []}
 
         # Extract message text for context

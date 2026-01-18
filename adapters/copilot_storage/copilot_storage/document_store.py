@@ -64,12 +64,16 @@ class DocumentStore(ABC):
     def get_document(self, collection: str, doc_id: str) -> dict[str, Any] | None:
         """Retrieve a document by its ID.
 
+        Returned documents are sanitized to remove backend system fields
+        (e.g., Cosmos _etag/_rid/_ts) and document store metadata fields
+        (e.g., id/collection), and contain only schema-defined fields.
+
         Args:
             collection: Name of the collection/table
             doc_id: Document ID
 
         Returns:
-            Document data as dictionary, or None if not found
+            Sanitized document data as dictionary, or None if not found
         """
         pass
 
@@ -79,13 +83,17 @@ class DocumentStore(ABC):
     ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
+        Returned documents are sanitized to remove backend system fields
+        (e.g., Cosmos _etag/_rid/_ts) and document store metadata fields
+        (e.g., id/collection), and contain only schema-defined fields.
+
         Args:
             collection: Name of the collection/table
             filter_dict: Filter criteria as dictionary
             limit: Maximum number of documents to return
 
         Returns:
-            List of matching documents
+            List of sanitized matching documents
         """
         pass
 

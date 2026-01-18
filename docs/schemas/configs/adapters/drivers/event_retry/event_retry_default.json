@@ -1,0 +1,43 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Event retry (default) driver",
+    "type": "object",
+    "properties": {
+        "max_attempts": {
+            "type": "int",
+            "source": "env",
+            "env_var": ["EVENT_RETRY_MAX_ATTEMPTS", "RETRY_MAX_ATTEMPTS"],
+            "default": 8,
+            "description": "Maximum attempts for event race-condition retries"
+        },
+        "base_delay_ms": {
+            "type": "int",
+            "source": "env",
+            "env_var": ["EVENT_RETRY_BASE_DELAY_MS", "RETRY_BASE_DELAY_MS"],
+            "default": 250,
+            "description": "Base delay in milliseconds before first retry"
+        },
+        "backoff_factor": {
+            "type": "float",
+            "source": "env",
+            "env_var": ["EVENT_RETRY_BACKOFF_FACTOR", "RETRY_BACKOFF_FACTOR"],
+            "default": 2.0,
+            "description": "Exponential backoff factor"
+        },
+        "max_delay_ms": {
+            "type": "int",
+            "source": "env",
+            "env_var": ["EVENT_RETRY_MAX_DELAY_MS", "RETRY_MAX_DELAY_MS"],
+            "default": 60000,
+            "description": "Maximum delay in milliseconds between retries"
+        },
+        "ttl_seconds": {
+            "type": "int",
+            "source": "env",
+            "env_var": ["EVENT_RETRY_TTL_SECONDS", "RETRY_TTL_SECONDS"],
+            "default": 1800,
+            "description": "Maximum total retry time-to-live (seconds)"
+        }
+    }
+}
