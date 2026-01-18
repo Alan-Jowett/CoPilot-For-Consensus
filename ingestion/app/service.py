@@ -393,9 +393,14 @@ class IngestionService:
             "summaries": 0,
         }
 
+        # Generate correlation ID at the start for tracking cascade cleanup
+        # This ensures it's available even if cleanup fails early
+        correlation_id = str(uuid4())
+
         self.logger.info(
             "Starting cascade delete for source",
             source_name=source_name,
+            correlation_id=correlation_id,
         )
 
         try:
@@ -412,8 +417,6 @@ class IngestionService:
                 archive_count=len(archive_ids),
             )
 
-            # Generate correlation ID for tracking cascade cleanup
-            correlation_id = str(uuid4())
             requested_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
             # Publish SourceDeletionRequested event to initiate distributed cleanup
@@ -719,7 +722,7 @@ class IngestionService:
                 progress_event = SourceCleanupProgressEvent(
                     data={
                         "source_name": source_name,
-                        "correlation_id": correlation_id if 'correlation_id' in locals() else str(uuid4()),
+                        "correlation_id": correlation_id,
                         "service_name": "ingestion",
                         "status": "failed",
                         "deletion_counts": deletion_counts,
@@ -736,6 +739,7 @@ class IngestionService:
                 self.logger.error(
                     "Failed to publish failure SourceCleanupProgress event",
                     source_name=source_name,
+                    correlation_id=correlation_id,
                     error=str(pub_error),
                     exc_info=True,
                 )

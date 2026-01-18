@@ -9,17 +9,22 @@ import tempfile
 
 import pytest
 from app.service import IngestionService
-from copilot_error_reporting import create_error_reporter
-from copilot_message_bus import create_publisher
-from copilot_logging import create_logger
-from copilot_metrics import create_metrics_collector
-from copilot_storage import create_document_store
-
-from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
-from copilot_config.generated.adapters.error_reporter import AdapterConfig_ErrorReporter, DriverConfig_ErrorReporter_Silent
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.error_reporter import (
+    AdapterConfig_ErrorReporter,
+    DriverConfig_ErrorReporter_Silent,
+)
 from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Silent
 from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
 from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
+from copilot_error_reporting import create_error_reporter
+from copilot_logging import create_logger
+from copilot_message_bus import create_publisher
+from copilot_metrics import create_metrics_collector
+from copilot_storage import create_document_store
 
 from .test_helpers import assert_valid_event_schema, make_archive_store, make_config, make_source
 
@@ -78,7 +83,6 @@ class TestIngestionService:
     @pytest.fixture
     def service(self, config):
         """Create test ingestion service."""
-        from pathlib import Path
 
         publisher = create_publisher(
             AdapterConfig_MessageBus(message_bus_type="noop", driver=DriverConfig_MessageBus_Noop()),
@@ -1197,8 +1201,4 @@ def test_delete_source_cascade_publishes_events(tmp_path):
 
     # Verify correlation_id matches between events
     assert deletion_requested["event"]["data"]["correlation_id"] == cleanup_progress["event"]["data"]["correlation_id"]
-
-
-
-
 
