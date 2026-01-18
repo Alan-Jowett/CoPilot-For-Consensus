@@ -18,8 +18,9 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             className="footer-link"
+            aria-label="Send feedback or report a bug on GitHub"
           >
-            📝 Send Feedback
+            <span aria-hidden="true">📝</span> Send Feedback
           </a>
         </div>
       </div>
