@@ -492,28 +492,54 @@ class SummarizationService:
                 logger.warning("No valid threads to process in batch")
                 return
 
+            # Enforce configured maximum batch size
+            total_threads = len(threads)
+            if total_threads > self.batch_max_threads:
+                raise ValueError(
+                    f"Requested batch size {total_threads} exceeds configured "
+                    f"maximum {self.batch_max_threads}"
+                )
+
             # Create batch job
             batch_id = self.summarizer.create_batch(threads)
-            logger.info(f"Created batch job {batch_id} for {len(threads)} threads")
+            logger.info(f"Created batch job {batch_id} for {total_threads} threads")
 
             # Poll for completion
             max_wait_seconds = self.batch_timeout_hours * 3600
             elapsed = 0
-            while elapsed < max_wait_seconds:
-                time.sleep(self.batch_poll_interval_seconds)
-                elapsed += self.batch_poll_interval_seconds
+            
+            # Initialize status before the loop to handle edge cases
+            status = None
+            
+            # Check status immediately without sleeping first to reduce latency
+            status_info = self.summarizer.get_batch_status(batch_id)
+            status = status_info["status"]
+            completed = status_info["request_counts"]["completed"]
+            total = status_info["request_counts"]["total"]
 
-                status_info = self.summarizer.get_batch_status(batch_id)
-                status = status_info["status"]
-                completed = status_info["request_counts"]["completed"]
-                total = status_info["request_counts"]["total"]
+            logger.info(f"Batch {batch_id} status: {status}, completed: {completed}/{total}")
 
-                logger.info(f"Batch {batch_id} status: {status}, completed: {completed}/{total}")
+            if status == "completed":
+                pass  # Job already completed, skip polling loop
+            elif status in ["failed", "expired", "cancelled"]:
+                raise RuntimeError(f"Batch job {batch_id} ended with status: {status}")
+            else:
+                # Continue polling with sleep intervals until timeout or completion
+                while elapsed < max_wait_seconds:
+                    time.sleep(self.batch_poll_interval_seconds)
+                    elapsed += self.batch_poll_interval_seconds
 
-                if status == "completed":
-                    break
-                elif status in ["failed", "expired", "cancelled"]:
-                    raise RuntimeError(f"Batch job {batch_id} ended with status: {status}")
+                    status_info = self.summarizer.get_batch_status(batch_id)
+                    status = status_info["status"]
+                    completed = status_info["request_counts"]["completed"]
+                    total = status_info["request_counts"]["total"]
+
+                    logger.info(f"Batch {batch_id} status: {status}, completed: {completed}/{total}")
+
+                    if status == "completed":
+                        break
+                    elif status in ["failed", "expired", "cancelled"]:
+                        raise RuntimeError(f"Batch job {batch_id} ended with status: {status}")
 
             if status != "completed":
                 raise RuntimeError(f"Batch job {batch_id} did not complete within {max_wait_seconds}s")
@@ -608,7 +634,12 @@ class SummarizationService:
         except Exception as e:
             logger.error(f"Batch processing failed: {e}", exc_info=True)
 
-            # Publish failure events for all threads
+            # NOTE: We publish failure events for all threads in the original request.
+            # In a real-world scenario, some threads may have completed successfully 
+            # before the batch failed. A more sophisticated implementation would track
+            # which threads were actually included in the batch and check batch results
+            # to identify specific failures. For now, we err on the side of caution
+            # by marking all threads as failed to ensure they get reprocessed.
             for thread_id in thread_ids:
                 try:
                     self._publish_summarization_failed(

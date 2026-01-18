@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 from app.service import SummarizationService
-from copilot_summarization import Citation, Summary
+from copilot_summarization import Summary
 
 
 @pytest.fixture
@@ -287,3 +287,216 @@ def test_batch_citations_generated_from_chunks(
         assert len(citations) > 0
         assert "message_id" in citations[0]
         assert "chunk_id" in citations[0]
+
+
+def test_batch_job_failed_status(
+    mock_document_store_batch,
+):
+    """Test handling of failed batch job status."""
+    summarizer = Mock()
+    summarizer.create_batch = Mock(return_value="batch-failed-123")
+    
+    # Mock batch status to return 'failed'
+    summarizer.get_batch_status = Mock(return_value={
+        "status": "failed",
+        "request_counts": {"total": 2, "completed": 0, "failed": 2},
+    })
+
+    service = SummarizationService(
+        document_store=mock_document_store_batch,
+        vector_store=Mock(),
+        publisher=Mock(),
+        subscriber=Mock(),
+        summarizer=summarizer,
+        top_k=10,
+        citation_count=10,
+        batch_mode_enabled=True,
+        batch_poll_interval_seconds=1,
+        batch_timeout_hours=24,
+    )
+
+    event_data = {
+        "thread_ids": ["thread-1", "thread-2"],
+        "top_k": 10,
+        "prompt_template": "Summarize: {email_chunks}",
+    }
+
+    # Should raise RuntimeError for failed status
+    with pytest.raises(RuntimeError, match="ended with status: failed"):
+        service.process_summarization(event_data)
+
+
+def test_batch_job_expired_status(
+    mock_document_store_batch,
+):
+    """Test handling of expired batch job status."""
+    summarizer = Mock()
+    summarizer.create_batch = Mock(return_value="batch-expired-123")
+    
+    # Mock batch status to return 'expired'
+    summarizer.get_batch_status = Mock(return_value={
+        "status": "expired",
+        "request_counts": {"total": 2, "completed": 0, "failed": 0},
+    })
+
+    service = SummarizationService(
+        document_store=mock_document_store_batch,
+        vector_store=Mock(),
+        publisher=Mock(),
+        subscriber=Mock(),
+        summarizer=summarizer,
+        top_k=10,
+        citation_count=10,
+        batch_mode_enabled=True,
+        batch_poll_interval_seconds=1,
+        batch_timeout_hours=24,
+    )
+
+    event_data = {
+        "thread_ids": ["thread-1", "thread-2"],
+        "top_k": 10,
+        "prompt_template": "Summarize: {email_chunks}",
+    }
+
+    # Should raise RuntimeError for expired status
+    with pytest.raises(RuntimeError, match="ended with status: expired"):
+        service.process_summarization(event_data)
+
+
+def test_batch_job_timeout(
+    mock_document_store_batch,
+):
+    """Test handling of batch job timeout."""
+    summarizer = Mock()
+    summarizer.create_batch = Mock(return_value="batch-timeout-123")
+    
+    # Mock batch status to always return 'in_progress'
+    summarizer.get_batch_status = Mock(return_value={
+        "status": "in_progress",
+        "request_counts": {"total": 2, "completed": 0, "failed": 0},
+    })
+
+    service = SummarizationService(
+        document_store=mock_document_store_batch,
+        vector_store=Mock(),
+        publisher=Mock(),
+        subscriber=Mock(),
+        summarizer=summarizer,
+        top_k=10,
+        citation_count=10,
+        batch_mode_enabled=True,
+        batch_poll_interval_seconds=1,
+        batch_timeout_hours=0.0001,  # Very short timeout (~0.36 seconds)
+    )
+
+    event_data = {
+        "thread_ids": ["thread-1", "thread-2"],
+        "top_k": 10,
+        "prompt_template": "Summarize: {email_chunks}",
+    }
+
+    # Should raise RuntimeError for timeout
+    with pytest.raises(RuntimeError, match="did not complete within"):
+        service.process_summarization(event_data)
+
+
+def test_batch_polling_multiple_iterations(
+    mock_document_store_batch,
+):
+    """Test that batch polling correctly iterates through multiple status checks."""
+    summarizer = Mock()
+    summarizer.create_batch = Mock(return_value="batch-polling-123")
+    
+    # Mock batch status to transition through states
+    status_sequence = [
+        {"status": "validating", "request_counts": {"total": 2, "completed": 0, "failed": 0}},
+        {"status": "in_progress", "request_counts": {"total": 2, "completed": 1, "failed": 0}},
+        {"status": "completed", "request_counts": {"total": 2, "completed": 2, "failed": 0}, "output_file_id": "file-123"},
+    ]
+    summarizer.get_batch_status = Mock(side_effect=status_sequence)
+    
+    # Mock retrieve results
+    summarizer.retrieve_batch_results = Mock(return_value=[
+        Summary(
+            thread_id="thread-1",
+            summary_markdown="Summary 1",
+            citations=[],
+            llm_backend="openai",
+            llm_model="gpt-4o-mini",
+            tokens_prompt=100,
+            tokens_completion=50,
+            latency_ms=0,
+        ),
+        Summary(
+            thread_id="thread-2",
+            summary_markdown="Summary 2",
+            citations=[],
+            llm_backend="openai",
+            llm_model="gpt-4o-mini",
+            tokens_prompt=110,
+            tokens_completion=55,
+            latency_ms=0,
+        ),
+    ])
+
+    service = SummarizationService(
+        document_store=mock_document_store_batch,
+        vector_store=Mock(),
+        publisher=Mock(),
+        subscriber=Mock(),
+        summarizer=summarizer,
+        top_k=10,
+        citation_count=10,
+        batch_mode_enabled=True,
+        batch_poll_interval_seconds=1,
+        batch_timeout_hours=24,
+    )
+
+    event_data = {
+        "thread_ids": ["thread-1", "thread-2"],
+        "top_k": 10,
+        "prompt_template": "Summarize: {email_chunks}",
+    }
+
+    service.process_summarization(event_data)
+
+    # Verify get_batch_status was called multiple times
+    assert summarizer.get_batch_status.call_count == 3
+    
+    # Verify batch results were retrieved
+    summarizer.retrieve_batch_results.assert_called_once()
+
+
+def test_batch_size_exceeds_maximum(
+    mock_document_store_batch,
+):
+    """Test that batch size validation raises error when exceeding maximum."""
+    summarizer = Mock()
+    summarizer.create_batch = Mock(return_value="batch-123")
+
+    service = SummarizationService(
+        document_store=mock_document_store_batch,
+        vector_store=Mock(),
+        publisher=Mock(),
+        subscriber=Mock(),
+        summarizer=summarizer,
+        top_k=10,
+        citation_count=10,
+        batch_mode_enabled=True,
+        batch_max_threads=1,  # Very low limit
+        batch_poll_interval_seconds=1,
+        batch_timeout_hours=24,
+    )
+
+    event_data = {
+        "thread_ids": ["thread-1", "thread-2"],  # 2 threads > max of 1
+        "top_k": 10,
+        "prompt_template": "Summarize: {email_chunks}",
+    }
+
+    # Should raise ValueError for exceeding batch size
+    with pytest.raises(ValueError, match="exceeds configured maximum"):
+        service.process_summarization(event_data)
+    
+    # Verify batch was not created
+    summarizer.create_batch.assert_not_called()

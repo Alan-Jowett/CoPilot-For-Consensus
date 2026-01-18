@@ -262,9 +262,22 @@ def main():
         # Batch mode is only supported for OpenAI and Azure OpenAI backends
         llm_backend_type = str(config.llm_backend.llm_backend_type).lower()
         batch_mode_enabled = os.environ.get("OPENAI_BATCH_MODE", "false").lower() in ("true", "1", "yes")
-        batch_max_threads = int(os.environ.get("OPENAI_BATCH_MAX_THREADS", "50"))
-        batch_poll_interval = int(os.environ.get("OPENAI_BATCH_POLL_INTERVAL_SECONDS", "60"))
-        batch_timeout_hours = int(os.environ.get("OPENAI_BATCH_TIMEOUT_HOURS", "24"))
+        
+        try:
+            batch_max_threads = int(os.environ.get("OPENAI_BATCH_MAX_THREADS", "50"))
+            batch_poll_interval = int(os.environ.get("OPENAI_BATCH_POLL_INTERVAL_SECONDS", "60"))
+            batch_timeout_hours = int(os.environ.get("OPENAI_BATCH_TIMEOUT_HOURS", "24"))
+        except ValueError as e:
+            logger.error(f"Invalid batch configuration: {e}")
+            raise ValueError("Batch configuration parameters must be valid integers") from e
+
+        # Validate batch configuration parameters
+        if batch_max_threads <= 0:
+            raise ValueError(f"OPENAI_BATCH_MAX_THREADS must be positive, got {batch_max_threads}")
+        if batch_poll_interval <= 0:
+            raise ValueError(f"OPENAI_BATCH_POLL_INTERVAL_SECONDS must be positive, got {batch_poll_interval}")
+        if batch_timeout_hours <= 0:
+            raise ValueError(f"OPENAI_BATCH_TIMEOUT_HOURS must be positive, got {batch_timeout_hours}")
 
         if batch_mode_enabled and llm_backend_type not in ("openai", "azure_openai_gpt"):
             logger.warning(
