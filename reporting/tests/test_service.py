@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from app.service import ReportingService
+from copilot_event_retry import RetryConfig
 
 
 @pytest.fixture
@@ -223,6 +224,17 @@ def test_process_summary_stores_document(
     reporting_service, mock_document_store, sample_summary_complete_event
 ):
     """Test that process_summary stores the summary document."""
+    thread_id = sample_summary_complete_event["data"]["thread_id"]
+
+    def query_documents_side_effect(collection: str, **kwargs):
+        if collection == "summaries":
+            return []
+        if collection == "threads":
+            return [{"_id": thread_id}]
+        return []
+
+    mock_document_store.query_documents.side_effect = query_documents_side_effect
+
     report_id = reporting_service.process_summary(
         sample_summary_complete_event["data"],
         sample_summary_complete_event
@@ -254,6 +266,17 @@ def test_process_summary_publishes_report_published_event(
     reporting_service, mock_publisher, sample_summary_complete_event
 ):
     """Test that process_summary publishes ReportPublished event."""
+    thread_id = sample_summary_complete_event["data"]["thread_id"]
+
+    def query_documents_side_effect(collection: str, **kwargs):
+        if collection == "summaries":
+            return []
+        if collection == "threads":
+            return [{"_id": thread_id}]
+        return []
+
+    reporting_service.document_store.query_documents.side_effect = query_documents_side_effect
+
     report_id = reporting_service.process_summary(
         sample_summary_complete_event["data"],
         sample_summary_complete_event
@@ -280,6 +303,17 @@ def test_process_summary_with_webhook_enabled(
     mock_document_store, mock_publisher, mock_subscriber, sample_summary_complete_event
 ):
     """Test that process_summary sends webhook when enabled."""
+    thread_id = sample_summary_complete_event["data"]["thread_id"]
+
+    def query_documents_side_effect(collection: str, **kwargs):
+        if collection == "summaries":
+            return []
+        if collection == "threads":
+            return [{"_id": thread_id}]
+        return []
+
+    mock_document_store.query_documents.side_effect = query_documents_side_effect
+
     service = ReportingService(
         document_store=mock_document_store,
         publisher=mock_publisher,
@@ -319,6 +353,17 @@ def test_process_summary_webhook_failure_publishes_delivery_failed(
     mock_document_store, mock_publisher, mock_subscriber, sample_summary_complete_event
 ):
     """Test that webhook failure publishes ReportDeliveryFailed event."""
+    thread_id = sample_summary_complete_event["data"]["thread_id"]
+
+    def query_documents_side_effect(collection: str, **kwargs):
+        if collection == "summaries":
+            return []
+        if collection == "threads":
+            return [{"_id": thread_id}]
+        return []
+
+    mock_document_store.query_documents.side_effect = query_documents_side_effect
+
     service = ReportingService(
         document_store=mock_document_store,
         publisher=mock_publisher,
@@ -456,6 +501,24 @@ def test_handle_summary_complete_with_metrics(
     reporting_service_with_metrics, mock_metrics, sample_summary_complete_event
 ):
     """Test that _handle_summary_complete records metrics."""
+    thread_id = sample_summary_complete_event["data"]["thread_id"]
+
+    def query_documents_side_effect(collection: str, **kwargs):
+        if collection == "summaries":
+            return []
+        if collection == "threads":
+            return [{"_id": thread_id}]
+        return []
+
+    reporting_service_with_metrics.document_store.query_documents.side_effect = query_documents_side_effect
+    reporting_service_with_metrics.retry_config = RetryConfig(
+        max_attempts=1,
+        base_delay_ms=0,
+        max_delay_ms=0,
+        ttl_seconds=0,
+        use_jitter=False,
+    )
+
     reporting_service_with_metrics._handle_summary_complete(sample_summary_complete_event)
 
     # Should increment success metric
@@ -504,6 +567,17 @@ def test_handle_summary_complete_error_handling(
 def test_publisher_uses_event_parameter_for_published(reporting_service, mock_publisher, sample_summary_complete_event):
     """Test that publisher.publish is called with event parameter, not message."""
     # Process a summary to trigger ReportPublished event
+    thread_id = sample_summary_complete_event["data"]["thread_id"]
+
+    def query_documents_side_effect(collection: str, **kwargs):
+        if collection == "summaries":
+            return []
+        if collection == "threads":
+            return [{"_id": thread_id}]
+        return []
+
+    reporting_service.document_store.query_documents.side_effect = query_documents_side_effect
+
     reporting_service.process_summary(
         sample_summary_complete_event["data"],
         sample_summary_complete_event

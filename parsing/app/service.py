@@ -23,6 +23,11 @@ from copilot_error_reporting import ErrorReporter
 from copilot_schema_validation import generate_message_doc_id
 from copilot_storage import DocumentStore
 from copilot_storage.validating_document_store import DocumentValidationError
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
@@ -52,6 +57,7 @@ class ParsingService:
         metrics_collector: MetricsCollector | None = None,
         error_reporter: ErrorReporter | None = None,
         archive_store: ArchiveStore | None = None,
+        retry_config: RetryConfig | None = None,
     ):
         """Initialize parsing service.
 
@@ -62,6 +68,7 @@ class ParsingService:
             metrics_collector: Metrics collector (optional)
             error_reporter: Error reporter (optional)
             archive_store: Archive store for retrieving raw archives (required)
+            retry_config: Retry configuration for race condition handling (optional)
         """
         self.document_store = document_store
         self.publisher = publisher
@@ -71,6 +78,7 @@ class ParsingService:
         if archive_store is None:
             raise ValueError("archive_store is required and must be provided by the caller")
         self.archive_store = archive_store
+        self.retry_config = retry_config or RetryConfig()
 
         # Create parser and thread builder
         self.parser = MessageParser()
@@ -189,12 +197,13 @@ class ParsingService:
             # Don't fail service startup on requeue errors
 
     def _handle_archive_ingested(self, event: dict[str, Any]):
-        """Handle ArchiveIngested event.
+        """Handle ArchiveIngested event with retry logic for race conditions.
 
-        This is an event handler for message queue consumption. Exceptions are
-        logged and re-raised to allow message requeue for transient failures
-        (e.g., database unavailable). Only exceptions due to bad event data
-        should be caught and not re-raised.
+        This is an event handler for message queue consumption. Wraps the processing
+        logic with retry handling to address race conditions where documents are not
+        yet queryable. Exceptions are logged and re-raised to allow message requeue
+        for transient failures (e.g., database unavailable). Only exceptions due to
+        bad event data should be caught and not re-raised.
 
         Args:
             event: Event dictionary
@@ -205,8 +214,21 @@ class ParsingService:
 
             logger.info(f"Received ArchiveIngested event: {archive_ingested.data.get('archive_id')}")
 
-            # Process the archive
-            self.process_archive(archive_ingested.data)
+            # Process with retry logic for race condition handling
+            # Generate idempotency key from archive ID
+            archive_id = archive_ingested.data.get("archive_id", "unknown")
+            idempotency_key = f"parsing-{archive_id}"
+            
+            # Wrap processing with retry logic
+            handle_event_with_retry(
+                handler=lambda e: self.process_archive(e.get("data", {})),
+                event=event,
+                config=self.retry_config,
+                idempotency_key=idempotency_key,
+                metrics_collector=self.metrics_collector,
+                error_reporter=self.error_reporter,
+                service_name="parsing",
+            )
 
         except Exception as e:
             logger.error(f"Error handling ArchiveIngested event: {e}", exc_info=True)
@@ -244,19 +266,14 @@ class ParsingService:
                 archive_content = self.archive_store.get_archive(archive_id)
                 if archive_content is None:
                     error_msg = f"Archive {archive_id} not found in ArchiveStore"
-                    logger.error(error_msg)
-
-                    # Update archive status to 'failed'
-                    self._update_archive_status(archive_id, "failed", 0)
-
-                    self._publish_parsing_failed(
-                        archive_id,
-                        None,  # Storage-agnostic mode - no file path available
-                        error_msg,
-                        "ArchiveNotFoundError",
-                        0,
-                    )
-                    return
+                    logger.warning(error_msg)
+                    
+                    # Raise retryable error to trigger retry logic for race conditions
+                    # This handles cases where events arrive before archives are stored
+                    raise DocumentNotFoundError(error_msg)
+            except DocumentNotFoundError:
+                # Re-raise so the handle_event_with_retry wrapper can retry.
+                raise
             except Exception as e:
                 error_msg = f"Failed to retrieve archive from ArchiveStore: {str(e)}"
                 logger.error(error_msg, exc_info=True)
@@ -412,6 +429,10 @@ class ParsingService:
                                 },
                             )
 
+        except DocumentNotFoundError:
+            # Treat missing documents/archives as a retryable race condition handled by
+            # the outer handle_event_with_retry wrapper.
+            raise
         except Exception as e:
             duration = time.monotonic() - start_time
             logger.error(f"Failed to parse archive {archive_id} after {duration:.2f}s: {e}", exc_info=True)

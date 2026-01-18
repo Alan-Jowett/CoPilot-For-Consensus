@@ -3,6 +3,7 @@
 
 """Main embedding service implementation."""
 
+import hashlib
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -20,6 +21,11 @@ from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from copilot_vectorstore import VectorStore
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
 
 logger = get_logger(__name__)
 
@@ -43,6 +49,7 @@ class EmbeddingService:
         max_retries: int = 3,
         retry_backoff_seconds: int = 5,
         vector_store_collection: str = "message_embeddings",
+        event_retry_config: RetryConfig | None = None,
     ):
         """Initialize embedding service.
 
@@ -61,6 +68,7 @@ class EmbeddingService:
             max_retries: Maximum retry attempts
             retry_backoff_seconds: Base backoff time for retries
             vector_store_collection: Vector store collection name
+            event_retry_config: Retry configuration for event race condition handling (optional)
         """
         self.document_store = document_store
         self.vector_store = vector_store
@@ -76,6 +84,7 @@ class EmbeddingService:
         self.max_retries = max_retries
         self.retry_backoff_seconds = retry_backoff_seconds
         self.vector_store_collection = vector_store_collection
+        self.event_retry_config = event_retry_config or RetryConfig()
 
         # Stats
         self.chunks_processed = 0
@@ -142,12 +151,12 @@ class EmbeddingService:
             # Don't fail service startup on requeue errors
 
     def _handle_chunks_prepared(self, event: dict[str, Any]):
-        """Handle ChunksPrepared event.
+        """Handle ChunksPrepared event with retry logic for race conditions.
 
-        This is an event handler for message queue consumption. Exceptions are
-        logged and re-raised to allow message requeue for transient failures
-        (e.g., database unavailable). Only exceptions due to bad event data
-        should be caught and not re-raised.
+        This is an event handler for message queue consumption. Wraps the processing
+        logic with retry handling to address race conditions where documents are not
+        yet queryable. Exceptions are logged and re-raised to allow message requeue
+        for transient failures (e.g., database unavailable).
 
         Args:
             event: Event dictionary
@@ -158,8 +167,28 @@ class EmbeddingService:
 
             logger.info(f"Received ChunksPrepared event with {len(chunks_prepared.data.get('chunk_ids', []))} chunks")
 
-            # Process the chunks
-            self.process_chunks(chunks_prepared.data)
+            # Process with retry logic for race condition handling
+            # Generate idempotency key from chunk IDs
+            # Use all chunk IDs for uniqueness (limited to reasonable length for key storage)
+            chunk_ids = chunks_prepared.data.get("chunk_ids", [])
+            chunk_ids_str = '-'.join(str(cid) for cid in chunk_ids)
+            # Hash if too long to keep key manageable
+            if len(chunk_ids_str) > 100:
+                chunk_ids_hash = hashlib.sha256(chunk_ids_str.encode()).hexdigest()[:16]
+                idempotency_key = f"embedding-{chunk_ids_hash}"
+            else:
+                idempotency_key = f"embedding-{chunk_ids_str}"
+            
+            # Wrap processing with retry logic
+            handle_event_with_retry(
+                handler=lambda e: self.process_chunks(e.get("data", {})),
+                event=event,
+                config=self.event_retry_config,
+                idempotency_key=idempotency_key,
+                metrics_collector=self.metrics_collector,
+                error_reporter=self.error_reporter,
+                service_name="embedding",
+            )
 
         except Exception as e:
             logger.error(f"Error handling ChunksPrepared event: {e}", exc_info=True)
@@ -213,8 +242,22 @@ class EmbeddingService:
                 ))
 
                 if not chunks:
-                    logger.info(f"All {len(chunk_ids)} chunks already have embeddings, skipping")
-                    return
+                    # Check if all chunks already have embeddings
+                    all_chunks = list(self.document_store.query_documents(
+                        collection="chunks",
+                        filter_dict={"_id": {"$in": chunk_ids}}
+                    ))
+                    
+                    if all_chunks:
+                        logger.info(f"All {len(chunk_ids)} chunks already have embeddings, skipping")
+                        return
+                    else:
+                        # No chunks found at all. This can happen due to a race condition where
+                        # chunks are not yet queryable in the database. Signal this so the
+                        # handle_event_with_retry wrapper can retry the operation.
+                        raise DocumentNotFoundError(
+                            f"No chunks found in database for {len(chunk_ids)} IDs"
+                        )
 
                 # Validate all chunks have MongoDB _id (fail fast to prevent inconsistent state)
                 chunks_without_id = [c.get("_id", "unknown") for c in chunks if not c.get("_id")]
@@ -276,6 +319,10 @@ class EmbeddingService:
 
                 return
 
+            except DocumentNotFoundError:
+                # Treat missing documents as a retryable race condition handled by
+                # the outer handle_event_with_retry wrapper.
+                raise
             except Exception as e:
                 retry_count += 1
                 error_msg = str(e)

@@ -982,6 +982,11 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'CHUNK_LOG_LEVEL'
               value: 'INFO'
             }
+            // Event retry adapter
+            {
+              name: 'EVENT_RETRY_TYPE'
+              value: 'default'
+            }
             // Logger adapter
             {
               name: 'LOG_TYPE'
@@ -1137,6 +1142,11 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'EMBEDDING_LOG_LEVEL'
               value: 'INFO'
+            }
+            // Event retry adapter
+            {
+              name: 'EVENT_RETRY_TYPE'
+              value: 'default'
             }
             // Logger adapter
             {

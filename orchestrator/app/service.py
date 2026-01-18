@@ -20,6 +20,11 @@ from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
 
 logger = get_logger(__name__)
 
@@ -38,6 +43,7 @@ class OrchestrationService:
         user_prompt_path: str = "/app/prompts/user.txt",
         metrics_collector: MetricsCollector | None = None,
         error_reporter: ErrorReporter | None = None,
+        retry_config: RetryConfig | None = None,
     ):
         """Initialize orchestration service.
 
@@ -51,6 +57,7 @@ class OrchestrationService:
             user_prompt_path: Path to user prompt template file
             metrics_collector: Metrics collector (optional)
             error_reporter: Error reporter (optional)
+            retry_config: Retry configuration for race condition handling (optional)
         """
         self.document_store = document_store
         self.publisher = publisher
@@ -61,6 +68,7 @@ class OrchestrationService:
         self.error_reporter = error_reporter
         self.system_prompt_path = system_prompt_path
         self.user_prompt_path = user_prompt_path
+        self.retry_config = retry_config or RetryConfig()
 
         # Load prompts from files
         self._load_prompts()
@@ -241,12 +249,13 @@ class OrchestrationService:
             # Don't fail service startup on requeue errors
 
     def _handle_embeddings_generated(self, event: dict[str, Any]):
-        """Handle EmbeddingsGenerated event.
+        """Handle EmbeddingsGenerated event with retry logic for race conditions.
 
-        This is an event handler for message queue consumption. Exceptions are
-        logged and re-raised to allow message requeue for transient failures
-        (e.g., database unavailable). Only exceptions due to bad event data
-        should be caught and not re-raised.
+        This is an event handler for message queue consumption. Wraps the processing
+        logic with retry handling to address race conditions where documents are not
+        yet queryable. Exceptions are logged and re-raised to allow message requeue
+        for transient failures (e.g., database unavailable). Only exceptions due to
+        bad event data should be caught and not re-raised.
 
         Args:
             event: Event dictionary
@@ -258,8 +267,28 @@ class OrchestrationService:
             chunk_count = len(embeddings_event.data.get('chunk_ids', []))
             logger.info(f"Received EmbeddingsGenerated event with {chunk_count} chunks")
 
-            # Process the embeddings
-            self.process_embeddings(embeddings_event.data)
+            # Process with retry logic for race condition handling
+            # Generate idempotency key from chunk IDs
+            # Use all chunk IDs for uniqueness (limited to reasonable length for key storage)
+            chunk_ids = embeddings_event.data.get("chunk_ids", [])
+            chunk_ids_str = '-'.join(str(cid) for cid in chunk_ids)
+            # Hash if too long to keep key manageable
+            if len(chunk_ids_str) > 100:
+                chunk_ids_hash = hashlib.sha256(chunk_ids_str.encode()).hexdigest()[:16]
+                idempotency_key = f"orchestrator-{chunk_ids_hash}"
+            else:
+                idempotency_key = f"orchestrator-{chunk_ids_str}"
+            
+            # Wrap processing with retry logic
+            handle_event_with_retry(
+                handler=lambda e: self.process_embeddings(e.get("data", {})),
+                event=event,
+                config=self.retry_config,
+                idempotency_key=idempotency_key,
+                metrics_collector=self.metrics_collector,
+                error_reporter=self.error_reporter,
+                service_name="orchestrator",
+            )
 
             self.events_processed += 1
 
@@ -336,26 +365,24 @@ class OrchestrationService:
         """
         thread_ids: set[str] = set()
 
-        try:
-            # Query document store for chunks by _id
-            chunks = self.document_store.query_documents(
-                "chunks",
-                {"_id": {"$in": chunk_ids}},
-                limit=len(chunk_ids)
-            )
+        # Query document store for chunks by _id
+        chunks = self.document_store.query_documents(
+            "chunks",
+            {"_id": {"$in": chunk_ids}},
+            limit=len(chunk_ids)
+        )
 
-            for chunk in chunks:
-                thread_id = chunk.get("thread_id")
-                if thread_id:
-                    thread_ids.add(thread_id)
+        if not chunks:
+            message = f"No chunks found in database for {len(chunk_ids)} IDs"
+            logger.warning(message)
+            raise DocumentNotFoundError(message)
 
-            logger.info(f"Resolved {len(thread_ids)} unique threads from {len(chunk_ids)} chunks")
+        for chunk in chunks:
+            thread_id = chunk.get("thread_id")
+            if thread_id:
+                thread_ids.add(thread_id)
 
-        except Exception as e:
-            logger.error(f"Error resolving threads: {e}", exc_info=True)
-            if self.error_reporter:
-                self.error_reporter.report(e, context={"chunk_ids": chunk_ids})
-            raise
+        logger.info(f"Resolved {len(thread_ids)} unique threads from {len(chunk_ids)} chunks")
 
         return list(thread_ids)
 

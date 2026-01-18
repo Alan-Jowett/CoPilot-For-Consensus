@@ -88,6 +88,10 @@
         }
     },
     "adapters": {
+        "event_retry": {
+            "$ref": "../adapters/event_retry.json",
+            "required": true
+        },
         "document_store": {
             "$ref": "../adapters/document_store.json",
             "required": true

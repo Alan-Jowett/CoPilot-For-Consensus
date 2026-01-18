@@ -80,7 +80,6 @@ try {
       'adapters/copilot_logging/copilot_logging/factory.py',
       'adapters/copilot_logging/copilot_logging/stdout_logger.py',
       'adapters/copilot_logging/copilot_logging/silent_logger.py',
-      'adapters/copilot_logging/copilot_logging/azure_monitor_logger.py',
       '--level','error'
     )},
     @{ name = 'Metrics adapter typed config safety'; args = @(

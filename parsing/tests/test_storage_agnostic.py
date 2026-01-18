@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from app.service import ParsingService
 from copilot_archive_store import create_archive_store
+from copilot_event_retry.event_handler import DocumentNotFoundError
 from copilot_message_bus import create_publisher, create_subscriber
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import create_document_store
@@ -210,7 +211,7 @@ class TestStorageAgnosticArchives:
         assert len(json_parsed_events) > 0
 
     def test_archive_not_found_publishes_event_without_file_path(self, service):
-        """Test that archive not found errors publish ParsingFailed without file_path."""
+        """Test that missing archive raises DocumentNotFoundError (retryable)."""
         # Try to process archive that doesn't exist
         archive_data = {
             "archive_id": "nonexistent123",
@@ -224,19 +225,11 @@ class TestStorageAgnosticArchives:
             # No file_path
         }
 
-        # Process should handle missing archive gracefully
-        service.process_archive(archive_data)
+        with pytest.raises(DocumentNotFoundError, match="not found in ArchiveStore"):
+            service.process_archive(archive_data)
 
-        # Verify ParsingFailed event was published
         parsing_failed_events = [
             e for e in service.publisher.published_events
             if e["routing_key"] == "parsing.failed"
         ]
-        assert len(parsing_failed_events) == 1
-
-        event = parsing_failed_events[0]
-        data = event["event"]["data"]
-        assert data["archive_id"] == "nonexistent123"
-        # file_path should be omitted entirely (storage-agnostic mode)
-        assert "file_path" not in data, "file_path should be omitted for storage-agnostic backends"
-        assert "not found" in data["error_message"].lower()
+        assert parsing_failed_events == []

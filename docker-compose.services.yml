@@ -16,6 +16,7 @@ services:
       - SCHEMA_DIR=/app/docs/schemas/configs
       - LOG_TYPE=stdout
       - LOG_LEVEL=INFO
+      - EVENT_RETRY_TYPE=${EVENT_RETRY_TYPE:-default}
       - MESSAGE_BUS_TYPE=rabbitmq
       - RABBITMQ_HOST=messagebus
       - RABBITMQ_PORT=5672
@@ -72,6 +73,7 @@ services:
       - SCHEMA_DIR=/app/docs/schemas/configs
       - LOG_TYPE=stdout
       - LOG_LEVEL=INFO
+      - EVENT_RETRY_TYPE=${EVENT_RETRY_TYPE:-default}
       - MESSAGE_BUS_TYPE=rabbitmq
       - RABBITMQ_HOST=messagebus
       - RABBITMQ_PORT=5672

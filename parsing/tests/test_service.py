@@ -11,6 +11,8 @@ from unittest.mock import Mock
 import pytest
 from app.service import ParsingService
 from copilot_archive_store import create_archive_store
+from copilot_event_retry.event_handler import DocumentNotFoundError, RetryExhaustedError
+from copilot_event_retry.retry_policy import RetryConfig
 from copilot_message_bus import EventPublisher, EventSubscriber, create_publisher, create_subscriber
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import DocumentStore, create_document_store
@@ -284,7 +286,11 @@ class TestParsingService:
         assert len(messages) == 0
 
     def test_process_archive_missing_file(self, service):
-        """Test processing nonexistent archive."""
+        """Test processing nonexistent archive.
+
+        Missing archives are treated as a retryable race condition and should
+        raise DocumentNotFoundError so the outer retry wrapper can re-attempt.
+        """
         archive_data = {
             "archive_id": "test-archive-3",
             "source_name": "test-source",
@@ -296,8 +302,8 @@ class TestParsingService:
             "ingestion_completed_at": "2024-01-01T00:00:01Z",
         }
 
-        # Should handle gracefully without crashing
-        service.process_archive(archive_data)
+        with pytest.raises(DocumentNotFoundError, match="not found in ArchiveStore"):
+            service.process_archive(archive_data)
 
         # No messages should be stored
         messages = service.document_store.query_documents("messages", {})
@@ -436,8 +442,8 @@ class TestParsingService:
             "ingestion_completed_at": "2024-01-01T00:00:01Z",
         }
 
-        # Process should handle error gracefully
-        service.process_archive(archive_data)
+        with pytest.raises(DocumentNotFoundError, match="not found in ArchiveStore"):
+            service.process_archive(archive_data)
 
         # Duration should still be >= 0 even after error
         stats = service.get_stats()
@@ -679,7 +685,7 @@ class TestParsingService:
             f"Published event should have non-negative duration, got {event2['event']['data']['parsing_duration_seconds']}"
 
     def test_event_publishing_on_failure(self, document_store, subscriber):
-        """Test that ParsingFailed event is published on parsing failure."""
+        """Test that ParsingFailed event is published on non-retryable parsing failure."""
         mock_publisher = MockPublisher()
         mock_publisher.connect()
 
@@ -690,16 +696,9 @@ class TestParsingService:
             archive_store=create_test_archive_store(),
         )
 
-        archive_data = {
-            "archive_id": "test-archive-10",
-            "source_name": "test-source",
-            "source_type": "local",
-            "source_url": "/nonexistent/file.mbox",
-            "file_size_bytes": 0,
-            "file_hash_sha256": "abc123",
-            "ingestion_started_at": "2024-01-01T00:00:00Z",
-            "ingestion_completed_at": "2024-01-01T00:00:01Z",
-        }
+        # Store a file so retrieval succeeds, then force a parsing failure.
+        archive_data = prepare_archive_for_processing(service.archive_store, __file__)
+        service.parser.parse_mbox = Mock(side_effect=Exception("Parse failed"))
 
         service.process_archive(archive_data)
 
@@ -709,7 +708,7 @@ class TestParsingService:
         assert event["exchange"] == "copilot.events"
         assert event["routing_key"] == "parsing.failed"
         assert event["event"]["event_type"] == "ParsingFailed"
-        assert event["event"]["data"]["archive_id"] == "test-archive-10"
+        assert event["event"]["data"]["archive_id"] == archive_data["archive_id"]
         assert "error_message" in event["event"]["data"]
         assert event["event"]["data"]["messages_parsed_before_failure"] == 0
 
@@ -834,17 +833,9 @@ def test_parsing_failed_event_schema_validation(document_store):
             archive_store=create_test_archive_store(),
         )
 
-    # Try to process a non-existent file
-    archive_data = {
-            "archive_id": "bbbbbbbbbbbbbbbb",
-            "source_name": "test-source",
-            "source_type": "local",
-            "source_url": "/nonexistent/file.mbox",
-            "file_size_bytes": 0,
-            "file_hash_sha256": "abc123",
-            "ingestion_started_at": "2024-01-01T00:00:00Z",
-            "ingestion_completed_at": "2024-01-01T00:00:01Z",
-        }
+    # Store a file so retrieval succeeds, then force a parsing failure.
+    archive_data = prepare_archive_for_processing(service.archive_store, __file__)
+    service.parser.parse_mbox = Mock(side_effect=Exception("Parse failed"))
 
     service.process_archive(archive_data)
 
@@ -967,8 +958,9 @@ def test_handle_malformed_event_missing_data(document_store):
 def test_handle_event_missing_required_fields(document_store):
     """Test handling event where archive is not found in ArchiveStore.
 
-    The service should handle this gracefully by logging an error and publishing
-    a ParsingFailed event, rather than raising an exception.
+    Missing archives are treated as a retryable race condition and should be
+    handled by the retry wrapper. If retries are exhausted, the handler raises
+    RetryExhaustedError.
     """
     publisher = MockPublisher()
     subscriber = create_noop_subscriber()
@@ -977,7 +969,8 @@ def test_handle_event_missing_required_fields(document_store):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-            archive_store=create_test_archive_store(),
+        archive_store=create_test_archive_store(),
+        retry_config=RetryConfig(max_attempts=1, base_delay_ms=0, max_delay_ms=0, ttl_seconds=0, use_jitter=False),
         )
 
     # Event with archive_id that doesn't exist in ArchiveStore
@@ -998,20 +991,11 @@ def test_handle_event_missing_required_fields(document_store):
         }
     }
 
-    # Service should handle this gracefully (no exception)
-    service._handle_archive_ingested(event)
+    with pytest.raises(RetryExhaustedError):
+        service._handle_archive_ingested(event)
 
-    # Verify that a ParsingFailed event was published
-    failed_events = [
-        e for e in publisher.published_events
-        if e["event"]["event_type"] == "ParsingFailed"
-    ]
-    assert len(failed_events) == 1
-
-    # Verify the error message is appropriate
-    failed_event = failed_events[0]["event"]
-    assert "not found in ArchiveStore" in failed_event["data"]["error_message"]
-    assert failed_event["data"]["archive_id"] == "test-archive-nonexistent"
+    # No ParsingFailed event is published for retryable missing archives.
+    assert publisher.published_events == []
 
 
 def test_publish_json_parsed_with_publisher_failure(document_store):

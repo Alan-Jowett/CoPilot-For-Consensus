@@ -24,7 +24,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_schema_validation \
     copilot_logging \
     copilot_secrets \
-    copilot_startup
+    copilot_startup \
+    copilot_event_retry
 
 # Copy schema files for validation
 COPY docs/schemas /app/docs/schemas

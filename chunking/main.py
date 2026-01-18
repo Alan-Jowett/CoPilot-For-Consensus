@@ -44,8 +44,13 @@ from copilot_config.generated.adapters.metrics import (
     DriverConfig_Metrics_Prometheus,
     DriverConfig_Metrics_Pushgateway,
 )
+from copilot_config.generated.adapters.event_retry import (
+    DriverConfig_EventRetry_Default,
+    DriverConfig_EventRetry_Noop,
+)
 from copilot_config.generated.services.chunking import ServiceConfig_Chunking
 from copilot_message_bus import create_publisher, create_subscriber
+from copilot_event_retry import RetryConfig
 
 # Create FastAPI app
 app = FastAPI(title="Chunking Service", version=__version__)
@@ -232,6 +237,22 @@ def main():
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter(config.error_reporter)
 
+        # Create retry configuration from schematized config
+        if config.event_retry.event_retry_type == "noop":
+            retry_driver = cast(DriverConfig_EventRetry_Noop, config.event_retry.driver)
+        else:
+            retry_driver = cast(DriverConfig_EventRetry_Default, config.event_retry.driver)
+
+        retry_config = RetryConfig(
+            max_attempts=int(retry_driver.max_attempts),
+            base_delay_ms=int(retry_driver.base_delay_ms),
+            backoff_factor=float(retry_driver.backoff_factor),
+            max_delay_ms=int(retry_driver.max_delay_ms),
+            ttl_seconds=int(retry_driver.ttl_seconds),
+        )
+        logger.info(f"Retry configuration: max_attempts={retry_config.max_attempts}, "
+                   f"base_delay_ms={retry_config.base_delay_ms}, ttl_seconds={retry_config.ttl_seconds}")
+
         # Create chunking service
         chunking_service = ChunkingService(
             document_store=document_store,
@@ -240,6 +261,7 @@ def main():
             chunker=chunker,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
+            retry_config=retry_config,
         )
 
         # Start subscriber in a separate thread (non-daemon to fail fast)

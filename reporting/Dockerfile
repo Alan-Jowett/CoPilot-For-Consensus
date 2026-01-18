@@ -20,6 +20,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_message_bus \
     copilot_storage \
     copilot_metrics \
+    copilot_event_retry \
     copilot_error_reporting \
     copilot_logging \
     copilot_schema_validation \

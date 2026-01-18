@@ -10,6 +10,7 @@ from unittest.mock import Mock
 import pytest
 from app.service import EmbeddingService
 from copilot_metrics import create_metrics_collector
+from copilot_event_retry.event_handler import DocumentNotFoundError
 
 # Add project root to path to import test fixtures
 # NOTE: This is necessary because tests run from individual service directories
@@ -245,7 +246,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
 
 
 def test_process_chunks_no_chunks_found(embedding_service, mock_document_store, mock_publisher):
-    """When no chunks are found, service should skip without publishing failure."""
+    """When no chunks are found, service should raise DocumentNotFoundError for retry."""
     chunk_ids = ["chunk-1", "chunk-2"]
     mock_document_store.query_documents.return_value = []
 
@@ -253,9 +254,14 @@ def test_process_chunks_no_chunks_found(embedding_service, mock_document_store, 
         "chunk_ids": chunk_ids,
     }
 
-    embedding_service.process_chunks(event_data)
+    # Avoid slow exponential backoff in unit tests.
+    embedding_service.max_retries = 1
+    embedding_service.retry_backoff_seconds = 0
 
-    # No failure event should be published for already-embedded or missing chunks
+    with pytest.raises(DocumentNotFoundError, match="No chunks found in database"):
+        embedding_service.process_chunks(event_data)
+
+    # No failure event should be published here; retry wrapper is expected to handle requeue.
     mock_publisher.publish.assert_not_called()
 
 
