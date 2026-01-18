@@ -178,16 +178,19 @@ Schema: `docs/schemas/events/SourceCleanupCompleted.schema.json`
 - ✅ Event schemas defined
 - ✅ Event models added to schema validation
 - ✅ Ingestion service publishes `SourceDeletionRequested` and `SourceCleanupProgress` events
+- ✅ Parsing service subscribes and implements cleanup handler
+- ✅ Chunking service subscribes and implements cleanup handler
+- ✅ Embedding service subscribes and implements cleanup handler
+- ✅ Reporting service subscribes and implements cleanup handler
 - ✅ Tests for ingestion service event publishing
+- ✅ All services emit metrics and progress events
 
 ### Future Work
-- ⏳ Parsing service: Subscribe and implement cleanup handler
-- ⏳ Chunking service: Subscribe and implement cleanup handler
-- ⏳ Embedding service: Subscribe and implement cleanup handler
-- ⏳ Orchestrator/Reporting: Aggregate progress and publish completion events
+- ⏳ Orchestrator: Aggregate progress events and publish `SourceCleanupCompleted`
 - ⏳ Add vectorstore metadata tagging for efficient deletion by source_name/archive_id
 - ⏳ Implement cleanup status tracking and API endpoint
 - ⏳ Add integration tests for full cascade flow
+- ⏳ Add per-service tests for cleanup handlers
 
 ## Usage Example
 
