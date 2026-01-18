@@ -1112,6 +1112,91 @@ def test_delete_source_with_cascade_service_layer(tmp_path):
     assert len(threads) == 0
 
 
+def test_delete_source_cascade_publishes_events(tmp_path):
+    """Test that delete_source_cascade publishes SourceDeletionRequested and SourceCleanupProgress events."""
+    config = make_config(storage_path=str(tmp_path))
+    logger = _make_silent_logger()
+    metrics = _make_noop_metrics()
+    error_reporter = _make_silent_error_reporter()
+    document_store = _make_inmemory_store()
+
+    # Create a mock publisher that captures published events
+    class MockPublisher:
+        def __init__(self):
+            self.published_events = []
+            self.connected = False
+
+        def connect(self):
+            self.connected = True
+
+        def disconnect(self):
+            self.connected = False
+
+        def publish(self, event, routing_key, exchange):
+            self.published_events.append({
+                "event": event,
+                "routing_key": routing_key,
+                "exchange": exchange,
+            })
+
+    mock_publisher = MockPublisher()
+    mock_publisher.connect()
+
+    service = IngestionService(
+        config=config,
+        publisher=mock_publisher,
+        document_store=document_store,
+        logger=logger,
+        metrics=metrics,
+        error_reporter=error_reporter,
+        archive_store=make_archive_store(config.service_settings.storage_path or "/tmp/ingestion"),
+    )
+
+    # Add test data
+    document_store.insert_document("archives", {
+        "_id": "archive-1",
+        "source": "test-source",
+        "file_hash": "hash1",
+    })
+    document_store.insert_document("threads", {
+        "_id": "thread-1",
+        "source": "test-source",
+    })
+
+    # Execute cascade delete
+    deletion_counts = service.delete_source_cascade("test-source")
+
+    # Verify deletion counts
+    assert deletion_counts["archives_docstore"] == 1
+    assert deletion_counts["threads"] == 1
+
+    # Verify events were published
+    assert len(mock_publisher.published_events) == 2, "Should publish SourceDeletionRequested and SourceCleanupProgress events"
+
+    # Verify SourceDeletionRequested event
+    deletion_requested = mock_publisher.published_events[0]
+    assert deletion_requested["routing_key"] == "source.deletion.requested"
+    assert deletion_requested["exchange"] == "copilot.events"
+    assert deletion_requested["event"]["event_type"] == "SourceDeletionRequested"
+    assert deletion_requested["event"]["data"]["source_name"] == "test-source"
+    assert "correlation_id" in deletion_requested["event"]["data"]
+    assert "requested_at" in deletion_requested["event"]["data"]
+    assert deletion_requested["event"]["data"]["archive_ids"] == ["archive-1"]
+    assert deletion_requested["event"]["data"]["delete_mode"] == "hard"
+
+    # Verify SourceCleanupProgress event (completion)
+    cleanup_progress = mock_publisher.published_events[1]
+    assert cleanup_progress["routing_key"] == "source.cleanup.progress"
+    assert cleanup_progress["exchange"] == "copilot.events"
+    assert cleanup_progress["event"]["event_type"] == "SourceCleanupProgress"
+    assert cleanup_progress["event"]["data"]["source_name"] == "test-source"
+    assert cleanup_progress["event"]["data"]["service_name"] == "ingestion"
+    assert cleanup_progress["event"]["data"]["status"] == "completed"
+    assert cleanup_progress["event"]["data"]["deletion_counts"] == deletion_counts
+    assert "completed_at" in cleanup_progress["event"]["data"]
+
+    # Verify correlation_id matches between events
+    assert deletion_requested["event"]["data"]["correlation_id"] == cleanup_progress["event"]["data"]["correlation_id"]
 
 
 
