@@ -14,6 +14,9 @@ from uuid import uuid4
 
 from copilot_archive_fetcher import SourceConfig, calculate_file_hash, create_fetcher
 from copilot_archive_store import ArchiveStore
+from copilot_config.generated.services.ingestion import ServiceConfig_Ingestion
+from copilot_error_reporting import ErrorReporter
+from copilot_logging import Logger, get_logger
 from copilot_message_bus import (
     ArchiveIngestedEvent,
     ArchiveIngestionFailedEvent,
@@ -21,20 +24,15 @@ from copilot_message_bus import (
     SourceCleanupProgressEvent,
     SourceDeletionRequestedEvent,
 )
-from copilot_schema_validation import ArchiveMetadata
-from copilot_logging import Logger, get_logger
 from copilot_metrics import MetricsCollector
-from copilot_error_reporting import ErrorReporter
+from copilot_schema_validation import ArchiveMetadata
 from copilot_storage import DocumentStore
-
-from copilot_config.generated.services.ingestion import ServiceConfig_Ingestion
 
 from .exceptions import (
     FetchError,
     IngestionError,
     SourceConfigurationError,
 )
-
 
 logger: Logger = get_logger(__name__)
 
@@ -117,7 +115,7 @@ def _source_from_mapping(source: dict[str, Any]) -> SourceConfig:
 
 def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
     """Remove fields that should not be exposed or are not JSON serializable.
-    
+
     Note: Documents from storage are already sanitized by the storage layer.
     This function is primarily for sanitizing source_dict before external exposure
     (e.g., hiding passwords).
@@ -128,7 +126,7 @@ def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
     # Ensure _id is JSON serializable (Mongo may use bson.ObjectId)
     if "_id" in sanitized and sanitized["_id"] is not None and not isinstance(sanitized["_id"], str):
         sanitized["_id"] = str(sanitized["_id"])
-    
+
     # Ensure password is not exposed
     if "password" in sanitized and sanitized["password"]:
         sanitized["password"] = None
@@ -238,7 +236,7 @@ class IngestionService:
 
         # Determine source storage backend from config with validation
         raw_sources_store_type = settings.sources_store_type or "document_store"
-        
+
         # Validate sources_store_type value
         if raw_sources_store_type not in ("file", "document_store"):
             self.logger.warning(
@@ -246,9 +244,9 @@ class IngestionService:
                 sources_store_type=raw_sources_store_type,
             )
             raw_sources_store_type = "document_store"
-        
+
         self._sources_store_type = raw_sources_store_type
-        
+
         # If document_store is not available, fall back to file mode regardless of config
         if self._sources_store_type == "document_store" and not self.document_store:
             self.logger.warning(
@@ -256,7 +254,7 @@ class IngestionService:
                 "falling back to 'file' mode using startup sources"
             )
             self._sources_store_type = "file"
-        
+
         # If using document_store backend, initialize sources from document store
         # If using file backend, sources come from _startup_sources
         if self._sources_store_type == "document_store":
@@ -714,7 +712,7 @@ class IngestionService:
                 error=str(e),
                 exc_info=True,
             )
-            
+
             # Publish failure progress event
             try:
                 completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -741,7 +739,7 @@ class IngestionService:
                     error=str(pub_error),
                     exc_info=True,
                 )
-            
+
             self.error_reporter.report(
                 e,
                 context={
@@ -1284,7 +1282,7 @@ class IngestionService:
                     cached_archive_lookup = _refresh_archive_metadata_cache(source.name)
 
                 archive_metadata = cached_archive_lookup.get(archive_id)
-                
+
                 # If metadata not found in cache, refresh the cache in case new archives
                 # were just stored by store_archive() and not yet in the cache
                 if not archive_metadata:
@@ -1889,13 +1887,13 @@ class IngestionService:
             else:
                 # Use dataclasses.asdict for proper serialization
                 source_dict = asdict(source)
-            
+
             source_name = source_dict.get("name")
-            
+
             if not source_name:
                 self.logger.warning("Skipping startup source without name", source=source_dict)
                 continue
-            
+
             # Check if source already exists in document store
             existing = self.get_source(source_name)
             if existing:
@@ -1904,7 +1902,7 @@ class IngestionService:
                     source_name=source_name
                 )
                 continue
-            
+
             # Create the source in document store
             try:
                 self.create_source(source_dict)

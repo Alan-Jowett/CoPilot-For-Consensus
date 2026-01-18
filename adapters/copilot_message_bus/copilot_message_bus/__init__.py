@@ -50,7 +50,6 @@ from .factory import create_publisher, create_subscriber
 from .validating_publisher import ValidationError
 from .validating_subscriber import SubscriberValidationError
 
-
 __all__ = [
     # Version
     "__version__",
