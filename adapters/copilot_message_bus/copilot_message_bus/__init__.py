@@ -32,6 +32,10 @@ from copilot_schema_validation import (  # type: ignore[import-not-found]
     ReportDeliveryFailedEvent,
     # Reporting Service Events
     ReportPublishedEvent,
+    # Source Cascade Cleanup Events
+    SourceCleanupCompletedEvent,
+    SourceCleanupProgressEvent,
+    SourceDeletionRequestedEvent,
     SummarizationFailedEvent,
     # Orchestration Service Events
     SummarizationRequestedEvent,
@@ -75,4 +79,7 @@ __all__ = [
     "SummarizationFailedEvent",
     "ReportPublishedEvent",
     "ReportDeliveryFailedEvent",
+    "SourceDeletionRequestedEvent",
+    "SourceCleanupProgressEvent",
+    "SourceCleanupCompletedEvent",
 ]

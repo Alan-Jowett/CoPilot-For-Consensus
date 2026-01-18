@@ -10,10 +10,17 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from copilot_archive_fetcher import SourceConfig, calculate_file_hash, create_fetcher
 from copilot_archive_store import ArchiveStore
-from copilot_message_bus import ArchiveIngestedEvent, ArchiveIngestionFailedEvent, EventPublisher
+from copilot_message_bus import (
+    ArchiveIngestedEvent,
+    ArchiveIngestionFailedEvent,
+    EventPublisher,
+    SourceCleanupProgressEvent,
+    SourceDeletionRequestedEvent,
+)
 from copilot_schema_validation import ArchiveMetadata
 from copilot_logging import Logger, get_logger
 from copilot_metrics import MetricsCollector
@@ -363,6 +370,9 @@ class IngestionService:
         continues processing even if some deletions fail, logging errors and
         returning partial counts. Retry the operation to clean up remaining data.
 
+        This method publishes a SourceDeletionRequested event to initiate distributed
+        cleanup across all services (parsing, chunking, embedding, orchestrator, reporting).
+
         Args:
             source_name: Name of the source to delete
 
@@ -391,7 +401,7 @@ class IngestionService:
         )
 
         try:
-            # Step 1: Query all archives for this source
+            # Step 0: Query all archives for this source (needed for event and cleanup)
             archives = self.document_store.query_documents(
                 "archives",
                 {"source": source_name}
@@ -404,7 +414,44 @@ class IngestionService:
                 archive_count=len(archive_ids),
             )
 
-            # Step 2: Delete threads (query by source)
+            # Generate correlation ID for tracking cascade cleanup
+            correlation_id = str(uuid4())
+            requested_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+            # Publish SourceDeletionRequested event to initiate distributed cleanup
+            try:
+                deletion_event = SourceDeletionRequestedEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "requested_at": requested_at,
+                        "archive_ids": archive_ids,
+                        "delete_mode": "hard",
+                        "requested_by": "ingestion_service",
+                    }
+                )
+                self.publisher.publish(
+                    event=deletion_event.to_dict(),
+                    routing_key="source.deletion.requested",
+                    exchange="copilot.events",
+                )
+                self.logger.info(
+                    "Published SourceDeletionRequested event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    archive_count=len(archive_ids),
+                )
+            except Exception as e:
+                self.logger.error(
+                    "Failed to publish SourceDeletionRequested event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    error=str(e),
+                    exc_info=True,
+                )
+                # Continue with local cleanup even if event publishing fails
+
+            # Step 1: Delete threads (query by source)
             try:
                 threads = self.document_store.query_documents(
                     "threads",
@@ -434,7 +481,7 @@ class IngestionService:
                     exc_info=True,
                 )
 
-            # Step 3: Delete messages (query by archive_id or source)
+            # Step 2: Delete messages (query by archive_id or source)
             message_ids = []
             try:
                 # Try querying by source first
@@ -475,7 +522,7 @@ class IngestionService:
                     exc_info=True,
                 )
 
-            # Step 4: Delete chunks (query by message_id or source)
+            # Step 3: Delete chunks (query by message_id or source)
             chunk_ids = []
             try:
                 # Try querying by source first
@@ -516,7 +563,7 @@ class IngestionService:
                     exc_info=True,
                 )
 
-            # Step 5: Delete embeddings from vectorstore (if vectorstore is available)
+            # Step 4: Delete embeddings from vectorstore (if vectorstore is available)
             # Note: The ingestion service doesn't have direct access to vectorstore.
             # Embeddings are managed by the embedding service. We log that embeddings
             # may need manual cleanup or rely on the embedding service's own cleanup logic.
@@ -528,7 +575,7 @@ class IngestionService:
                     note="The embedding service should handle cleanup of embeddings associated with deleted chunks",
                 )
 
-            # Step 6: Delete summaries/reports (query by source or archive_id)
+            # Step 5: Delete summaries/reports (query by source or archive_id)
             try:
                 # Try querying by source first; if not found, try by archive_id
                 summaries = self.document_store.query_documents(
@@ -568,7 +615,7 @@ class IngestionService:
                     exc_info=True,
                 )
 
-            # Step 7: Delete archives from archive_store
+            # Step 6: Delete archives from archive_store
             for archive_id in archive_ids:
                 try:
                     success = self.archive_store.delete_archive(archive_id)
@@ -587,7 +634,7 @@ class IngestionService:
                 count=deletion_counts["archives_archivestore"],
             )
 
-            # Step 8: Delete archives from document_store
+            # Step 7: Delete archives from document_store
             for archive_id in archive_ids:
                 try:
                     self.document_store.delete_document("archives", archive_id)
@@ -624,6 +671,40 @@ class IngestionService:
                 deletion_counts=deletion_counts,
             )
 
+            # Publish SourceCleanupProgress event to report completion
+            try:
+                completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                progress_event = SourceCleanupProgressEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "service_name": "ingestion",
+                        "status": "completed",
+                        "deletion_counts": deletion_counts,
+                        "completed_at": completed_at,
+                    }
+                )
+                self.publisher.publish(
+                    event=progress_event.to_dict(),
+                    routing_key="source.cleanup.progress",
+                    exchange="copilot.events",
+                )
+                self.logger.info(
+                    "Published SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    status="completed",
+                )
+            except Exception as e:
+                self.logger.error(
+                    "Failed to publish SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    error=str(e),
+                    exc_info=True,
+                )
+                # Don't fail the cleanup if event publishing fails
+
             return deletion_counts
 
         except Exception as e:
@@ -633,6 +714,34 @@ class IngestionService:
                 error=str(e),
                 exc_info=True,
             )
+            
+            # Publish failure progress event
+            try:
+                completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                progress_event = SourceCleanupProgressEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id if 'correlation_id' in locals() else str(uuid4()),
+                        "service_name": "ingestion",
+                        "status": "failed",
+                        "deletion_counts": deletion_counts,
+                        "error_summary": f"Cascade delete failed: {str(e)[:200]}",
+                        "completed_at": completed_at,
+                    }
+                )
+                self.publisher.publish(
+                    event=progress_event.to_dict(),
+                    routing_key="source.cleanup.progress",
+                    exchange="copilot.events",
+                )
+            except Exception as pub_error:
+                self.logger.error(
+                    "Failed to publish failure SourceCleanupProgress event",
+                    source_name=source_name,
+                    error=str(pub_error),
+                    exc_info=True,
+                )
+            
             self.error_reporter.report(
                 e,
                 context={
