@@ -54,6 +54,7 @@ class IdentityProvider(ABC):
             AuthenticationError: If token validation or user retrieval fails
             ProviderError: If the provider service is unavailable
         """
+        del nonce
         # Default implementation: just use access_token
         access_token = token_response.get("access_token")
         if not access_token:
@@ -64,9 +65,11 @@ class IdentityProvider(ABC):
 
 class AuthenticationError(Exception):
     """Raised when authentication fails due to invalid credentials."""
+
     pass
 
 
 class ProviderError(Exception):
     """Raised when the identity provider service is unavailable."""
+
     pass

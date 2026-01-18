@@ -13,10 +13,10 @@ Adapters can keep their public factory functions small and consistent.
 
 from __future__ import annotations
 
-from typing import Callable, Mapping, TypeVar
+from collections.abc import Callable, Mapping
+from typing import TypeVar
 
 from .schema_validation import validate_driver_config_against_schema
-
 
 TConfig = TypeVar("TConfig")
 TDriverConfig = TypeVar("TDriverConfig")
@@ -56,9 +56,7 @@ def create_adapter(
         factory = drivers[driver_type]
     except KeyError as exc:
         supported = ", ".join(sorted(drivers.keys()))
-        raise ValueError(
-            f"Unknown {adapter_name} driver: {driver_type}. Supported drivers: {supported}"
-        ) from exc
+        raise ValueError(f"Unknown {adapter_name} driver: {driver_type}. Supported drivers: {supported}") from exc
 
     driver_config = get_driver_config(config)
     if validate_schema:

@@ -4,7 +4,8 @@
 """Validating document store that enforces schema validation."""
 
 import logging
-from typing import Any, Callable, Protocol, cast, runtime_checkable
+from collections.abc import Callable
+from typing import Any, Protocol, cast, runtime_checkable
 
 from .document_store import DocumentNotFoundError, DocumentStore
 
@@ -13,9 +14,7 @@ logger = logging.getLogger(__name__)
 
 @runtime_checkable
 class _SupportsAggregateDocuments(Protocol):
-    def aggregate_documents(
-        self, collection: str, pipeline: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]: ...
+    def aggregate_documents(self, collection: str, pipeline: list[dict[str, Any]]) -> list[dict[str, Any]]: ...
 
 
 class DocumentValidationError(Exception):
@@ -141,24 +140,19 @@ class ValidatingDocumentStore(DocumentStore):
         try:
             schema = self._schema_provider.get_schema(schema_name)
             if schema is None:
-                logger.debug(
-                    "No schema found for collection '%s' (schema: '%s')",
-                    collection, schema_name
-                )
+                logger.debug("No schema found for collection '%s' (schema: '%s')", collection, schema_name)
                 # If schema not found, allow document to pass in non-strict mode
                 if not self._strict:
                     return True, []
                 return False, [f"No schema found for collection '{collection}'"]
         except Exception as exc:
-            logger.error(
-                "Failed to retrieve schema for collection '%s': %s",
-                collection, exc
-            )
+            logger.error("Failed to retrieve schema for collection '%s': %s", collection, exc)
             return False, [f"Schema retrieval failed: {exc}"]
 
         # Validate document against schema
         try:
             from copilot_schema_validation import validate_json  # pylint: disable=import-outside-toplevel
+
             is_valid, errors = validate_json(doc, schema, schema_provider=self._schema_provider)
             return is_valid, errors
         except Exception as exc:
@@ -181,8 +175,7 @@ class ValidatingDocumentStore(DocumentStore):
 
         # In non-strict mode, log warning
         logger.warning(
-            "Document validation failed for collection '%s' but continuing in non-strict mode: %s",
-            collection, errors
+            "Document validation failed for collection '%s' but continuing in non-strict mode: %s", collection, errors
         )
 
     def connect(self) -> None:
@@ -302,9 +295,7 @@ class ValidatingDocumentStore(DocumentStore):
         original_query = self._store.query_documents
         self._store.query_documents = wrapper_fn(original_query)
 
-    def query_documents(
-        self, collection: str, filter_dict: dict[str, Any], limit: int = 100
-    ) -> list[dict[str, Any]]:
+    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Args:
@@ -318,9 +309,7 @@ class ValidatingDocumentStore(DocumentStore):
         # Delegate to underlying store
         return self._store.query_documents(collection, filter_dict, limit)
 
-    def update_document(
-        self, collection: str, doc_id: str, patch: dict[str, Any]
-    ) -> None:
+    def update_document(self, collection: str, doc_id: str, patch: dict[str, Any]) -> None:
         """Update a document with the provided patch.
 
         Validates the merged document (current document + patch) against the schema before updating.
@@ -381,9 +370,7 @@ class ValidatingDocumentStore(DocumentStore):
         # No validation needed for deletion
         self._store.delete_document(collection, doc_id)
 
-    def aggregate_documents(
-        self, collection: str, pipeline: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def aggregate_documents(self, collection: str, pipeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
 
         This method delegates to the underlying store if it supports aggregation.
@@ -401,9 +388,7 @@ class ValidatingDocumentStore(DocumentStore):
         """
         # Check if underlying store supports aggregation
         if not isinstance(self._store, _SupportsAggregateDocuments):
-            raise AttributeError(
-                f"Underlying store {type(self._store).__name__} does not support aggregation"
-            )
+            raise AttributeError(f"Underlying store {type(self._store).__name__} does not support aggregation")
 
         # Delegate to underlying store without validation
         # (aggregation results may not match original document schemas)

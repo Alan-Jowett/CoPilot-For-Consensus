@@ -21,8 +21,10 @@ from copilot_storage.validating_document_store import DocumentValidationError
 try:
     from pymongo.errors import DuplicateKeyError
 except ImportError:  # pragma: no cover
+
     class DuplicateKeyError(Exception):
         """Fallback DuplicateKeyError for environments without pymongo installed."""
+
 
 from .test_helpers import assert_valid_event_schema
 
@@ -33,6 +35,7 @@ def create_test_archive_store():
         AdapterConfig_ArchiveStore,
         DriverConfig_ArchiveStore_Local,
     )
+
     tmpdir = tempfile.TemporaryDirectory()
     archive_store = create_archive_store(
         AdapterConfig_ArchiveStore(
@@ -109,7 +112,7 @@ def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
     Returns:
         dict: Storage-agnostic archive_data suitable for process_archive()
     """
-    with open(file_path, 'rb') as f:
+    with open(file_path, "rb") as f:
         content = f.read()
 
     # Always store the archive and get the actual ID
@@ -159,11 +162,13 @@ class MockPublisher:
         self.connected = False
 
     def publish(self, exchange, routing_key, event):
-        self.published_events.append({
-            "exchange": exchange,
-            "routing_key": routing_key,
-            "event": event,
-        })
+        self.published_events.append(
+            {
+                "exchange": exchange,
+                "routing_key": routing_key,
+                "event": event,
+            }
+        )
         return True
 
 
@@ -221,7 +226,7 @@ class TestParsingService:
     def test_process_archive_success(self, service, sample_mbox_file):
         """Test successful archive processing."""
         # Store the file in ArchiveStore first
-        with open(sample_mbox_file, 'rb') as f:
+        with open(sample_mbox_file, "rb") as f:
             content = f.read()
         archive_id = service.archive_store.store_archive(
             source_name="test-source",
@@ -259,7 +264,7 @@ class TestParsingService:
     def test_process_archive_with_corrupted_file(self, service, corrupted_mbox_file):
         """Test processing corrupted archive."""
         # Store the corrupted file in ArchiveStore first
-        with open(corrupted_mbox_file, 'rb') as f:
+        with open(corrupted_mbox_file, "rb") as f:
             content = f.read()
         archive_id = service.archive_store.store_archive(
             source_name="test-source",
@@ -422,8 +427,9 @@ class TestParsingService:
 
         # Duration in stats should be >= 0
         stats = service.get_stats()
-        assert stats["last_processing_time_seconds"] >= 0, \
-            f"Duration should never be negative, got {stats['last_processing_time_seconds']}"
+        assert (
+            stats["last_processing_time_seconds"] >= 0
+        ), f"Duration should never be negative, got {stats['last_processing_time_seconds']}"
 
     def test_parsing_duration_always_positive_on_error(self, service):
         """Test that parsing duration is >= 0 even when processing fails.
@@ -447,8 +453,9 @@ class TestParsingService:
 
         # Duration should still be >= 0 even after error
         stats = service.get_stats()
-        assert stats["last_processing_time_seconds"] >= 0, \
-            f"Duration should never be negative even on error, got {stats['last_processing_time_seconds']}"
+        assert (
+            stats["last_processing_time_seconds"] >= 0
+        ), f"Duration should never be negative even on error, got {stats['last_processing_time_seconds']}"
 
     def test_store_messages_skips_duplicates_and_continues(self, mock_service, caplog):
         """Duplicate messages are skipped, logged, and processing continues."""
@@ -510,12 +517,14 @@ class TestParsingService:
         empty_body_error = DocumentValidationError("messages", ["'' should be non-empty at 'body_normalized'"])
         other_validation_error = DocumentValidationError("messages", ["missing required field"])
 
-        store.insert_document = Mock(side_effect=[
-            duplicate_error,
-            empty_body_error,
-            other_validation_error,
-            None,
-        ])
+        store.insert_document = Mock(
+            side_effect=[
+                duplicate_error,
+                empty_body_error,
+                other_validation_error,
+                None,
+            ]
+        )
 
         service._store_messages(messages)
 
@@ -523,22 +532,13 @@ class TestParsingService:
         assert metrics.increment.call_count == 3
 
         # Check duplicate metric
-        metrics.increment.assert_any_call(
-            "parsing_messages_skipped_total",
-            tags={"reason": "duplicate"}
-        )
+        metrics.increment.assert_any_call("parsing_messages_skipped_total", tags={"reason": "duplicate"})
 
         # Check empty body metric
-        metrics.increment.assert_any_call(
-            "parsing_messages_skipped_total",
-            tags={"reason": "empty_body"}
-        )
+        metrics.increment.assert_any_call("parsing_messages_skipped_total", tags={"reason": "empty_body"})
 
         # Check other validation metric
-        metrics.increment.assert_any_call(
-            "parsing_messages_skipped_total",
-            tags={"reason": "validation_error"}
-        )
+        metrics.increment.assert_any_call("parsing_messages_skipped_total", tags={"reason": "validation_error"})
 
     def test_store_messages_raises_on_transient_errors(self, mock_service):
         """Non-permanent errors are re-raised for retry handling."""
@@ -614,11 +614,13 @@ class TestParsingService:
         duplicate_error = DuplicateKeyError("duplicate key")
         validation_error = DocumentValidationError("threads", ["missing required field"])
 
-        store.insert_document = Mock(side_effect=[
-            duplicate_error,
-            validation_error,
-            None,
-        ])
+        store.insert_document = Mock(
+            side_effect=[
+                duplicate_error,
+                validation_error,
+                None,
+            ]
+        )
 
         service._store_threads(threads)
 
@@ -626,16 +628,10 @@ class TestParsingService:
         assert metrics.increment.call_count == 2
 
         # Check duplicate metric
-        metrics.increment.assert_any_call(
-            "parsing_threads_skipped_total",
-            tags={"reason": "duplicate"}
-        )
+        metrics.increment.assert_any_call("parsing_threads_skipped_total", tags={"reason": "duplicate"})
 
         # Check validation error metric
-        metrics.increment.assert_any_call(
-            "parsing_threads_skipped_total",
-            tags={"reason": "validation_error"}
-        )
+        metrics.increment.assert_any_call("parsing_threads_skipped_total", tags={"reason": "validation_error"})
 
     def test_event_publishing_on_success(self, document_store, subscriber, sample_mbox_file):
         """Test that JSONParsed events are published (one per message) on successful parsing."""
@@ -679,10 +675,12 @@ class TestParsingService:
         assert event1["event"]["data"]["message_doc_ids"][0] != event2["event"]["data"]["message_doc_ids"][0]
 
         # Verify parsing_duration_seconds is non-negative in published events
-        assert event1["event"]["data"]["parsing_duration_seconds"] >= 0, \
-            f"Published event should have non-negative duration, got {event1['event']['data']['parsing_duration_seconds']}"
-        assert event2["event"]["data"]["parsing_duration_seconds"] >= 0, \
-            f"Published event should have non-negative duration, got {event2['event']['data']['parsing_duration_seconds']}"
+        assert (
+            event1["event"]["data"]["parsing_duration_seconds"] >= 0
+        ), f"Published event should have non-negative duration, got {event1['event']['data']['parsing_duration_seconds']}"
+        assert (
+            event2["event"]["data"]["parsing_duration_seconds"] >= 0
+        ), f"Published event should have non-negative duration, got {event2['event']['data']['parsing_duration_seconds']}"
 
     def test_event_publishing_on_failure(self, document_store, subscriber):
         """Test that ParsingFailed event is published on non-retryable parsing failure."""
@@ -768,29 +766,29 @@ class TestParsingService:
         )
 
         # Compute actual file hash for document store validation
-        with open(sample_mbox_file, 'rb') as f:
+        with open(sample_mbox_file, "rb") as f:
             file_hash = hashlib.sha256(f.read()).hexdigest()
 
         # Create archive document in document store for status updates
-        document_store.insert_document("archives", {
-            "_id": archive_data["archive_id"],
-            "file_hash": file_hash,
-            "file_size_bytes": archive_data["file_size_bytes"],
-            "source": archive_data["source_name"],
-            "source_url": archive_data["source_url"],
-            "format": "mbox",
-            "ingestion_date": archive_data["ingestion_completed_at"],
-            "status": "pending",
-            "message_count": 0,
-            "storage_backend": "local",
-            "created_at": archive_data["ingestion_started_at"],
-        })
+        document_store.insert_document(
+            "archives",
+            {
+                "_id": archive_data["archive_id"],
+                "file_hash": file_hash,
+                "file_size_bytes": archive_data["file_size_bytes"],
+                "source": archive_data["source_name"],
+                "source_url": archive_data["source_url"],
+                "format": "mbox",
+                "ingestion_date": archive_data["ingestion_completed_at"],
+                "status": "pending",
+                "message_count": 0,
+                "storage_backend": "local",
+                "created_at": archive_data["ingestion_started_at"],
+            },
+        )
 
         # Simulate receiving an event (storage-agnostic format)
-        event = {
-            "event_type": "ArchiveIngested",
-            "data": archive_data
-        }
+        event = {"event_type": "ArchiveIngested", "data": archive_data}
 
         service._handle_archive_ingested(event)
 
@@ -815,18 +813,15 @@ def test_json_parsed_event_schema_validation(document_store, sample_mbox_file):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-            archive_store=create_test_archive_store(),
-        )
+        archive_store=create_test_archive_store(),
+    )
 
     archive_data = prepare_archive_for_processing(service.archive_store, sample_mbox_file)
 
     service.process_archive(archive_data)
 
     # Get published events
-    json_parsed_events = [
-        e for e in publisher.published_events
-        if e["event"]["event_type"] == "JSONParsed"
-    ]
+    json_parsed_events = [e for e in publisher.published_events if e["event"]["event_type"] == "JSONParsed"]
 
     assert len(json_parsed_events) >= 1
 
@@ -845,8 +840,8 @@ def test_parsing_failed_event_schema_validation(document_store):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-            archive_store=create_test_archive_store(),
-        )
+        archive_store=create_test_archive_store(),
+    )
 
     # Store a file so retrieval succeeds, then force a parsing failure.
     archive_data = prepare_archive_for_processing(service.archive_store, __file__)
@@ -855,10 +850,7 @@ def test_parsing_failed_event_schema_validation(document_store):
     service.process_archive(archive_data)
 
     # Get published events
-    failure_events = [
-        e for e in publisher.published_events
-        if e["event"]["event_type"] == "ParsingFailed"
-    ]
+    failure_events = [e for e in publisher.published_events if e["event"]["event_type"] == "ParsingFailed"]
 
     assert len(failure_events) >= 1
 
@@ -884,8 +876,8 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-            archive_store=create_test_archive_store(),
-        )
+        archive_store=create_test_archive_store(),
+    )
 
     # Store file in archive store first (without custom archive_id so it gets stored correctly)
     archive_data = prepare_archive_for_processing(
@@ -894,23 +886,26 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
     )
 
     # Compute actual file hash for document store validation
-    with open(sample_mbox_file, 'rb') as f:
+    with open(sample_mbox_file, "rb") as f:
         file_hash = hashlib.sha256(f.read()).hexdigest()
 
     # Create archive document in document store for status updates
-    document_store.insert_document("archives", {
-        "_id": archive_data["archive_id"],
-        "file_hash": file_hash,
-        "file_size_bytes": archive_data["file_size_bytes"],
-        "source": archive_data["source_name"],
-        "source_url": archive_data["source_url"],
-        "format": "mbox",
-        "ingestion_date": archive_data["ingestion_completed_at"],
-        "status": "pending",
-        "message_count": 0,
-        "storage_backend": "local",
-        "created_at": archive_data["ingestion_started_at"],
-    })
+    document_store.insert_document(
+        "archives",
+        {
+            "_id": archive_data["archive_id"],
+            "file_hash": file_hash,
+            "file_size_bytes": archive_data["file_size_bytes"],
+            "source": archive_data["source_name"],
+            "source_url": archive_data["source_url"],
+            "format": "mbox",
+            "ingestion_date": archive_data["ingestion_completed_at"],
+            "status": "pending",
+            "message_count": 0,
+            "storage_backend": "local",
+            "created_at": archive_data["ingestion_started_at"],
+        },
+    )
 
     # Simulate receiving an ArchiveIngested event (storage-agnostic format)
     event = {
@@ -918,7 +913,7 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
         "event_id": "test-123",
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
-        "data": archive_data
+        "data": archive_data,
     }
 
     # Validate incoming event
@@ -933,10 +928,7 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
     assert stats["messages_parsed"] == 2
 
     # Verify JSONParsed event was published
-    json_parsed_events = [
-        e for e in publisher.published_events
-        if e["event"]["event_type"] == "JSONParsed"
-    ]
+    json_parsed_events = [e for e in publisher.published_events if e["event"]["event_type"] == "JSONParsed"]
     assert len(json_parsed_events) >= 1
 
 
@@ -954,8 +946,8 @@ def test_handle_malformed_event_missing_data(document_store):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-            archive_store=create_test_archive_store(),
-        )
+        archive_store=create_test_archive_store(),
+    )
 
     # Event missing 'data' field
     event = {
@@ -986,7 +978,7 @@ def test_handle_event_missing_required_fields(document_store):
         subscriber=subscriber,
         archive_store=create_test_archive_store(),
         retry_config=RetryConfig(max_attempts=1, base_delay_ms=0, max_delay_ms=0, ttl_seconds=0, use_jitter=False),
-        )
+    )
 
     # Event with archive_id that doesn't exist in ArchiveStore
     event = {
@@ -1003,7 +995,7 @@ def test_handle_event_missing_required_fields(document_store):
             "file_hash_sha256": "abc123",
             "ingestion_started_at": "2024-01-01T00:00:00Z",
             "ingestion_completed_at": "2024-01-01T00:00:01Z",
-        }
+        },
     }
 
     with pytest.raises(RetryExhaustedError):
@@ -1015,8 +1007,10 @@ def test_handle_event_missing_required_fields(document_store):
 
 def test_publish_json_parsed_with_publisher_failure(document_store):
     """Test that _publish_json_parsed raises exception when publisher fails."""
+
     class FailingPublisher(MockPublisher):
         """Publisher that raises exception to indicate failure."""
+
         def publish(self, exchange, routing_key, event):
             raise Exception("Publish failed")
 
@@ -1027,8 +1021,8 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-            archive_store=create_test_archive_store(),
-        )
+        archive_store=create_test_archive_store(),
+    )
 
     # Should raise exception when publisher fails on any message
     parsed_messages = [
@@ -1041,10 +1035,7 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
 
     with pytest.raises(Exception) as exc_info:
         service._publish_json_parsed_per_message(
-            archive_id="test-archive",
-            parsed_messages=parsed_messages,
-            threads=threads,
-            duration=1.5
+            archive_id="test-archive", parsed_messages=parsed_messages, threads=threads, duration=1.5
         )
 
     assert "Publish failed" in str(exc_info.value)
@@ -1052,8 +1043,10 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
 
 def test_publish_parsing_failed_with_publisher_failure(document_store):
     """Test that _publish_parsing_failed raises exception when publisher fails."""
+
     class FailingPublisher(MockPublisher):
         """Publisher that raises exception to indicate failure."""
+
         def publish(self, exchange, routing_key, event):
             raise Exception("Publish failed")
 
@@ -1064,8 +1057,8 @@ def test_publish_parsing_failed_with_publisher_failure(document_store):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-            archive_store=create_test_archive_store(),
-        )
+        archive_store=create_test_archive_store(),
+    )
 
     # Should raise exception when publisher fails
     with pytest.raises(Exception) as exc_info:
@@ -1074,7 +1067,7 @@ def test_publish_parsing_failed_with_publisher_failure(document_store):
             file_path="/path/to/file.mbox",
             error_message="Test error",
             error_type="ValueError",
-            messages_parsed_before_failure=5
+            messages_parsed_before_failure=5,
         )
 
     assert "Publish failed" in str(exc_info.value)
@@ -1093,6 +1086,7 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
 
     class FailingPublisher(MockPublisher):
         """Publisher that fails on json.parsed routing key."""
+
         def publish(self, exchange, routing_key, event):
             if routing_key == "json.parsed":
                 raise Exception("Publish failed")
@@ -1106,8 +1100,8 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-            archive_store=create_test_archive_store(),
-        )
+        archive_store=create_test_archive_store(),
+    )
 
     # Store file in archive store first
     archive_data = prepare_archive_for_processing(
@@ -1116,30 +1110,33 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
     )
 
     # Compute actual file hash for document store validation
-    with open(sample_mbox_file, 'rb') as f:
+    with open(sample_mbox_file, "rb") as f:
         file_hash = hashlib.sha256(f.read()).hexdigest()
 
     # Create archive document in document store for status updates
-    document_store.insert_document("archives", {
-        "_id": archive_data["archive_id"],
-        "file_hash": file_hash,
-        "file_size_bytes": archive_data["file_size_bytes"],
-        "source": archive_data["source_name"],
-        "source_url": archive_data["source_url"],
-        "format": "mbox",
-        "ingestion_date": archive_data["ingestion_completed_at"],
-        "status": "pending",
-        "message_count": 0,
-        "storage_backend": "local",
-        "created_at": archive_data["ingestion_started_at"],
-    })
+    document_store.insert_document(
+        "archives",
+        {
+            "_id": archive_data["archive_id"],
+            "file_hash": file_hash,
+            "file_size_bytes": archive_data["file_size_bytes"],
+            "source": archive_data["source_name"],
+            "source_url": archive_data["source_url"],
+            "format": "mbox",
+            "ingestion_date": archive_data["ingestion_completed_at"],
+            "status": "pending",
+            "message_count": 0,
+            "storage_backend": "local",
+            "created_at": archive_data["ingestion_started_at"],
+        },
+    )
 
     event = {
         "event_type": "ArchiveIngested",
         "event_id": "test-123",
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
-        "data": archive_data
+        "data": archive_data,
     }
 
     # Should handle publisher failure gracefully (no exception)
@@ -1151,18 +1148,17 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
     assert updated_archive["status"] == "failed"
 
     # Verify that a ParsingFailed event was published
-    failed_events = [
-        e for e in publisher.published_events
-        if e["event"]["event_type"] == "ParsingFailed"
-    ]
+    failed_events = [e for e in publisher.published_events if e["event"]["event_type"] == "ParsingFailed"]
     assert len(failed_events) == 1
     assert "Publish failed" in failed_events[0]["event"]["data"]["error_message"]
 
 
 def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_store):
     """Test that _handle_archive_ingested handles publisher failure for failure event."""
+
     class FailingPublisher(MockPublisher):
         """Publisher that fails on parsing.failed routing key."""
+
         def publish(self, exchange, routing_key, event):
             if routing_key == "parsing.failed":
                 raise Exception("Publish failed")
@@ -1175,8 +1171,8 @@ def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_st
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-            archive_store=create_test_archive_store(),
-        )
+        archive_store=create_test_archive_store(),
+    )
 
     event = {
         "event_type": "ArchiveIngested",
@@ -1186,7 +1182,7 @@ def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_st
         "data": {
             "archive_id": "test-archive-fail",
             "file_path": "/nonexistent/path.mbox",  # This will cause processing to fail
-        }
+        },
     }
 
     # Should raise exception when publisher fails on parsing.failed event
@@ -1206,8 +1202,8 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
         document_store=document_store,
         publisher=mock_publisher,
         subscriber=subscriber,
-            archive_store=create_test_archive_store(),
-        )
+        archive_store=create_test_archive_store(),
+    )
 
     # Create messages with one missing _id
     parsed_messages = [
@@ -1220,10 +1216,7 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
     # Should raise exception due to invalid message
     with pytest.raises(ValueError) as exc_info:
         service._publish_json_parsed_per_message(
-            archive_id="test-archive",
-            parsed_messages=parsed_messages,
-            threads=threads,
-            duration=1.5
+            archive_id="test-archive", parsed_messages=parsed_messages, threads=threads, duration=1.5
         )
 
     assert "_id" in str(exc_info.value)
@@ -1234,6 +1227,7 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
 def test_service_initialization_with_archive_store(document_store, publisher, subscriber):
     """Test that parsing service can be initialized with ArchiveStore."""
     import tempfile
+
     from copilot_config.generated.adapters.archive_store import (
         AdapterConfig_ArchiveStore,
         DriverConfig_ArchiveStore_Local,
@@ -1260,8 +1254,9 @@ def test_service_initialization_with_archive_store(document_store, publisher, su
 
 def test_process_archive_retrieves_from_archive_store(document_store, publisher, subscriber):
     """Test that process_archive retrieves content from ArchiveStore."""
-    import tempfile
     import os
+    import tempfile
+
     from copilot_config.generated.adapters.archive_store import (
         AdapterConfig_ArchiveStore,
         DriverConfig_ArchiveStore_Local,
@@ -1298,7 +1293,7 @@ Test message body.
         assert archive_id is not None
         assert len(archive_id) >= 16
         assert len(archive_id) <= 64
-        assert all(c in '0123456789abcdef' for c in archive_id)
+        assert all(c in "0123456789abcdef" for c in archive_id)
 
         service = ParsingService(
             document_store=document_store,
@@ -1309,20 +1304,24 @@ Test message body.
 
         # Create archive record in document store to test status updates
         import hashlib
+
         file_hash = hashlib.sha256(mbox_content).hexdigest()
-        document_store.insert_document("archives", {
-            "_id": archive_id,
-            "file_hash": file_hash,
-            "file_size_bytes": len(mbox_content),
-            "source": "test-source",
-            "source_url": "test.mbox",
-            "format": "mbox",
-            "ingestion_date": "2024-01-01T00:00:00Z",
-            "status": "pending",
-            "message_count": 0,
-            "storage_backend": "local",
-            "created_at": "2024-01-01T00:00:00Z",
-        })
+        document_store.insert_document(
+            "archives",
+            {
+                "_id": archive_id,
+                "file_hash": file_hash,
+                "file_size_bytes": len(mbox_content),
+                "source": "test-source",
+                "source_url": "test.mbox",
+                "format": "mbox",
+                "ingestion_date": "2024-01-01T00:00:00Z",
+                "status": "pending",
+                "message_count": 0,
+                "storage_backend": "local",
+                "created_at": "2024-01-01T00:00:00Z",
+            },
+        )
 
         # Track temp files before processing
         temp_files_before = set(os.listdir(tempfile.gettempdir()))
@@ -1350,7 +1349,7 @@ Test message body.
 
         # Verify no new parsing_ temp files remain (cleanup worked)
         temp_files_after = set(os.listdir(tempfile.gettempdir()))
-        new_parsing_files = [f for f in temp_files_after - temp_files_before if f.startswith('parsing_')]
+        new_parsing_files = [f for f in temp_files_after - temp_files_before if f.startswith("parsing_")]
         assert len(new_parsing_files) == 0, f"Temporary files not cleaned up: {new_parsing_files}"
 
 

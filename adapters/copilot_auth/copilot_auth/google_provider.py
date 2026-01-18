@@ -51,9 +51,7 @@ class GoogleIdentityProvider(OIDCProvider):
         )
 
     @classmethod
-    def from_config(
-        cls, driver_config: DriverConfig_OidcProviders_Google
-    ) -> "GoogleIdentityProvider":
+    def from_config(cls, driver_config: DriverConfig_OidcProviders_Google) -> "GoogleIdentityProvider":
         """Create GoogleIdentityProvider from typed config.
 
         Args:
@@ -70,14 +68,10 @@ class GoogleIdentityProvider(OIDCProvider):
         redirect_uri = driver_config.google_redirect_uri
 
         if not client_id or not client_secret:
-            raise ValueError(
-                "GoogleIdentityProvider requires google_client_id and google_client_secret"
-            )
+            raise ValueError("GoogleIdentityProvider requires google_client_id and google_client_secret")
 
         if not redirect_uri:
-            raise ValueError(
-                "GoogleIdentityProvider requires google_redirect_uri (or a service-level default)"
-            )
+            raise ValueError("GoogleIdentityProvider requires google_redirect_uri (or a service-level default)")
 
         return cls(
             client_id=client_id,
@@ -95,6 +89,7 @@ class GoogleIdentityProvider(OIDCProvider):
         Returns:
             User object with mapped fields
         """
+        del provider_id
         # Extract user ID (Google's "sub" claim)
         user_id = userinfo.get("sub", "unknown")
 

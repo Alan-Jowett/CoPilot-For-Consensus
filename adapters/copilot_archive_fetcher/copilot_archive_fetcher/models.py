@@ -13,7 +13,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
-
 _ALLOWED_SOURCE_TYPES = {"local", "http", "rsync", "imap"}
 
 SourceType = Literal["local", "http", "rsync", "imap"]
@@ -64,8 +63,7 @@ class SourceConfig:
         self.source_type = self.source_type.lower()
         if self.source_type not in _ALLOWED_SOURCE_TYPES:
             raise ValueError(
-                f"Unsupported source_type '{self.source_type}'. "
-                f"Allowed: {sorted(_ALLOWED_SOURCE_TYPES)}"
+                f"Unsupported source_type '{self.source_type}'. " f"Allowed: {sorted(_ALLOWED_SOURCE_TYPES)}"
             )
 
     @property
@@ -79,7 +77,7 @@ class SourceConfig:
         return cast(SourceType, self.source_type)
 
     @classmethod
-    def from_mapping(cls, source: Mapping[str, Any]) -> "SourceConfig":
+    def from_mapping(cls, source: Mapping[str, Any]) -> SourceConfig:
         """Create a SourceConfig from a raw mapping.
 
         Rejects unknown keys to keep source documents schema-coherent.

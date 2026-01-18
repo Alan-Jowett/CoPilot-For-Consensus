@@ -63,7 +63,7 @@ def verify_archives_collection():
         print(f"  status: {sample_archive.get('status', 'MISSING')}")
 
         # Verify required fields
-        required_fields = ['archive_id', 'source', 'ingestion_date', 'status']
+        required_fields = ["archive_id", "source", "ingestion_date", "status"]
         missing_fields = [f for f in required_fields if f not in sample_archive]
 
         if missing_fields:
@@ -72,8 +72,8 @@ def verify_archives_collection():
 
         # Count by status
         print("\nArchive status breakdown:")
-        for status in ['pending', 'processing', 'completed', 'failed', 'failed_max_retries']:
-            count = archives.count_documents({'status': status})
+        for status in ["pending", "processing", "completed", "failed", "failed_max_retries"]:
+            count = archives.count_documents({"status": status})
             print(f"  {status}: {count}")
 
         print("\n✓ Archives collection verification successful!")

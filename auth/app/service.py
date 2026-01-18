@@ -4,10 +4,9 @@
 """Auth service implementation."""
 
 import asyncio
-from dataclasses import asdict
-from dataclasses import replace
 import secrets
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Protocol, cast
 
@@ -204,9 +203,7 @@ class AuthService:
             public_key = settings.jwt_public_key
 
             if private_key is None or public_key is None:
-                raise ValueError(
-                    "RS256 requires jwt_private_key and jwt_public_key to be configured"
-                )
+                raise ValueError("RS256 requires jwt_private_key and jwt_public_key to be configured")
 
             # Write keys to temp files for JWTManager
             import tempfile
@@ -250,7 +247,6 @@ class AuthService:
 
         # Ready
         logger.info(f"Auth Service initialized with {len(self.providers)} providers")
-
 
     def is_ready(self) -> bool:
         """Check if service is ready to handle requests."""
@@ -381,10 +377,6 @@ class AuthService:
                 code_verifier=code_verifier,
             )
 
-
-            # GitHub OAuth does not return id_tokens; handle via access_token + userinfo
-            id_token = token_response.get("id_token")
-
             # Get access token (required for all flows)
             access_token = token_response.get("access_token")
             if not access_token:
@@ -426,7 +418,7 @@ class AuthService:
                     "amr": ["pwd"],  # Authentication method: password (OIDC)
                     "pending_access": pending,
                     "role_status": status,
-                }
+                },
             )
 
             # Clean up session (thread-safe)
@@ -514,7 +506,8 @@ class AuthService:
 
         # Find and remove expired sessions
         expired_states = [
-            state for state, session in self._sessions.items()
+            state
+            for state, session in self._sessions.items()
             if now - session.get("created_at", 0) > self._session_ttl_seconds
         ]
 

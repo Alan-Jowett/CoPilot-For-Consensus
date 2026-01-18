@@ -20,11 +20,7 @@ class TestInMemoryVectorStore:
         """Test adding a single embedding."""
         store = InMemoryVectorStore()
 
-        store.add_embedding(
-            id="doc1",
-            vector=[1.0, 0.0, 0.0],
-            metadata={"text": "hello"}
-        )
+        store.add_embedding(id="doc1", vector=[1.0, 0.0, 0.0], metadata={"text": "hello"})
 
         assert store.count() == 1
 
@@ -50,16 +46,8 @@ class TestInMemoryVectorStore:
 
         store.add_embeddings(
             ids=["doc1", "doc2", "doc3"],
-            vectors=[
-                [1.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0]
-            ],
-            metadatas=[
-                {"text": "first"},
-                {"text": "second"},
-                {"text": "third"}
-            ]
+            vectors=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            metadatas=[{"text": "first"}, {"text": "second"}, {"text": "third"}],
         )
 
         assert store.count() == 3
@@ -69,11 +57,7 @@ class TestInMemoryVectorStore:
         store = InMemoryVectorStore()
 
         with pytest.raises(ValueError, match="same length"):
-            store.add_embeddings(
-                ids=["doc1", "doc2"],
-                vectors=[[1.0, 0.0]],
-                metadatas=[{"text": "first"}]
-            )
+            store.add_embeddings(ids=["doc1", "doc2"], vectors=[[1.0, 0.0]], metadatas=[{"text": "first"}])
 
     def test_query_empty_store(self):
         """Test querying an empty store returns empty list."""
@@ -93,13 +77,9 @@ class TestInMemoryVectorStore:
             vectors=[
                 [1.0, 0.0, 0.0],  # Should be most similar to query
                 [0.0, 1.0, 0.0],
-                [0.5, 0.5, 0.0]
+                [0.5, 0.5, 0.0],
             ],
-            metadatas=[
-                {"text": "first"},
-                {"text": "second"},
-                {"text": "third"}
-            ]
+            metadatas=[{"text": "first"}, {"text": "second"}, {"text": "third"}],
         )
 
         # Query with vector similar to doc1
@@ -116,13 +96,8 @@ class TestInMemoryVectorStore:
 
         store.add_embeddings(
             ids=["doc1", "doc2", "doc3", "doc4"],
-            vectors=[
-                [1.0, 0.0],
-                [0.9, 0.1],
-                [0.8, 0.2],
-                [0.7, 0.3]
-            ],
-            metadatas=[{} for _ in range(4)]
+            vectors=[[1.0, 0.0], [0.9, 0.1], [0.8, 0.2], [0.7, 0.3]],
+            metadatas=[{} for _ in range(4)],
         )
 
         results = store.query([1.0, 0.0], top_k=2)
@@ -160,9 +135,7 @@ class TestInMemoryVectorStore:
         store = InMemoryVectorStore()
 
         store.add_embeddings(
-            ids=["doc1", "doc2", "doc3"],
-            vectors=[[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]],
-            metadatas=[{}, {}, {}]
+            ids=["doc1", "doc2", "doc3"], vectors=[[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]], metadatas=[{}, {}, {}]
         )
 
         assert store.count() == 3
@@ -209,14 +182,7 @@ class TestInMemoryVectorStore:
         store = InMemoryVectorStore()
 
         # Add orthogonal vectors
-        store.add_embeddings(
-            ids=["doc1", "doc2"],
-            vectors=[
-                [1.0, 0.0],
-                [0.0, 1.0]
-            ],
-            metadatas=[{}, {}]
-        )
+        store.add_embeddings(ids=["doc1", "doc2"], vectors=[[1.0, 0.0], [0.0, 1.0]], metadatas=[{}, {}])
 
         # Query with doc1's vector - should have perfect similarity with doc1
         results = store.query([1.0, 0.0], top_k=2)

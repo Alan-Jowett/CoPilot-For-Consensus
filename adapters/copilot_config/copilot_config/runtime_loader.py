@@ -87,9 +87,7 @@ def _load_and_populate_driver_config(
         discriminant_env_var = discriminant_info.get("env_var")
 
         if not discriminant_field or not discriminant_env_var:
-            raise ValueError(
-                "Driver schema uses oneOf but is missing discriminant.field or discriminant.env_var"
-            )
+            raise ValueError("Driver schema uses oneOf but is missing discriminant.field or discriminant.env_var")
 
         selected_variant = os.environ.get(discriminant_env_var)
         if not selected_variant:
@@ -97,7 +95,8 @@ def _load_and_populate_driver_config(
             default_variant = discriminant_info.get("default")
             if is_required and not default_variant:
                 raise ValueError(
-                    f"Driver schema requires discriminant configuration: set environment variable {discriminant_env_var}"
+                    "Driver schema requires discriminant configuration: set environment variable "
+                    f"{discriminant_env_var}"
                 )
             selected_variant = default_variant
 
@@ -212,9 +211,7 @@ def _load_and_populate_driver_config(
             else:
                 details.append(field_name)
 
-        raise ValueError(
-            "Missing required driver configuration: " + ", ".join(details)
-        )
+        raise ValueError("Missing required driver configuration: " + ", ".join(details))
 
     validate_config_against_schema_dict(schema=driver_schema, config=config_dict)
     return config_dict
@@ -257,18 +254,12 @@ def _instantiate_driver_config(driver_class: Any, driver_config_dict: dict[str, 
         elif type_key is not None:
             discriminant_key = type_key
 
-        selected_discriminant = (
-            driver_config_dict.get(discriminant_key) if discriminant_key else None
-        )
+        selected_discriminant = driver_config_dict.get(discriminant_key) if discriminant_key else None
 
         # Generated config unions are expected to contain dataclass types.
         # We ignore non-type args and explicitly exclude NoneType to avoid
         # Optional[T] unions accidentally instantiating to None.
-        candidates = [
-            arg
-            for arg in get_args(driver_class)
-            if isinstance(arg, type) and arg is not type(None)
-        ]
+        candidates = [arg for arg in get_args(driver_class) if isinstance(arg, type) and arg is not type(None)]
 
         if discriminant_key and isinstance(selected_discriminant, str):
             narrowed: list[type] = []
@@ -292,11 +283,7 @@ def _instantiate_driver_config(driver_class: Any, driver_config_dict: dict[str, 
                 errors.append(exc)
                 continue
 
-        details = (
-            f" (discriminant {discriminant_key}={selected_discriminant})"
-            if discriminant_key
-            else ""
-        )
+        details = f" (discriminant {discriminant_key}={selected_discriminant})" if discriminant_key else ""
 
         if errors:
             error_details = "; ".join(f"{type(err).__name__}: {err}" for err in errors)
@@ -306,9 +293,7 @@ def _instantiate_driver_config(driver_class: Any, driver_config_dict: dict[str, 
         else:
             reason = ""
 
-        raise TypeError(
-            f"Unable to instantiate driver config union {driver_class}{details}.{reason}"
-        )
+        raise TypeError(f"Unable to instantiate driver config union {driver_class}{details}.{reason}")
 
     # Unknown typing construct; fall back to direct call for a clearer exception.
     return driver_class(**driver_config_dict)
@@ -406,7 +391,9 @@ def get_config(service_name: Literal["ingestion"], schema_dir: str | None = None
 
 
 @overload
-def get_config(service_name: Literal["orchestrator"], schema_dir: str | None = None) -> "ServiceConfig_Orchestrator": ...
+def get_config(
+    service_name: Literal["orchestrator"], schema_dir: str | None = None
+) -> "ServiceConfig_Orchestrator": ...
 
 
 @overload
@@ -418,7 +405,9 @@ def get_config(service_name: Literal["reporting"], schema_dir: str | None = None
 
 
 @overload
-def get_config(service_name: Literal["summarization"], schema_dir: str | None = None) -> "ServiceConfig_Summarization": ...
+def get_config(
+    service_name: Literal["summarization"], schema_dir: str | None = None
+) -> "ServiceConfig_Summarization": ...
 
 
 @overload
@@ -666,10 +655,14 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
                 adapter_module = module
 
             adapter_class_name = _to_python_class_name(adapter_name, "AdapterConfig")
-            adapter_class = getattr(adapter_module, adapter_class_name, None) or getattr(module, adapter_class_name, None)
+            adapter_class = getattr(adapter_module, adapter_class_name, None) or getattr(
+                module, adapter_class_name, None
+            )
 
             composite_class_name = _to_python_class_name(adapter_name, "CompositeConfig")
-            composite_class = getattr(adapter_module, composite_class_name, None) or getattr(module, composite_class_name, None)
+            composite_class = getattr(adapter_module, composite_class_name, None) or getattr(
+                module, composite_class_name, None
+            )
 
             composite_root = adapter_schema.get("properties", {}).get(adapter_name)
             composite_properties = (composite_root or {}).get("properties", {})
@@ -706,7 +699,9 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
                     driver_class_name = (
                         f"DriverConfig_{_to_python_class_name(adapter_name)}_{_to_python_class_name(child_name)}"
                     )
-                    driver_class = getattr(adapter_module, driver_class_name, None) or getattr(module, driver_class_name, None)
+                    driver_class = getattr(adapter_module, driver_class_name, None) or getattr(
+                        module, driver_class_name, None
+                    )
                     if driver_class is None:
                         continue
 
@@ -732,9 +727,7 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
         if not adapter_result:
             if adapter_required:
                 discriminant_info = adapter_schema.get("properties", {}).get("discriminant", {})
-                discriminant_env_var = (
-                    discriminant_info.get("env_var") if isinstance(discriminant_info, dict) else None
-                )
+                discriminant_env_var = discriminant_info.get("env_var") if isinstance(discriminant_info, dict) else None
                 if discriminant_env_var:
                     raise ValueError(
                         f"Adapter {adapter_name} is required: set environment variable {discriminant_env_var}"
@@ -746,9 +739,7 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
 
         # Get the adapter and driver classes from the adapter module
         try:
-            adapter_module = importlib.import_module(
-                f".generated.adapters.{adapter_name}", package="copilot_config"
-            )
+            adapter_module = importlib.import_module(f".generated.adapters.{adapter_name}", package="copilot_config")
         except ImportError:
             # Fallback: try to get from service module (backward compatibility)
             adapter_module = module

@@ -21,13 +21,13 @@ def create_valid_event(
     event_id: str | None = None,
     timestamp: str | None = None,
     version: str = "1.0",
-    **kwargs: Any
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Create a schema-compliant event message for testing.
-    
+
     This function generates a valid event that conforms to the event envelope
     schema. All required fields are provided with sensible defaults.
-    
+
     Args:
         event_type: Type of event (e.g., "ArchiveIngested", "JSONParsed")
         data: Event-specific data payload
@@ -35,10 +35,10 @@ def create_valid_event(
         timestamp: ISO 8601 timestamp (current time if None)
         version: Event schema version (default: "1.0")
         **kwargs: Additional fields to include in the event
-        
+
     Returns:
         Dictionary containing a valid event message
-        
+
     Example:
         >>> event = create_valid_event(
         ...     event_type="ArchiveIngested",
@@ -52,7 +52,7 @@ def create_valid_event(
         event_id = str(uuid.uuid4())
     if timestamp is None:
         timestamp = datetime.now(timezone.utc).isoformat()
-    
+
     event = {
         "event_type": event_type,
         "event_id": event_id,
@@ -60,7 +60,7 @@ def create_valid_event(
         "version": version,
         "data": data,
     }
-    
+
     event.update(kwargs)
     return event
 
@@ -75,10 +75,10 @@ def create_archive_ingested_event(
     file_hash_sha256: str | None = None,
     ingestion_started_at: str | None = None,
     ingestion_completed_at: str | None = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Create a valid ArchiveIngested event for testing.
-    
+
     Args:
         archive_id: 16-char hex archive identifier
         source_name: Name of the archive source
@@ -90,20 +90,21 @@ def create_archive_ingested_event(
         ingestion_started_at: ISO 8601 timestamp (current time if None)
         ingestion_completed_at: ISO 8601 timestamp (current time if None)
         **kwargs: Additional fields for the event
-        
+
     Returns:
         Dictionary containing a valid ArchiveIngested event
     """
     import hashlib
+
     if file_hash_sha256 is None:
         file_hash_sha256 = hashlib.sha256(file_path.encode()).hexdigest()
-    
+
     now = datetime.now(timezone.utc).isoformat()
     if ingestion_started_at is None:
         ingestion_started_at = now
     if ingestion_completed_at is None:
         ingestion_completed_at = now
-    
+
     data = {
         "archive_id": archive_id,
         "source_name": source_name,
@@ -115,24 +116,21 @@ def create_archive_ingested_event(
         "ingestion_started_at": ingestion_started_at,
         "ingestion_completed_at": ingestion_completed_at,
     }
-    
+
     return create_valid_event("ArchiveIngested", data, **kwargs)
 
 
 def create_json_parsed_event(
-    archive_id: str = "abc123def4567890",
-    message_count: int = 10,
-    thread_count: int = 5,
-    **kwargs: Any
+    archive_id: str = "abc123def4567890", message_count: int = 10, thread_count: int = 5, **kwargs: Any
 ) -> dict[str, Any]:
     """Create a valid JSONParsed event for testing.
-    
+
     Args:
         archive_id: 16-char hex archive identifier
         message_count: Number of messages parsed
         thread_count: Number of threads created
         **kwargs: Additional fields for the event
-        
+
     Returns:
         Dictionary containing a valid JSONParsed event
     """
@@ -141,40 +139,35 @@ def create_json_parsed_event(
         "message_count": message_count,
         "thread_count": thread_count,
     }
-    
+
     return create_valid_event("JSONParsed", data, **kwargs)
 
 
 def create_chunks_prepared_event(
-    message_doc_id: str = "fedcba9876543210",
-    chunk_ids: list[str] | None = None,
-    chunk_count: int = 3,
-    **kwargs: Any
+    message_doc_id: str = "fedcba9876543210", chunk_ids: list[str] | None = None, chunk_count: int = 3, **kwargs: Any
 ) -> dict[str, Any]:
     """Create a valid ChunksPrepared event for testing.
-    
+
     Args:
         message_doc_id: 16-char hex message document identifier
         chunk_ids: List of chunk IDs (auto-generated if None)
         chunk_count: Number of chunks (used if chunk_ids is None)
         **kwargs: Additional fields for the event
-        
+
     Returns:
         Dictionary containing a valid ChunksPrepared event
     """
     if chunk_ids is None:
         import hashlib
-        chunk_ids = [
-            hashlib.sha256(f"{message_doc_id}|{i}".encode()).hexdigest()[:16]
-            for i in range(chunk_count)
-        ]
-    
+
+        chunk_ids = [hashlib.sha256(f"{message_doc_id}|{i}".encode()).hexdigest()[:16] for i in range(chunk_count)]
+
     data = {
         "message_doc_id": message_doc_id,
         "chunk_ids": chunk_ids,
         "chunk_count": len(chunk_ids),
     }
-    
+
     return create_valid_event("ChunksPrepared", data, **kwargs)
 
 
@@ -183,34 +176,32 @@ def create_embeddings_generated_event(
     embedding_count: int = 5,
     embedding_model: str = "all-MiniLM-L6-v2",
     embedding_backend: str = "sentencetransformers",
-    **kwargs: Any
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Create a valid EmbeddingsGenerated event for testing.
-    
+
     Args:
         chunk_ids: List of chunk IDs (auto-generated if None)
         embedding_count: Number of embeddings (used if chunk_ids is None)
         embedding_model: Name of the embedding model used
         embedding_backend: Backend used for embedding generation
         **kwargs: Additional fields for the event
-        
+
     Returns:
         Dictionary containing a valid EmbeddingsGenerated event
     """
     if chunk_ids is None:
         import hashlib
-        chunk_ids = [
-            hashlib.sha256(f"chunk-{i}".encode()).hexdigest()[:16]
-            for i in range(embedding_count)
-        ]
-    
+
+        chunk_ids = [hashlib.sha256(f"chunk-{i}".encode()).hexdigest()[:16] for i in range(embedding_count)]
+
     data = {
         "chunk_ids": chunk_ids,
         "embedding_count": len(chunk_ids),
         "embedding_model": embedding_model,
         "embedding_backend": embedding_backend,
     }
-    
+
     return create_valid_event("EmbeddingsGenerated", data, **kwargs)
 
 
@@ -218,16 +209,16 @@ def create_summary_complete_event(
     thread_id: str = "fedcba9876543210",
     summary_id: str = "summary123456789",
     summary_type: str = "extractive",
-    **kwargs: Any
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Create a valid SummaryComplete event for testing.
-    
+
     Args:
         thread_id: 16-char hex thread identifier
         summary_id: Unique summary identifier
         summary_type: Type of summary (e.g., "extractive", "abstractive")
         **kwargs: Additional fields for the event
-        
+
     Returns:
         Dictionary containing a valid SummaryComplete event
     """
@@ -236,36 +227,30 @@ def create_summary_complete_event(
         "summary_id": summary_id,
         "summary_type": summary_type,
     }
-    
+
     return create_valid_event("SummaryComplete", data, **kwargs)
 
 
 def create_failure_event(
-    event_type: str,
-    error_message: str,
-    context: dict[str, Any] | None = None,
-    **kwargs: Any
+    event_type: str, error_message: str, context: dict[str, Any] | None = None, **kwargs: Any
 ) -> dict[str, Any]:
     """Create a valid failure event for testing.
-    
+
     Failure events typically have event types ending in "Failed" (e.g.,
     "ParsingFailed", "ChunkingFailed", "EmbeddingGenerationFailed").
-    
+
     Args:
         event_type: Type of failure event
         error_message: Description of the error
         context: Additional context about the failure
         **kwargs: Additional fields for the event
-        
+
     Returns:
         Dictionary containing a valid failure event
     """
     if context is None:
         context = {}
-    
-    data = {
-        "error_message": error_message,
-        **context
-    }
-    
+
+    data = {"error_message": error_message, **context}
+
     return create_valid_event(event_type, data, **kwargs)

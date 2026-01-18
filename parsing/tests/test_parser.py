@@ -38,6 +38,7 @@ class TestMessageParser:
     def test_parse_corrupted_mbox(self, corrupted_mbox_file):
         """Test parsing a corrupted mbox file."""
         from app.exceptions import MessageParsingError
+
         parser = MessageParser()
 
         # Corrupted file may still parse some messages, or raise exception if all fail
@@ -52,6 +53,7 @@ class TestMessageParser:
     def test_parse_nonexistent_file(self):
         """Test parsing a nonexistent file."""
         from app.exceptions import MboxFileError
+
         parser = MessageParser()
 
         # Should raise MboxFileError for non-existent file
@@ -61,6 +63,7 @@ class TestMessageParser:
     def test_message_without_message_id(self, temp_dir):
         """Test handling message without Message-ID."""
         from app.exceptions import MessageParsingError
+
         # Create mbox with message missing Message-ID
         mbox_path = os.path.join(temp_dir, "no_id.mbox")
         with open(mbox_path, "w") as f:

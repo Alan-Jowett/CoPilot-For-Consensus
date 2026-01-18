@@ -18,6 +18,7 @@ class SearchResult:
         vector: The embedding vector
         metadata: Additional metadata associated with the document
     """
+
     id: str
     score: float
     vector: list[float]
@@ -50,8 +51,7 @@ class VectorStore(ABC):
         pass
 
     @abstractmethod
-    def add_embeddings(self, ids: list[str], vectors: list[list[float]],
-                      metadatas: list[dict[str, Any]]) -> None:
+    def add_embeddings(self, ids: list[str], vectors: list[list[float]], metadatas: list[dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
 
         Idempotent operation: if any IDs already exist, implementations should use

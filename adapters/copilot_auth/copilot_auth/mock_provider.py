@@ -36,6 +36,7 @@ class MockIdentityProvider(IdentityProvider):
         Returns:
             MockIdentityProvider instance
         """
+        del driver_config
         return cls()
 
     def add_user(self, token: str, user: User) -> None:

@@ -10,14 +10,14 @@ from typing import Any
 
 from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_Rabbitmq
 
+from .base import EventPublisher
+
 try:
     import pika
 except ImportError:
     pika = None
 
 pika_exceptions: Any = getattr(pika, "exceptions", None)
-
-from .base import EventPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -182,18 +182,14 @@ class RabbitMQPublisher(EventPublisher):
         backoff_delay = min(self.reconnect_delay * (2 ** (self._reconnect_count + 1)), 60.0)
         if time_since_last_reconnect < backoff_delay:
             remaining = max(0.0, backoff_delay - time_since_last_reconnect)
-            logger.warning(
-                f"Reconnection throttled, {remaining:.1f}s remaining (backoff {backoff_delay:.1f}s)"
-            )
+            logger.warning(f"Reconnection throttled, {remaining:.1f}s remaining (backoff {backoff_delay:.1f}s)")
             return False
 
         self._last_reconnect_time = current_time
 
         # Check reconnection limit
         if self._reconnect_count >= self.max_reconnect_attempts:
-            logger.error(
-                f"Maximum reconnection attempts ({self.max_reconnect_attempts}) exceeded"
-            )
+            logger.error(f"Maximum reconnection attempts ({self.max_reconnect_attempts}) exceeded")
             return False
 
         # Close existing connections
@@ -215,9 +211,7 @@ class RabbitMQPublisher(EventPublisher):
 
         # Attempt reconnection
         self._reconnect_count += 1
-        logger.info(
-            f"Attempting reconnection {self._reconnect_count}/{self.max_reconnect_attempts}..."
-        )
+        logger.info(f"Attempting reconnection {self._reconnect_count}/{self.max_reconnect_attempts}...")
 
         try:
             self.connect()
@@ -283,10 +277,7 @@ class RabbitMQPublisher(EventPublisher):
             )
 
             self._declared_queues.add(queue_name)
-            logger.info(
-                f"Declared durable queue '{queue_name}' and bound to "
-                f"{exchange}/{routing_key}"
-            )
+            logger.info(f"Declared durable queue '{queue_name}' and bound to " f"{exchange}/{routing_key}")
         except Exception as e:
             logger.error(f"Failed to declare queue '{queue_name}': {e}")
             raise
@@ -369,9 +360,7 @@ class RabbitMQPublisher(EventPublisher):
                 mandatory=True,  # Return unroutable messages
             )
 
-            logger.info(
-                f"Published event to {exchange}/{routing_key}: {event.get('event_type')}"
-            )
+            logger.info(f"Published event to {exchange}/{routing_key}: {event.get('event_type')}")
         except (
             pika_exceptions.ChannelWrongStateError,
             pika_exceptions.ChannelClosedByBroker,
@@ -394,9 +383,7 @@ class RabbitMQPublisher(EventPublisher):
                         ),
                         mandatory=True,
                     )
-                    logger.info(
-                        f"Successfully published event after reconnection: {event.get('event_type')}"
-                    )
+                    logger.info(f"Successfully published event after reconnection: {event.get('event_type')}")
                 except Exception as retry_error:
                     logger.error(f"Retry publish failed after reconnection: {retry_error}")
                     raise

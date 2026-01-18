@@ -23,14 +23,12 @@ def install_packages(packages):
         if not package:
             continue
         print(f"Installing extra package: {package}")
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", package],
-            capture_output=False
-        )
+        result = subprocess.run([sys.executable, "-m", "pip", "install", package], capture_output=False)
         if result.returncode != 0:
             print(f"ERROR: Failed to install {package}", file=sys.stderr)
             return False
     return True
+
 
 def main():
     """Install extra packages passed as JSON array arguments."""
@@ -48,6 +46,7 @@ def main():
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

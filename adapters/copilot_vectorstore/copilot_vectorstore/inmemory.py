@@ -5,9 +5,8 @@
 
 from typing import Any
 
-from copilot_config.generated.adapters.vector_store import DriverConfig_VectorStore_Inmemory
-
 import numpy as np
+from copilot_config.generated.adapters.vector_store import DriverConfig_VectorStore_Inmemory
 
 from .interface import SearchResult, VectorStore
 
@@ -53,8 +52,7 @@ class InMemoryVectorStore(VectorStore):
         self._vectors[id] = np.array(vector, dtype=np.float32)
         self._metadata[id] = metadata.copy()
 
-    def add_embeddings(self, ids: list[str], vectors: list[list[float]],
-                      metadatas: list[dict[str, Any]]) -> None:
+    def add_embeddings(self, ids: list[str], vectors: list[list[float]], metadatas: list[dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
 
         Args:
@@ -123,12 +121,9 @@ class InMemoryVectorStore(VectorStore):
         # Build SearchResult objects
         results = []
         for id, score in top_results:
-            results.append(SearchResult(
-                id=id,
-                score=score,
-                vector=self._vectors[id].tolist(),
-                metadata=self._metadata[id].copy()
-            ))
+            results.append(
+                SearchResult(id=id, score=score, vector=self._vectors[id].tolist(), metadata=self._metadata[id].copy())
+            )
 
         return results
 
@@ -179,5 +174,5 @@ class InMemoryVectorStore(VectorStore):
             id=id,
             score=1.0,  # Perfect match with itself
             vector=self._vectors[id].tolist(),
-            metadata=self._metadata[id].copy()
+            metadata=self._metadata[id].copy(),
         )

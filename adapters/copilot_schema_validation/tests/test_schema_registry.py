@@ -237,7 +237,7 @@ class TestSchemaRegistryWithMocks:
     def test_get_schema_path_missing_file(self, tmp_path):
         """Test error handling when schema file doesn't exist."""
         # Mock the schema base directory to point to an empty directory
-        with patch('copilot_schema_validation.schema_registry._get_schema_base_dir') as mock_base:
+        with patch("copilot_schema_validation.schema_registry._get_schema_base_dir") as mock_base:
             mock_base.return_value = tmp_path
 
             # Even though it's registered, the file doesn't exist
@@ -246,7 +246,7 @@ class TestSchemaRegistryWithMocks:
 
     def test_get_schema_base_dir_not_found(self):
         """Test error handling when schema directory cannot be found."""
-        with patch('copilot_schema_validation.schema_registry.Path') as mock_path:
+        with patch("copilot_schema_validation.schema_registry.Path") as mock_path:
             # Make all paths return non-existent directories
             mock_instance = MagicMock()
             mock_instance.exists.return_value = False
@@ -266,6 +266,7 @@ class TestSchemaRegistryWithMocks:
         """Test error handling when schema file contains invalid JSON."""
         # Clear the schema cache to ensure fresh load
         from copilot_schema_validation import schema_registry
+
         schema_registry._schema_cache.clear()
         schema_registry._get_schema_base_dir.cache_clear()
 
@@ -276,7 +277,7 @@ class TestSchemaRegistryWithMocks:
         invalid_schema = schema_dir / "ArchiveIngested.schema.json"
         invalid_schema.write_text("{ invalid json }", encoding="utf-8")
 
-        with patch('copilot_schema_validation.schema_registry._get_schema_base_dir') as mock_base:
+        with patch("copilot_schema_validation.schema_registry._get_schema_base_dir") as mock_base:
             mock_base.return_value = tmp_path / "schemas"
 
             with pytest.raises(json.JSONDecodeError):

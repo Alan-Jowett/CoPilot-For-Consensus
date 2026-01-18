@@ -20,12 +20,7 @@ import yaml
 def load_compose_config():
     """Load and parse merged docker-compose configuration"""
     try:
-        result = subprocess.run(
-            ["docker", "compose", "config"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        result = subprocess.run(["docker", "compose", "config"], capture_output=True, text=True, check=True)
         return yaml.safe_load(result.stdout)
     except subprocess.CalledProcessError as e:
         print(f"✗ Failed to load docker-compose configuration: {e.stderr}")
@@ -37,19 +32,19 @@ def load_compose_config():
 
 def check_messagebus_env_var(config):
     """Check if messagebus service has PROMETHEUS_RETURN_PER_OBJECT_METRICS set"""
-    services = config.get('services', {})
-    messagebus = services.get('messagebus', {})
+    services = config.get("services", {})
+    messagebus = services.get("messagebus", {})
 
     # Check if the environment variable is set in the command
     # The command can be a string or a list, so normalize it to a string
-    command = messagebus.get('command', '')
+    command = messagebus.get("command", "")
     if isinstance(command, list):
-        command_str = ' '.join(str(c) for c in command)
+        command_str = " ".join(str(c) for c in command)
     else:
         command_str = str(command)
 
     # Look for the environment variable export statement with word boundaries
-    pattern = r'\bPROMETHEUS_RETURN_PER_OBJECT_METRICS\s*=\s*true\b'
+    pattern = r"\bPROMETHEUS_RETURN_PER_OBJECT_METRICS\s*=\s*true\b"
     if re.search(pattern, command_str):
         return True, "PROMETHEUS_RETURN_PER_OBJECT_METRICS=true found in messagebus command"
 
@@ -59,9 +54,9 @@ def check_messagebus_env_var(config):
 def check_rabbitmq_plugin():
     """Check if rabbitmq_prometheus plugin is enabled"""
     try:
-        with open('infra/rabbitmq/enabled_plugins') as f:
+        with open("infra/rabbitmq/enabled_plugins") as f:
             content = f.read()
-            if 'rabbitmq_prometheus' in content:
+            if "rabbitmq_prometheus" in content:
                 return True, "rabbitmq_prometheus plugin is enabled"
             return False, "rabbitmq_prometheus plugin not found in enabled_plugins"
     except FileNotFoundError:

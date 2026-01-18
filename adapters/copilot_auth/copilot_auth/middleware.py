@@ -32,16 +32,15 @@ Usage:
     )
 """
 
-from copilot_logging import get_logger, Logger
-import os
 import threading
 import time
 import traceback
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any
 
 import httpx
 import jwt
+from copilot_logging import Logger, get_logger
 from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -111,9 +110,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         if self.defer_jwks_fetch:
             logger.info("Starting background JWKS fetch to avoid blocking service startup")
             self._jwks_background_thread = threading.Thread(
-                target=self._fetch_jwks_with_retry,
-                daemon=True,
-                name="jwks-background-fetch"
+                target=self._fetch_jwks_with_retry, daemon=True, name="jwks-background-fetch"
             )
             self._jwks_background_thread.start()
         else:
@@ -157,10 +154,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     time.sleep(delay)
                     delay *= 2  # Exponential backoff
                 else:
-                    logger.error(
-                        f"JWKS fetch failed after {self.jwks_fetch_retries} attempts: "
-                        f"{error_type} - {e}"
-                    )
+                    logger.error(f"JWKS fetch failed after {self.jwks_fetch_retries} attempts: " f"{error_type} - {e}")
             except httpx.HTTPStatusError as e:
                 last_error = e
                 # For 503 Service Unavailable, retry; for other errors, fail immediately
@@ -173,9 +167,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                         time.sleep(delay)
                         delay *= 2
                     else:
-                        logger.error(
-                            f"Auth service unavailable (503) after {self.jwks_fetch_retries} attempts"
-                        )
+                        logger.error(f"Auth service unavailable (503) after {self.jwks_fetch_retries} attempts")
                 else:
                     logger.error(
                         f"JWKS fetch failed with HTTP {e.response.status_code}: {e}. "
@@ -255,7 +247,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                         try:
                             response = httpx.get(
                                 f"{self.auth_service_url}/keys",
-                                timeout=5.0  # Quick timeout for on-demand fetch
+                                timeout=5.0,  # Quick timeout for on-demand fetch
                             )
                             response.raise_for_status()
                             self.jwks = response.json()
@@ -330,8 +322,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     kid=unverified_header.get("kid"),
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Unable to find matching public key"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Unable to find matching public key"
                 )
 
             logger.debug("Public key found for token validation")
@@ -340,6 +331,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             # Note: For production, use PyJWT's built-in JWK support
             # This is simplified for MVP
             from jwt.algorithms import RSAAlgorithm
+
             public_key = RSAAlgorithm.from_jwk(jwk)
 
             claims = jwt.decode(
@@ -347,7 +339,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 public_key,  # type: ignore[arg-type]
                 algorithms=["RS256"],
                 audience=self.audience,
-                options={"verify_exp": True}
+                options={"verify_exp": True},
             )
 
             logger.info(
@@ -363,10 +355,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
         except jwt.ExpiredSignatureError as e:
             logger.warning("Token has expired", error=str(e))
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token has expired"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
         except jwt.InvalidAudienceError as e:
             logger.warning(
                 "Invalid token audience",
@@ -374,15 +363,11 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 error=str(e),
             )
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Invalid audience. Expected: {self.audience}"
+                status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid audience. Expected: {self.audience}"
             )
         except jwt.InvalidTokenError as e:
             logger.warning("Invalid token format or signature", error=str(e), exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid token: {str(e)}"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {str(e)}")
 
     def _check_roles(self, claims: dict[str, Any]) -> None:
         """Check if user has required roles.
@@ -413,8 +398,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     sub=claims.get("sub"),
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Missing required role: {required_role}"
+                    status_code=status.HTTP_403_FORBIDDEN, detail=f"Missing required role: {required_role}"
                 )
 
         logger.debug("User has all required roles", user_roles=user_roles)
@@ -528,34 +512,24 @@ class JWTMiddleware(BaseHTTPMiddleware):
             # Network/connection errors to auth service
             logger.error(
                 f"Auth service communication error: {type(e).__name__}: {e}",
-                extra={"error_type": type(e).__name__, "auth_service_url": self.auth_service_url}
+                extra={"error_type": type(e).__name__, "auth_service_url": self.auth_service_url},
             )
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                content={"detail": "Authentication service unavailable"}
+                content={"detail": "Authentication service unavailable"},
             )
         except (jwt.DecodeError, ValueError) as e:
             # Token parsing/decoding errors
-            logger.warning(
-                f"Token parsing error: {type(e).__name__}: {e}",
-                extra={"error_type": type(e).__name__}
-            )
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Malformed token"}
-            )
+            logger.warning(f"Token parsing error: {type(e).__name__}: {e}", extra={"error_type": type(e).__name__})
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Malformed token"})
         except Exception as e:
             # Unexpected errors - log full details for debugging
             logger.error(
                 f"Unexpected error during token validation: {type(e).__name__}: {e}",
-                extra={
-                    "error_type": type(e).__name__,
-                    "traceback": traceback.format_exc()
-                }
+                extra={"error_type": type(e).__name__, "traceback": traceback.format_exc()},
             )
             return JSONResponse(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={"detail": "Authentication error"}
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"detail": "Authentication error"}
             )
 
 

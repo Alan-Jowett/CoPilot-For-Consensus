@@ -8,7 +8,6 @@ import sys
 from unittest.mock import Mock, patch
 
 import pytest
-
 from copilot_config.generated.adapters.document_store import (
     AdapterConfig_DocumentStore,
     DriverConfig_DocumentStore_Inmemory,
@@ -137,6 +136,7 @@ def test_main_imports_successfully():
                                 with patch("uvicorn.run"):
                                     # This will catch ImportError if any imports fail
                                     import main as summarization_main
+
                                     assert summarization_main is not None
 
 

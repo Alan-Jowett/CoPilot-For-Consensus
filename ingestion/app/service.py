@@ -134,9 +134,7 @@ def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
     return sanitized
 
 
-def _enabled_sources(
-    raw_sources: Iterable[SourceConfig | dict[str, Any]]
-) -> list[SourceConfig]:
+def _enabled_sources(raw_sources: Iterable[SourceConfig | dict[str, Any]]) -> list[SourceConfig]:
     """Normalize and filter enabled sources.
 
     Args:
@@ -287,10 +285,7 @@ class IngestionService:
         if self.document_store is not None:
             try:
                 # Query all archives for this source
-                archives = self.document_store.query_documents(
-                    "archives",
-                    {"source": source_name}
-                )
+                archives = self.document_store.query_documents("archives", {"source": source_name})
 
                 # Delete each archive
                 for archive in archives:
@@ -404,11 +399,16 @@ class IngestionService:
         )
 
         try:
+<<<<<<< HEAD
             # Step 0: Query all archives for this source (needed for event and cleanup)
             archives = self.document_store.query_documents(
                 "archives",
                 {"source": source_name}
             ) or []
+=======
+            # Step 1: Query all archives for this source
+            archives = self.document_store.query_documents("archives", {"source": source_name}) or []
+>>>>>>> fdbd97d2 (Python ruff fixes)
             archive_ids = self._extract_doc_ids(archives)
 
             self.logger.info(
@@ -454,10 +454,7 @@ class IngestionService:
 
             # Step 1: Delete threads (query by source)
             try:
-                threads = self.document_store.query_documents(
-                    "threads",
-                    {"source": source_name}
-                ) or []
+                threads = self.document_store.query_documents("threads", {"source": source_name}) or []
                 thread_ids = self._extract_doc_ids(threads)
                 for thread_id in thread_ids:
                     try:
@@ -486,17 +483,13 @@ class IngestionService:
             message_ids = []
             try:
                 # Try querying by source first
-                messages = self.document_store.query_documents(
-                    "messages",
-                    {"source": source_name}
-                ) or []
+                messages = self.document_store.query_documents("messages", {"source": source_name}) or []
                 # If no messages found by source, try by archive_id
                 if not messages and archive_ids:
                     for archive_id in archive_ids:
-                        archive_messages = self.document_store.query_documents(
-                            "messages",
-                            {"archive_id": archive_id}
-                        ) or []
+                        archive_messages = (
+                            self.document_store.query_documents("messages", {"archive_id": archive_id}) or []
+                        )
                         messages.extend(archive_messages)
 
                 message_ids = self._extract_doc_ids(messages)
@@ -527,17 +520,11 @@ class IngestionService:
             chunk_ids = []
             try:
                 # Try querying by source first
-                chunks = self.document_store.query_documents(
-                    "chunks",
-                    {"source": source_name}
-                ) or []
+                chunks = self.document_store.query_documents("chunks", {"source": source_name}) or []
                 # If no chunks found by source, try by message_id
                 if not chunks and message_ids:
                     for message_id in message_ids:
-                        message_chunks = self.document_store.query_documents(
-                            "chunks",
-                            {"message_id": message_id}
-                        ) or []
+                        message_chunks = self.document_store.query_documents("chunks", {"message_id": message_id}) or []
                         chunks.extend(message_chunks)
 
                 chunk_ids = self._extract_doc_ids(chunks)
@@ -579,17 +566,13 @@ class IngestionService:
             # Step 5: Delete summaries/reports (query by source or archive_id)
             try:
                 # Try querying by source first; if not found, try by archive_id
-                summaries = self.document_store.query_documents(
-                    "summaries",
-                    {"source": source_name}
-                ) or []
+                summaries = self.document_store.query_documents("summaries", {"source": source_name}) or []
                 # If no summaries found by source, try by archive_id
                 if not summaries and archive_ids:
                     for archive_id in archive_ids:
-                        archive_summaries = self.document_store.query_documents(
-                            "summaries",
-                            {"archive_id": archive_id}
-                        ) or []
+                        archive_summaries = (
+                            self.document_store.query_documents("summaries", {"archive_id": archive_id}) or []
+                        )
                         summaries.extend(archive_summaries)
 
                 summary_ids = self._extract_doc_ids(summaries)
@@ -654,16 +637,11 @@ class IngestionService:
             )
 
             # Emit metrics for cascade delete
-            self.metrics.increment(
-                "ingestion_cascade_delete_total",
-                tags={"source_name": source_name}
-            )
+            self.metrics.increment("ingestion_cascade_delete_total", tags={"source_name": source_name})
             for collection, count in deletion_counts.items():
                 if count > 0:
                     self.metrics.gauge(
-                        f"ingestion_cascade_delete_{collection}",
-                        float(count),
-                        tags={"source_name": source_name}
+                        f"ingestion_cascade_delete_{collection}", float(count), tags={"source_name": source_name}
                     )
 
             self.logger.info(
@@ -750,7 +728,7 @@ class IngestionService:
                     "operation": "delete_source_cascade",
                     "source_name": source_name,
                     "deletion_counts": deletion_counts,
-                }
+                },
             )
             raise ValueError(f"Cascade delete failed: {str(e)}")
 
@@ -776,9 +754,7 @@ class IngestionService:
 
         if max_retries is None:
             max_retries = (
-                self.config.service_settings.max_retries
-                if self.config.service_settings.max_retries is not None
-                else 3
+                self.config.service_settings.max_retries if self.config.service_settings.max_retries is not None else 3
             )
 
         ingestion_started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -820,7 +796,7 @@ class IngestionService:
                             if self.config.service_settings.request_timeout_seconds is not None
                             else 60
                         )
-                        wait_time = request_timeout * (2 ** attempt)
+                        wait_time = request_timeout * (2**attempt)
                         self.logger.warning(
                             "Fetch attempt failed",
                             source_name=source_cfg.name,
@@ -853,7 +829,7 @@ class IngestionService:
                             raise FetchError(
                                 f"Fetch failed: {last_error}. Event publish also failed: {publish_error}",
                                 source_name=source_cfg.name,
-                                retry_count=retry_count
+                                retry_count=retry_count,
                             )
                         self._record_failure_metrics(metric_tags, started_monotonic)
                         # Update source status tracking
@@ -862,11 +838,7 @@ class IngestionService:
                             status="failed",
                             error=last_error,
                         )
-                        raise FetchError(
-                            last_error,
-                            source_name=source_cfg.name,
-                            retry_count=retry_count
-                        )
+                        raise FetchError(last_error, source_name=source_cfg.name, retry_count=retry_count)
 
                 # Process each file individually
                 files_processed = 0
@@ -924,7 +896,7 @@ class IngestionService:
                                 "operation": "store_archive",
                                 "file_path": file_path,
                                 "source_name": source_cfg.name,
-                            }
+                            },
                         )
                         # Skip this file and continue with others
                         continue
@@ -1023,7 +995,7 @@ class IngestionService:
                         "source_type": source_cfg.source_type,
                         "attempt": attempt + 1,
                         "max_retries": max_retries,
-                    }
+                    },
                 )
 
                 if attempt < max_retries:
@@ -1032,7 +1004,7 @@ class IngestionService:
                         if self.config.service_settings.request_timeout_seconds is not None
                         else 60
                     )
-                    wait_time = request_timeout * (2 ** attempt)
+                    wait_time = request_timeout * (2**attempt)
                     self.logger.warning(
                         "Retrying after error",
                         wait_time_seconds=wait_time,
@@ -1179,7 +1151,7 @@ class IngestionService:
                     "operation": "save_ingestion_log",
                     "log_path": log_path,
                     "archive_id": metadata.archive_id,
-                }
+                },
             )
 
     def _is_archive_already_stored(self, file_hash: str) -> bool:
@@ -1199,11 +1171,7 @@ class IngestionService:
 
         try:
             # Query document store for archives with this hash
-            existing_archives = self.document_store.query_documents(
-                "archives",
-                {"file_hash": file_hash},
-                limit=1
-            )
+            existing_archives = self.document_store.query_documents("archives", {"file_hash": file_hash}, limit=1)
             return len(existing_archives) > 0
         except Exception as e:
             # If query fails, log warning but allow processing to continue
@@ -1279,9 +1247,7 @@ class IngestionService:
             if self.archive_store:
                 # Use per-source in-memory cache (initialized in __init__) to avoid repeated
                 # list_archives calls when processing multiple archives for a source.
-                cached_archive_lookup: dict[str, dict[str, Any]] | None = self._archive_metadata_cache.get(
-                    source.name
-                )
+                cached_archive_lookup: dict[str, dict[str, Any]] | None = self._archive_metadata_cache.get(source.name)
                 if cached_archive_lookup is None:
                     cached_archive_lookup = _refresh_archive_metadata_cache(source.name)
 
@@ -1298,7 +1264,7 @@ class IngestionService:
             file_size_bytes = 0
             if archive_metadata:
                 file_path = archive_metadata.get("original_path", "")
-                file_ext = os.path.splitext(file_path)[1].lstrip('.')
+                file_ext = os.path.splitext(file_path)[1].lstrip(".")
                 archive_format = file_ext if file_ext else "mbox"
                 file_size_bytes = archive_metadata.get("size_bytes", 0)
             elif self.archive_store and not archive_metadata:
@@ -1344,8 +1310,7 @@ class IngestionService:
             # Emit metric for archive creation with pending status
             if self.metrics:
                 self.metrics.increment(
-                    "ingestion_archive_status_transitions_total",
-                    tags={"status": "pending", "collection": "archives"}
+                    "ingestion_archive_status_transitions_total", tags={"status": "pending", "collection": "archives"}
                 )
         except Exception as e:
             # Log but don't raise - archive record write is not critical to ingestion
@@ -1365,7 +1330,7 @@ class IngestionService:
                         "archive_id": archive_id,
                         "source": source.name,
                         "storage_backend": self.archive_store_type,
-                    }
+                    },
                 )
 
     def _publish_success_event(self, metadata: ArchiveMetadata) -> None:
@@ -1379,8 +1344,8 @@ class IngestionService:
         """
         # Convert metadata to dict and remove storage-specific fields
         event_data = metadata.to_dict()
-        event_data.pop('status', None)  # Remove status field if present
-        event_data.pop('file_path', None)  # Remove file_path (storage-specific, not for events)
+        event_data.pop("status", None)  # Remove status field if present
+        event_data.pop("file_path", None)  # Remove file_path (storage-specific, not for events)
 
         try:
             event = ArchiveIngestedEvent(data=event_data)
@@ -1403,7 +1368,7 @@ class IngestionService:
                     "operation": "publish_success_event",
                     "archive_id": metadata.archive_id,
                     "source_name": metadata.source_name,
-                }
+                },
             )
             raise  # Re-raise to ensure operator visibility
 
@@ -1461,7 +1426,7 @@ class IngestionService:
                     "operation": "publish_failure_event",
                     "source_name": source.name,
                     "error_type": error_type,
-                }
+                },
             )
             raise  # Re-raise to ensure operator visibility
 
@@ -1510,9 +1475,8 @@ class IngestionService:
     def _metric_tags(source: SourceConfig) -> dict[str, str]:
         """Build consistent metric tags for a source."""
         name = getattr(source, "name", None) or (source.get("name") if isinstance(source, dict) else None)
-        src_type = (
-            getattr(source, "source_type", None)
-            or (source.get("source_type") if isinstance(source, dict) else None)
+        src_type = getattr(source, "source_type", None) or (
+            source.get("source_type") if isinstance(source, dict) else None
         )
         return {
             "source_name": name or "unknown",
@@ -1695,11 +1659,7 @@ class IngestionService:
                 return None
 
             # Update in document store using the document ID
-            self.document_store.update_document(
-                "sources",
-                doc_id,
-                source_data
-            )
+            self.document_store.update_document("sources", doc_id, source_data)
 
             # Reload sources from config
             self._reload_sources()
@@ -1862,16 +1822,9 @@ class IngestionService:
             # Query all sources from the document store
             sources = self.document_store.query_documents("sources", {})
             self._sources_cache = sources or []
-            self.logger.debug(
-                "Reloaded sources from document store",
-                sources_count=len(self._sources_cache)
-            )
+            self.logger.debug("Reloaded sources from document store", sources_count=len(self._sources_cache))
         except Exception as e:
-            self.logger.warning(
-                "Failed to reload sources from document store",
-                error=str(e),
-                exc_info=True
-            )
+            self.logger.warning("Failed to reload sources from document store", error=str(e), exc_info=True)
             self._sources_cache = []
 
     def _merge_startup_sources_to_document_store(self):
@@ -1901,24 +1854,16 @@ class IngestionService:
             # Check if source already exists in document store
             existing = self.get_source(source_name)
             if existing:
-                self.logger.debug(
-                    "Startup source already exists in document store, skipping",
-                    source_name=source_name
-                )
+                self.logger.debug("Startup source already exists in document store, skipping", source_name=source_name)
                 continue
 
             # Create the source in document store
             try:
                 self.create_source(source_dict)
-                self.logger.info(
-                    "Merged startup source into document store",
-                    source_name=source_name
-                )
+                self.logger.info("Merged startup source into document store", source_name=source_name)
             except Exception as e:
                 self.logger.warning(
-                    "Failed to merge startup source into document store",
-                    source_name=source_name,
-                    error=str(e)
+                    "Failed to merge startup source into document store", source_name=source_name, error=str(e)
                 )
 
     def _get_enabled_sources_for_ingestion(self) -> list[SourceConfig]:
@@ -1957,17 +1902,18 @@ class IngestionService:
         if source_name not in self._source_status:
             self._source_status[source_name] = {}
 
-        self._source_status[source_name].update({
-            "last_run_at": now,
-            "last_run_status": status,
-            "last_error": error,
-            "files_processed": files_processed,
-            "files_skipped": files_skipped,
-        })
+        self._source_status[source_name].update(
+            {
+                "last_run_at": now,
+                "last_run_status": status,
+                "last_error": error,
+                "files_processed": files_processed,
+                "files_skipped": files_skipped,
+            }
+        )
 
         # Update global stats
         if status == "success":
             total_ingested = self._stats["total_files_ingested"]
             self._stats["total_files_ingested"] = total_ingested + files_processed
             self._stats["last_ingestion_at"] = now
-

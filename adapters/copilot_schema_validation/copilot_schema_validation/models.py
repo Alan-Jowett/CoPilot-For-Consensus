@@ -29,6 +29,7 @@ class DocumentStatus(str, Enum):
         FAILED: Document processing failed (retryable)
         FAILED_MAX_RETRIES: Document failed after maximum retry attempts (terminal state)
     """
+
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -52,6 +53,7 @@ class BaseEvent:
         version: Event schema version
         data: Event-specific payload
     """
+
     event_type: str
     event_id: str | None = None
     timestamp: str | None = None
@@ -84,6 +86,7 @@ class BaseEvent:
 # Ingestion Service Events
 # ============================================================================
 
+
 @dataclass
 class ArchiveIngestedEvent(BaseEvent):
     """Event published when an archive is successfully ingested.
@@ -104,6 +107,7 @@ class ArchiveIngestedEvent(BaseEvent):
         ingestion_started_at: When ingestion began (ISO 8601)
         ingestion_completed_at: When ingestion completed (ISO 8601)
     """
+
     event_type: str = field(default="ArchiveIngested", init=False)
 
 
@@ -126,6 +130,7 @@ class ArchiveIngestionFailedEvent(BaseEvent):
         ingestion_started_at: When ingestion began (ISO 8601)
         failed_at: When failure occurred (ISO 8601)
     """
+
     event_type: str = field(default="ArchiveIngestionFailed", init=False)
 
 
@@ -152,6 +157,7 @@ class JSONParsedEvent(BaseEvent):
         thread_ids: Deterministic thread identifiers (threads._id)
         parsing_duration_seconds: Time taken to parse
     """
+
     event_type: str = field(default="JSONParsed", init=False)
 
 
@@ -173,12 +179,14 @@ class ParsingFailedEvent(BaseEvent):
         retry_count: Number of retry attempts made
         failed_at: When failure occurred (ISO 8601)
     """
+
     event_type: str = field(default="ParsingFailed", init=False)
 
 
 # ============================================================================
 # Chunking Service Events
 # ============================================================================
+
 
 @dataclass
 class ChunksPreparedEvent(BaseEvent):
@@ -198,6 +206,7 @@ class ChunksPreparedEvent(BaseEvent):
         chunking_strategy: Strategy used (e.g., "recursive")
         avg_chunk_size_tokens: Average chunk size in tokens
     """
+
     event_type: str = field(default="ChunksPrepared", init=False)
 
 
@@ -217,12 +226,14 @@ class ChunkingFailedEvent(BaseEvent):
         retry_count: Number of retry attempts made
         failed_at: When failure occurred (ISO 8601)
     """
+
     event_type: str = field(default="ChunkingFailed", init=False)
 
 
 # ============================================================================
 # Embedding Service Events
 # ============================================================================
+
 
 @dataclass
 class EmbeddingsGeneratedEvent(BaseEvent):
@@ -244,6 +255,7 @@ class EmbeddingsGeneratedEvent(BaseEvent):
         vector_store_updated: Whether vector store was updated
         avg_generation_time_ms: Average generation time per embedding
     """
+
     event_type: str = field(default="EmbeddingsGenerated", init=False)
 
 
@@ -264,12 +276,14 @@ class EmbeddingGenerationFailedEvent(BaseEvent):
         retry_count: Number of retry attempts made
         failed_at: When failure occurred (ISO 8601)
     """
+
     event_type: str = field(default="EmbeddingGenerationFailed", init=False)
 
 
 # ============================================================================
 # Orchestration Service Events
 # ============================================================================
+
 
 @dataclass
 class SummarizationRequestedEvent(BaseEvent):
@@ -291,6 +305,7 @@ class SummarizationRequestedEvent(BaseEvent):
         chunk_count: Number of chunks provided in context
         message_count: Number of unique messages in context
     """
+
     event_type: str = field(default="SummarizationRequested", init=False)
 
 
@@ -309,12 +324,14 @@ class OrchestrationFailedEvent(BaseEvent):
         error_message: Human-readable error description
         retry_count: Number of retry attempts made
     """
+
     event_type: str = field(default="OrchestrationFailed", init=False)
 
 
 # ============================================================================
 # Summarization Service Events
 # ============================================================================
+
 
 @dataclass
 class SummaryCompleteEvent(BaseEvent):
@@ -337,6 +354,7 @@ class SummaryCompleteEvent(BaseEvent):
         tokens_completion: Number of completion tokens
         latency_ms: Generation latency in milliseconds
     """
+
     event_type: str = field(default="SummaryComplete", init=False)
 
 
@@ -355,12 +373,14 @@ class SummarizationFailedEvent(BaseEvent):
         error_message: Human-readable error description
         retry_count: Number of retry attempts made
     """
+
     event_type: str = field(default="SummarizationFailed", init=False)
 
 
 # ============================================================================
 # Reporting Service Events
 # ============================================================================
+
 
 @dataclass
 class ReportPublishedEvent(BaseEvent):
@@ -379,6 +399,7 @@ class ReportPublishedEvent(BaseEvent):
         delivery_channels: List of delivery channels used
         summary_url: API endpoint for the report
     """
+
     event_type: str = field(default="ReportPublished", init=False)
 
 
@@ -399,6 +420,7 @@ class ReportDeliveryFailedEvent(BaseEvent):
         error_type: Error classification
         retry_count: Number of retry attempts made
     """
+
     event_type: str = field(default="ReportDeliveryFailed", init=False)
 
 
@@ -474,6 +496,7 @@ class SourceCleanupCompletedEvent(BaseEvent):
 # Data Models (used internally by services)
 # ============================================================================
 
+
 @dataclass
 class ArchiveMetadata:
     """Metadata for an archived file during ingestion.
@@ -498,6 +521,7 @@ class ArchiveMetadata:
         initially fetched, used for logging only. Archive retrieval uses archive_id
         with ArchiveStore, which is storage-backend agnostic.
     """
+
     archive_id: str
     source_name: str
     source_type: str

@@ -8,8 +8,8 @@ Uses schema-driven typed configuration (generated dataclasses) via copilot_confi
 
 import logging
 
-from copilot_config.runtime_loader import get_config
 from copilot_config.generated.services.auth import ServiceConfig_Auth
+from copilot_config.runtime_loader import get_config
 
 logger = logging.getLogger(__name__)
 

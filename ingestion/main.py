@@ -6,17 +6,22 @@
 import json
 import os
 import signal
-import sys
 from dataclasses import replace
 from pathlib import Path
-from typing import Any,cast
-
-# Add app directory to path
-sys.path.insert(0, os.path.dirname(__file__))
+from typing import Any, cast
 
 import uvicorn
+from app import __version__
+from app.api import create_api_router
+from app.scheduler import IngestionScheduler
+from app.service import IngestionService
+from copilot_archive_store import create_archive_store
+from copilot_config.generated.adapters.message_bus import (
+    DriverConfig_MessageBus_AzureServiceBus,
+    DriverConfig_MessageBus_Rabbitmq,
+)
 from copilot_config.runtime_loader import get_config
-from copilot_message_bus import create_publisher
+from copilot_error_reporting import create_error_reporter
 from copilot_logging import (
     create_logger,
     create_stdout_logger,
@@ -24,26 +29,18 @@ from copilot_logging import (
     get_logger,
     set_default_logger,
 )
+from copilot_message_bus import create_publisher
 from copilot_metrics import create_metrics_collector
 from copilot_storage import (
     DocumentStoreConnectionError,
     create_document_store,
 )
-from copilot_archive_store import create_archive_store
-from copilot_error_reporting import create_error_reporter
-from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_AzureServiceBus
-from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_Rabbitmq
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 # Bootstrap logger before configuration is loaded
 bootstrap_logger = create_stdout_logger(level="INFO", name="ingestion-bootstrap")
 set_default_logger(bootstrap_logger)
-
-from app import __version__
-from app.api import create_api_router
-from app.scheduler import IngestionScheduler
-from app.service import IngestionService
 
 # Create FastAPI app
 app = FastAPI(title="Ingestion Service", version=__version__)
@@ -53,21 +50,16 @@ app = FastAPI(title="Ingestion Service", version=__version__)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Log and return JSON for unhandled exceptions."""
-    bootstrap_logger.error(
-        f"Unhandled exception in {request.method} {request.url.path}",
-        error=str(exc),
-        exc_info=True
-    )
-    return JSONResponse(
-        status_code=500,
-        content={"detail": f"Internal server error: {type(exc).__name__}: {str(exc)}"}
-    )
+    bootstrap_logger.error(f"Unhandled exception in {request.method} {request.url.path}", error=str(exc), exc_info=True)
+    return JSONResponse(status_code=500, content={"detail": f"Internal server error: {type(exc).__name__}: {str(exc)}"})
+
 
 # Global service instance and scheduler
 ingestion_service: IngestionService | None = None
 scheduler: IngestionScheduler | None = None
 base_publisher = None
 base_document_store = None
+
 
 def _substitute_env_vars(
     value: object,
@@ -90,10 +82,7 @@ def _substitute_env_vars(
             raise ValueError("Sources config expansion detected a cyclic structure")
         _seen.add(obj_id)
         try:
-            return [
-                _substitute_env_vars(v, _depth=_depth + 1, _max_depth=_max_depth, _seen=_seen)
-                for v in value
-            ]
+            return [_substitute_env_vars(v, _depth=_depth + 1, _max_depth=_max_depth, _seen=_seen) for v in value]
         finally:
             _seen.remove(obj_id)
 
@@ -160,6 +149,7 @@ def health():
 
 def signal_handler(signum, frame):
     """Handle shutdown signals."""
+    del frame
     global scheduler, base_publisher, base_document_store
     logger = bootstrap_logger
 
@@ -183,7 +173,7 @@ def signal_handler(signum, frame):
         except Exception as e:
             logger.warning("Failed to disconnect document store", error=str(e))
 
-    sys.exit(0)
+    raise SystemExit(0)
 
 
 def main():
@@ -227,14 +217,13 @@ def main():
             log.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
+
                 # Use shared audience for all services
                 auth_service_url = config.service_settings.auth_service_url
                 audience = config.service_settings.service_audience
 
                 if auth_service_url is None or audience is None:
-                    raise ValueError(
-                        "JWT auth is enabled but auth_service_url/service_audience is missing"
-                    )
+                    raise ValueError("JWT auth is enabled but auth_service_url/service_audience is missing")
 
                 auth_middleware = create_jwt_middleware(
                     auth_service_url=auth_service_url,
@@ -256,12 +245,12 @@ def main():
 
         # Refresh module-level service logger to use the current default
         from app import service as ingestion_service_module
+
         ingestion_service_module.logger = get_logger(ingestion_service_module.__name__)
 
         metrics = create_metrics_collector(config.metrics)
 
         error_reporter = create_error_reporter(config.error_reporter)
-
 
         log = service_logger
 
@@ -334,7 +323,7 @@ def main():
 
         # Load sources based on configured storage backend
         sources_store_type = config.service_settings.sources_store_type or "document_store"
-        
+
         # Validate sources_store_type value
         if sources_store_type not in ("file", "document_store"):
             log.warning(
@@ -342,9 +331,9 @@ def main():
                 sources_store_type=sources_store_type,
             )
             sources_store_type = "document_store"
-        
+
         sources: list[dict[str, Any]] = []
-        
+
         if sources_store_type == "file":
             # File backend: load from configured path or legacy env var
             sources_file_path = config.service_settings.sources_file_path
@@ -352,8 +341,10 @@ def main():
                 sources_path = Path(sources_file_path)
             else:
                 # Fallback to legacy INGESTION_SOURCES_CONFIG_PATH env var for backward compatibility
-                sources_path = Path(os.environ.get("INGESTION_SOURCES_CONFIG_PATH", Path(__file__).with_name("config.json")))
-            
+                sources_path = Path(
+                    os.environ.get("INGESTION_SOURCES_CONFIG_PATH", Path(__file__).with_name("config.json"))
+                )
+
             sources = _load_sources_from_file(sources_path)
             log.info("Ingestion sources loaded from file", count=len(sources), path=str(sources_path))
         else:
@@ -403,11 +394,7 @@ def main():
         signal.signal(signal.SIGTERM, signal_handler)
 
         # Start FastAPI server
-        http_port = (
-            int(config.service_settings.http_port)
-            if config.service_settings.http_port is not None
-            else 8000
-        )
+        http_port = int(config.service_settings.http_port) if config.service_settings.http_port is not None else 8000
         http_host = config.service_settings.http_host or "0.0.0.0"
         log.info(f"Starting HTTP server on {http_host}:{http_port}...")
 
@@ -420,7 +407,7 @@ def main():
 
     except Exception as e:
         log.error("Fatal error in ingestion service", error=str(e), exc_info=True)
-        sys.exit(1)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

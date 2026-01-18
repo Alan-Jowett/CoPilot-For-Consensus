@@ -5,7 +5,6 @@
 
 import pytest
 from copilot_auth import IdentityProvider, create_identity_provider
-
 from copilot_config.generated.adapters.oidc_providers import (
     DriverConfig_OidcProviders_Github,
     DriverConfig_OidcProviders_Google,

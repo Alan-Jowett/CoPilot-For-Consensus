@@ -121,21 +121,13 @@ class RabbitMQSubscriber(EventSubscriber):
         import pika
 
         credentials = pika.PlainCredentials(self.username, self.password)
-        parameters = pika.ConnectionParameters(
-            host=self.host,
-            port=self.port,
-            credentials=credentials
-        )
+        parameters = pika.ConnectionParameters(host=self.host, port=self.port, credentials=credentials)
 
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
 
         # Declare exchange
-        self.channel.exchange_declare(
-            exchange=self.exchange_name,
-            exchange_type=self.exchange_type,
-            durable=True
-        )
+        self.channel.exchange_declare(exchange=self.exchange_name, exchange_type=self.exchange_type, durable=True)
 
         # Declare queue
         if self.queue_name:
@@ -148,10 +140,7 @@ class RabbitMQSubscriber(EventSubscriber):
             )
         else:
             # Let RabbitMQ generate a unique queue name (temporary queue)
-            result = self.channel.queue_declare(
-                queue='',
-                exclusive=True
-            )
+            result = self.channel.queue_declare(queue="", exclusive=True)
             self.queue_name = result.method.queue
 
         logger.info(
@@ -197,15 +186,10 @@ class RabbitMQSubscriber(EventSubscriber):
         target_exchange = exchange or self.exchange_name
 
         # Bind queue to exchange with routing key
-        self.channel.queue_bind(
-            exchange=target_exchange,
-            queue=self.queue_name,
-            routing_key=routing_key
-        )
+        self.channel.queue_bind(exchange=target_exchange, queue=self.queue_name, routing_key=routing_key)
 
         logger.info(
-            f"Subscribed to {event_type} events on exchange {target_exchange} "
-            f"with routing key: {routing_key}"
+            f"Subscribed to {event_type} events on exchange {target_exchange} " f"with routing key: {routing_key}"
         )
 
     def start_consuming(self) -> None:
@@ -219,11 +203,7 @@ class RabbitMQSubscriber(EventSubscriber):
         if not self.channel:
             raise RuntimeError("Not connected. Call connect() first.")
 
-        self.channel.basic_consume(
-            queue=self.queue_name,
-            on_message_callback=self._on_message,
-            auto_ack=self.auto_ack
-        )
+        self.channel.basic_consume(queue=self.queue_name, on_message_callback=self._on_message, auto_ack=self.auto_ack)
 
         self._consuming = True
         logger.info("Started consuming events")
@@ -238,8 +218,7 @@ class RabbitMQSubscriber(EventSubscriber):
             error_str = str(e)
             if "_AsyncTransportBase" in error_str or "_STATE_COMPLETED" in error_str:
                 logger.warning(
-                    f"Pika transport state assertion: {e}. "
-                    "This is a known pika issue during connection cleanup."
+                    f"Pika transport state assertion: {e}. " "This is a known pika issue during connection cleanup."
                 )
                 # Don't re-raise - this is a benign shutdown race condition
             else:
@@ -283,13 +262,14 @@ class RabbitMQSubscriber(EventSubscriber):
             properties: Message properties
             body: Message body (bytes)
         """
+        del properties
         try:
             # Decode and parse message
-            message_str = body.decode('utf-8')
+            message_str = body.decode("utf-8")
             event = json.loads(message_str)
 
             # Extract event type
-            event_type = event.get('event_type')
+            event_type = event.get("event_type")
 
             if not event_type:
                 logger.warning("Received event without event_type field")
@@ -308,10 +288,7 @@ class RabbitMQSubscriber(EventSubscriber):
                     logger.error(f"Error in callback for {event_type}: {e}")
                     # Don't ack if callback fails (for retry)
                     if not self.auto_ack:
-                        channel.basic_nack(
-                            delivery_tag=method.delivery_tag,
-                            requeue=True
-                        )
+                        channel.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
                     return
             else:
                 logger.debug(f"No callback registered for {event_type}")
@@ -330,7 +307,7 @@ class RabbitMQSubscriber(EventSubscriber):
             if not self.auto_ack:
                 channel.basic_nack(
                     delivery_tag=method.delivery_tag,
-                    requeue=False  # Don't requeue unexpected errors
+                    requeue=False,  # Don't requeue unexpected errors
                 )
 
     def _event_type_to_routing_key(self, event_type: str) -> str:
@@ -343,7 +320,7 @@ class RabbitMQSubscriber(EventSubscriber):
             Routing key in dot notation (e.g., "archive.ingested")
         """
         # Handle consecutive uppercase blocks (e.g., JSON) before standard casing
-        key = re.sub(r'([A-Z]+)([A-Z][a-z])', r"\1.\2", event_type)
+        key = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1.\2", event_type)
         # Handle remaining transitions from lower/number to upper
-        key = re.sub(r'([a-z\d])([A-Z])', r"\1.\2", key)
+        key = re.sub(r"([a-z\d])([A-Z])", r"\1.\2", key)
         return key.lower()

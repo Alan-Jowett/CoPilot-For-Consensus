@@ -73,11 +73,9 @@ class MockSummarizer(Summarizer):
         # Create mock citations
         citations = []
         if thread.messages:
-            citations.append(Citation(
-                message_id=f"msg_{thread.thread_id}_1",
-                chunk_id=f"chunk_{thread.thread_id}_1",
-                offset=0
-            ))
+            citations.append(
+                Citation(message_id=f"msg_{thread.thread_id}_1", chunk_id=f"chunk_{thread.thread_id}_1", offset=0)
+            )
 
         actual_latency_ms = int((time.time() - start_time) * 1000)
 
@@ -89,5 +87,5 @@ class MockSummarizer(Summarizer):
             llm_model="mock-model-v1",
             tokens_prompt=50,
             tokens_completion=30,
-            latency_ms=actual_latency_ms
+            latency_ms=actual_latency_ms,
         )

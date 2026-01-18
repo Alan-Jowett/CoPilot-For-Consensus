@@ -9,7 +9,7 @@ import re
 class DraftDetector:
     """Detects RFC and draft mentions in text."""
 
-    DEFAULT_PATTERN = r'(draft-[a-z0-9-]+-\d+)|(RFC\s*\d+)|(rfc\d+)'
+    DEFAULT_PATTERN = r"(draft-[a-z0-9-]+-\d+)|(RFC\s*\d+)|(rfc\d+)"
 
     def __init__(self, pattern: str | None = None):
         """Initialize draft detector.
@@ -65,11 +65,11 @@ class DraftDetector:
             Normalized draft/RFC identifier
         """
         # Normalize RFC format to "RFC XXXX"
-        if draft_str.lower().startswith('rfc'):
+        if draft_str.lower().startswith("rfc"):
             # Extract just the number
-            match = re.search(r'\d+', draft_str)
+            match = re.search(r"\d+", draft_str)
             if match:
-                return f'RFC {match.group()}'
+                return f"RFC {match.group()}"
 
         # Return draft identifiers as-is (already in standard format)
         return draft_str

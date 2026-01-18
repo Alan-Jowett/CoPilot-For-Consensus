@@ -54,24 +54,18 @@ def _make_silent_logger(name: str = "test"):
 
 
 def _make_noop_metrics():
-    return create_metrics_collector(
-        AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop())
-    )
+    return create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
 
 
 def _make_silent_error_reporter():
     return create_error_reporter(
-        AdapterConfig_ErrorReporter(
-            error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent()
-        )
+        AdapterConfig_ErrorReporter(error_reporter_type="silent", driver=DriverConfig_ErrorReporter_Silent())
     )
 
 
 def _make_inmemory_store():
     store = create_document_store(
-        AdapterConfig_DocumentStore(
-            doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()
-        ),
+        AdapterConfig_DocumentStore(doc_store_type="inmemory", driver=DriverConfig_DocumentStore_Inmemory()),
         enable_validation=False,
     )
     store.connect()

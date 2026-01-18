@@ -15,7 +15,7 @@ class TestHuggingFaceEmbeddingProvider:
 
     def test_initialization_without_libraries(self):
         """Test that initialization fails without required libraries."""
-        with patch.dict('sys.modules', {'transformers': None, 'torch': None}):
+        with patch.dict("sys.modules", {"transformers": None, "torch": None}):
             with pytest.raises(ImportError) as exc_info:
                 HuggingFaceEmbeddingProvider.from_config(
                     DriverConfig_EmbeddingBackend_Huggingface(
@@ -42,7 +42,7 @@ class TestHuggingFaceEmbeddingProvider:
 
         mock_torch_module = Mock()
 
-        with patch.dict('sys.modules', {'transformers': mock_transformers_module, 'torch': mock_torch_module}):
+        with patch.dict("sys.modules", {"transformers": mock_transformers_module, "torch": mock_torch_module}):
             provider = HuggingFaceEmbeddingProvider.from_config(
                 DriverConfig_EmbeddingBackend_Huggingface(
                     model_name="sentence-transformers/all-MiniLM-L6-v2",
@@ -70,7 +70,7 @@ class TestHuggingFaceEmbeddingProvider:
         mock_transformers_module.AutoModel = mock_model_class
 
         # Mock tokenizer output - needs to behave like a dict for **inputs
-        mock_inputs = {'input_ids': Mock(), 'attention_mask': Mock()}
+        mock_inputs = {"input_ids": Mock(), "attention_mask": Mock()}
         mock_inputs_object = Mock()
         mock_inputs_object.to.return_value = mock_inputs
         mock_tokenizer.return_value = mock_inputs_object
@@ -100,12 +100,13 @@ class TestHuggingFaceEmbeddingProvider:
         class MockNoGrad:
             def __enter__(self):
                 return self
+
             def __exit__(self, *args):
                 return False
 
         mock_torch_module.no_grad = MockNoGrad
 
-        with patch.dict('sys.modules', {'transformers': mock_transformers_module, 'torch': mock_torch_module}):
+        with patch.dict("sys.modules", {"transformers": mock_transformers_module, "torch": mock_torch_module}):
             provider = HuggingFaceEmbeddingProvider.from_config(
                 DriverConfig_EmbeddingBackend_Huggingface(
                     model_name="sentence-transformers/all-MiniLM-L6-v2",

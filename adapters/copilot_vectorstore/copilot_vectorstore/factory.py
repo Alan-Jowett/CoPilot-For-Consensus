@@ -22,7 +22,6 @@ from .inmemory import InMemoryVectorStore
 from .interface import VectorStore
 from .qdrant_store import QdrantVectorStore
 
-
 _DriverConfig: TypeAlias = (
     DriverConfig_VectorStore_AzureAiSearch
     | DriverConfig_VectorStore_Faiss
@@ -52,9 +51,7 @@ def _build_qdrant(driver_config: _DriverConfig) -> VectorStore:
 def _build_azure_ai_search(driver_config: _DriverConfig) -> VectorStore:
     if isinstance(driver_config, DriverConfig_VectorStore_AzureAiSearch):
         return AzureAISearchVectorStore.from_config(driver_config)
-    raise TypeError(
-        f"Expected azure_ai_search config, got {type(driver_config).__name__}"
-    )
+    raise TypeError(f"Expected azure_ai_search config, got {type(driver_config).__name__}")
 
 
 def create_vector_store(config: AdapterConfig_VectorStore) -> VectorStore:

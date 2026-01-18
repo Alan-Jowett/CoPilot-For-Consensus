@@ -53,4 +53,3 @@ def test_validate_json_malformed_schema():
 
     assert valid is False
     assert len(errors) > 0
-

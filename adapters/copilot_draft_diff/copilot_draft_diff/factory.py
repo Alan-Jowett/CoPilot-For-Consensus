@@ -19,7 +19,6 @@ from .datatracker_provider import DatatrackerDiffProvider
 from .mock_provider import MockDiffProvider
 from .provider import DraftDiffProvider
 
-
 DraftDiffProviderDriverConfig: TypeAlias = (
     DriverConfig_DraftDiffProvider_Datatracker | DriverConfig_DraftDiffProvider_Mock
 )
@@ -105,15 +104,13 @@ class DiffProviderFactory:
         """
         if not driver_name:
             raise ValueError(
-                "driver_name parameter is required. "
-                f"Available providers: {', '.join(cls._providers.keys())}"
+                "driver_name parameter is required. " f"Available providers: {', '.join(cls._providers.keys())}"
             )
 
         name = str(driver_name).lower()
         if name not in cls._providers:
             raise ValueError(
-                f"Unknown provider driver: {driver_name}. "
-                f"Available providers: {', '.join(cls._providers.keys())}"
+                f"Unknown provider driver: {driver_name}. " f"Available providers: {', '.join(cls._providers.keys())}"
             )
 
         # Built-in drivers use schema-generated typed configs.
@@ -145,16 +142,14 @@ class DiffProviderFactory:
             TypeError: If provider_class doesn't inherit from DraftDiffProvider
         """
         if not issubclass(provider_class, DraftDiffProvider):
-            raise TypeError(
-                f"Provider class must inherit from DraftDiffProvider, "
-                f"got {provider_class.__name__}"
-            )
+            raise TypeError(f"Provider class must inherit from DraftDiffProvider, " f"got {provider_class.__name__}")
 
         cls._providers[name] = provider_class
 
 
-def create_diff_provider(driver_name: str | None = None,
-                        driver_config: DraftDiffProviderDriverConfigLike = None) -> DraftDiffProvider:
+def create_diff_provider(
+    driver_name: str | None = None, driver_config: DraftDiffProviderDriverConfigLike = None
+) -> DraftDiffProvider:
     """Convenience function to create a draft diff provider (DriverConfig-based).
 
     Args:

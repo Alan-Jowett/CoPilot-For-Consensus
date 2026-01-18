@@ -10,16 +10,22 @@ import tempfile
 import pytest
 from app.service import IngestionService
 from copilot_archive_store import create_archive_store
-from copilot_message_bus import create_publisher
-from copilot_storage import create_document_store
-from copilot_logging import create_logger
-from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
-from copilot_config.generated.adapters.error_reporter import AdapterConfig_ErrorReporter, DriverConfig_ErrorReporter_Silent
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.error_reporter import (
+    AdapterConfig_ErrorReporter,
+    DriverConfig_ErrorReporter_Silent,
+)
 from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Silent
 from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
 from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
 from copilot_error_reporting import create_error_reporter
+from copilot_logging import create_logger
+from copilot_message_bus import create_publisher
 from copilot_metrics import create_metrics_collector
+from copilot_storage import create_document_store
 
 from .test_helpers import make_config, make_source
 
@@ -33,7 +39,9 @@ class TestIngestionIntegration:
     def test_logger(self):
         """Create a test logger."""
         return create_logger(
-            AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"))
+            AdapterConfig_Logger(
+                logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test")
+            )
         )
 
     @pytest.fixture
@@ -166,9 +174,7 @@ class TestIngestionIntegration:
             assert "source" in archive
 
         # Verify ingestion log
-        log_path = os.path.join(
-            temp_environment["storage_path"], "metadata", "ingestion_log.jsonl"
-        )
+        log_path = os.path.join(temp_environment["storage_path"], "metadata", "ingestion_log.jsonl")
         assert os.path.exists(log_path)
 
         with open(log_path) as f:
@@ -182,7 +188,9 @@ class TestIngestionIntegration:
         for event_wrapper in publisher.published_events:
             assert event_wrapper["event"]["event_type"] == "ArchiveIngested"
 
-    def test_ingestion_with_duplicates(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
+    def test_ingestion_with_duplicates(
+        self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter
+    ):
         """Test ingestion handling of duplicate archives."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
@@ -243,7 +251,9 @@ class TestIngestionIntegration:
         # Deduplication via document store prevents re-ingestion
         assert len(publisher.published_events) == initial_event_count
 
-    def test_ingestion_with_mixed_sources(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
+    def test_ingestion_with_mixed_sources(
+        self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter
+    ):
         """Test ingestion with mix of enabled and disabled sources."""
         # Mix enabled and disabled
         test_sources[1]["enabled"] = False
@@ -291,7 +301,9 @@ class TestIngestionIntegration:
         # Result should be None (success), not an exception
         assert results["test-list-0"] is None
 
-    def test_deduplication_persists_across_instances(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
+    def test_deduplication_persists_across_instances(
+        self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter
+    ):
         """Test that deduplication via document store works across service instances."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
@@ -396,9 +408,7 @@ class TestIngestionIntegration:
         )
         service.ingest_all_enabled_sources()
 
-        log_path = os.path.join(
-            temp_environment["storage_path"], "metadata", "ingestion_log.jsonl"
-        )
+        log_path = os.path.join(temp_environment["storage_path"], "metadata", "ingestion_log.jsonl")
 
         with open(log_path) as f:
             for line in f:
@@ -416,7 +426,9 @@ class TestIngestionIntegration:
                 assert "ingestion_completed_at" in entry
                 assert "status" in entry
 
-    def test_published_event_format(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
+    def test_published_event_format(
+        self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter
+    ):
         """Test that published events have correct format."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
@@ -480,7 +492,9 @@ class TestIngestionIntegration:
                 assert "ingestion_started_at" in data
                 assert "ingestion_completed_at" in data
 
-    def test_storage_directory_structure(self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter):
+    def test_storage_directory_structure(
+        self, temp_environment, test_sources, test_logger, test_metrics, test_error_reporter
+    ):
         """Test that storage directory structure is correct."""
         config = make_config(
             storage_path=temp_environment["storage_path"],
@@ -531,9 +545,3 @@ class TestIngestionIntegration:
 
         # Verify metadata files (checksums.json no longer created)
         assert os.path.exists(os.path.join(storage_path, "metadata", "ingestion_log.jsonl"))
-
-
-
-
-
-

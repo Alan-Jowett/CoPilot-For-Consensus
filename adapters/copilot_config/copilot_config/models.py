@@ -16,6 +16,7 @@ class DriverConfig:
         config: Dictionary of driver-specific configuration values
         allowed_keys: Set of schema-allowed configuration keys
     """
+
     driver_name: str
     config: dict[str, Any] = field(default_factory=dict)
     allowed_keys: set[str] = field(default_factory=set)
@@ -47,7 +48,7 @@ class DriverConfig:
         Raises:
             AttributeError: If key is not in schema
         """
-        if name in ('driver_name', 'config', 'allowed_keys'):
+        if name in ("driver_name", "config", "allowed_keys"):
             return object.__getattribute__(self, name)
 
         # If the key is present in the config dict, always return it
@@ -120,6 +121,7 @@ class AdapterConfig:
         driver_name: Selected driver for this adapter (e.g., "rabbitmq", "mongodb")
         driver_config: DriverConfig object with driver-specific settings
     """
+
     adapter_type: str
     driver_name: str
     driver_config: DriverConfig
@@ -136,7 +138,7 @@ class AdapterConfig:
         Raises:
             AttributeError: If key not found
         """
-        if name in ('adapter_type', 'driver_name', 'driver_config'):
+        if name in ("adapter_type", "driver_name", "driver_config"):
             return object.__getattribute__(self, name)
 
         # Delegate to driver_config
@@ -165,6 +167,7 @@ class ServiceConfig:
         schema_version: Schema version string (semver)
         min_service_version: Minimum service version required (semver)
     """
+
     service_name: str
     service_settings: dict[str, Any] = field(default_factory=dict)
     adapters: list[AdapterConfig] = field(default_factory=list)
@@ -210,7 +213,7 @@ class ServiceConfig:
         Raises:
             AttributeError: If key not found
         """
-        if name in ('service_name', 'service_settings', 'adapters', 'schema_version', 'min_service_version'):
+        if name in ("service_name", "service_settings", "adapters", "schema_version", "min_service_version"):
             return object.__getattribute__(self, name)
 
         # If the key is defined in the service schema, return the value or None

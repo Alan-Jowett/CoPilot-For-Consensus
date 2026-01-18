@@ -101,22 +101,24 @@ def mock_subscriber():
 def mock_summarizer():
     """Create a mock summarizer."""
     summarizer = Mock()
-    summarizer.summarize = Mock(return_value=Summary(
-        thread_id="1111222233334444",
-        summary_markdown="# Summary\n\nThis is a test summary with citations [1].",
-        citations=[
-            Citation(
-                message_id="<msg1@example.com>",
-                chunk_id="aaaa1111bbbb2222",
-                offset=0,
-            ),
-        ],
-        llm_backend="mock",
-        llm_model="mock-model",
-        tokens_prompt=100,
-        tokens_completion=50,
-        latency_ms=150,
-    ))
+    summarizer.summarize = Mock(
+        return_value=Summary(
+            thread_id="1111222233334444",
+            summary_markdown="# Summary\n\nThis is a test summary with citations [1].",
+            citations=[
+                Citation(
+                    message_id="<msg1@example.com>",
+                    chunk_id="aaaa1111bbbb2222",
+                    offset=0,
+                ),
+            ],
+            llm_backend="mock",
+            llm_model="mock-model",
+            tokens_prompt=100,
+            tokens_completion=50,
+            latency_ms=150,
+        )
+    )
     return summarizer
 
 
@@ -245,10 +247,7 @@ def test_substitute_prompt_template_unexpected_placeholder(summarization_service
     {email_chunks}), the string.format() call will raise KeyError. This should be
     caught and converted to ValueError with a descriptive message.
     """
-    template = (
-        "Thread ID: {thread_id}\n"
-        "Summary: {unexpected_placeholder}"
-    )
+    template = "Thread ID: {thread_id}\n" "Summary: {unexpected_placeholder}"
 
     context = {
         "messages": ["Message 1"],
@@ -274,11 +273,7 @@ def test_substitute_prompt_template_unexpected_placeholder(summarization_service
 
 def test_substitute_prompt_template_empty_messages(summarization_service):
     """Test substitution with empty messages list."""
-    template = (
-        "Thread ID: {thread_id}\n"
-        "Message count: {message_count}\n"
-        "Excerpts:\n{email_chunks}"
-    )
+    template = "Thread ID: {thread_id}\n" "Message count: {message_count}\n" "Excerpts:\n{email_chunks}"
 
     context = {
         "messages": [],  # Empty messages
@@ -305,11 +300,7 @@ def test_substitute_prompt_template_empty_messages(summarization_service):
 
 def test_substitute_prompt_template_empty_chunks(summarization_service):
     """Test substitution with empty chunks list."""
-    template = (
-        "Thread ID: {thread_id}\n"
-        "Participants: {participants}\n"
-        "Excerpts:\n{email_chunks}"
-    )
+    template = "Thread ID: {thread_id}\n" "Participants: {participants}\n" "Excerpts:\n{email_chunks}"
 
     context = {
         "messages": ["Message 1", "Message 2"],
@@ -639,15 +630,14 @@ def test_process_thread_citations_generated_from_chunks(
     # Verify citations match the messages in context (from mock_document_store)
     citation_message_ids = {c["message_id"] for c in citations}
     expected_message_ids = {"<msg1@example.com>", "<msg2@example.com>"}
-    assert citation_message_ids == expected_message_ids, \
-        "Citations should reference actual messages from context"
+    assert citation_message_ids == expected_message_ids, "Citations should reference actual messages from context"
 
     # Verify LLM-returned citations were IGNORED (no hallucinated citations)
     for citation in citations:
-        assert citation["message_id"] != "<hallucinated@example.com>", \
-            "Should not include hallucinated citation from LLM"
-        assert citation["chunk_id"] != "hallucinated_chunk", \
-            "Should not include hallucinated chunk_id from LLM"
+        assert (
+            citation["message_id"] != "<hallucinated@example.com>"
+        ), "Should not include hallucinated citation from LLM"
+        assert citation["chunk_id"] != "hallucinated_chunk", "Should not include hallucinated chunk_id from LLM"
 
     # Verify each citation has required fields from chunks
     for citation in citations:
@@ -776,8 +766,7 @@ def test_process_summarization_multiple_threads(
 
     # Verify success events were published for each thread
     success_calls = [
-        call for call in mock_publisher.publish.call_args_list
-        if call[1]["routing_key"] == "summary.complete"
+        call for call in mock_publisher.publish.call_args_list if call[1]["routing_key"] == "summary.complete"
     ]
     assert len(success_calls) == 2
 
@@ -818,8 +807,7 @@ def test_handle_summarization_requested_event(
 
     # Verify success event was published
     success_calls = [
-        call for call in mock_publisher.publish.call_args_list
-        if call[1]["routing_key"] == "summary.complete"
+        call for call in mock_publisher.publish.call_args_list if call[1]["routing_key"] == "summary.complete"
     ]
     assert len(success_calls) == 1
 
@@ -1023,16 +1011,18 @@ def test_consume_summarization_requested_event():
     mock_subscriber = Mock()
 
     mock_summarizer = Mock()
-    mock_summarizer.summarize = Mock(return_value=Summary(
-        thread_id="1111222233334444",
-        summary_markdown="Test summary",
-        citations=[],
-        llm_backend="test",
-        llm_model="test-model",
-        tokens_prompt=10,
-        tokens_completion=5,
-        latency_ms=100,
-    ))
+    mock_summarizer.summarize = Mock(
+        return_value=Summary(
+            thread_id="1111222233334444",
+            summary_markdown="Test summary",
+            citations=[],
+            llm_backend="test",
+            llm_model="test-model",
+            tokens_prompt=10,
+            tokens_completion=5,
+            latency_ms=100,
+        )
+    )
 
     service = SummarizationService(
         document_store=mock_store,
@@ -1054,7 +1044,7 @@ def test_consume_summarization_requested_event():
             "thread_ids": ["1111222233334444"],
             "top_k": 10,
             "prompt_template": "Summarize:",
-        }
+        },
     }
 
     # Validate incoming event
@@ -1102,16 +1092,18 @@ def test_consume_summarization_requested_multiple_threads():
     mock_subscriber = Mock()
 
     mock_summarizer = Mock()
-    mock_summarizer.summarize = Mock(return_value=Summary(
-        thread_id="1111222233334444",
-        summary_markdown="Test",
-        citations=[],
-        llm_backend="test",
-        llm_model="test-model",
-        tokens_prompt=10,
-        tokens_completion=5,
-        latency_ms=100,
-    ))
+    mock_summarizer.summarize = Mock(
+        return_value=Summary(
+            thread_id="1111222233334444",
+            summary_markdown="Test",
+            citations=[],
+            llm_backend="test",
+            llm_model="test-model",
+            tokens_prompt=10,
+            tokens_completion=5,
+            latency_ms=100,
+        )
+    )
 
     service = SummarizationService(
         document_store=mock_store,
@@ -1136,7 +1128,7 @@ def test_consume_summarization_requested_multiple_threads():
             "llm_model": "test-model",
             "context_window_tokens": 3000,
             "prompt_template": "Summarize:",
-        }
+        },
     }
 
     service._handle_summarization_requested(event)
@@ -1207,7 +1199,7 @@ def test_handle_malformed_event_missing_required_field():
             "llm_model": "test-model",
             "context_window_tokens": 3000,
             "prompt_template": "Summarize:",
-        }
+        },
     }
 
     # Service should raise an exception for missing required field
@@ -1244,7 +1236,7 @@ def test_handle_event_with_invalid_thread_ids_type():
             "llm_model": "test-model",
             "context_window_tokens": 3000,
             "prompt_template": "Summarize:",
-        }
+        },
     }
 
     # Service should raise an exception for invalid type

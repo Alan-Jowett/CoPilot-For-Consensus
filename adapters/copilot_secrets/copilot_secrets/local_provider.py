@@ -91,9 +91,7 @@ class LocalFileSecretProvider(SecretProvider):
         try:
             potential_path.relative_to(base_resolved)
         except ValueError as e:
-            raise SecretProviderError(
-                f"Invalid secret name (path traversal detected): {key_name}"
-            ) from e
+            raise SecretProviderError(f"Invalid secret name (path traversal detected): {key_name}") from e
 
         return potential_path
 
@@ -111,6 +109,7 @@ class LocalFileSecretProvider(SecretProvider):
             SecretNotFoundError: If the secret file does not exist
             SecretProviderError: If reading the file fails
         """
+        del version
         secret_path = self._get_secret_path(key_name)
 
         if not secret_path.exists():
@@ -141,6 +140,7 @@ class LocalFileSecretProvider(SecretProvider):
             SecretNotFoundError: If the secret file does not exist
             SecretProviderError: If reading the file fails
         """
+        del version
         secret_path = self._get_secret_path(key_name)
 
         if not secret_path.exists():

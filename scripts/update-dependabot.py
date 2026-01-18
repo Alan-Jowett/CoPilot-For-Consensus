@@ -37,9 +37,17 @@ def find_python_packages(root_dir: Path) -> list[tuple[str, str]]:
 
     # Exclude directories we don't want to scan
     exclude_dirs = {
-        '.git', '.github', '__pycache__', 'node_modules',
-        '.pytest_cache', '.venv', 'venv', 'env',
-        'documents', 'infra', 'schemas'
+        ".git",
+        ".github",
+        "__pycache__",
+        "node_modules",
+        ".pytest_cache",
+        ".venv",
+        "venv",
+        "env",
+        "documents",
+        "infra",
+        "schemas",
     }
 
     # Walk through the directory tree
@@ -48,24 +56,24 @@ def find_python_packages(root_dir: Path) -> list[tuple[str, str]]:
         dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
 
         # Check if this directory has Python package files
-        has_requirements = 'requirements.txt' in filenames or 'requirements.in' in filenames
-        has_setup = 'setup.py' in filenames
+        has_requirements = "requirements.txt" in filenames or "requirements.in" in filenames
+        has_setup = "setup.py" in filenames
 
         if has_requirements or has_setup:
             rel_path = os.path.relpath(dirpath, root_dir)
             # Convert '.' (root) to '/', else prepend '/' and convert to Unix-style
-            if rel_path == '.':
-                rel_path = '/'
+            if rel_path == ".":
+                rel_path = "/"
             else:
-                rel_path = '/' + rel_path.replace('\\', '/')
+                rel_path = "/" + rel_path.replace("\\", "/")
 
             # Generate a description
             dir_name = os.path.basename(dirpath)
             parent_dir = os.path.basename(os.path.dirname(dirpath))
 
-            if parent_dir == 'adapters':
+            if parent_dir == "adapters":
                 description = f"{dir_name} adapter"
-            elif rel_path.count('/') == 1:  # Top-level service
+            elif rel_path.count("/") == 1:  # Top-level service
                 description = f"{dir_name} service"
             else:
                 description = dir_name
@@ -75,7 +83,7 @@ def find_python_packages(root_dir: Path) -> list[tuple[str, str]]:
     # Sort packages: services first, then adapters alphabetically
     def sort_key(item):
         path, _ = item
-        is_adapter = '/adapters/' in path
+        is_adapter = "/adapters/" in path
         return (is_adapter, path)
 
     return sorted(packages, key=sort_key)
@@ -91,12 +99,22 @@ def find_dockerfiles(root_dir: Path) -> list[str]:
     dockerfile_dirs = set()
 
     # Always include root directory for docker-compose files
-    dockerfile_dirs.add('/')
+    dockerfile_dirs.add("/")
 
     # Exclude directories we don't want to scan
     # Note: This differs from find_python_packages() - we intentionally include 'infra'
     # because it contains Dockerfiles (mongodb-exporter, nginx) but no Python packages
-    exclude_dirs = {'.git', '.github', '__pycache__', 'node_modules', '.pytest_cache', '.venv', 'venv', 'env', 'documents'}
+    exclude_dirs = {
+        ".git",
+        ".github",
+        "__pycache__",
+        "node_modules",
+        ".pytest_cache",
+        ".venv",
+        "venv",
+        "env",
+        "documents",
+    }
 
     # Walk through the directory tree
     for dirpath, dirnames, filenames in os.walk(root_dir):
@@ -104,15 +122,15 @@ def find_dockerfiles(root_dir: Path) -> list[str]:
         dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
 
         # Check if this directory has a Dockerfile
-        has_dockerfile = any(f.startswith('Dockerfile') for f in filenames)
+        has_dockerfile = any(f.startswith("Dockerfile") for f in filenames)
 
         if has_dockerfile:
             rel_path = os.path.relpath(dirpath, root_dir)
             # Convert '.' (root) to '/', else prepend '/' and convert to Unix-style
-            if rel_path == '.':
-                rel_path = '/'
+            if rel_path == ".":
+                rel_path = "/"
             else:
-                rel_path = '/' + rel_path.replace('\\', '/')
+                rel_path = "/" + rel_path.replace("\\", "/")
 
             dockerfile_dirs.add(rel_path)
 
@@ -127,84 +145,85 @@ def generate_dependabot_config(packages: list[tuple[str, str]], dockerfile_dirs:
     # Create separate update entries for each directory (required by Dependabot)
     # Note: Groups are scoped per-directory, so each directory will generate its own grouped PR
     content += "  # Monitor Python dependencies across all services and adapters\n"
-    content += "  # Each directory requires its own update entry (Dependabot does not support a 'directories' field for the pip ecosystem)\n"
+    content += "  # Each directory requires its own update entry (Dependabot does not support a 'directories' field "
+    content += "for the pip ecosystem)\n"
     content += "  # Groups are scoped per-directory and will create separate PRs for each directory\n"
-    
+
     for directory, description in packages:
         # Add a comment to label this section in the generated YAML
         if description:
             content += f"  # {description}\n"
-        content += f"  - package-ecosystem: \"pip\"\n"
-        content += f"    directory: \"{directory}\"\n"
+        content += '  - package-ecosystem: "pip"\n'
+        content += f'    directory: "{directory}"\n'
         content += "    schedule:\n"
-        content += "      interval: \"weekly\"\n"
+        content += '      interval: "weekly"\n'
         content += "    open-pull-requests-limit: 10\n"
         content += "    labels:\n"
-        content += "      - \"dependencies\"\n"
-        content += "      - \"python\"\n"
+        content += '      - "dependencies"\n'
+        content += '      - "python"\n'
         content += "    groups:\n"
         content += "      pip-minor-patch:\n"
         content += "        patterns:\n"
-        content += "          - \"*\"\n"
+        content += '          - "*"\n'
         content += "        update-types:\n"
-        content += "          - \"minor\"\n"
-        content += "          - \"patch\"\n\n"
+        content += '          - "minor"\n'
+        content += '          - "patch"\n\n'
 
     # Add npm monitoring for the React UI
     content += "  # Monitor npm dependencies in React UI\n"
-    content += "  - package-ecosystem: \"npm\"\n"
-    content += "    directory: \"/ui\"\n"
+    content += '  - package-ecosystem: "npm"\n'
+    content += '    directory: "/ui"\n'
     content += "    schedule:\n"
-    content += "      interval: \"weekly\"\n"
+    content += '      interval: "weekly"\n'
     content += "    open-pull-requests-limit: 5\n"
     content += "    labels:\n"
-    content += "      - \"dependencies\"\n"
-    content += "      - \"javascript\"\n"
+    content += '      - "dependencies"\n'
+    content += '      - "javascript"\n'
     content += "    groups:\n"
     content += "      npm-minor-patch:\n"
     content += "        patterns:\n"
-    content += "          - \"*\"\n"
+    content += '          - "*"\n'
     content += "        update-types:\n"
-    content += "          - \"minor\"\n"
-    content += "          - \"patch\"\n\n"
+    content += '          - "minor"\n'
+    content += '          - "patch"\n\n'
 
     # Add Docker image monitoring for docker-compose and Dockerfiles
     content += "  # Monitor Docker image updates in docker-compose and Dockerfiles\n"
-    content += "  - package-ecosystem: \"docker\"\n"
+    content += '  - package-ecosystem: "docker"\n'
     content += "    directories:\n"
     for directory in dockerfile_dirs:
-        content += f"      - \"{directory}\"\n"
+        content += f'      - "{directory}"\n'
     content += "    schedule:\n"
-    content += "      interval: \"weekly\"\n"
+    content += '      interval: "weekly"\n'
     content += "    open-pull-requests-limit: 5\n"
     content += "    labels:\n"
-    content += "      - \"dependencies\"\n"
-    content += "      - \"docker\"\n"
+    content += '      - "dependencies"\n'
+    content += '      - "docker"\n'
     content += "    groups:\n"
     content += "      docker-minor-patch:\n"
     content += "        patterns:\n"
-    content += "          - \"*\"\n"
+    content += '          - "*"\n'
     content += "        update-types:\n"
-    content += "          - \"minor\"\n"
-    content += "          - \"patch\"\n\n"
+    content += '          - "minor"\n'
+    content += '          - "patch"\n\n'
 
     # Add GitHub Actions monitoring
     content += "  # Monitor GitHub Actions\n"
-    content += "  - package-ecosystem: \"github-actions\"\n"
-    content += "    directory: \"/\"\n"
+    content += '  - package-ecosystem: "github-actions"\n'
+    content += '    directory: "/"\n'
     content += "    schedule:\n"
-    content += "      interval: \"weekly\"\n"
+    content += '      interval: "weekly"\n'
     content += "    open-pull-requests-limit: 5\n"
     content += "    labels:\n"
-    content += "      - \"dependencies\"\n"
-    content += "      - \"github-actions\"\n"
+    content += '      - "dependencies"\n'
+    content += '      - "github-actions"\n'
     content += "    groups:\n"
     content += "      github-actions-minor-patch:\n"
     content += "        patterns:\n"
-    content += "          - \"*\"\n"
+    content += '          - "*"\n'
     content += "        update-types:\n"
-    content += "          - \"minor\"\n"
-    content += "          - \"patch\"\n"
+    content += '          - "minor"\n'
+    content += '          - "patch"\n'
 
     return content
 
@@ -242,11 +261,11 @@ def main(output_path_arg=None):
     if output_path_arg:
         output_path = Path(output_path_arg)
     else:
-        output_path = repo_root / '.github' / 'dependabot.yml'
+        output_path = repo_root / ".github" / "dependabot.yml"
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(config_content)
 
     print(f"\n[OK] Successfully generated {output_path}")
@@ -255,7 +274,8 @@ def main(output_path_arg=None):
     print(f"   Docker directories monitored: {len(dockerfile_dirs)}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     output_path = sys.argv[1] if len(sys.argv) > 1 else None
     main(output_path)

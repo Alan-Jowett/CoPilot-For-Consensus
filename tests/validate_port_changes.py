@@ -47,9 +47,14 @@ def check_internal_service_via_docker(service_name, internal_url, from_service="
     """Check if an internal service is accessible from another container"""
     try:
         cmd = [
-            "docker", "compose", "exec", "-T", from_service,
-            "python", "-c",
-            f"import urllib.request; urllib.request.urlopen('{internal_url}', timeout=5)"
+            "docker",
+            "compose",
+            "exec",
+            "-T",
+            from_service,
+            "python",
+            "-c",
+            f"import urllib.request; urllib.request.urlopen('{internal_url}', timeout=5)",
         ]
         result = subprocess.run(cmd, capture_output=True, timeout=10)
         if result.returncode == 0:

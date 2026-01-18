@@ -43,14 +43,12 @@ SCHEMA_REGISTRY: dict[str, str] = {
     "v1.ReportPublished": "events/ReportPublished.schema.json",
     "v1.ReportDeliveryFailed": "events/ReportDeliveryFailed.schema.json",
     "v1.EventEnvelope": "events/event-envelope.schema.json",
-
     # Document schemas (v1)
     "v1.Archive": "documents/archives.schema.json",
     "v1.Message": "documents/messages.schema.json",
     "v1.Thread": "documents/threads.schema.json",
     "v1.Chunk": "documents/chunks.schema.json",
     "v1.Summary": "documents/summaries.schema.json",
-
     # Role store schemas (v1)
     "v1.UserRoles": "role_store/user_roles.schema.json",
 }
@@ -135,20 +133,14 @@ def get_schema_path(schema_type: str, version: str) -> str:
 
     if registry_key not in SCHEMA_REGISTRY:
         available = ", ".join(sorted(SCHEMA_REGISTRY.keys()))
-        raise KeyError(
-            f"Schema not registered: {registry_key}. "
-            f"Available schemas: {available}"
-        )
+        raise KeyError(f"Schema not registered: {registry_key}. " f"Available schemas: {available}")
 
     relative_path = SCHEMA_REGISTRY[registry_key]
     schema_base_dir = _get_schema_base_dir()
     full_path = schema_base_dir / relative_path
 
     if not full_path.exists():
-        raise FileNotFoundError(
-            f"Schema file not found: {full_path}. "
-            f"Registry points to: {relative_path}"
-        )
+        raise FileNotFoundError(f"Schema file not found: {full_path}. " f"Registry points to: {relative_path}")
 
     return str(full_path)
 
@@ -184,7 +176,7 @@ def load_schema(schema_type: str, version: str) -> dict:
     schema_path = get_schema_path(schema_type, version)
 
     try:
-        with open(schema_path, encoding='utf-8') as f:
+        with open(schema_path, encoding="utf-8") as f:
             schema = json.load(f)
 
         # Cache the loaded schema
@@ -243,27 +235,18 @@ def validate_registry() -> tuple[bool, list[str]]:
     for registry_key, relative_path in SCHEMA_REGISTRY.items():
         full_path = schema_base_dir / relative_path
         if not full_path.exists():
-            errors.append(
-                f"Missing schema file for {registry_key}: {relative_path} "
-                f"(expected at {full_path})"
-            )
+            errors.append(f"Missing schema file for {registry_key}: {relative_path} " f"(expected at {full_path})")
         elif not full_path.is_file():
-            errors.append(
-                f"Schema path is not a file for {registry_key}: {full_path}"
-            )
+            errors.append(f"Schema path is not a file for {registry_key}: {full_path}")
         else:
             # Try to load and validate JSON
             try:
-                with open(full_path, encoding='utf-8') as f:
+                with open(full_path, encoding="utf-8") as f:
                     json.load(f)
             except json.JSONDecodeError as e:
-                errors.append(
-                    f"Invalid JSON in schema file for {registry_key}: {full_path} - {e}"
-                )
+                errors.append(f"Invalid JSON in schema file for {registry_key}: {full_path} - {e}")
             except Exception as e:
-                errors.append(
-                    f"Error reading schema file for {registry_key}: {full_path} - {e}"
-                )
+                errors.append(f"Error reading schema file for {registry_key}: {full_path} - {e}")
 
     return len(errors) == 0, errors
 
@@ -332,18 +315,18 @@ def get_configuration_schema_response(service_name: str, service_version: str) -
         >>> response['$schema']
         'http://json-schema.org/draft-07/schema#'
     """
+    del service_version
     schema_base_dir = _get_schema_base_dir()
     schema_path = schema_base_dir / "configs" / "services" / f"{service_name}.json"
 
     if not schema_path.exists():
         relative_location = f"configs/services/{service_name}.json"
         raise FileNotFoundError(
-            f"Configuration schema not found for service '{service_name}' "
-            f"(expected at {relative_location})"
+            f"Configuration schema not found for service '{service_name}' " f"(expected at {relative_location})"
         )
 
     try:
-        with open(schema_path, encoding='utf-8') as f:
+        with open(schema_path, encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
         logger.error("Failed to parse configuration schema for %s: %s", service_name, e)

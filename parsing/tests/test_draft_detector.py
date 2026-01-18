@@ -85,7 +85,7 @@ class TestDraftDetector:
     def test_custom_pattern(self):
         """Test with custom regex pattern."""
         # Custom pattern that only matches RFC
-        detector = DraftDetector(pattern=r'RFC\s*\d+')
+        detector = DraftDetector(pattern=r"RFC\s*\d+")
 
         text = "See draft-ietf-quic-transport-34 and RFC 9000"
         drafts = detector.detect(text)

@@ -13,7 +13,6 @@ from copilot_config.generated.adapters.archive_store import (
     DriverConfig_ArchiveStore_Local,
 )
 
-
 _DriverConfig: TypeAlias = DriverConfig_ArchiveStore_Azureblob | DriverConfig_ArchiveStore_Local
 
 
@@ -35,21 +34,25 @@ def _build_azureblob(driver_config: _DriverConfig) -> "ArchiveStore":
 
 class ArchiveStoreError(Exception):
     """Base exception for archive store errors."""
+
     pass
 
 
 class ArchiveStoreNotConnectedError(ArchiveStoreError):
     """Exception raised when attempting operations on a disconnected store."""
+
     pass
 
 
 class ArchiveStoreConnectionError(ArchiveStoreError):
     """Exception raised when connection to the archive store fails."""
+
     pass
 
 
 class ArchiveNotFoundError(ArchiveStoreError):
     """Exception raised when an archive is not found."""
+
     pass
 
 

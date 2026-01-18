@@ -3,7 +3,7 @@
 
 """Silent logger implementation for testing."""
 
-from typing import Any, cast
+from typing import Any
 
 from copilot_config.generated.adapters.logger import DriverConfig_Logger_Silent
 

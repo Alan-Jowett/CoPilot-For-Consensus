@@ -7,7 +7,6 @@ import errno
 import hashlib
 import json
 import logging
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -65,9 +64,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         self._load_metadata()
 
     @classmethod
-    def from_config(
-        cls, driver_config: DriverConfig_ArchiveStore_Local
-    ) -> "LocalVolumeArchiveStore":
+    def from_config(cls, driver_config: DriverConfig_ArchiveStore_Local) -> "LocalVolumeArchiveStore":
         """Create LocalVolumeArchiveStore from typed driver config.
 
         Args:
@@ -260,8 +257,4 @@ class LocalVolumeArchiveStore(ArchiveStore):
         Returns:
             List of archive metadata dictionaries
         """
-        return [
-            metadata
-            for metadata in self._metadata.values()
-            if metadata.get("source_name") == source_name
-        ]
+        return [metadata for metadata in self._metadata.values() if metadata.get("source_name") == source_name]

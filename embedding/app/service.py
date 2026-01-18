@@ -9,6 +9,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 from copilot_embedding import EmbeddingProvider
+from copilot_error_reporting import ErrorReporter
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
+from copilot_logging import get_logger
 from copilot_message_bus import (
     ChunksPreparedEvent,
     EmbeddingGenerationFailedEvent,
@@ -18,16 +25,9 @@ from copilot_message_bus import (
     SourceCleanupProgressEvent,
     SourceDeletionRequestedEvent,
 )
-from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
-from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from copilot_vectorstore import VectorStore
-from copilot_event_retry import (
-    DocumentNotFoundError,
-    RetryConfig,
-    handle_event_with_retry,
-)
 
 logger = get_logger(__name__)
 
@@ -181,14 +181,14 @@ class EmbeddingService:
             # Generate idempotency key from chunk IDs
             # Use all chunk IDs for uniqueness (limited to reasonable length for key storage)
             chunk_ids = chunks_prepared.data.get("chunk_ids", [])
-            chunk_ids_str = '-'.join(str(cid) for cid in chunk_ids)
+            chunk_ids_str = "-".join(str(cid) for cid in chunk_ids)
             # Hash if too long to keep key manageable
             if len(chunk_ids_str) > 100:
                 chunk_ids_hash = hashlib.sha256(chunk_ids_str.encode()).hexdigest()[:16]
                 idempotency_key = f"embedding-{chunk_ids_hash}"
             else:
                 idempotency_key = f"embedding-{chunk_ids_str}"
-            
+
             # Wrap processing with retry logic
             handle_event_with_retry(
                 handler=lambda e: self.process_chunks(e.get("data", {})),
@@ -243,21 +243,20 @@ class EmbeddingService:
                 logger.info(f"Processing {len(chunk_ids)} chunks (attempt {retry_count + 1}/{self.max_retries})")
 
                 # Retrieve chunks from database that don't have embeddings yet
-                chunks = list(self.document_store.query_documents(
-                    collection="chunks",
-                    filter_dict={
-                        "_id": {"$in": chunk_ids},
-                        "embedding_generated": False
-                    }
-                ))
+                chunks = list(
+                    self.document_store.query_documents(
+                        collection="chunks", filter_dict={"_id": {"$in": chunk_ids}, "embedding_generated": False}
+                    )
+                )
 
                 if not chunks:
                     # Check if all chunks already have embeddings
-                    all_chunks = list(self.document_store.query_documents(
-                        collection="chunks",
-                        filter_dict={"_id": {"$in": chunk_ids}}
-                    ))
-                    
+                    all_chunks = list(
+                        self.document_store.query_documents(
+                            collection="chunks", filter_dict={"_id": {"$in": chunk_ids}}
+                        )
+                    )
+
                     if all_chunks:
                         logger.info(f"All {len(chunk_ids)} chunks already have embeddings, skipping")
                         return
@@ -265,9 +264,7 @@ class EmbeddingService:
                         # No chunks found at all. This can happen due to a race condition where
                         # chunks are not yet queryable in the database. Signal this so the
                         # handle_event_with_retry wrapper can retry the operation.
-                        raise DocumentNotFoundError(
-                            f"No chunks found in database for {len(chunk_ids)} IDs"
-                        )
+                        raise DocumentNotFoundError(f"No chunks found in database for {len(chunk_ids)} IDs")
 
                 # Validate all chunks have MongoDB _id (fail fast to prevent inconsistent state)
                 chunks_without_id = [c.get("_id", "unknown") for c in chunks if not c.get("_id")]
@@ -281,7 +278,7 @@ class EmbeddingService:
                 processed_chunk_ids = []
 
                 for i in range(0, len(chunks), self.batch_size):
-                    batch = chunks[i:i + self.batch_size]
+                    batch = chunks[i : i + self.batch_size]
                     batch_start = time.time()
 
                     # Generate embeddings for batch
@@ -338,7 +335,10 @@ class EmbeddingService:
                 error_msg = str(e)
                 error_type = type(e).__name__
 
-                logger.error(f"Embedding generation failed (attempt {retry_count}/{self.max_retries}): {error_msg}", exc_info=True)
+                logger.error(
+                    f"Embedding generation failed (attempt {retry_count}/{self.max_retries}): {error_msg}",
+                    exc_info=True,
+                )
 
                 if retry_count >= self.max_retries:
                     # Max retries exceeded, publish failure event and re-raise
@@ -408,7 +408,7 @@ class EmbeddingService:
                     "embedding_model": self.embedding_model,
                     "embedding_backend": self.embedding_backend,
                     "embedding_date": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                }
+                },
             }
             embeddings.append(embedding)
 
@@ -463,10 +463,7 @@ class EmbeddingService:
                 logger.warning(f"Failed to update status for chunk {doc_id} (connectivity): {e}")
             except Exception as e:
                 # Other errors (e.g., chunk not found, validation errors) - log with full context
-                logger.error(
-                    f"Unexpected error updating status for chunk {doc_id}: {e}",
-                    exc_info=True
-                )
+                logger.error(f"Unexpected error updating status for chunk {doc_id}: {e}", exc_info=True)
 
         logger.debug(f"Updated {len(doc_ids)} chunks with embedding_generated=True")
 
@@ -475,7 +472,7 @@ class EmbeddingService:
             self.metrics_collector.increment(
                 "embedding_chunk_status_transitions_total",
                 value=len(doc_ids),
-                tags={"embedding_generated": "true", "collection": "chunks"}
+                tags={"embedding_generated": "true", "collection": "chunks"},
             )
 
     def _publish_embeddings_generated(

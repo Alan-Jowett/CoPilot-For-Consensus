@@ -30,6 +30,7 @@ class InMemoryDocumentStore(DocumentStore):
         Returns:
             InMemoryDocumentStore instance
         """
+        del driver_config
         # InMemoryDocumentStore has no configuration parameters
         return cls()
 
@@ -94,9 +95,7 @@ class InMemoryDocumentStore(DocumentStore):
         logger.debug(f"InMemoryDocumentStore: document {doc_id} not found in {collection}")
         return None
 
-    def query_documents(
-        self, collection: str, filter_dict: dict[str, Any], limit: int = 100
-    ) -> list[dict[str, Any]]:
+    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Returns sanitized documents without backend system fields or
@@ -114,10 +113,7 @@ class InMemoryDocumentStore(DocumentStore):
 
         for doc in self.collections[collection].values():
             # Check if document matches all filter criteria
-            matches = all(
-                doc.get(key) == value
-                for key, value in filter_dict.items()
-            )
+            matches = all(doc.get(key) == value for key, value in filter_dict.items())
 
             if matches:
                 # Use deep copy to prevent external mutations affecting stored data
@@ -126,14 +122,11 @@ class InMemoryDocumentStore(DocumentStore):
                     break
 
         logger.debug(
-            f"InMemoryDocumentStore: query on {collection} with {filter_dict} "
-            f"returned {len(results)} documents"
+            f"InMemoryDocumentStore: query on {collection} with {filter_dict} " f"returned {len(results)} documents"
         )
         return sanitize_documents(results, collection)
 
-    def update_document(
-        self, collection: str, doc_id: str, patch: dict[str, Any]
-    ) -> None:
+    def update_document(self, collection: str, doc_id: str, patch: dict[str, Any]) -> None:
         """Update a document with the provided patch.
 
         Args:
@@ -145,9 +138,7 @@ class InMemoryDocumentStore(DocumentStore):
             DocumentNotFoundError: If document does not exist
         """
         if doc_id not in self.collections[collection]:
-            logger.debug(
-                f"InMemoryDocumentStore: document {doc_id} not found in {collection}"
-            )
+            logger.debug(f"InMemoryDocumentStore: document {doc_id} not found in {collection}")
             raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
 
         # Apply patch to document
@@ -185,9 +176,7 @@ class InMemoryDocumentStore(DocumentStore):
         self.collections.clear()
         logger.debug("InMemoryDocumentStore: cleared all collections")
 
-    def aggregate_documents(
-        self, collection: str, pipeline: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def aggregate_documents(self, collection: str, pipeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Execute a simplified aggregation pipeline on a collection.
 
         Returns sanitized documents without backend system fields or
@@ -214,9 +203,7 @@ class InMemoryDocumentStore(DocumentStore):
         # Start with all documents in the collection
         # Return empty list if collection doesn't exist
         if collection not in self.collections:
-            logger.debug(
-                f"InMemoryDocumentStore: collection '{collection}' not found for aggregation"
-            )
+            logger.debug(f"InMemoryDocumentStore: collection '{collection}' not found for aggregation")
             return []
 
         results = [copy.deepcopy(doc) for doc in self.collections[collection].values()]
@@ -238,19 +225,12 @@ class InMemoryDocumentStore(DocumentStore):
                 results = results[:stage_spec]
 
             else:
-                logger.warning(
-                    f"InMemoryDocumentStore: aggregation stage '{stage_name}' not implemented, skipping"
-                )
+                logger.warning(f"InMemoryDocumentStore: aggregation stage '{stage_name}' not implemented, skipping")
 
-        logger.debug(
-            f"InMemoryDocumentStore: aggregation on {collection} "
-            f"returned {len(results)} documents"
-        )
+        logger.debug(f"InMemoryDocumentStore: aggregation on {collection} " f"returned {len(results)} documents")
         return sanitize_documents(results, collection, preserve_extra=True)
 
-    def _apply_match(
-        self, documents: list[dict[str, Any]], match_spec: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def _apply_match(self, documents: list[dict[str, Any]], match_spec: dict[str, Any]) -> list[dict[str, Any]]:
         """Apply $match stage to filter documents.
 
         Supports operators: $exists, $eq
@@ -283,9 +263,7 @@ class InMemoryDocumentStore(DocumentStore):
                                 break
                         else:
                             # Unsupported operator - log warning and skip
-                            logger.warning(
-                                f"InMemoryDocumentStore: unsupported operator '{op}' in $match, skipping"
-                            )
+                            logger.warning(f"InMemoryDocumentStore: unsupported operator '{op}' in $match, skipping")
 
                     # If any operator failed, exit the key loop early
                     if not matches:
@@ -301,9 +279,7 @@ class InMemoryDocumentStore(DocumentStore):
 
         return filtered
 
-    def _apply_lookup(
-        self, documents: list[dict[str, Any]], lookup_spec: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def _apply_lookup(self, documents: list[dict[str, Any]], lookup_spec: dict[str, Any]) -> list[dict[str, Any]]:
         """Apply $lookup stage to join with another collection.
 
         **Performance Note**: This implementation has O(N*M) complexity where N is
@@ -324,9 +300,7 @@ class InMemoryDocumentStore(DocumentStore):
 
         # Check if the foreign collection exists
         if from_collection not in self.collections:
-            logger.debug(
-                f"InMemoryDocumentStore: foreign collection '{from_collection}' not found in $lookup"
-            )
+            logger.debug(f"InMemoryDocumentStore: foreign collection '{from_collection}' not found in $lookup")
             # Return documents with empty array for the 'as' field (mimics MongoDB behavior)
             result_docs = []
             for doc in documents:

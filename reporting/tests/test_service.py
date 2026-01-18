@@ -234,9 +234,7 @@ def test_service_start_subscribes_to_events(reporting_service, mock_subscriber):
     )
 
 
-def test_process_summary_stores_document(
-    reporting_service, mock_document_store, sample_summary_complete_event
-):
+def test_process_summary_stores_document(reporting_service, mock_document_store, sample_summary_complete_event):
     """Test that process_summary stores the summary document."""
     thread_id = sample_summary_complete_event["data"]["thread_id"]
 
@@ -249,10 +247,7 @@ def test_process_summary_stores_document(
 
     mock_document_store.query_documents.side_effect = query_documents_side_effect
 
-    report_id = reporting_service.process_summary(
-        sample_summary_complete_event["data"],
-        sample_summary_complete_event
-    )
+    report_id = reporting_service.process_summary(sample_summary_complete_event["data"], sample_summary_complete_event)
 
     assert report_id is not None
     assert reporting_service.reports_stored == 1
@@ -291,10 +286,7 @@ def test_process_summary_publishes_report_published_event(
 
     reporting_service.document_store.query_documents.side_effect = query_documents_side_effect
 
-    report_id = reporting_service.process_summary(
-        sample_summary_complete_event["data"],
-        sample_summary_complete_event
-    )
+    report_id = reporting_service.process_summary(sample_summary_complete_event["data"], sample_summary_complete_event)
 
     # Should publish one event (ReportPublished)
     assert mock_publisher.publish.call_count == 1
@@ -339,10 +331,7 @@ def test_process_summary_with_webhook_enabled(
     with patch("app.service.requests.post") as mock_post:
         mock_post.return_value.status_code = 200
 
-        report_id = service.process_summary(
-            sample_summary_complete_event["data"],
-            sample_summary_complete_event
-        )
+        report_id = service.process_summary(sample_summary_complete_event["data"], sample_summary_complete_event)
 
         # Verify webhook was called
         mock_post.assert_called_once()
@@ -389,10 +378,7 @@ def test_process_summary_webhook_failure_publishes_delivery_failed(
     with patch("app.service.requests.post") as mock_post:
         mock_post.side_effect = Exception("Connection timeout")
 
-        report_id = service.process_summary(
-            sample_summary_complete_event["data"],
-            sample_summary_complete_event
-        )
+        report_id = service.process_summary(sample_summary_complete_event["data"], sample_summary_complete_event)
 
         # Verify stats updated
         assert service.notifications_sent == 0
@@ -431,7 +417,7 @@ def test_get_reports_queries_document_store(reporting_service, mock_document_sto
     assert first_call[0][0] == "summaries"
     assert first_call[1]["filter_dict"] == {}
     assert first_call[1]["limit"] == 110
-    
+
     # Subsequent enrichment calls for threads/archives are expected
 
 
@@ -449,7 +435,7 @@ def test_get_reports_with_thread_filter(reporting_service, mock_document_store):
     assert first_call[0][0] == "summaries"
     assert first_call[1]["filter_dict"] == {"thread_id": "thread1"}
     assert first_call[1]["limit"] == 110
-    
+
     # Subsequent enrichment calls for threads/archives are expected
 
 
@@ -537,8 +523,7 @@ def test_handle_summary_complete_with_metrics(
 
     # Should increment success metric
     mock_metrics.increment.assert_any_call(
-        "reporting_events_total",
-        tags={"event_type": "summary_complete", "outcome": "success"}
+        "reporting_events_total", tags={"event_type": "summary_complete", "outcome": "success"}
     )
 
     # Should observe latency
@@ -552,7 +537,7 @@ def test_handle_summary_complete_error_handling(
     mock_metrics,
     mock_error_reporter,
     mock_document_store,
-    sample_summary_complete_event
+    sample_summary_complete_event,
 ):
     """Test that _handle_summary_complete handles errors properly."""
     # Make insert_document raise an exception
@@ -564,15 +549,11 @@ def test_handle_summary_complete_error_handling(
 
     # Should increment error metric
     mock_metrics.increment.assert_any_call(
-        "reporting_events_total",
-        tags={"event_type": "summary_complete", "outcome": "error"}
+        "reporting_events_total", tags={"event_type": "summary_complete", "outcome": "error"}
     )
 
     # Should increment failure metric
-    mock_metrics.increment.assert_any_call(
-        "reporting_failures_total",
-        tags={"error_type": "Exception"}
-    )
+    mock_metrics.increment.assert_any_call("reporting_failures_total", tags={"error_type": "Exception"})
 
     # Should report error
     mock_error_reporter.report.assert_called_once()
@@ -592,10 +573,7 @@ def test_publisher_uses_event_parameter_for_published(reporting_service, mock_pu
 
     reporting_service.document_store.query_documents.side_effect = query_documents_side_effect
 
-    reporting_service.process_summary(
-        sample_summary_complete_event["data"],
-        sample_summary_complete_event
-    )
+    reporting_service.process_summary(sample_summary_complete_event["data"], sample_summary_complete_event)
 
     # Verify publish was called with event parameter
     assert mock_publisher.publish.call_count == 1
@@ -614,7 +592,7 @@ def test_publisher_uses_event_parameter_for_delivery_failed(reporting_service, m
         thread_id="<thread@example.com>",
         channel="webhook",
         error_message="Connection timeout",
-        error_type="TimeoutError"
+        error_type="TimeoutError",
     )
 
     # Verify publish was called with event parameter
@@ -643,10 +621,9 @@ def test_query_documents_uses_filter_dict_parameter(reporting_service, mock_docu
     assert "query" not in call_args[1], "query_documents should not use deprecated 'query' parameter"
 
 
-
-
 def test_get_reports_with_message_date_filters_inclusive_overlap(reporting_service, mock_document_store):
     """Test that get_reports supports message date filtering with inclusive overlap."""
+
     # Setup mocks - need to return thread data
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":
@@ -704,6 +681,7 @@ def test_get_reports_with_message_date_filters_inclusive_overlap(reporting_servi
 
 def test_get_reports_with_message_date_filters_no_overlap(reporting_service, mock_document_store):
     """Test that get_reports correctly excludes threads with no date overlap."""
+
     # Setup mocks
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":
@@ -745,6 +723,7 @@ def test_get_reports_with_message_date_filters_no_overlap(reporting_service, moc
 
 def test_get_reports_with_message_date_filters_thread_without_dates(reporting_service, mock_document_store):
     """Test that get_reports skips threads without date information when using message date filters."""
+
     # Setup mocks
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":
@@ -785,6 +764,7 @@ def test_get_reports_with_message_date_filters_thread_without_dates(reporting_se
 
 def test_get_reports_with_message_date_filters_start_only(reporting_service, mock_document_store):
     """Test that get_reports supports message_start_date without message_end_date."""
+
     # Setup mocks
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":
@@ -826,6 +806,7 @@ def test_get_reports_with_message_date_filters_start_only(reporting_service, moc
 
 def test_get_reports_with_message_date_filters_end_only(reporting_service, mock_document_store):
     """Test that get_reports supports message_end_date without message_start_date."""
+
     # Setup mocks
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":
@@ -867,6 +848,7 @@ def test_get_reports_with_message_date_filters_end_only(reporting_service, mock_
 
 def test_get_reports_with_metadata_filters(reporting_service, mock_document_store):
     """Test that get_reports supports metadata filtering."""
+
     # Setup mocks - need to return thread and archive data
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries":

@@ -49,9 +49,7 @@ class TestFileSchemaProvider:
         test_schema = {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "type": "object",
-            "properties": {
-                "event_type": {"const": "TestEvent"}
-            }
+            "properties": {"event_type": {"const": "TestEvent"}},
         }
         schema_file = schema_dir / "TestEvent.schema.json"
         schema_file.write_text(json.dumps(test_schema), encoding="utf-8")
@@ -148,5 +146,5 @@ class TestDocumentStoreSchemaProvider:
     to break the circular dependency between copilot_schema_validation and copilot_storage.
     The application now uses only FileSchemaProvider to load schemas from the file system.
     """
-    pass
 
+    pass

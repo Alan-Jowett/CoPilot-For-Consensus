@@ -4,7 +4,6 @@
 """Azure Key Vault secret provider."""
 
 import logging
-import os
 
 from copilot_config.generated.adapters.secret_provider import DriverConfig_SecretProvider_AzureKeyVault
 
@@ -59,14 +58,14 @@ class AzureKeyVaultProvider(SecretProvider):
             SecretProviderError: If neither vault_url nor vault_name is provided, or if authentication fails
         """
         try:
-            from azure.core.exceptions import AzureError, ClientAuthenticationError, ResourceNotFoundError
+            from azure.core.exceptions import AzureError, ClientAuthenticationError
             from azure.identity import DefaultAzureCredential
             from azure.keyvault.secrets import SecretClient
         except ImportError as e:
             raise SecretProviderError(
                 "Azure SDK dependencies for Azure Key Vault are not installed. "
                 "For production, install with: pip install copilot-secrets[azure]. "
-                "For local development from the adapter directory, use: pip install -e \".[azure]\""
+                'For local development from the adapter directory, use: pip install -e ".[azure]"'
             ) from e
 
         # Determine vault URL
@@ -125,7 +124,6 @@ class AzureKeyVaultProvider(SecretProvider):
             except Exception:
                 # Suppress exceptions during cleanup
                 pass
-
 
     def __del__(self) -> None:
         """Best-effort cleanup of underlying Azure credential when garbage collected."""
@@ -223,10 +221,14 @@ class AzureKeyVaultProvider(SecretProvider):
             raise SecretNotFoundError(f"Key not found: {key_name} (vault name: {vault_key_name})") from e
         except AzureError as e:
             # Handle Azure SDK network, service, and authentication errors
-            raise SecretProviderError(f"Failed to retrieve key '{key_name}' (vault name: '{vault_key_name}'): {e}") from e
+            raise SecretProviderError(
+                f"Failed to retrieve key '{key_name}' (vault name: '{vault_key_name}'): {e}"
+            ) from e
         except Exception as e:
             # Wrap any unexpected exceptions in SecretProviderError
-            raise SecretProviderError(f"Failed to retrieve key '{key_name}' (vault name: '{vault_key_name}'): {e}") from e
+            raise SecretProviderError(
+                f"Failed to retrieve key '{key_name}' (vault name: '{vault_key_name}'): {e}"
+            ) from e
 
     def get_secret_bytes(self, key_name: str, version: str | None = None) -> bytes:
         """Retrieve a secret as raw bytes from Azure Key Vault.

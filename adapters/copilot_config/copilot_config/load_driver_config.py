@@ -55,9 +55,7 @@ def _get_adapter_schema(
     # Service schemas in this repo are not pure JSON Schema; many declare adapters
     # as a top-level mapping: {"adapters": {"message_bus": {"$ref": ...}, ...}}.
     # Some schemas may also use a JSON-Schema-like structure under properties.
-    service_adapters: dict[str, Any] = (
-        service_schema.get("properties", {}).get("adapters", {}).get("properties", {})
-    )
+    service_adapters: dict[str, Any] = service_schema.get("properties", {}).get("adapters", {}).get("properties", {})
     if not service_adapters and isinstance(service_schema.get("adapters"), dict):
         service_adapters = service_schema["adapters"]
 
@@ -194,9 +192,7 @@ def load_driver_config(
             continue
 
         if isinstance(field_spec, dict) and field_spec.get("required") is True:
-            raise ValueError(
-                f"Missing required field '{field_name}' for {adapter}/{driver} driver config"
-            )
+            raise ValueError(f"Missing required field '{field_name}' for {adapter}/{driver} driver config")
 
     # Create and return DriverConfig
     return DriverConfig(
@@ -204,4 +200,3 @@ def load_driver_config(
         config=config_dict,
         allowed_keys=allowed_keys,
     )
-

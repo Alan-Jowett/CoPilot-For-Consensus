@@ -117,9 +117,7 @@ class AzureServiceBusPublisher(EventPublisher):
                     raise ImportError("azure-servicebus library is not installed")
 
                 logger.info("Connecting to Azure Service Bus using connection string")
-                self.client = ServiceBusClient.from_connection_string(
-                    conn_str=self.connection_string
-                )
+                self.client = ServiceBusClient.from_connection_string(conn_str=self.connection_string)
 
             logger.info("Connected to Azure Service Bus")
 
@@ -137,9 +135,7 @@ class AzureServiceBusPublisher(EventPublisher):
         except Exception as e:
             logger.error(f"Error disconnecting from Azure Service Bus: {e}")
 
-    def _determine_publish_target(
-        self, exchange: str, routing_key: str
-    ) -> tuple[str | None, str | None]:
+    def _determine_publish_target(self, exchange: str, routing_key: str) -> tuple[str | None, str | None]:
         """Determine the target queue or topic for publishing.
 
         Topic takes precedence over queue. If both queue_name and topic_name
@@ -164,7 +160,11 @@ class AzureServiceBusPublisher(EventPublisher):
             return (None, self.queue_name)
 
         # Fall back to using routing_key as queue name (queue-per-event default)
-        return (None, routing_key)
+        if routing_key:
+            return (None, routing_key)
+
+        # Final fallback to using the exchange name as a topic
+        return (exchange, None)
 
     def publish(self, exchange: str, routing_key: str, event: dict[str, Any]) -> None:
         """Publish an event to Azure Service Bus.
@@ -228,9 +228,7 @@ class AzureServiceBusPublisher(EventPublisher):
                 # Publish to queue
                 with self.client.get_queue_sender(queue_name=target_queue) as sender:
                     sender.send_messages(message)
-                    logger.info(
-                        f"Published event to queue {target_queue}: {event.get('event_type')}"
-                    )
+                    logger.info(f"Published event to queue {target_queue}: {event.get('event_type')}")
             else:
                 error_msg = "No topic or queue configured for publishing"
                 logger.error(error_msg)

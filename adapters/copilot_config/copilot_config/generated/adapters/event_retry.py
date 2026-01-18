@@ -8,12 +8,13 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Literal
 
 
 @dataclass
 class DriverConfig_EventRetry_Default:
     """Configuration for event_retry adapter using default driver."""
+
     backoff_factor: float = 2.0
     # Exponential backoff factor
     base_delay_ms: int = 250
@@ -29,6 +30,7 @@ class DriverConfig_EventRetry_Default:
 @dataclass
 class DriverConfig_EventRetry_Noop:
     """Configuration for event_retry adapter using noop driver."""
+
     backoff_factor: float = 1.0
     # No backoff
     base_delay_ms: int = 0
@@ -44,5 +46,6 @@ class DriverConfig_EventRetry_Noop:
 @dataclass
 class AdapterConfig_EventRetry:
     """Configuration for event_retry adapter."""
+
     event_retry_type: Literal["default", "noop"]
-    driver: Union[DriverConfig_EventRetry_Default, DriverConfig_EventRetry_Noop]
+    driver: DriverConfig_EventRetry_Default | DriverConfig_EventRetry_Noop

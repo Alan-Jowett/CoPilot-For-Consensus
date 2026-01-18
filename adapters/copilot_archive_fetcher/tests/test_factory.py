@@ -10,7 +10,6 @@ from copilot_archive_fetcher import (
     LocalFetcher,
     RsyncFetcher,
     SourceConfig,
-    UnsupportedSourceTypeError,
     create_fetcher,
 )
 
@@ -20,59 +19,35 @@ class TestFetcherFactory:
 
     def test_create_rsync_fetcher(self):
         """Test creating an RsyncFetcher."""
-        config = SourceConfig(
-            name="rsync-source",
-            source_type="rsync",
-            url="rsync://example.com/archive/"
-        )
+        config = SourceConfig(name="rsync-source", source_type="rsync", url="rsync://example.com/archive/")
         fetcher = create_fetcher(config)
         assert isinstance(fetcher, RsyncFetcher)
 
     def test_create_http_fetcher(self):
         """Test creating an HTTPFetcher."""
-        config = SourceConfig(
-            name="http-source",
-            source_type="http",
-            url="https://example.com/archive.zip"
-        )
+        config = SourceConfig(name="http-source", source_type="http", url="https://example.com/archive.zip")
         fetcher = create_fetcher(config)
         assert isinstance(fetcher, HTTPFetcher)
 
     def test_create_local_fetcher(self):
         """Test creating a LocalFetcher."""
-        config = SourceConfig(
-            name="local-source",
-            source_type="local",
-            url="/path/to/archive"
-        )
+        config = SourceConfig(name="local-source", source_type="local", url="/path/to/archive")
         fetcher = create_fetcher(config)
         assert isinstance(fetcher, LocalFetcher)
 
     def test_create_imap_fetcher(self):
         """Test creating an IMAPFetcher."""
-        config = SourceConfig(
-            name="imap-source",
-            source_type="imap",
-            url="imap.example.com"
-        )
+        config = SourceConfig(name="imap-source", source_type="imap", url="imap.example.com")
         fetcher = create_fetcher(config)
         assert isinstance(fetcher, IMAPFetcher)
 
     def test_create_fetcher_case_insensitive(self):
         """Test that source type is case-insensitive."""
-        config = SourceConfig(
-            name="http-source",
-            source_type="HTTP",
-            url="https://example.com/archive.zip"
-        )
+        config = SourceConfig(name="http-source", source_type="HTTP", url="https://example.com/archive.zip")
         fetcher = create_fetcher(config)
         assert isinstance(fetcher, HTTPFetcher)
 
     def test_create_fetcher_unsupported_type(self):
         """Test that unsupported source type is rejected by SourceConfig."""
         with pytest.raises(ValueError, match="Unsupported source_type"):
-            SourceConfig(
-                name="unknown-source",
-                source_type="ftp",
-                url="ftp://example.com/archive"
-            )
+            SourceConfig(name="unknown-source", source_type="ftp", url="ftp://example.com/archive")

@@ -8,8 +8,8 @@ transient failures, particularly race conditions where events arrive before docu
 are queryable in eventually-consistent datastores like CosmosDB.
 """
 
-from .retry_policy import RetryPolicy, RetryConfig, RetryContext
-from .event_handler import handle_event_with_retry, RetryableError, DocumentNotFoundError
+from .event_handler import DocumentNotFoundError, RetryableError, handle_event_with_retry
+from .retry_policy import RetryConfig, RetryContext, RetryPolicy
 
 __all__ = [
     "RetryPolicy",

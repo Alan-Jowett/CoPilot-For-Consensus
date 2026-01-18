@@ -8,20 +8,22 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Literal
 
 
 @dataclass
 class DriverConfig_VectorStore_AzureAiSearch:
     """Configuration for vector_store adapter using azure_ai_search driver."""
+
     endpoint: str
     # Azure AI Search endpoint URL (HTTPS URI; must start with https://)
-    api_key: Optional[str] = None
+    api_key: str | None = None
     # Azure AI Search API key (alternative to managed identity)
-    index_name: str = 'embeddings'
+    index_name: str = "embeddings"
     # Azure AI Search index name for embeddings
-    managed_identity_client_id: Optional[str] = None
-    # Client ID for user-assigned managed identity (optional; if omitted, DefaultAzureCredential will use system-assigned identity or default chain)
+    managed_identity_client_id: str | None = None
+    # Client ID for user-assigned managed identity (optional).
+    # If omitted, DefaultAzureCredential uses system-assigned identity or default chain.
     use_managed_identity: bool = False
     # Use managed identity instead of API key
     vector_size: int = 384
@@ -31,30 +33,33 @@ class DriverConfig_VectorStore_AzureAiSearch:
 @dataclass
 class DriverConfig_VectorStore_Faiss:
     """Configuration for vector_store adapter using faiss driver."""
+
     dimension: int = 384
     # Embedding vector dimension
-    index_type: str = 'flat'
+    index_type: str = "flat"
     # FAISS index type (flat, ivf)
-    persist_path: Optional[str] = None
+    persist_path: str | None = None
     # Optional path to persist the index
 
 
 @dataclass
 class DriverConfig_VectorStore_Inmemory:
     """Configuration for vector_store adapter using inmemory driver."""
+
     pass
 
 
 @dataclass
 class DriverConfig_VectorStore_Qdrant:
     """Configuration for vector_store adapter using qdrant driver."""
-    api_key: Optional[str] = None
+
+    api_key: str | None = None
     # Qdrant API key (optional)
-    collection_name: str = 'embeddings'
+    collection_name: str = "embeddings"
     # Qdrant collection name for embeddings
-    distance: str = 'cosine'
+    distance: str = "cosine"
     # Distance metric (cosine, euclidean). The value 'euclid' is accepted as a backward-compatible alias.
-    host: str = 'vectorstore'
+    host: str = "vectorstore"
     # Qdrant server hostname
     port: int = 6333
     # Qdrant server port
@@ -67,10 +72,11 @@ class DriverConfig_VectorStore_Qdrant:
 @dataclass
 class AdapterConfig_VectorStore:
     """Configuration for vector_store adapter."""
+
     vector_store_type: Literal["azure_ai_search", "faiss", "inmemory", "qdrant"]
-    driver: Union[
-        DriverConfig_VectorStore_AzureAiSearch,
-        DriverConfig_VectorStore_Faiss,
-        DriverConfig_VectorStore_Inmemory,
-        DriverConfig_VectorStore_Qdrant
-    ]
+    driver: (
+        DriverConfig_VectorStore_AzureAiSearch
+        | DriverConfig_VectorStore_Faiss
+        | DriverConfig_VectorStore_Inmemory
+        | DriverConfig_VectorStore_Qdrant
+    )

@@ -44,7 +44,7 @@ def manager(mock_connection):
     )
 
     # Replace connection with mock
-    with patch('pika.BlockingConnection', return_value=connection):
+    with patch("pika.BlockingConnection", return_value=connection):
         manager.connect()
 
     return manager
@@ -85,7 +85,7 @@ class TestFailedQueueManager:
 
         manager = FailedQueueManager()
 
-        with patch('pika.BlockingConnection', return_value=connection) as mock_block:
+        with patch("pika.BlockingConnection", return_value=connection) as mock_block:
             manager.connect()
 
             assert manager.connection is not None
@@ -118,7 +118,7 @@ class TestFailedQueueManager:
         """Test inspecting messages from a queue."""
         # Mock basic_get to return 2 messages
         message_data = {"event_type": "ParsingFailed", "data": {"error": "test"}}
-        message_body = json.dumps(message_data).encode('utf-8')
+        message_body = json.dumps(message_data).encode("utf-8")
 
         method_mock = MagicMock()
         method_mock.delivery_tag = 1
@@ -152,7 +152,7 @@ class TestFailedQueueManager:
         manager.channel.queue_declare.return_value = queue_info_mock
 
         # Mock basic_get to return 2 messages
-        message_body = json.dumps({"test": "data"}).encode('utf-8')
+        message_body = json.dumps({"test": "data"}).encode("utf-8")
         method_mock = MagicMock()
         method_mock.delivery_tag = 1
         method_mock.exchange = "copilot.events"
@@ -212,8 +212,8 @@ class TestFailedQueueManager:
         assert manager.channel.basic_publish.call_count == 2
         # Verify correct routing key was used
         call_args = manager.channel.basic_publish.call_args_list[0]
-        assert call_args[1]['routing_key'] == 'archive.ingested'
-        assert call_args[1]['exchange'] == 'copilot.events'
+        assert call_args[1]["routing_key"] == "archive.ingested"
+        assert call_args[1]["exchange"] == "copilot.events"
         # Verify messages were acknowledged
         assert manager.channel.basic_ack.call_count == 2
 
@@ -261,8 +261,8 @@ class TestFailedQueueManager:
         method_mock = MagicMock()
 
         manager.channel.basic_get.side_effect = [
-            (method_mock, None, b'data'),
-            (method_mock, None, b'data'),
+            (method_mock, None, b"data"),
+            (method_mock, None, b"data"),
             (None, None, None),
         ]
 
@@ -343,8 +343,8 @@ class TestFailedQueueManager:
         method_mock.delivery_tag = 1
 
         manager.channel.basic_get.side_effect = [
-            (method_mock, None, b'data'),
-            (method_mock, None, b'data'),
+            (method_mock, None, b"data"),
+            (method_mock, None, b"data"),
             (None, None, None),
         ]
 

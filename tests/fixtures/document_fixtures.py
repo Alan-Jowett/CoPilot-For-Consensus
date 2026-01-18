@@ -18,12 +18,12 @@ from typing import Any
 
 def generate_doc_id(seed: str) -> str:
     """Generate a 16-character hex document ID from a seed string.
-    
+
     This mimics the deterministic ID generation used in production code.
-    
+
     Args:
         seed: String to hash for ID generation
-        
+
     Returns:
         16-character hex string suitable for use as _id
     """
@@ -39,14 +39,14 @@ def create_valid_message(
     from_name: str = "Test Sender",
     body_normalized: str = "This is a test message body.",
     date: str | None = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Create a schema-compliant message document for testing.
-    
+
     This function generates a valid message document that conforms to the
     messages.schema.json specification. All required fields are provided
     with sensible defaults.
-    
+
     Args:
         message_id: RFC 5322 Message-ID (default: "<test@example.com>")
         archive_id: 16-char hex archive ID (auto-generated if None)
@@ -57,10 +57,10 @@ def create_valid_message(
         body_normalized: Normalized message body text
         date: ISO 8601 timestamp (current time if None)
         **kwargs: Additional fields to include in the message
-        
+
     Returns:
         Dictionary containing a valid message document
-        
+
     Example:
         >>> msg = create_valid_message(
         ...     message_id="<test123@example.com>",
@@ -77,10 +77,10 @@ def create_valid_message(
         thread_id = generate_doc_id(f"thread-{message_id}")
     if date is None:
         date = datetime.now(timezone.utc).isoformat()
-    
+
     # Generate deterministic _id from stable fields
     doc_id = generate_doc_id(f"{archive_id}|{message_id}|{date}|{from_email}|{subject}")
-    
+
     message = {
         "_id": doc_id,
         "message_id": message_id,
@@ -107,10 +107,10 @@ def create_valid_message(
         "lastAttemptTime": None,
         "lastUpdated": date,
     }
-    
+
     # Merge any additional fields provided
     message.update(kwargs)
-    
+
     return message
 
 
@@ -121,14 +121,14 @@ def create_valid_chunk(
     chunk_index: int = 0,
     text: str = "This is chunk text.",
     token_count: int = 10,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Create a schema-compliant chunk document for testing.
-    
+
     This function generates a valid chunk document that conforms to the
     chunks.schema.json specification. All required fields are provided
     with sensible defaults.
-    
+
     Args:
         message_doc_id: 16-char hex message document ID (auto-generated if None)
         message_id: RFC 5322 Message-ID
@@ -137,10 +137,10 @@ def create_valid_chunk(
         text: Chunk text content
         token_count: Number of tokens in the chunk
         **kwargs: Additional fields to include in the chunk
-        
+
     Returns:
         Dictionary containing a valid chunk document
-        
+
     Example:
         >>> chunk = create_valid_chunk(
         ...     chunk_index=0,
@@ -156,12 +156,12 @@ def create_valid_chunk(
         message_doc_id = generate_doc_id(f"message-{message_id}")
     if thread_id is None:
         thread_id = generate_doc_id(f"thread-{message_id}")
-    
+
     # Generate deterministic _id for the chunk
     chunk_id = generate_doc_id(f"{message_doc_id}|{chunk_index}")
-    
+
     created_at = datetime.now(timezone.utc).isoformat()
-    
+
     chunk = {
         "_id": chunk_id,
         "message_doc_id": message_doc_id,
@@ -185,10 +185,10 @@ def create_valid_chunk(
         "lastAttemptTime": None,
         "lastUpdated": created_at,
     }
-    
+
     # Merge any additional fields provided
     chunk.update(kwargs)
-    
+
     return chunk
 
 
@@ -197,17 +197,17 @@ def create_valid_thread(
     archive_id: str | None = None,
     subject: str = "Test Thread Subject",
     has_consensus: bool = False,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Create a schema-compliant thread document for testing.
-    
+
     Args:
         thread_id: 16-char hex thread ID (auto-generated if None)
         archive_id: 16-char hex archive ID (auto-generated if None)
         subject: Thread subject line
         has_consensus: Whether the thread has reached consensus
         **kwargs: Additional fields to include in the thread
-        
+
     Returns:
         Dictionary containing a valid thread document
     """
@@ -215,16 +215,14 @@ def create_valid_thread(
         thread_id = generate_doc_id(f"thread-{subject}")
     if archive_id is None:
         archive_id = generate_doc_id(f"archive-for-thread-{thread_id}")
-    
+
     created_at = datetime.now(timezone.utc).isoformat()
-    
+
     thread = {
         "_id": thread_id,
         "archive_id": archive_id,
         "subject": subject,
-        "participants": [
-            {"email": "sender@example.com", "name": "Test Sender"}
-        ],
+        "participants": [{"email": "sender@example.com", "name": "Test Sender"}],
         "message_count": 1,
         "first_message_date": created_at,
         "last_message_date": created_at,
@@ -239,7 +237,7 @@ def create_valid_thread(
         "lastUpdated": created_at,
         "workerId": None,
     }
-    
+
     thread.update(kwargs)
     return thread
 
@@ -250,10 +248,10 @@ def create_valid_archive(
     source_url: str = "http://example.com/test.mbox",
     file_path: str = "/test/path/test.mbox",
     file_size_bytes: int = 1024,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Create a schema-compliant archive document for testing.
-    
+
     Args:
         archive_id: 16-char hex archive ID (auto-generated if None)
         source: Name of the archive source
@@ -261,18 +259,18 @@ def create_valid_archive(
         file_path: Path to the archive file
         file_size_bytes: Size of the archive file in bytes
         **kwargs: Additional fields to include in the archive
-        
+
     Returns:
         Dictionary containing a valid archive document
     """
     if archive_id is None:
         archive_id = generate_doc_id(f"archive-{source}-{file_path}")
-    
+
     # Generate full 64-character SHA256 hash for file_hash
     file_hash = hashlib.sha256(file_path.encode()).hexdigest()
-    
+
     created_at = datetime.now(timezone.utc).isoformat()
-    
+
     # NOTE: archives schema only has _id, not archive_id
     # _id is the MongoDB primary key (16-char hex)
     # file_hash is the full 64-char SHA256 hash
@@ -292,6 +290,6 @@ def create_valid_archive(
         "lastUpdated": created_at,
         "workerId": None,
     }
-    
+
     archive.update(kwargs)
     return archive

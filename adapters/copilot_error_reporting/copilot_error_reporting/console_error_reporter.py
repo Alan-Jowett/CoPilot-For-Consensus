@@ -63,12 +63,7 @@ class ConsoleErrorReporter(ErrorReporter):
         self.logger.error(log_message)
         self.logger.debug(f"Stack trace:\n{stack_trace}")
 
-    def capture_message(
-        self,
-        message: str,
-        level: str = "error",
-        context: dict[str, Any] | None = None
-    ) -> None:
+    def capture_message(self, message: str, level: str = "error", context: dict[str, Any] | None = None) -> None:
         """Capture a message without an exception.
 
         Args:

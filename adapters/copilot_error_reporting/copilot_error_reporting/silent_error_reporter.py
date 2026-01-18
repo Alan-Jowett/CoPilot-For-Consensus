@@ -32,6 +32,7 @@ class SilentErrorReporter(ErrorReporter):
         Returns:
             SilentErrorReporter instance
         """
+        del config
         return cls()
 
     def report(self, error: Exception, context: dict[str, Any] | None = None) -> None:
@@ -41,19 +42,16 @@ class SilentErrorReporter(ErrorReporter):
             error: The exception to report
             context: Optional dictionary with additional context
         """
-        self.reported_errors.append({
-            "error": error,
-            "error_type": type(error).__name__,
-            "error_message": str(error),
-            "context": context or {},
-        })
+        self.reported_errors.append(
+            {
+                "error": error,
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+                "context": context or {},
+            }
+        )
 
-    def capture_message(
-        self,
-        message: str,
-        level: str = "error",
-        context: dict[str, Any] | None = None
-    ) -> None:
+    def capture_message(self, message: str, level: str = "error", context: dict[str, Any] | None = None) -> None:
         """Capture a message without an exception.
 
         Args:
@@ -61,11 +59,13 @@ class SilentErrorReporter(ErrorReporter):
             level: Severity level (debug, info, warning, error, critical)
             context: Optional dictionary with additional context
         """
-        self.captured_messages.append({
-            "message": message,
-            "level": level,
-            "context": context or {},
-        })
+        self.captured_messages.append(
+            {
+                "message": message,
+                "level": level,
+                "context": context or {},
+            }
+        )
 
     def get_errors(self, error_type: str | None = None) -> list[dict[str, Any]]:
         """Get all reported errors, optionally filtered by type.

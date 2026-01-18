@@ -24,10 +24,7 @@ class TestMockSummarizer:
         """Test generating a mock summary."""
         summarizer = MockSummarizer(latency_ms=10)
 
-        thread = Thread(
-            thread_id="test-thread-123",
-            messages=["Message 1", "Message 2", "Message 3"]
-        )
+        thread = Thread(thread_id="test-thread-123", messages=["Message 1", "Message 2", "Message 3"])
 
         summary = summarizer.summarize(thread)
 
@@ -44,10 +41,7 @@ class TestMockSummarizer:
         """Test that mock summary includes citations."""
         summarizer = MockSummarizer(latency_ms=0)
 
-        thread = Thread(
-            thread_id="test-thread-456",
-            messages=["Message 1"]
-        )
+        thread = Thread(thread_id="test-thread-456", messages=["Message 1"])
 
         summary = summarizer.summarize(thread)
 
@@ -60,10 +54,7 @@ class TestMockSummarizer:
         """Test summarizing an empty thread."""
         summarizer = MockSummarizer(latency_ms=0)
 
-        thread = Thread(
-            thread_id="empty-thread",
-            messages=[]
-        )
+        thread = Thread(thread_id="empty-thread", messages=[])
 
         summary = summarizer.summarize(thread)
 

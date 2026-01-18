@@ -31,7 +31,6 @@ from .google_provider import GoogleIdentityProvider
 from .microsoft_provider import MicrosoftIdentityProvider
 from .provider import IdentityProvider
 
-
 ProviderName = Literal["github", "google", "microsoft"]
 
 
@@ -55,9 +54,7 @@ def create_identity_provider(
     """
     name = provider_name.lower()
     if name not in ("github", "google", "microsoft"):
-        raise ValueError(
-            f"Unknown identity provider: {provider_name}. Supported types: github, google, microsoft"
-        )
+        raise ValueError(f"Unknown identity provider: {provider_name}. Supported types: github, google, microsoft")
 
     default_redirect_uri = f"{issuer.rstrip('/')}/callback" if issuer else None
 
@@ -80,9 +77,7 @@ def create_identity_provider(
             driver_config = replace(driver_config, microsoft_redirect_uri=default_redirect_uri)
         return MicrosoftIdentityProvider.from_config(driver_config)
 
-    raise ValueError(
-        f"Unknown identity provider: {provider_name}. Supported types: github, google, microsoft"
-    )
+    raise ValueError(f"Unknown identity provider: {provider_name}. Supported types: github, google, microsoft")
 
 
 def create_identity_providers(

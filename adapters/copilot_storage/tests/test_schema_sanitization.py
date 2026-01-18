@@ -8,9 +8,9 @@ without backend system fields or unknown fields, regardless of the underlying
 storage driver (Cosmos/Mongo/InMemory).
 """
 
-import pytest
 from typing import Any
 
+import pytest
 from copilot_storage import DocumentStore
 from copilot_storage.inmemory_document_store import InMemoryDocumentStore
 
@@ -25,16 +25,16 @@ def store() -> DocumentStore:
 
 def _insert_with_backend_fields(store: InMemoryDocumentStore, collection: str, doc: dict[str, Any]) -> None:
     """Helper to insert a document with simulated backend system fields.
-    
+
     This helper directly accesses internal storage to simulate what backend
     implementations (Cosmos/Mongo) actually store, including system fields
     that would normally be added by those backends.
-    
+
     This is necessary for testing sanitization because:
     1. insert_document() goes through the public API which may not add system fields
     2. We need to verify that system fields added by backends are properly removed
     3. This pattern is only used for testing - production code uses public API
-    
+
     Args:
         store: InMemoryDocumentStore instance
         collection: Collection name
@@ -61,20 +61,20 @@ def test_get_document_removes_system_fields(store: DocumentStore):
         "id": "cosmos-id",
         "collection": "sources",
     }
-    
+
     # Use helper to simulate backend behavior
     _insert_with_backend_fields(store, "sources", doc_with_system_fields)
-    
+
     # Retrieve the document
     result = store.get_document("sources", "test-id-123")
-    
+
     assert result is not None
     assert result["_id"] == "test-id-123"
     assert result["name"] == "test-source"
     assert result["source_type"] == "local"
     assert result["url"] == "/data/test.mbox"
     assert result["enabled"] is True
-    
+
     # Verify system fields are removed
     assert "_etag" not in result
     assert "_rid" not in result
@@ -99,16 +99,16 @@ def test_get_document_removes_unknown_fields(store: DocumentStore):
         "random_metadata": {"nested": "data"},
         "legacy_field": 12345,
     }
-    
+
     _insert_with_backend_fields(store, "sources", doc_with_unknown_fields)
-    
+
     # Retrieve the document
     result = store.get_document("sources", "test-id-456")
-    
+
     assert result is not None
     assert result["_id"] == "test-id-456"
     assert result["name"] == "test-source"
-    
+
     # Verify unknown fields are removed
     assert "unknown_field_1" not in result
     assert "random_metadata" not in result
@@ -138,14 +138,14 @@ def test_get_document_preserves_required_fields(store: DocumentStore):
         "files_processed": 10,
         "files_skipped": 5,
     }
-    
+
     _insert_with_backend_fields(store, "sources", complete_doc)
-    
+
     # Retrieve the document
     result = store.get_document("sources", "test-id-789")
-    
+
     assert result is not None
-    
+
     # Verify all schema fields are preserved
     assert result["_id"] == "test-id-789"
     assert result["name"] == "complete-source"
@@ -183,7 +183,7 @@ def test_query_documents_removes_system_fields(store: DocumentStore):
         "id": "cosmos-id-1",
         "collection": "archives",
     }
-    
+
     doc2 = {
         "_id": "archive-2",
         "file_hash": "b" * 64,
@@ -197,21 +197,21 @@ def test_query_documents_removes_system_fields(store: DocumentStore):
         "id": "cosmos-id-2",
         "collection": "archives",
     }
-    
+
     _insert_with_backend_fields(store, "archives", doc1)
     _insert_with_backend_fields(store, "archives", doc2)
-    
+
     # Query documents
     results = store.query_documents("archives", {"source": "test-source"})
-    
+
     assert len(results) == 2
-    
+
     for result in results:
         # Verify schema fields are present
         assert "_id" in result
         assert "file_hash" in result
         assert "source" in result
-        
+
         # Verify system fields are removed
         assert "_etag" not in result
         assert "_rid" not in result
@@ -233,20 +233,20 @@ def test_query_documents_removes_unknown_fields(store: DocumentStore):
         "unknown_field": "should be removed",
         "legacy_metadata": {"old": "data"},
     }
-    
+
     _insert_with_backend_fields(store, "messages", doc1)
-    
+
     # Query documents
     results = store.query_documents("messages", {"thread_id": "t" * 16})
-    
+
     assert len(results) == 1
     result = results[0]
-    
+
     # Verify schema fields are present
     assert result["_id"] == "msg-1"
     assert result["message_id"] == "<msg1@example.com>"
     assert result["body_normalized"] == "Message content"
-    
+
     # Verify unknown fields are removed
     assert "unknown_field" not in result
     assert "legacy_metadata" not in result
@@ -263,22 +263,19 @@ def test_aggregate_documents_removes_system_fields(store: DocumentStore):
         "id": "cosmos-id-1",
         "collection": "threads",
     }
-    
+
     _insert_with_backend_fields(store, "threads", doc)
-    
+
     # Aggregate with $match
-    results = store.aggregate_documents(
-        "threads",
-        [{"$match": {"summary_id": None}}]
-    )
-    
+    results = store.aggregate_documents("threads", [{"$match": {"summary_id": None}}])
+
     assert len(results) == 1
     result = results[0]
-    
+
     # Verify schema fields are present
     assert result["_id"] == "thread-1"
     assert result["subject"] == "Test Thread"
-    
+
     # Verify system fields are removed
     assert "_etag" not in result
     assert "id" not in result
@@ -287,7 +284,7 @@ def test_aggregate_documents_removes_system_fields(store: DocumentStore):
 
 def test_sanitization_with_unknown_collection(store: DocumentStore):
     """Test that sanitization works gracefully with unknown collections.
-    
+
     For collections without a registered schema, only system fields should
     be removed (not unknown fields, since we can't determine what's unknown).
     """
@@ -300,19 +297,19 @@ def test_sanitization_with_unknown_collection(store: DocumentStore):
         "id": "cosmos-id-1",
         "collection": "unknown_collection",
     }
-    
+
     _insert_with_backend_fields(store, "unknown_collection", doc)
-    
+
     # Retrieve the document
     result = store.get_document("unknown_collection", "doc-1")
-    
+
     assert result is not None
-    
+
     # Custom fields should be preserved (no schema to filter against)
     assert result["_id"] == "doc-1"
     assert result["custom_field_1"] == "value1"
     assert result["custom_field_2"] == "value2"
-    
+
     # System fields should still be removed
     assert "_etag" not in result
     assert "id" not in result
@@ -336,7 +333,7 @@ def test_query_documents_returns_empty_list_when_no_matches(store: DocumentStore
         "enabled": True,
     }
     _insert_with_backend_fields(store, "sources", doc)
-    
+
     # Query for a different name
     results = store.query_documents("sources", {"name": "other-source"})
     assert results == []

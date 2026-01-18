@@ -12,7 +12,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-
 from copilot_config.generated.adapters.llm_backend import AdapterConfig_LlmBackend
 from copilot_summarization.factory import create_llm_backend
 
@@ -31,26 +30,26 @@ def load_json(path):
 def get_required_fields(driver_schema):
     """Extract required fields from driver schema."""
     required = set()
-    
+
     if "required" in driver_schema:
         required.update(driver_schema["required"])
-    
+
     if "properties" in driver_schema:
         for field, field_schema in driver_schema["properties"].items():
             if isinstance(field_schema, dict) and field_schema.get("required") is True:
                 required.add(field)
-    
+
     return required
 
 
 def get_minimal_config(driver_schema):
     """Build minimal config with all fields from driver schema.
-    
+
     Includes required fields and optional fields with schema defaults.
     """
     config_dict = {}
     required_fields = get_required_fields(driver_schema)
-    
+
     # Map field names to reasonable defaults (for required fields without schema defaults)
     defaults = {
         "api_key": "test-key",
@@ -69,7 +68,7 @@ def get_minimal_config(driver_schema):
         "openai_api_key": "test-openai-key",
         "openai_model": "gpt-4o-mini",
     }
-    
+
     # Include all properties: required fields and optional fields with defaults
     properties = driver_schema.get("properties", {})
     for field, field_schema in properties.items():
@@ -83,20 +82,20 @@ def get_minimal_config(driver_schema):
             # Optional field with default: use the schema default
             config_dict[field] = field_schema["default"]
         # Optional fields without defaults are skipped (will use None)
-    
+
     return config_dict
 
 
 class TestLLMBackendAllDrivers:
     """Test factory creation for all LLM backend drivers."""
-    
+
     def test_all_drivers_instantiate(self):
         """Test that each driver in schema can be instantiated via factory."""
         schema_dir = get_schema_dir()
         schema = load_json(schema_dir / "llm_backend.json")
         drivers_enum = schema["properties"]["discriminant"]["enum"]
         drivers_dir = schema_dir / "drivers" / "llm_backend"
-        
+
         from copilot_config.generated.adapters import llm_backend as llm_backend_types
 
         driver_to_class = {
@@ -111,10 +110,10 @@ class TestLLMBackendAllDrivers:
             # Load driver schema - llm drivers are named with llm_ prefix
             driver_schema_path = drivers_dir / f"llm_{driver}.json"
             assert driver_schema_path.exists(), f"Driver schema missing: {driver_schema_path}"
-            
+
             driver_schema = load_json(driver_schema_path)
             config_dict = get_minimal_config(driver_schema)
-            
+
             driver_class = driver_to_class[driver]
             driver_config = driver_class(**config_dict)
             adapter_config = AdapterConfig_LlmBackend(llm_backend_type=driver, driver=driver_config)

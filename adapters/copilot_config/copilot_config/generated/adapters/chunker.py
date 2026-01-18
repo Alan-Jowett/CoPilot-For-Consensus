@@ -8,12 +8,13 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Literal
 
 
 @dataclass
 class DriverConfig_Chunker_FixedSize:
     """Configuration for chunker adapter using fixed_size driver."""
+
     messages_per_chunk: int = 5
     # Number of messages per chunk
 
@@ -21,6 +22,7 @@ class DriverConfig_Chunker_FixedSize:
 @dataclass
 class DriverConfig_Chunker_Semantic:
     """Configuration for chunker adapter using semantic driver."""
+
     split_on_speaker: bool = False
     # Split on speaker changes
     target_chunk_size: int = 400
@@ -30,6 +32,7 @@ class DriverConfig_Chunker_Semantic:
 @dataclass
 class DriverConfig_Chunker_TokenWindow:
     """Configuration for chunker adapter using token_window driver."""
+
     chunk_size: int = 384
     # Target chunk size in tokens
     max_chunk_size: int = 512
@@ -43,5 +46,6 @@ class DriverConfig_Chunker_TokenWindow:
 @dataclass
 class AdapterConfig_Chunker:
     """Configuration for chunker adapter."""
+
     chunking_strategy: Literal["fixed_size", "semantic", "token_window"]
-    driver: Union[DriverConfig_Chunker_FixedSize, DriverConfig_Chunker_Semantic, DriverConfig_Chunker_TokenWindow]
+    driver: DriverConfig_Chunker_FixedSize | DriverConfig_Chunker_Semantic | DriverConfig_Chunker_TokenWindow

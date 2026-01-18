@@ -25,15 +25,10 @@ def store(temp_dir):
     return LocalVolumeArchiveStore(base_path=temp_dir)
 
 
-
 def test_store_archive(store, temp_dir):
     """Test storing an archive."""
     content = b"This is a test archive content"
-    archive_id = store.store_archive(
-        source_name="test-source",
-        file_path="archive.mbox",
-        content=content
-    )
+    archive_id = store.store_archive(source_name="test-source", file_path="archive.mbox", content=content)
 
     # Archive ID should be first 16 chars of SHA256 hash
     assert archive_id is not None
@@ -50,27 +45,20 @@ def test_store_archive(store, temp_dir):
     assert stored_content == content
 
 
-
 def test_get_archive(store):
     """Test retrieving an archive."""
     content = b"Test archive content"
-    archive_id = store.store_archive(
-        source_name="test-source",
-        file_path="test.mbox",
-        content=content
-    )
+    archive_id = store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
     # Retrieve the archive
     retrieved = store.get_archive(archive_id)
     assert retrieved == content
 
 
-
 def test_get_archive_not_found(store):
     """Test retrieving non-existent archive returns None."""
     result = store.get_archive("nonexistent_id")
     assert result is None
-
 
 
 def test_get_archive_by_hash(store):
@@ -81,16 +69,11 @@ def test_get_archive_by_hash(store):
     content_hash = hashlib.sha256(content).hexdigest()
 
     # Store the archive
-    archive_id = store.store_archive(
-        source_name="test-source",
-        file_path="test.mbox",
-        content=content
-    )
+    archive_id = store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
     # Look up by hash
     found_id = store.get_archive_by_hash(content_hash)
     assert found_id == archive_id
-
 
 
 def test_get_archive_by_hash_not_found(store):
@@ -99,15 +82,10 @@ def test_get_archive_by_hash_not_found(store):
     assert result is None
 
 
-
 def test_archive_exists(store):
     """Test checking if archive exists."""
     content = b"Test content"
-    archive_id = store.store_archive(
-        source_name="test-source",
-        file_path="test.mbox",
-        content=content
-    )
+    archive_id = store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
     # Should exist
     assert store.archive_exists(archive_id) is True
@@ -116,15 +94,10 @@ def test_archive_exists(store):
     assert store.archive_exists("nonexistent") is False
 
 
-
 def test_delete_archive(store, temp_dir):
     """Test deleting an archive."""
     content = b"Test content to delete"
-    archive_id = store.store_archive(
-        source_name="test-source",
-        file_path="test.mbox",
-        content=content
-    )
+    archive_id = store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
     # Verify it exists
     assert store.archive_exists(archive_id) is True
@@ -141,12 +114,10 @@ def test_delete_archive(store, temp_dir):
     assert not (source_dir / "test.mbox").exists()
 
 
-
 def test_delete_archive_not_found(store):
     """Test deleting non-existent archive returns False."""
     result = store.delete_archive("nonexistent")
     assert result is False
-
 
 
 def test_list_archives(store):
@@ -173,12 +144,10 @@ def test_list_archives(store):
     assert archives_b[0]["archive_id"] == id3
 
 
-
 def test_list_archives_empty(store):
     """Test listing archives when none exist for a source."""
     archives = store.list_archives("nonexistent-source")
     assert archives == []
-
 
 
 def test_deduplication(store):
@@ -190,7 +159,6 @@ def test_deduplication(store):
 
     # Same content should produce same ID (deduplication)
     assert id1 == id2
-
 
 
 def test_metadata_persistence(temp_dir):
@@ -212,7 +180,6 @@ def test_metadata_persistence(temp_dir):
     archives = store2.list_archives("test-source")
     assert len(archives) == 1
     assert archives[0]["archive_id"] == archive_id
-
 
 
 def test_archive_metadata_structure(store):

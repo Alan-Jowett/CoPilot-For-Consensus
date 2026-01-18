@@ -32,10 +32,7 @@ except ImportError:
     sys.exit(1)
 
 logger_config = load_driver_config(
-    service=None,
-    adapter="logger",
-    driver="stdout",
-    fields={"level": "INFO", "name": __name__}
+    service=None, adapter="logger", driver="stdout", fields={"level": "INFO", "name": __name__}
 )
 logger = create_logger(driver_name="stdout", driver_config=logger_config)
 
@@ -113,10 +110,12 @@ class FailedQueueManager:
                     passive=True,  # Don't create if doesn't exist
                 )
                 message_count = queue_info.method.message_count
-                queues.append({
-                    "queue": queue_name,
-                    "message_count": message_count,
-                })
+                queues.append(
+                    {
+                        "queue": queue_name,
+                        "message_count": message_count,
+                    }
+                )
                 logger.debug(f"Queue {queue_name}: {message_count} messages")
             except Exception as e:
                 logger.warning(f"Failed to get info for queue {queue_name}: {e}")
@@ -153,22 +152,24 @@ class FailedQueueManager:
                 break
 
             try:
-                message_data = json.loads(body.decode('utf-8'))
+                message_data = json.loads(body.decode("utf-8"))
             except json.JSONDecodeError:
-                message_data = {"raw_body": body.decode('utf-8', errors='replace')}
+                message_data = {"raw_body": body.decode("utf-8", errors="replace")}
 
-            messages.append({
-                "delivery_tag": method.delivery_tag,
-                "exchange": method.exchange,
-                "routing_key": method.routing_key,
-                "redelivered": method.redelivered,
-                "message": message_data,
-                "properties": {
-                    "content_type": properties.content_type,
-                    "delivery_mode": properties.delivery_mode,
-                    "timestamp": properties.timestamp,
-                },
-            })
+            messages.append(
+                {
+                    "delivery_tag": method.delivery_tag,
+                    "exchange": method.exchange,
+                    "routing_key": method.routing_key,
+                    "redelivered": method.redelivered,
+                    "message": message_data,
+                    "properties": {
+                        "content_type": properties.content_type,
+                        "delivery_mode": properties.delivery_mode,
+                        "timestamp": properties.timestamp,
+                    },
+                }
+            )
 
             # Requeue message to preserve queue state (inspection is non-destructive)
             if requeue:
@@ -214,13 +215,13 @@ class FailedQueueManager:
         # Write to file
         export_data = {
             "queue": queue_name,
-            "export_timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "export_timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "total_messages_in_queue": total_count,
             "messages_exported": len(messages),
             "messages": messages,
         }
 
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(export_data, f, indent=2)
 
         logger.info(f"Exported {len(messages)} messages to {output_file}")
@@ -260,7 +261,9 @@ class FailedQueueManager:
         if limit is None:
             limit = total_count
 
-        logger.info(f"{'[DRY RUN] ' if dry_run else ''}Requeuing up to {limit} messages from {queue_name} to {target_queue}")
+        logger.info(
+            f"{'[DRY RUN] ' if dry_run else ''}Requeuing up to {limit} messages from {queue_name} to {target_queue}"
+        )
 
         requeued_count = 0
 
@@ -376,43 +379,39 @@ Examples:
   %(prog)s purge parsing.failed --limit 100 --dry-run
 
 For full operational guide, see documents/FAILED_QUEUE_OPERATIONS.md
-        """
+        """,
     )
 
     # Connection options
     parser.add_argument(
         "--rabbitmq-host",
         default=os.getenv("MESSAGE_BUS_HOST", "localhost"),
-        help="RabbitMQ host (default: localhost or $MESSAGE_BUS_HOST)"
+        help="RabbitMQ host (default: localhost or $MESSAGE_BUS_HOST)",
     )
     parser.add_argument(
         "--rabbitmq-port",
         type=int,
         default=int(os.getenv("MESSAGE_BUS_PORT", "5672")),
-        help="RabbitMQ port (default: 5672 or $MESSAGE_BUS_PORT)"
+        help="RabbitMQ port (default: 5672 or $MESSAGE_BUS_PORT)",
     )
     parser.add_argument(
         "--rabbitmq-user",
         default=os.getenv("MESSAGE_BUS_USER", "guest"),
-        help="RabbitMQ username (default: guest or $MESSAGE_BUS_USER)"
+        help="RabbitMQ username (default: guest or $MESSAGE_BUS_USER)",
     )
     parser.add_argument(
         "--rabbitmq-password",
         default=os.getenv("MESSAGE_BUS_PASSWORD", "guest"),
-        help="RabbitMQ password (default: guest or $MESSAGE_BUS_PASSWORD)"
+        help="RabbitMQ password (default: guest or $MESSAGE_BUS_PASSWORD)",
     )
     parser.add_argument(
         "--rabbitmq-vhost",
         default=os.getenv("MESSAGE_BUS_VHOST", "/"),
-        help="RabbitMQ vhost (default: / or $MESSAGE_BUS_VHOST)"
+        help="RabbitMQ vhost (default: / or $MESSAGE_BUS_VHOST)",
     )
 
     # Logging
-    parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
 
     # Subcommands
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -452,10 +451,7 @@ For full operational guide, see documents/FAILED_QUEUE_OPERATIONS.md
     global logger
     if args.verbose:
         logger_config = load_driver_config(
-            service=None,
-            adapter="logger",
-            driver="stdout",
-            fields={"level": "DEBUG", "name": __name__}
+            service=None, adapter="logger", driver="stdout", fields={"level": "DEBUG", "name": __name__}
         )
         logger = create_logger(driver_name="stdout", driver_config=logger_config)
 

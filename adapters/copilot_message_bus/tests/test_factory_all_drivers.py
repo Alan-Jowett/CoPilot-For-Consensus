@@ -65,20 +65,17 @@ def get_typed_config(driver_name: str) -> AdapterConfig_MessageBus:
 
 class TestMessageBusAllDrivers:
     """Test factory creation for all message bus drivers."""
-    
+
     def test_all_drivers_instantiate(self):
         """Test that each driver in schema can be instantiated via factory."""
         schema_dir = get_schema_dir()
         schema = load_json(schema_dir / "message_bus.json")
         drivers_enum = schema["properties"]["discriminant"]["enum"]
-        
+
         for driver in drivers_enum:
             config = get_typed_config(driver)
-            
+
             # Should not raise any exceptions
             # Note: validation may fail for actual connections, so use enable_validation=False
-            publisher = create_publisher(
-                config,
-                enable_validation=False
-            )
+            publisher = create_publisher(config, enable_validation=False)
             assert publisher is not None, f"Failed to create publisher for driver: {driver}"

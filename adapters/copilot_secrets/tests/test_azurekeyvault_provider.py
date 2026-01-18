@@ -7,14 +7,13 @@ import os
 from unittest.mock import Mock, patch
 
 import pytest
-
-pytestmark = pytest.mark.integration
-
 from copilot_secrets import (
     SecretNotFoundError,
     SecretProviderError,
 )
 from copilot_secrets.azurekeyvault_provider import AzureKeyVaultProvider
+
+pytestmark = pytest.mark.integration
 
 
 class TestAzureKeyVaultProvider:
@@ -222,9 +221,7 @@ class TestAzureKeyVaultProvider:
 
     def test_authentication_error(self, azure_sdk_mocks):
         """Test handling of authentication errors."""
-        azure_sdk_mocks.default_credential_cls.side_effect = azure_sdk_mocks.ClientAuthenticationError(
-            "Auth failed"
-        )
+        azure_sdk_mocks.default_credential_cls.side_effect = azure_sdk_mocks.ClientAuthenticationError("Auth failed")
 
         with pytest.raises(SecretProviderError, match="Failed to authenticate"):
             AzureKeyVaultProvider(vault_url="https://test.vault.azure.net/")
@@ -248,7 +245,7 @@ class TestAzureKeyVaultProvider:
             raise SecretProviderError(
                 "Azure SDK dependencies for Azure Key Vault are not installed. "
                 "For production, install with: pip install copilot-secrets[azure]. "
-                "For local development from the adapter directory, use: pip install -e \".[azure]\""
+                'For local development from the adapter directory, use: pip install -e ".[azure]"'
             )
         except SecretProviderError as e:
             error_message = str(e)
@@ -373,9 +370,7 @@ class TestAzureKeyVaultProviderIntegration:
         def get_secret_side_effect(name, version=None):
             secrets = {
                 "api-key": Mock(value="key123"),
-                "jwt-private-key": Mock(
-                    value="-----BEGIN PRIVATE KEY-----\ndata\n-----END PRIVATE KEY-----"
-                ),
+                "jwt-private-key": Mock(value="-----BEGIN PRIVATE KEY-----\ndata\n-----END PRIVATE KEY-----"),
             }
             if name in secrets:
                 return secrets[name]

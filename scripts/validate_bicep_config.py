@@ -198,7 +198,7 @@ def _kv_scope_from_env(env_vars: dict) -> str:
 def extract_env_vars(bicep_content: str, service_name: str) -> dict:
     """
     Extract environment variables for a service from Bicep file content.
-    
+
     Looks for patterns like:
     resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
         ...
@@ -207,122 +207,125 @@ def extract_env_vars(bicep_content: str, service_name: str) -> dict:
             ...
         ]
     }
-    
+
     Returns dict mapping env var names to values (or None for conditionals).
     """
     env_vars = {}
-    
+
     # Find the service resource block - support various naming patterns
     # Look for "resource <name> 'Microsoft.App/containerApps" where name contains the service
     service_patterns = [
         rf"resource\s+\w*{service_name}\w*\s+'Microsoft\.App/containerApps",
     ]
-    
+
     resource_start = -1
     for pattern in service_patterns:
         match = re.search(pattern, bicep_content, re.IGNORECASE)
         if match:
             resource_start = match.start()
             break
-    
+
     if resource_start == -1:
-        raise ValueError(f"Could not find resource block for service '{service_name}'. Pattern: resource <name> 'Microsoft.App/containerApps'")
-    
+        raise ValueError(
+            f"Could not find resource block for service '{service_name}'. "
+            "Pattern: resource <name> 'Microsoft.App/containerApps'"
+        )
+
     # Find the containers array and then the env array within it
     # Look from resource_start for "env: ["
     env_start = bicep_content.find("env: [", resource_start)
     if env_start == -1:
         raise ValueError(f"Could not find 'env: [' array for service '{service_name}' after position {resource_start}")
-    
+
     # Find the closing ] of the env array - need to track nesting
     bracket_count = 1  # We're starting after "env: ["
     i = env_start + 6  # Start after "env: ["
     env_end = -1
     in_string = False
     string_char = None
-    
+
     while i < len(bicep_content) and bracket_count > 0:
         char = bicep_content[i]
-        
+
         # Handle string literals
-        if char in ('"', "'") and (i == 0 or bicep_content[i-1] != '\\'):
+        if char in ('"', "'") and (i == 0 or bicep_content[i - 1] != "\\"):
             if not in_string:
                 in_string = True
                 string_char = char
             elif char == string_char:
                 in_string = False
                 string_char = None
-        
+
         # Only count brackets outside strings
         if not in_string:
-            if char == '[':
+            if char == "[":
                 bracket_count += 1
-            elif char == ']':
+            elif char == "]":
                 bracket_count -= 1
                 if bracket_count == 0:
                     env_end = i
                     break
-        
+
         i += 1
-    
+
     if env_end == -1:
         raise ValueError(f"Could not find closing bracket for 'env:' array for service '{service_name}'")
-    
-    env_content = bicep_content[env_start + 6:env_end]
-    
+
+    env_content = bicep_content[env_start + 6 : env_end]
+
     # Extract name-value pairs
     # More robust pattern that handles values on the same line or next line
     # Pattern: name: 'NAME' followed by value: on same or next line
     pattern = r"name:\s*['\"]([^'\"]+)['\"]\s*\n?\s*value:\s*(.+?)(?=\n\s*\})"
-    
+
     for match in re.finditer(pattern, env_content, re.DOTALL | re.MULTILINE):
         name = match.group(1)
         value = match.group(2).strip()
-        
+
         # Remove trailing comma if present
         value = value.rstrip(",").strip()
-        
+
         # Remove surrounding quotes if present
         if value.startswith("'") and value.endswith("'"):
             value = value[1:-1]
         elif value.startswith('"') and value.endswith('"'):
             value = value[1:-1]
-        
+
         # Store the full value for validation (even if conditional)
         env_vars[name] = value
-    
+
     return env_vars
 
 
 def load_schema(service_name: str) -> dict:
     """Load the service schema from docs/schemas/configs/services/{service_name}.json"""
     schema_path = Path(__file__).parent.parent / "docs" / "schemas" / "configs" / "services" / f"{service_name}.json"
-    
+
     if not schema_path.exists():
         raise FileNotFoundError(f"Schema not found: {schema_path}")
-    
-    with open(schema_path, 'r', encoding='utf-8') as f:
+
+    with open(schema_path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def resolve_ref(ref_path: str, base_path: Path) -> dict:
     """
     Resolve a $ref pointer and load the referenced schema.
-    
+
     Args:
         ref_path: The $ref path (e.g., "../adapters/metrics.json")
         base_path: Base path to resolve relative references from
-    
+
     Returns:
         The loaded schema dict
     """
     # Resolve relative path from base
     resolved_path = (base_path / ref_path).resolve()
-    
+
     if not resolved_path.exists():
         raise FileNotFoundError(f"Referenced schema not found: {resolved_path} (from {ref_path})")
-    
-    with open(resolved_path, 'r', encoding='utf-8') as f:
+
+    with open(resolved_path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -330,7 +333,7 @@ def _extract_keyvault_references_from_env(env_vars: dict) -> dict[str, str]:
     """
     Scan env var values for Key Vault secret references.
     Returns dict mapping env var name to 'KEY_VAULT_REF' marker.
-    
+
     These should NOT exist - secrets should be loaded via secret provider, not env vars.
     """
     keyvault_refs: dict[str, str] = {}
@@ -348,35 +351,41 @@ def _extract_keyvault_references_from_env(env_vars: dict) -> dict[str, str]:
 def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
     """
     Validate environment variables against schema.
-    
+
     Returns list of issues found (empty if valid).
     """
+    del service_name
     issues = []
     required_secrets: set[str] = set()
-    
+
     # Get service settings from schema
     service_settings = schema.get("service_settings", {})
-    
+
     # Validate service settings (old validation logic - kept for completeness)
     for setting_name, setting_config in service_settings.items():
         if not isinstance(setting_config, dict):
             continue
-        
+
         # Get discriminant info (if any)
         discriminant = setting_config.get("discriminant")
         if discriminant:
             discriminant_env_var = discriminant.get("env_var")
             enum_values = discriminant.get("enum", [])
-            
+
             if discriminant_env_var:
                 # Check discriminant env var exists and has valid value
                 if discriminant_env_var not in env_vars:
-                    issues.append(f"Missing discriminant environment variable: {discriminant_env_var} (required for setting '{setting_name}')")
+                    issues.append(
+                        f"Missing discriminant environment variable: {discriminant_env_var} "
+                        f"(required for setting '{setting_name}')"
+                    )
                 elif env_vars[discriminant_env_var] is not None:
                     value = env_vars[discriminant_env_var]
                     if value not in enum_values:
-                        issues.append(f"Invalid discriminant value for {discriminant_env_var}: '{value}' not in {enum_values}")
-    
+                        issues.append(
+                            f"Invalid discriminant value for {discriminant_env_var}: '{value}' not in {enum_values}"
+                        )
+
     # Check for Key Vault references in env vars (these should NOT exist)
     keyvault_refs = _extract_keyvault_references_from_env(env_vars)
     if keyvault_refs:
@@ -385,40 +394,44 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
             f"Secrets should be loaded via secret_provider, not injected as env vars. "
             f"Remove these env vars: {list(keyvault_refs.keys())}"
         )
-    
+
     # Validate adapter discriminants and driver requirements (including secrets)
     adapters = schema.get("adapters", {})
     schema_base_path = Path(__file__).parent.parent / "docs" / "schemas" / "configs" / "services"
-    
+
     for adapter_name, adapter_ref in adapters.items():
         if not isinstance(adapter_ref, dict) or "$ref" not in adapter_ref:
             continue
-        
+
         try:
             # Resolve and load the adapter schema (keep its path to resolve driver refs)
             adapter_schema_path = (schema_base_path / adapter_ref["$ref"]).resolve()
             if not adapter_schema_path.exists():
-                raise FileNotFoundError(f"Referenced schema not found: {adapter_schema_path} (from {adapter_ref['$ref']})")
-            with open(adapter_schema_path, "r", encoding="utf-8") as f:
+                raise FileNotFoundError(
+                    f"Referenced schema not found: {adapter_schema_path} (from {adapter_ref['$ref']})"
+                )
+            with open(adapter_schema_path, encoding="utf-8") as f:
                 adapter_schema = json.load(f)
             adapter_schema_dir = adapter_schema_path.parent
-            
+
             # Check for discriminant in the adapter schema
             discriminant = adapter_schema.get("properties", {}).get("discriminant")
             if not discriminant:
                 continue
-            
+
             discriminant_env_var = discriminant.get("env_var")
             enum_values = discriminant.get("enum", [])
             required = discriminant.get("required", False)
-            
+
             if not discriminant_env_var:
                 continue
-            
+
             # Check if the discriminant env var exists
             if discriminant_env_var not in env_vars:
                 if required:
-                    issues.append(f"Missing REQUIRED adapter discriminant: {discriminant_env_var} (adapter '{adapter_name}')")
+                    issues.append(
+                        f"Missing REQUIRED adapter discriminant: {discriminant_env_var} (adapter '{adapter_name}')"
+                    )
                 else:
                     issues.append(f"Missing adapter discriminant: {discriminant_env_var} (adapter '{adapter_name}')")
                 continue
@@ -427,12 +440,12 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
             if selected_driver is None:
                 # Conditional or computed; skip deep validation for this adapter
                 continue
-            
+
             # Check if value contains ternary operator (Bicep conditional expression)
             # These can't be evaluated at validation time, so skip deep validation
-            if '?' in str(selected_driver):
+            if "?" in str(selected_driver):
                 # Still validate it's a valid Bicep ternary pattern (has ? and :)
-                if ':' not in str(selected_driver):
+                if ":" not in str(selected_driver):
                     issues.append(
                         f"Invalid ternary expression for {discriminant_env_var}: missing ':' (adapter '{adapter_name}')"
                     )
@@ -441,7 +454,8 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
 
             if enum_values and selected_driver not in enum_values:
                 issues.append(
-                    f"Invalid discriminant value for {discriminant_env_var}: '{selected_driver}' not in {enum_values} (adapter '{adapter_name}')"
+                    f"Invalid discriminant value for {discriminant_env_var}: '{selected_driver}' not in {enum_values} "
+                    f"(adapter '{adapter_name}')"
                 )
                 continue
 
@@ -449,9 +463,7 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
             drivers_data = adapter_schema.get("properties", {}).get("drivers", {}).get("properties", {})
             driver_info = drivers_data.get(selected_driver)
             if not driver_info:
-                issues.append(
-                    f"Driver '{selected_driver}' not defined in adapter schema for '{adapter_name}'"
-                )
+                issues.append(f"Driver '{selected_driver}' not defined in adapter schema for '{adapter_name}'")
                 continue
 
             driver_ref = driver_info.get("$ref")
@@ -461,11 +473,12 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
             driver_schema_path = (adapter_schema_dir / driver_ref).resolve()
             if not driver_schema_path.exists():
                 issues.append(
-                    f"Referenced driver schema not found: {driver_schema_path} (adapter '{adapter_name}', driver '{selected_driver}')"
+                    f"Referenced driver schema not found: {driver_schema_path} "
+                    f"(adapter '{adapter_name}', driver '{selected_driver}')"
                 )
                 continue
 
-            with open(driver_schema_path, "r", encoding="utf-8") as f:
+            with open(driver_schema_path, encoding="utf-8") as f:
                 driver_schema = json.load(f)
 
             # Some driver schemas use a root-level discriminant + oneOf variants.
@@ -531,7 +544,8 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
                     env_var = prop_spec.get("env_var")
                     if env_var and required_prop and env_var not in env_vars:
                         issues.append(
-                            f"Missing REQUIRED env var '{env_var}' for adapter '{adapter_name}' driver '{selected_driver}' (property '{prop_name}')"
+                            f"Missing REQUIRED env var '{env_var}' for adapter '{adapter_name}' "
+                            f"driver '{selected_driver}' (property '{prop_name}')"
                         )
                 elif source == "secret":
                     # Secrets should be loaded via secret_provider, not via env vars
@@ -551,16 +565,18 @@ def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
                         for env_var_name, referenced_secret in keyvault_refs.items():
                             if referenced_secret in secret_candidates:
                                 issues.append(
-                                    f"INVALID: Env var '{env_var_name}' contains Key Vault reference to secret '{referenced_secret}' "
-                                    f"but adapter '{adapter_name}' driver '{selected_driver}' defines this as source='secret'. "
-                                    f"Remove the env var - secrets should be loaded via secret_provider, not injected as env vars."
+                                    f"INVALID: Env var '{env_var_name}' contains Key Vault reference to secret "
+                                    f"'{referenced_secret}' but adapter '{adapter_name}' driver "
+                                    f"'{selected_driver}' defines this as source='secret'. "
+                                    "Remove the env var - secrets should be loaded via secret_provider, "
+                                    "not injected as env vars."
                                 )
-        
+
         except FileNotFoundError as e:
             issues.append(f"Could not resolve adapter schema for '{adapter_name}': {e}")
         except Exception as e:
             issues.append(f"Error validating adapter '{adapter_name}': {e}")
-    
+
     issues.extend(_validate_required_secrets_created_by_iac(env_vars, required_secrets))
     return issues
 
@@ -613,26 +629,26 @@ def main():
         print("Example: python validate_bicep_config.py infra/azure/modules/containerapps.bicep auth")
         print("         python validate_bicep_config.py infra/azure/modules/containerapps.bicep auth --verbose")
         sys.exit(1)
-    
+
     bicep_file = sys.argv[1]
     service_name = sys.argv[2]
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
-    
+
     try:
         # Read bicep file
         bicep_path = Path(bicep_file)
         if not bicep_path.exists():
             print(f"❌ Bicep file not found: {bicep_file}", file=sys.stderr)
             sys.exit(1)
-        
-        with open(bicep_path, 'r') as f:
+
+        with open(bicep_path) as f:
             bicep_content = f.read()
-        
+
         # Extract env vars from Bicep
         print(f"📋 Extracting environment variables for '{service_name}' from Bicep...")
         env_vars = extract_env_vars(bicep_content, service_name)
         print(f"   Found {len(env_vars)} environment variables")
-        
+
         if verbose:
             print("\n   Environment variables found:")
             for name in sorted(env_vars.keys()):
@@ -643,40 +659,40 @@ def main():
                     # Truncate long values for display
                     display_val = value if len(str(value)) <= 50 else str(value)[:50] + "..."
                     print(f"     {name} = {display_val}")
-        
+
         # Load schema
         print(f"📖 Loading schema for '{service_name}'...")
         schema = load_schema(service_name)
-        
+
         if verbose:
             print(f"   Schema adapters required: {list(schema.get('adapters', {}).keys())}")
-        
+
         # Validate
-        print(f"✓ Validating configuration against schema...")
+        print("✓ Validating configuration against schema...")
         issues = validate_config(env_vars, schema, service_name)
-        
+
         if issues:
             print(f"\n❌ Configuration validation failed ({len(issues)} issues):\n")
             for i, issue in enumerate(issues, 1):
                 print(f"  {i}. {issue}")
-            
+
             if verbose:
                 print("\n📊 Validation Context:")
                 print(f"   Service: {service_name}")
                 print(f"   Total env vars: {len(env_vars)}")
-                print(f"   Missing/invalid env vars:")
+                print("   Missing/invalid env vars:")
                 for issue in issues:
                     if "Missing" in issue or "Invalid" in issue:
                         # Extract env var name from issue
                         parts = issue.split("'")
                         if len(parts) >= 2:
                             print(f"     - {parts[1]}")
-            
+
             sys.exit(1)
         else:
             print(f"\n✅ Configuration is valid for service '{service_name}'")
             sys.exit(0)
-    
+
     except FileNotFoundError as e:
         print(f"❌ {e}", file=sys.stderr)
         sys.exit(1)
@@ -686,6 +702,7 @@ def main():
     except Exception as e:
         print(f"❌ Unexpected error: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

@@ -140,21 +140,15 @@ class AzureBlobArchiveStore(ArchiveStore):
         try:
             if self.connection_string:
                 # Connection string authentication (includes embedded credentials)
-                self.blob_service_client = BlobServiceClient.from_connection_string(
-                    self.connection_string
-                )
+                self.blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
             elif self.sas_token:
                 # SAS token authentication
                 account_url = f"https://{self.account_name}.blob.core.windows.net"
-                self.blob_service_client = BlobServiceClient(
-                    account_url=account_url, credential=self.sas_token
-                )
+                self.blob_service_client = BlobServiceClient(account_url=account_url, credential=self.sas_token)
             elif self.account_key:
                 # Account key authentication
                 account_url = f"https://{self.account_name}.blob.core.windows.net"
-                self.blob_service_client = BlobServiceClient(
-                    account_url=account_url, credential=self.account_key
-                )
+                self.blob_service_client = BlobServiceClient(account_url=account_url, credential=self.account_key)
             else:
                 # Managed identity authentication (no explicit credentials; uses DefaultAzureCredential)
                 try:
@@ -167,14 +161,10 @@ class AzureBlobArchiveStore(ArchiveStore):
 
                 account_url = f"https://{self.account_name}.blob.core.windows.net"
                 credential = DefaultAzureCredential()
-                self.blob_service_client = BlobServiceClient(
-                    account_url=account_url, credential=credential
-                )
+                self.blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
 
             # Get container client (create if not exists)
-            self.container_client: ContainerClient = (
-                self.blob_service_client.get_container_client(self.container_name)
-            )
+            self.container_client: ContainerClient = self.blob_service_client.get_container_client(self.container_name)
 
             # Create container if it doesn't exist
             try:
@@ -186,8 +176,7 @@ class AzureBlobArchiveStore(ArchiveStore):
             except AzureError as exc:
                 # Surface unexpected Azure errors with clear context and preserve cause
                 raise ArchiveStoreConnectionError(
-                    f"Unexpected Azure error while creating container "
-                    f"'{self.container_name}': {exc}"
+                    f"Unexpected Azure error while creating container " f"'{self.container_name}': {exc}"
                 ) from exc
 
         except ArchiveStoreConnectionError:
@@ -195,9 +184,7 @@ class AzureBlobArchiveStore(ArchiveStore):
             raise
         except Exception as exc:
             # Wrap any other initialization failures in ArchiveStoreConnectionError
-            raise ArchiveStoreConnectionError(
-                f"Failed to initialize Azure Blob Archive Store: {exc}"
-            ) from exc
+            raise ArchiveStoreConnectionError(f"Failed to initialize Azure Blob Archive Store: {exc}") from exc
 
         # Metadata index blob name
         self.metadata_blob_name = f"{self.prefix}metadata/archives_index.json"
@@ -209,9 +196,7 @@ class AzureBlobArchiveStore(ArchiveStore):
         self._load_metadata()
 
     @classmethod
-    def from_config(
-        cls, driver_config: DriverConfig_ArchiveStore_Azureblob
-    ) -> "AzureBlobArchiveStore":
+    def from_config(cls, driver_config: DriverConfig_ArchiveStore_Azureblob) -> "AzureBlobArchiveStore":
         """Create AzureBlobArchiveStore from typed driver config.
 
         Args:
@@ -315,12 +300,10 @@ class AzureBlobArchiveStore(ArchiveStore):
                     metadata_json.encode("utf-8"),
                     overwrite=True,
                     etag=self._metadata_etag,
-                    match_condition=MatchConditions.IfNotModified
+                    match_condition=MatchConditions.IfNotModified,
                 )
             else:
-                result = blob_client.upload_blob(
-                    metadata_json.encode("utf-8"), overwrite=True
-                )
+                result = blob_client.upload_blob(metadata_json.encode("utf-8"), overwrite=True)
 
             # Refresh stored ETag from upload response when available, otherwise fall back to a properties call.
             # Azure SDK versions differ: sometimes an object attribute, sometimes a mapping key.
@@ -394,11 +377,7 @@ class AzureBlobArchiveStore(ArchiveStore):
                 "content_hash": content_hash,
             }
 
-            blob_client.upload_blob(
-                content,
-                overwrite=True,
-                metadata=blob_metadata
-            )
+            blob_client.upload_blob(content, overwrite=True, metadata=blob_metadata)
 
             # Update metadata index and hash index
             self._metadata[archive_id] = {
@@ -512,9 +491,7 @@ class AzureBlobArchiveStore(ArchiveStore):
             return blob_client.exists()
 
         except AzureError as e:
-            raise ArchiveStoreError(
-                f"Failed to check archive existence in Azure: {e}"
-            ) from e
+            raise ArchiveStoreError(f"Failed to check archive existence in Azure: {e}") from e
         except Exception as e:
             raise ArchiveStoreError(f"Failed to check archive existence: {e}") from e
 

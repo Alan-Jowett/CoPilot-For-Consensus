@@ -45,9 +45,7 @@ def _build_registry() -> Registry:
                 logger.debug(f"Loaded event-envelope schema from filesystem: {envelope_path}")
                 break
         except Exception as exc:
-            logger.debug(
-                f"Could not load envelope schema from {envelope_path} (will try next candidate): {exc}"
-            )
+            logger.debug(f"Could not load envelope schema from {envelope_path} (will try next candidate): {exc}")
 
     # Register the envelope schema if found
     if envelope_schema:
@@ -107,6 +105,7 @@ def validate_json(document: dict[str, Any], schema: dict[str, Any], schema_provi
         Tuple of (is_valid, errors). is_valid is True when the document conforms
         to the schema. errors is a list of human-readable validation errors (empty if valid).
     """
+    del schema_provider
     try:
         normalized_schema = _strip_allof_additional_properties(schema)
         registry = _build_registry()

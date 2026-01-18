@@ -10,12 +10,13 @@ fields (lastUpdated, workerId) for managing document processing state across
 the Copilot-for-Consensus system.
 """
 
-from copilot_schema_validation import DocumentStatus
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Any
+
+from copilot_schema_validation import DocumentStatus
 
 
-def should_retry_document(document: Dict[str, Any], max_attempts: int = 3) -> bool:
+def should_retry_document(document: dict[str, Any], max_attempts: int = 3) -> bool:
     """
     Determine if a document should be retried based on status and attempt count.
 
@@ -36,10 +37,7 @@ def should_retry_document(document: Dict[str, Any], max_attempts: int = 3) -> bo
     return False
 
 
-def update_document_for_processing(
-    document: Dict[str, Any],
-    worker_id: str
-) -> Dict[str, Any]:
+def update_document_for_processing(document: dict[str, Any], worker_id: str) -> dict[str, Any]:
     """
     Update document status and tracking fields when starting processing.
 
@@ -59,7 +57,7 @@ def update_document_for_processing(
     return document
 
 
-def mark_document_completed(document: Dict[str, Any]) -> Dict[str, Any]:
+def mark_document_completed(document: dict[str, Any]) -> dict[str, Any]:
     """
     Mark document as completed successfully.
 
@@ -76,10 +74,7 @@ def mark_document_completed(document: Dict[str, Any]) -> Dict[str, Any]:
     return document
 
 
-def mark_document_failed(
-    document: Dict[str, Any],
-    max_attempts: int = 3
-) -> Dict[str, Any]:
+def mark_document_failed(document: dict[str, Any], max_attempts: int = 3) -> dict[str, Any]:
     """
     Mark document as failed and determine if max retries reached.
 
@@ -103,7 +98,7 @@ def mark_document_failed(
     return document
 
 
-def build_query_for_stale_documents(stale_minutes: int = 30) -> Dict[str, Any]:
+def build_query_for_stale_documents(stale_minutes: int = 30) -> dict[str, Any]:
     """
     Build MongoDB query to find documents stuck in processing.
 
@@ -115,31 +110,19 @@ def build_query_for_stale_documents(stale_minutes: int = 30) -> Dict[str, Any]:
     """
     from datetime import timedelta
 
-    stale_threshold = (
-        datetime.now(timezone.utc) - timedelta(minutes=stale_minutes)
-    ).isoformat().replace("+00:00", "Z")
+    stale_threshold = (datetime.now(timezone.utc) - timedelta(minutes=stale_minutes)).isoformat().replace("+00:00", "Z")
 
-    return {
-        "status": DocumentStatus.PROCESSING.value,
-        "lastUpdated": {"$lt": stale_threshold}
-    }
+    return {"status": DocumentStatus.PROCESSING.value, "lastUpdated": {"$lt": stale_threshold}}
 
 
-def query_documents_needing_work() -> Dict[str, Any]:
+def query_documents_needing_work() -> dict[str, Any]:
     """
     Build query to find documents that need processing.
 
     Returns:
         MongoDB query filter for documents needing work
     """
-    return {
-        "status": {
-            "$in": [
-                DocumentStatus.PENDING.value,
-                DocumentStatus.FAILED.value
-            ]
-        }
-    }
+    return {"status": {"$in": [DocumentStatus.PENDING.value, DocumentStatus.FAILED.value]}}
 
 
 # Example usage
@@ -149,11 +132,7 @@ if __name__ == "__main__":
 
     # Example 1: Process a pending document
     print("\n1. Processing a pending document:")
-    doc = {
-        "_id": "abc123",
-        "status": "pending",
-        "attemptCount": 0
-    }
+    doc = {"_id": "abc123", "status": "pending", "attemptCount": 0}
     print(f"   Before: {doc}")
 
     doc = update_document_for_processing(doc, "worker-001")
@@ -168,7 +147,7 @@ if __name__ == "__main__":
     doc = {
         "_id": "def456",
         "status": "failed",  # Start with failed status to demonstrate retry logic
-        "attemptCount": 1
+        "attemptCount": 1,
     }
 
     for i in range(3):

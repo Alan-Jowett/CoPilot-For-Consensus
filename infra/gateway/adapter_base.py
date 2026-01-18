@@ -11,7 +11,7 @@ gateway configurations (Azure API Management, AWS API Gateway, GCP Cloud Endpoin
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 
 class GatewayAdapter(ABC):
@@ -31,7 +31,7 @@ class GatewayAdapter(ABC):
             openapi_spec_path: Path to the OpenAPI YAML/JSON specification file
         """
         self.openapi_spec_path = openapi_spec_path
-        self.openapi_spec: Dict[str, Any] = {}
+        self.openapi_spec: dict[str, Any] = {}
 
     @abstractmethod
     def load_spec(self) -> None:
@@ -54,7 +54,7 @@ class GatewayAdapter(ABC):
         pass
 
     @abstractmethod
-    def generate_config(self, output_dir: Path) -> Dict[str, Path]:
+    def generate_config(self, output_dir: Path) -> dict[str, Path]:
         """Generate provider-specific gateway configuration.
 
         Args:
@@ -68,7 +68,7 @@ class GatewayAdapter(ABC):
         pass
 
     @abstractmethod
-    def validate_config(self, config_files: Dict[str, Path]) -> bool:
+    def validate_config(self, config_files: dict[str, Path]) -> bool:
         """Validate the generated configuration files.
 
         Args:
@@ -132,24 +132,24 @@ The NGINX gateway is the default for local development and single-machine deploy
         """Load the OpenAPI specification from YAML file."""
         import yaml
 
-        with open(self.openapi_spec_path, 'r') as f:
+        with open(self.openapi_spec_path) as f:
             self.openapi_spec = yaml.safe_load(f)
 
     def validate_spec(self) -> bool:
         """Validate OpenAPI spec for NGINX compatibility."""
-        required_fields = ['openapi', 'info', 'paths']
+        required_fields = ["openapi", "info", "paths"]
         for field in required_fields:
             if field not in self.openapi_spec:
                 raise ValueError(f"OpenAPI spec missing required field: {field}")
 
         # Check OpenAPI version
-        version = self.openapi_spec.get('openapi', '')
-        if not version.startswith('3.'):
+        version = self.openapi_spec.get("openapi", "")
+        if not version.startswith("3."):
             raise ValueError(f"NGINX adapter requires OpenAPI 3.x, got {version}")
 
         return True
 
-    def generate_config(self, output_dir: Path) -> Dict[str, Path]:
+    def generate_config(self, output_dir: Path) -> dict[str, Path]:
         """Generate NGINX configuration from OpenAPI spec.
 
         This is primarily for validation purposes. The actual nginx.conf
@@ -160,23 +160,21 @@ The NGINX gateway is the default for local development and single-machine deploy
         # Generate a validation report comparing OpenAPI spec with actual nginx.conf
         validation_report_path = output_dir / "nginx_validation_report.txt"
 
-        with open(validation_report_path, 'w') as f:
+        with open(validation_report_path, "w") as f:
             f.write("NGINX Configuration Validation Report\n")
             f.write("=" * 50 + "\n\n")
             f.write("OpenAPI Specification: " + str(self.openapi_spec_path) + "\n")
             f.write("Generated: " + str(Path(__file__).parent.parent / "nginx" / "nginx.conf") + "\n\n")
 
             f.write("Endpoints defined in OpenAPI:\n")
-            for path, methods in self.openapi_spec.get('paths', {}).items():
+            for path, methods in self.openapi_spec.get("paths", {}).items():
                 for method in methods.keys():
-                    if method.upper() in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']:
+                    if method.upper() in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
                         f.write(f"  {method.upper()} {path}\n")
 
-        return {
-            "validation_report": validation_report_path
-        }
+        return {"validation_report": validation_report_path}
 
-    def validate_config(self, config_files: Dict[str, Path]) -> bool:
+    def validate_config(self, config_files: dict[str, Path]) -> bool:
         """Validate generated NGINX configuration."""
         # Basic validation - check that files exist
         for file_path in config_files.values():

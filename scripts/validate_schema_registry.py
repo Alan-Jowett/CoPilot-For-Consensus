@@ -12,14 +12,6 @@ This script provides utilities for:
 
 import argparse
 import logging
-import sys
-from pathlib import Path
-
-# Add adapter directory to path to import the schema validation module
-script_dir = Path(__file__).parent
-repo_root = script_dir.parent
-adapter_dir = repo_root / "adapters" / "copilot_schema_validation"
-sys.path.insert(0, str(adapter_dir))
 
 from copilot_schema_validation.schema_registry import (
     SCHEMA_REGISTRY,
@@ -28,10 +20,7 @@ from copilot_schema_validation.schema_registry import (
     validate_registry,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(levelname)s: %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -72,10 +61,8 @@ def list_command(format: str = "table") -> int:
 
     elif format == "json":
         import json
-        output = [
-            {"type": t, "version": v, "path": p}
-            for t, v, p in schemas
-        ]
+
+        output = [{"type": t, "version": v, "path": p} for t, v, p in schemas]
         print(json.dumps(output, indent=2))
 
     else:  # table format
@@ -190,10 +177,11 @@ def info_command(schema_type: str, version: str) -> int:
     print(f"  Absolute path: {metadata['absolute_path']}")
     print(f"  Exists: {'✓' if metadata['exists'] else '✗'}")
 
-    if metadata['exists']:
+    if metadata["exists"]:
         # Try to load and show some basic info
         try:
             from copilot_schema_validation.schema_registry import load_schema
+
             schema = load_schema(schema_type, version)
 
             if "title" in schema:
@@ -233,40 +221,25 @@ Examples:
 
   # Show info about a specific schema
   %(prog)s info ArchiveIngested v1
-        """
+        """,
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Validate command
-    subparsers.add_parser(
-        "validate",
-        help="Validate that all registered schemas exist and are valid"
-    )
+    subparsers.add_parser("validate", help="Validate that all registered schemas exist and are valid")
 
     # List command
-    list_parser = subparsers.add_parser(
-        "list",
-        help="List all registered schemas"
-    )
+    list_parser = subparsers.add_parser("list", help="List all registered schemas")
     list_parser.add_argument(
-        "--format",
-        choices=["table", "csv", "json"],
-        default="table",
-        help="Output format (default: table)"
+        "--format", choices=["table", "csv", "json"], default="table", help="Output format (default: table)"
     )
 
     # Markdown command
-    subparsers.add_parser(
-        "markdown",
-        help="Generate markdown documentation of schemas"
-    )
+    subparsers.add_parser("markdown", help="Generate markdown documentation of schemas")
 
     # Info command
-    info_parser = subparsers.add_parser(
-        "info",
-        help="Show detailed information about a specific schema"
-    )
+    info_parser = subparsers.add_parser("info", help="Show detailed information about a specific schema")
     info_parser.add_argument("type", help="Schema type name")
     info_parser.add_argument("version", help="Schema version (e.g., v1)")
 
@@ -291,4 +264,4 @@ Examples:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

@@ -37,7 +37,7 @@ def test_string_to_uuid_format():
     assert uuid_obj.version == 5
 
 
-@patch('qdrant_client.QdrantClient')
+@patch("qdrant_client.QdrantClient")
 def test_add_embedding_stores_original_id_in_payload(mock_client_class):
     """Original ID should be preserved in _original_id payload field."""
     mock_client = Mock()
@@ -51,7 +51,7 @@ def test_add_embedding_stores_original_id_in_payload(mock_client_class):
 
     # Extract the point passed to upsert
     call_args = mock_client.upsert.call_args
-    point = call_args[1]['points'][0]
+    point = call_args[1]["points"][0]
 
     # Verify UUID was used for point ID
     assert point.id != original_id
@@ -61,7 +61,7 @@ def test_add_embedding_stores_original_id_in_payload(mock_client_class):
     assert point.payload["text"] == "test"
 
 
-@patch('qdrant_client.QdrantClient')
+@patch("qdrant_client.QdrantClient")
 def test_add_embeddings_batch_uses_uuids_for_upsert(mock_client_class):
     """Batch add should use UUID IDs when upserting points."""
     mock_client = Mock()
@@ -70,15 +70,11 @@ def test_add_embeddings_batch_uses_uuids_for_upsert(mock_client_class):
 
     store = QdrantVectorStore(vector_size=3)
     original_ids = ["chunk-1", "chunk-2"]
-    store.add_embeddings(
-        ids=original_ids,
-        vectors=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
-        metadatas=[{"x": 1}, {"x": 2}]
-    )
+    store.add_embeddings(ids=original_ids, vectors=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], metadatas=[{"x": 1}, {"x": 2}])
 
     # Verify upsert was called with UUID point IDs and original IDs in payload
     upsert_call = mock_client.upsert.call_args
-    points = upsert_call[1]['points']
+    points = upsert_call[1]["points"]
 
     # Should have 2 points
     assert len(points) == 2

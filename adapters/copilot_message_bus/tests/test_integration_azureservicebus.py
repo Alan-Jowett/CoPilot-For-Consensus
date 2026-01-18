@@ -154,9 +154,7 @@ class TestAzureServiceBusIntegration:
         """Test that subscriber can connect successfully."""
         assert azureservicebus_subscriber.client is not None
 
-    def test_publish_and_receive_event(
-        self, azureservicebus_publisher, azureservicebus_subscriber
-    ):
+    def test_publish_and_receive_event(self, azureservicebus_publisher, azureservicebus_subscriber):
         """Test publishing an event and receiving it."""
         # Track received events
         received_events = []
@@ -208,9 +206,7 @@ class TestAzureServiceBusIntegration:
         assert received_event["event_id"] == test_event["event_id"]
         assert received_event["data"]["test_key"] == "test_value"
 
-    def test_publish_multiple_events(
-        self, azureservicebus_publisher, azureservicebus_subscriber
-    ):
+    def test_publish_multiple_events(self, azureservicebus_publisher, azureservicebus_subscriber):
         """Test publishing multiple events."""
         # Track received events
         received_events = []

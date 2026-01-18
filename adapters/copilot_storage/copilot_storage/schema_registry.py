@@ -16,6 +16,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 def _find_repo_root() -> Path:
     """Determine the repository root in a robust way.
 
@@ -68,7 +69,7 @@ def _load_schema_fields(schema_path: Path) -> set[str]:
         FileNotFoundError: If schema file doesn't exist
         json.JSONDecodeError: If schema file is invalid JSON
     """
-    with open(schema_path, "r", encoding="utf-8") as f:
+    with open(schema_path, encoding="utf-8") as f:
         schema = json.load(f)
 
     properties = schema.get("properties", {})
@@ -86,8 +87,7 @@ def _initialize_registry(schema_dir: Path | None = None) -> None:
 
     if not schema_dir.exists():
         logger.warning(
-            f"Schema directory not found: {schema_dir}. "
-            "Document sanitization will only remove system fields."
+            f"Schema directory not found: {schema_dir}. " "Document sanitization will only remove system fields."
         )
         return
 
@@ -107,20 +107,16 @@ def _initialize_registry(schema_dir: Path | None = None) -> None:
             try:
                 fields = _load_schema_fields(schema_path)
                 _COLLECTION_SCHEMAS[collection_name] = fields
-                logger.debug(
-                    f"Loaded schema for collection '{collection_name}': {len(fields)} fields"
-                )
+                logger.debug(f"Loaded schema for collection '{collection_name}': {len(fields)} fields")
             except Exception as e:
-                logger.warning(
-                    f"Failed to load schema for collection '{collection_name}' from {schema_path}: {e}"
-                )
+                logger.warning(f"Failed to load schema for collection '{collection_name}' from {schema_path}: {e}")
         else:
             logger.debug(f"Schema file not found for collection '{collection_name}': {schema_path}")
 
 
 def reset_registry() -> None:
     """Reset the schema registry to its initial state.
-    
+
     This function is primarily intended for testing purposes to ensure
     tests start with a clean state. It clears all loaded schemas so they
     will be reloaded on next access.
@@ -167,13 +163,13 @@ def sanitize_document(doc: dict[str, Any], collection: str, preserve_extra: bool
 
     # System fields to always remove
     system_fields = {
-        "_etag",      # Cosmos DB ETag
-        "_rid",       # Cosmos DB resource ID
-        "_ts",        # Cosmos DB timestamp
-        "_self",      # Cosmos DB self-link
+        "_etag",  # Cosmos DB ETag
+        "_rid",  # Cosmos DB resource ID
+        "_ts",  # Cosmos DB timestamp
+        "_self",  # Cosmos DB self-link
         "_attachments",  # Cosmos DB attachments
-        "id",         # Document store metadata (Cosmos uses this for _id)
-        "collection", # Document store partition key
+        "id",  # Document store metadata (Cosmos uses this for _id)
+        "collection",  # Document store partition key
     }
 
     # Get schema fields for this collection
@@ -204,7 +200,9 @@ def sanitize_document(doc: dict[str, Any], collection: str, preserve_extra: bool
     return sanitized
 
 
-def sanitize_documents(docs: list[dict[str, Any]], collection: str, preserve_extra: bool = False) -> list[dict[str, Any]]:
+def sanitize_documents(
+    docs: list[dict[str, Any]], collection: str, preserve_extra: bool = False
+) -> list[dict[str, Any]]:
     """Sanitize a list of documents.
 
     Args:

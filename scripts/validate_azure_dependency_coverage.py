@@ -27,7 +27,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BICEP_PATH = REPO_ROOT / "infra" / "azure" / "modules" / "containerapps.bicep"
 
@@ -43,14 +42,14 @@ class AdapterPackaging:
 def _parse_bicep_container_envs(bicep_path: Path) -> dict[str, dict[str, str]]:
     """Return mapping of container name -> env var name -> raw value expression.
 
-        Notes / assumptions (intentionally simple parser):
-        - Expects env blocks in the form `env: [` on a single line.
-        - Expects each env entry as separate `name:` and `value:` lines.
-        - Multi-line value expressions are not supported; only the first `value:` line is
-            captured.
-        - Used to detect driver selections like `VECTOR_STORE_TYPE` to validate that
-            Dockerfile.azure installs the right adapter extras.
-        """
+    Notes / assumptions (intentionally simple parser):
+    - Expects env blocks in the form `env: [` on a single line.
+    - Expects each env entry as separate `name:` and `value:` lines.
+    - Multi-line value expressions are not supported; only the first `value:` line is
+        captured.
+    - Used to detect driver selections like `VECTOR_STORE_TYPE` to validate that
+        Dockerfile.azure installs the right adapter extras.
+    """
     if not bicep_path.exists():
         raise FileNotFoundError(f"Bicep file not found: {bicep_path}")
 
@@ -59,9 +58,7 @@ def _parse_bicep_container_envs(bicep_path: Path) -> dict[str, dict[str, str]]:
     in_env = False
     current_var: str | None = None
 
-    for line_number, raw_line in enumerate(
-        bicep_path.read_text(encoding="utf-8").splitlines(), start=1
-    ):
+    for line_number, raw_line in enumerate(bicep_path.read_text(encoding="utf-8").splitlines(), start=1):
         line = raw_line.strip()
 
         # Detect container name: typically lowercase service name (e.g., 'reporting')

@@ -46,6 +46,7 @@ def test_optional_with_check() -> None:
 
 def test_type_safe_function() -> None:
     """Test that type-safe functions work correctly."""
+
     def process_data(input_str: str) -> int:
         """Process a string and return its length."""
         return len(input_str)

@@ -8,12 +8,12 @@ import sys
 from pathlib import Path
 
 import pytest
-from copilot_schema_validation import create_schema_provider
-from copilot_storage import create_document_store
 from copilot_config.generated.adapters.document_store import (
     AdapterConfig_DocumentStore,
     DriverConfig_DocumentStore_Inmemory,
 )
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -49,6 +49,7 @@ def set_test_environment():
 
 def create_query_with_in_support(original_query):
     """Create a custom query function that supports MongoDB $in operator."""
+
     def custom_query(collection, filter_dict, limit=100):
         # Handle $in operator for _id (canonical document primary key)
         if "_id" in filter_dict and isinstance(filter_dict["_id"], dict):
@@ -68,6 +69,7 @@ def create_query_with_in_support(original_query):
             return results[:limit]
         else:
             return original_query(collection, filter_dict, limit)
+
     return custom_query
 
 
