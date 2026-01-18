@@ -28,9 +28,8 @@ def _build_local(driver_config: _DriverConfig) -> "ArchiveStore":
 def _build_azureblob(driver_config: _DriverConfig) -> "ArchiveStore":
     from .azure_blob_archive_store import AzureBlobArchiveStore
 
-    # Check driver type by driver_name attribute instead of isinstance (union types can't be used in isinstance)
-    if hasattr(driver_config, "driver_name") and driver_config.driver_name == "azureblob":
-        return AzureBlobArchiveStore.from_config(driver_config)  # type: ignore[arg-type]
+    if isinstance(driver_config, DriverConfig_ArchiveStore_Azureblob):
+        return AzureBlobArchiveStore.from_config(driver_config)
     raise TypeError(f"Expected azureblob driver config, got {type(driver_config).__name__}")
 
 
