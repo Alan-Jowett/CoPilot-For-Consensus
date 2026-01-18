@@ -5,6 +5,7 @@ import React, { Component, ReactNode } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { AdminLinks } from '../components/AdminLinks'
+import { Footer } from '../components/Footer'
 import { useAuth } from '../contexts/AuthContext'
 
 interface ErrorBoundaryState {
@@ -109,6 +110,7 @@ function AppLayoutContent() {
           <Outlet />
         </ErrorBoundary>
       </div>
+      <Footer />
     </div>
   )
 }
