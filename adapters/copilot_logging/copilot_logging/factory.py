@@ -20,10 +20,7 @@ from .stdout_logger import StdoutLogger
 _logger_registry: dict[str, Logger] = {}
 _default_logger: Logger | None = None
 
-_DriverConfig: TypeAlias = (
-    DriverConfig_Logger_Stdout
-    | DriverConfig_Logger_Silent
-)
+_DriverConfig: TypeAlias = DriverConfig_Logger_Stdout | DriverConfig_Logger_Silent
 
 
 def _build_stdout(config: _DriverConfig) -> Logger:

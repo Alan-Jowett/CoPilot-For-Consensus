@@ -7,7 +7,7 @@ import json
 import logging
 import sys
 from datetime import datetime, timezone
-from typing import Any, cast
+from typing import Any
 
 from copilot_config.generated.adapters.logger import DriverConfig_Logger_Stdout
 

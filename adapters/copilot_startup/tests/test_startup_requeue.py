@@ -100,9 +100,7 @@ class TestStartupRequeue:
 
         # Verify metrics
         mock_metrics.increment.assert_called_once_with(
-            "startup_requeue_documents_total",
-            2,
-            tags={"collection": "archives"}
+            "startup_requeue_documents_total", 2, tags={"collection": "archives"}
         )
 
         # Verify return count
@@ -242,10 +240,7 @@ class TestStartupRequeue:
         mock_publisher = Mock()
 
         # Mock 100 incomplete documents
-        incomplete_docs = [
-            {"_id": f"{i:016x}", "message_doc_id": "aabbccddaabbccdd"}
-            for i in range(100)
-        ]
+        incomplete_docs = [{"_id": f"{i:016x}", "message_doc_id": "aabbccddaabbccdd"} for i in range(100)]
 
         mock_store.query_documents.return_value = incomplete_docs
 

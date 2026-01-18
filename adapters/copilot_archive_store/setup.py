@@ -42,7 +42,7 @@ setup(
         ],
         "mongodb": [
             "pymongo>=4.6.3",  # MongoDB client for GridFS support
-            "motor>=3.3.0",     # Async MongoDB driver
+            "motor>=3.3.0",  # Async MongoDB driver
         ],
         "azure": [
             "azure-storage-blob>=12.19.0",  # Azure Blob Storage SDK

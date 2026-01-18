@@ -5,7 +5,6 @@
 
 import importlib
 import logging
-
 from typing import Any, Literal
 
 from copilot_config.generated.adapters.embedding_backend import (
@@ -27,7 +26,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         model: str = "text-embedding-ada-002",
         api_base: str | None = None,
         api_version: str | None = None,
-        deployment_name: str | None = None
+        deployment_name: str | None = None,
     ):
         """Initialize OpenAI embedding provider.
 
@@ -42,8 +41,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             openai_module = importlib.import_module("openai")
         except ImportError as exc:
             raise ImportError(
-                "openai is required for OpenAIEmbeddingProvider. "
-                "Install it with: pip install openai"
+                "openai is required for OpenAIEmbeddingProvider. " "Install it with: pip install openai"
             ) from exc
 
         # Access client classes dynamically so Pyright does not require the optional
@@ -61,11 +59,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
         if api_base is not None:
             logger.info(f"Initializing Azure OpenAI embedding provider with deployment: {deployment_name or model}")
-            self.client = AzureOpenAI(
-                api_key=api_key,
-                api_version=api_version or "2023-05-15",
-                azure_endpoint=api_base
-            )
+            self.client = AzureOpenAI(api_key=api_key, api_version=api_version or "2023-05-15", azure_endpoint=api_base)
             self.deployment_name = deployment_name or model
         else:
             logger.info(f"Initializing OpenAI embedding provider with model: {model}")
@@ -127,14 +121,8 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             raise ValueError("Text cannot be empty or whitespace-only")
 
         if self.is_azure:
-            response = self.client.embeddings.create(
-                input=text,
-                model=self.deployment_name
-            )
+            response = self.client.embeddings.create(input=text, model=self.deployment_name)
         else:
-            response = self.client.embeddings.create(
-                input=text,
-                model=self.model
-            )
+            response = self.client.embeddings.create(input=text, model=self.model)
 
         return response.data[0].embedding

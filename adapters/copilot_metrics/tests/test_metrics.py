@@ -6,24 +6,21 @@
 import sys
 
 import pytest
-from copilot_metrics import MetricsCollector, create_metrics_collector
-from copilot_metrics import azure_monitor_metrics as az_metrics
 from copilot_config.generated.adapters.metrics import (
     AdapterConfig_Metrics,
     DriverConfig_Metrics_AzureMonitor,
     DriverConfig_Metrics_Noop,
     DriverConfig_Metrics_Prometheus,
 )
+from copilot_metrics import MetricsCollector, create_metrics_collector
+from copilot_metrics import azure_monitor_metrics as az_metrics
+from copilot_metrics.noop_metrics import NoOpMetricsCollector
+from copilot_metrics.prometheus_metrics import PrometheusMetricsCollector
+from copilot_metrics.pushgateway_metrics import PrometheusPushGatewayMetricsCollector
 
 # Mock Azure Monitor connection details used only for testing; these are not real credentials.
 VALID_CONNECTION_STRING = "InstrumentationKey=00000000-0000-4000-8000-000000000000"
 VALID_INSTRUMENTATION_KEY = "00000000-0000-4000-8000-000000000001"
-
-
-# Import implementation classes from internal modules for testing
-from copilot_metrics.noop_metrics import NoOpMetricsCollector
-from copilot_metrics.prometheus_metrics import PrometheusMetricsCollector
-from copilot_metrics.pushgateway_metrics import PrometheusPushGatewayMetricsCollector
 
 
 @pytest.fixture
@@ -77,10 +74,7 @@ class TestMetricsFactory:
         assert isinstance(collector, NoOpMetricsCollector)
         assert isinstance(collector, MetricsCollector)
 
-    @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is not None,
-        reason="prometheus_client is installed"
-    )
+    @pytest.mark.skipif(sys.modules.get("prometheus_client") is not None, reason="prometheus_client is installed")
     def test_create_prometheus_collector_without_lib(self):
         """Test creating Prometheus collector when library is not available."""
         config = AdapterConfig_Metrics(
@@ -130,10 +124,7 @@ class TestNoOpMetricsCollector:
 
         assert len(collector.counters) == 3
         assert collector.get_counter_total("http_requests") == 3.0
-        assert collector.get_counter_total(
-            "http_requests",
-            tags={"method": "GET", "status": "200"}
-        ) == 2.0
+        assert collector.get_counter_total("http_requests", tags={"method": "GET", "status": "200"}) == 2.0
 
     def test_observe_histogram(self):
         """Test observing values for histogram."""
@@ -211,8 +202,8 @@ class TestPrometheusMetricsCollector:
     """Tests for PrometheusMetricsCollector."""
 
     @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is not None,
-        reason="prometheus_client is installed; test requires it to be missing"
+        sys.modules.get("prometheus_client") is not None,
+        reason="prometheus_client is installed; test requires it to be missing",
     )
     def test_requires_prometheus_client(self):
         """Test that PrometheusMetricsCollector raises ImportError when prometheus_client is missing.
@@ -222,10 +213,7 @@ class TestPrometheusMetricsCollector:
         with pytest.raises(ImportError, match="prometheus_client is required"):
             PrometheusMetricsCollector()
 
-    @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is None,
-        reason="prometheus_client not installed"
-    )
+    @pytest.mark.skipif(sys.modules.get("prometheus_client") is None, reason="prometheus_client not installed")
     def test_increment_counter_with_prometheus(self):
         """Test incrementing counter with Prometheus backend."""
         from prometheus_client import CollectorRegistry
@@ -239,10 +227,7 @@ class TestPrometheusMetricsCollector:
         # Verify metric was created
         assert ("requests_total", ()) in collector._counters
 
-    @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is None,
-        reason="prometheus_client not installed"
-    )
+    @pytest.mark.skipif(sys.modules.get("prometheus_client") is None, reason="prometheus_client not installed")
     def test_observe_histogram_with_prometheus(self):
         """Test observing histogram with Prometheus backend."""
         from prometheus_client import CollectorRegistry
@@ -256,10 +241,7 @@ class TestPrometheusMetricsCollector:
         # Verify metric was created
         assert ("request_duration", ()) in collector._histograms
 
-    @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is None,
-        reason="prometheus_client not installed"
-    )
+    @pytest.mark.skipif(sys.modules.get("prometheus_client") is None, reason="prometheus_client not installed")
     def test_set_gauge_with_prometheus(self):
         """Test setting gauge with Prometheus backend."""
         from prometheus_client import CollectorRegistry
@@ -273,10 +255,7 @@ class TestPrometheusMetricsCollector:
         # Verify metric was created
         assert ("queue_depth", ()) in collector._gauges
 
-    @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is None,
-        reason="prometheus_client not installed"
-    )
+    @pytest.mark.skipif(sys.modules.get("prometheus_client") is None, reason="prometheus_client not installed")
     def test_metrics_with_labels(self):
         """Test metrics with Prometheus labels."""
         from prometheus_client import CollectorRegistry
@@ -295,36 +274,21 @@ class TestPrometheusMetricsCollector:
 class TestPrometheusPushGatewayMetricsCollector:
     """Tests for PrometheusPushGatewayMetricsCollector."""
 
-    @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is None,
-        reason="prometheus_client not installed"
-    )
+    @pytest.mark.skipif(sys.modules.get("prometheus_client") is None, reason="prometheus_client not installed")
     def test_initialization_with_explicit_params(self):
         """Collector requires explicit gateway and job parameters."""
-        collector = PrometheusPushGatewayMetricsCollector(
-            gateway="pushgateway:9091",
-            job="ingestion"
-        )
+        collector = PrometheusPushGatewayMetricsCollector(gateway="pushgateway:9091", job="ingestion")
         assert collector.gateway == "http://pushgateway:9091"
         assert collector.job == "ingestion"
 
-    @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is None,
-        reason="prometheus_client not installed"
-    )
+    @pytest.mark.skipif(sys.modules.get("prometheus_client") is None, reason="prometheus_client not installed")
     def test_initialization_url_normalization(self):
         """Gateway URL should normalize with http:// prefix."""
-        collector = PrometheusPushGatewayMetricsCollector(
-            gateway="monitoring:9091",
-            job="orchestrator"
-        )
+        collector = PrometheusPushGatewayMetricsCollector(gateway="monitoring:9091", job="orchestrator")
         assert collector.gateway == "http://monitoring:9091"
         assert collector.job == "orchestrator"
 
-    @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is None,
-        reason="prometheus_client not installed"
-    )
+    @pytest.mark.skipif(sys.modules.get("prometheus_client") is None, reason="prometheus_client not installed")
     def test_push_calls_pushgateway(self, monkeypatch):
         """push() should call prometheus_client.push_to_gateway with expected args."""
         calls = {}
@@ -337,6 +301,7 @@ class TestPrometheusPushGatewayMetricsCollector:
 
         # Patch push_to_gateway in module where it's imported
         import copilot_metrics.pushgateway_metrics as pgm
+
         monkeypatch.setattr(pgm, "push_to_gateway", fake_push_to_gateway)
 
         collector = PrometheusPushGatewayMetricsCollector(
@@ -354,10 +319,7 @@ class TestPrometheusPushGatewayMetricsCollector:
         assert calls["grouping_key"] == {"instance": "test"}
         assert calls["registry"] is collector.registry
 
-    @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is None,
-        reason="prometheus_client not installed"
-    )
+    @pytest.mark.skipif(sys.modules.get("prometheus_client") is None, reason="prometheus_client not installed")
     def test_push_error_propagation(self, monkeypatch):
         """Collector should raise if push_to_gateway fails."""
         import copilot_metrics.pushgateway_metrics as pgm
@@ -392,10 +354,7 @@ class TestMetricsIntegration:
 
         # Verify counts
         assert collector.get_counter_total("archives_ingested") == 3.0
-        assert collector.get_counter_total(
-            "archives_ingested",
-            tags={"source": "datatracker"}
-        ) == 2.0
+        assert collector.get_counter_total("archives_ingested", tags={"source": "datatracker"}) == 2.0
 
     def test_histogram_workflow(self):
         """Test complete histogram workflow."""
@@ -430,7 +389,7 @@ class TestAzureMonitorMetricsCollector:
 
     @pytest.mark.skipif(
         az_metrics.AZURE_MONITOR_AVAILABLE,
-        reason="Azure Monitor packages are installed; test requires them to be missing"
+        reason="Azure Monitor packages are installed; test requires them to be missing",
     )
     def test_requires_azure_monitor_packages(self):
         """Test that AzureMonitorMetricsCollector raises ImportError when packages are missing.
@@ -443,9 +402,8 @@ class TestAzureMonitorMetricsCollector:
             AzureMonitorMetricsCollector(connection_string="InstrumentationKey=test-key")
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
-        or sys.modules.get('opentelemetry') is None,
-        reason="Azure Monitor packages not installed"
+        sys.modules.get("azure.monitor.opentelemetry.exporter") is None or sys.modules.get("opentelemetry") is None,
+        reason="Azure Monitor packages not installed",
     )
     def test_initialization_requires_connection_string(self):
         """Test that initialization fails without connection string."""
@@ -455,40 +413,31 @@ class TestAzureMonitorMetricsCollector:
             AzureMonitorMetricsCollector()  # type: ignore[call-arg]
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
-        or sys.modules.get('opentelemetry') is None,
-        reason="Azure Monitor packages not installed"
+        sys.modules.get("azure.monitor.opentelemetry.exporter") is None or sys.modules.get("opentelemetry") is None,
+        reason="Azure Monitor packages not installed",
     )
     def test_initialization_with_connection_string(self, mock_azure_exporter):
         """Test successful initialization with connection string."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        collector = AzureMonitorMetricsCollector(
-            connection_string=VALID_CONNECTION_STRING,
-            namespace="test"
-        )
+        collector = AzureMonitorMetricsCollector(connection_string=VALID_CONNECTION_STRING, namespace="test")
 
         assert collector.connection_string == VALID_CONNECTION_STRING
         assert collector.namespace == "test"
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
-        or sys.modules.get('opentelemetry') is None,
-        reason="Azure Monitor packages not installed"
+        sys.modules.get("azure.monitor.opentelemetry.exporter") is None or sys.modules.get("opentelemetry") is None,
+        reason="Azure Monitor packages not installed",
     )
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
-        or sys.modules.get('opentelemetry') is None,
-        reason="Azure Monitor packages not installed"
+        sys.modules.get("azure.monitor.opentelemetry.exporter") is None or sys.modules.get("opentelemetry") is None,
+        reason="Azure Monitor packages not installed",
     )
     def test_increment_counter_with_azure_monitor(self, mock_azure_exporter):
         """Test incrementing counter with Azure Monitor backend."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        collector = AzureMonitorMetricsCollector(
-            connection_string=VALID_CONNECTION_STRING,
-            namespace="test"
-        )
+        collector = AzureMonitorMetricsCollector(connection_string=VALID_CONNECTION_STRING, namespace="test")
 
         # These should not raise exceptions
         collector.increment("requests_total", value=1.0)
@@ -498,18 +447,14 @@ class TestAzureMonitorMetricsCollector:
         assert "requests_total" in collector._counters
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
-        or sys.modules.get('opentelemetry') is None,
-        reason="Azure Monitor packages not installed"
+        sys.modules.get("azure.monitor.opentelemetry.exporter") is None or sys.modules.get("opentelemetry") is None,
+        reason="Azure Monitor packages not installed",
     )
     def test_observe_histogram_with_azure_monitor(self, mock_azure_exporter):
         """Test observing histogram with Azure Monitor backend."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        collector = AzureMonitorMetricsCollector(
-            connection_string=VALID_CONNECTION_STRING,
-            namespace="test"
-        )
+        collector = AzureMonitorMetricsCollector(connection_string=VALID_CONNECTION_STRING, namespace="test")
 
         collector.observe("request_duration", 0.1)
         collector.observe("request_duration", 0.2, tags={"endpoint": "/api"})
@@ -518,18 +463,14 @@ class TestAzureMonitorMetricsCollector:
         assert "request_duration" in collector._histograms
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
-        or sys.modules.get('opentelemetry') is None,
-        reason="Azure Monitor packages not installed"
+        sys.modules.get("azure.monitor.opentelemetry.exporter") is None or sys.modules.get("opentelemetry") is None,
+        reason="Azure Monitor packages not installed",
     )
     def test_set_gauge_with_azure_monitor(self, mock_azure_exporter):
         """Test setting gauge with Azure Monitor backend."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        collector = AzureMonitorMetricsCollector(
-            connection_string=VALID_CONNECTION_STRING,
-            namespace="test"
-        )
+        collector = AzureMonitorMetricsCollector(connection_string=VALID_CONNECTION_STRING, namespace="test")
 
         collector.gauge("queue_depth", 10.0)
         collector.gauge("queue_depth", 15.0)
@@ -540,18 +481,15 @@ class TestAzureMonitorMetricsCollector:
         assert collector._gauge_values["test.queue_depth"][()] == 15.0
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
-        or sys.modules.get('opentelemetry') is None,
-        reason="Azure Monitor packages not installed"
+        sys.modules.get("azure.monitor.opentelemetry.exporter") is None or sys.modules.get("opentelemetry") is None,
+        reason="Azure Monitor packages not installed",
     )
     def test_graceful_handling_with_none_meter(self, mock_azure_exporter):
         """Test graceful handling when meter is None (no raise_on_error)."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
         collector = AzureMonitorMetricsCollector(
-            connection_string=VALID_CONNECTION_STRING,
-            namespace="test",
-            raise_on_error=False
+            connection_string=VALID_CONNECTION_STRING, namespace="test", raise_on_error=False
         )
 
         # Force an error by making _meter None
@@ -562,18 +500,14 @@ class TestAzureMonitorMetricsCollector:
         assert collector.get_errors_count() == 0  # No error recorded for None meter
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
-        or sys.modules.get('opentelemetry') is None,
-        reason="Azure Monitor packages not installed"
+        sys.modules.get("azure.monitor.opentelemetry.exporter") is None or sys.modules.get("opentelemetry") is None,
+        reason="Azure Monitor packages not installed",
     )
     def test_shutdown(self, mock_azure_exporter):
         """Test collector shutdown."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
 
-        collector = AzureMonitorMetricsCollector(
-            connection_string="InstrumentationKey=test-key",
-            namespace="test"
-        )
+        collector = AzureMonitorMetricsCollector(connection_string="InstrumentationKey=test-key", namespace="test")
 
         # Should not raise
         collector.shutdown()
@@ -591,6 +525,7 @@ class TestAzureMonitorMetricsCollector:
             )
             # If Azure packages are installed, verify it's the right type
             from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+
             assert isinstance(collector, AzureMonitorMetricsCollector)
             assert collector.connection_string == "InstrumentationKey=test-key"
         except ImportError:
@@ -607,21 +542,22 @@ class TestAzureMonitorWarningSuppress:
         This verifies issue #570 fix: Azure Monitor OpenTelemetry packages are optional,
         so the warning about missing packages should only appear at DEBUG level, not INFO.
         """
-        import logging
         import importlib
+        import logging
 
         # Set logging to INFO level (typical for service startup)
         caplog.set_level(logging.INFO)
 
         # Reimport the azure_monitor_metrics module to trigger the import-time logging
         from copilot_metrics import azure_monitor_metrics
+
         importlib.reload(azure_monitor_metrics)
 
         # Check that no warning about Azure Monitor packages appears in INFO logs
         azure_monitor_warnings = [
-            record for record in caplog.records
-            if "Azure Monitor OpenTelemetry" in record.message
-            and record.levelname == "WARNING"
+            record
+            for record in caplog.records
+            if "Azure Monitor OpenTelemetry" in record.message and record.levelname == "WARNING"
         ]
 
         assert len(azure_monitor_warnings) == 0, (
@@ -635,26 +571,26 @@ class TestAzureMonitorWarningSuppress:
         Verifies that the message is still available for debugging but doesn't clutter
         normal INFO-level service startup logs.
         """
-        import logging
         import importlib
+        import logging
 
         # Set logging to DEBUG level
         caplog.set_level(logging.DEBUG)
 
         # Reimport the azure_monitor_metrics module
         from copilot_metrics import azure_monitor_metrics
+
         importlib.reload(azure_monitor_metrics)
 
         # Only check if packages aren't installed (expected in most environments)
         if not azure_monitor_metrics.AZURE_MONITOR_AVAILABLE:
             # Check that debug message appears at DEBUG level
             azure_monitor_debug_msgs = [
-                record for record in caplog.records
-                if "Azure Monitor OpenTelemetry" in record.message
-                and record.levelname == "DEBUG"
+                record
+                for record in caplog.records
+                if "Azure Monitor OpenTelemetry" in record.message and record.levelname == "DEBUG"
             ]
 
             assert len(azure_monitor_debug_msgs) > 0, (
-                "Azure Monitor debug message should appear at DEBUG level "
-                "when packages are not installed."
+                "Azure Monitor debug message should appear at DEBUG level " "when packages are not installed."
             )

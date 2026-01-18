@@ -8,51 +8,55 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Literal
 
 
 @dataclass
 class DriverConfig_DocumentStore_AzureCosmosdb:
     """Configuration for document_store adapter using azure_cosmosdb driver."""
+
     endpoint: str
     # Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
-    container: str = 'documents'
+    container: str = "documents"
     # Cosmos DB container name
-    database: str = 'copilot'
+    database: str = "copilot"
     # Cosmos DB database name
-    key: Optional[str] = None
+    key: str | None = None
     # Cosmos DB account key (optional if using managed identity)
-    partition_key: str = '/collection'
+    partition_key: str = "/collection"
     # Cosmos DB partition key path
 
 
 @dataclass
 class DriverConfig_DocumentStore_Inmemory:
     """Configuration for document_store adapter using inmemory driver."""
+
     pass
 
 
 @dataclass
 class DriverConfig_DocumentStore_Mongodb:
     """Configuration for document_store adapter using mongodb driver."""
-    database: str = 'copilot'
+
+    database: str = "copilot"
     # MongoDB database name
-    host: str = 'documentdb'
+    host: str = "documentdb"
     # MongoDB hostname
-    password: Optional[str] = None
+    password: str | None = None
     # MongoDB password
     port: int = 27017
     # MongoDB port
-    username: Optional[str] = None
+    username: str | None = None
     # MongoDB username
 
 
 @dataclass
 class AdapterConfig_DocumentStore:
     """Configuration for document_store adapter."""
+
     doc_store_type: Literal["azure_cosmosdb", "inmemory", "mongodb"]
-    driver: Union[
-        DriverConfig_DocumentStore_AzureCosmosdb,
-        DriverConfig_DocumentStore_Inmemory,
-        DriverConfig_DocumentStore_Mongodb
-    ]
+    driver: (
+        DriverConfig_DocumentStore_AzureCosmosdb
+        | DriverConfig_DocumentStore_Inmemory
+        | DriverConfig_DocumentStore_Mongodb
+    )

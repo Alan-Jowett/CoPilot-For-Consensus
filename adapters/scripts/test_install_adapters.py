@@ -7,7 +7,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from install_adapters import _extras_from_setup, select_azure_extra
 
 
@@ -37,7 +36,7 @@ setup(
 )
 """
         )
-        
+
         extras = _extras_from_setup(setup_py)
         assert extras == {"dev", "azure"}
 
@@ -60,7 +59,7 @@ setup(
 )
 """
         )
-        
+
         extras = _extras_from_setup(setup_py)
         assert extras == {"dev", "test", "azure", "azuremonitor", "all"}
 
@@ -77,14 +76,14 @@ setup(
 )
 """
         )
-        
+
         extras = _extras_from_setup(setup_py)
         assert extras == set()
 
     def test_missing_setup_file(self, temp_adapter_dir):
         """Test behavior with missing setup.py file."""
         setup_py = temp_adapter_dir / "setup.py"
-        
+
         extras = _extras_from_setup(setup_py)
         assert extras == set()
 
@@ -103,7 +102,7 @@ setup(
 )
 """
         )
-        
+
         # Should return empty set and not raise exception
         extras = _extras_from_setup(setup_py)
         assert extras == set()
@@ -123,7 +122,7 @@ setuptools.setup(
 )
 """
         )
-        
+
         extras = _extras_from_setup(setup_py)
         assert extras == {"azure"}
 
@@ -142,7 +141,7 @@ setup_package(
 )
 """
         )
-        
+
         # This test verifies current behavior - aliases are NOT detected
         # The function only looks for literal "setup" name or "setup" attribute
         extras = _extras_from_setup(setup_py)
@@ -164,9 +163,9 @@ setup(
     },
 )
 """,
-            encoding="utf-8"
+            encoding="utf-8",
         )
-        
+
         extras = _extras_from_setup(setup_py)
         assert extras == {"dev"}
 
@@ -190,7 +189,7 @@ setup(
 )
 """
         )
-        
+
         extra = select_azure_extra(temp_adapter_dir)
         assert extra == "azure"
 
@@ -209,7 +208,7 @@ setup(
 )
 """
         )
-        
+
         extra = select_azure_extra(temp_adapter_dir)
         assert extra == "azuremonitor"
 
@@ -228,7 +227,7 @@ setup(
 )
 """
         )
-        
+
         extra = select_azure_extra(temp_adapter_dir)
         assert extra == "azure"
 
@@ -248,7 +247,7 @@ setup(
 )
 """
         )
-        
+
         extra = select_azure_extra(temp_adapter_dir)
         assert extra is None
 
@@ -265,7 +264,7 @@ setup(
 )
 """
         )
-        
+
         extra = select_azure_extra(temp_adapter_dir)
         assert extra is None
 
@@ -289,7 +288,7 @@ setup(
 )
 """
         )
-        
+
         extra = select_azure_extra(temp_adapter_dir)
         assert extra is None
 
@@ -311,7 +310,7 @@ setup(
 )
 """
         )
-        
+
         # 'azure' should be selected because AZURE_EXTRA_ORDER = ("azure", "azuremonitor")
         extra = select_azure_extra(temp_adapter_dir)
         assert extra == "azure"

@@ -8,37 +8,37 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Literal
 
 
 @dataclass
 class DriverConfig_ErrorReporter_Console:
     """Configuration for error_reporter adapter using console driver."""
-    logger_name: Optional[str] = None
+
+    logger_name: str | None = None
     # Logger name used by the console reporter (defaults to service logger)
 
 
 @dataclass
 class DriverConfig_ErrorReporter_Sentry:
     """Configuration for error_reporter adapter using sentry driver."""
-    dsn: Optional[str] = None
+
+    dsn: str | None = None
     # Sentry DSN for reporting errors
-    environment: str = 'production'
+    environment: str = "production"
     # Environment name to tag Sentry events
 
 
 @dataclass
 class DriverConfig_ErrorReporter_Silent:
     """Configuration for error_reporter adapter using silent driver."""
+
     pass
 
 
 @dataclass
 class AdapterConfig_ErrorReporter:
     """Configuration for error_reporter adapter."""
+
     error_reporter_type: Literal["console", "sentry", "silent"]
-    driver: Union[
-        DriverConfig_ErrorReporter_Console,
-        DriverConfig_ErrorReporter_Sentry,
-        DriverConfig_ErrorReporter_Silent
-    ]
+    driver: DriverConfig_ErrorReporter_Console | DriverConfig_ErrorReporter_Sentry | DriverConfig_ErrorReporter_Silent

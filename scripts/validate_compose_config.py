@@ -20,7 +20,6 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import yaml
 
@@ -46,9 +45,9 @@ SCHEMA_BASE = Path(__file__).parent.parent / "docs" / "schemas" / "configs"
 SERVICE_SCHEMA_DIR = SCHEMA_BASE / "services"
 
 
-def load_env_file(env_path: Path) -> Dict[str, str]:
+def load_env_file(env_path: Path) -> dict[str, str]:
     """Load a .env file into a dict."""
-    env_vars: Dict[str, str] = {}
+    env_vars: dict[str, str] = {}
     if not env_path.exists():
         raise FileNotFoundError(f"Env file not found: {env_path}")
     for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -70,9 +69,9 @@ def load_compose_file(path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
-def merge_services(compose_docs: List[dict]) -> Dict[str, dict]:
+def merge_services(compose_docs: list[dict]) -> dict[str, dict]:
     """Merge services from multiple compose documents (later wins)."""
-    merged: Dict[str, dict] = {}
+    merged: dict[str, dict] = {}
     for doc in compose_docs:
         services = doc.get("services", {}) or {}
         for name, svc in services.items():
@@ -80,7 +79,7 @@ def merge_services(compose_docs: List[dict]) -> Dict[str, dict]:
     return merged
 
 
-def substitute_env(value: str, env: Dict[str, str]) -> Tuple[str | None, bool]:
+def substitute_env(value: str, env: dict[str, str]) -> tuple[str | None, bool]:
     """Resolve ${VAR:-default} patterns. Returns (resolved_value, conditional)."""
     pattern = re.compile(r"\$\{([^}:]+)(?::-(.*?))?\}")
 
@@ -101,10 +100,11 @@ def substitute_env(value: str, env: Dict[str, str]) -> Tuple[str | None, bool]:
         return None, True
 
 
-def collect_service_env(service_name: str, service_def: dict, env_overrides: Dict[str, str]) -> Dict[str, str | None]:
+def collect_service_env(service_name: str, service_def: dict, env_overrides: dict[str, str]) -> dict[str, str | None]:
     """Collect resolved env vars for a service."""
+    del service_name
     env_block = service_def.get("environment", {}) or {}
-    env_vars: Dict[str, str | None] = {}
+    env_vars: dict[str, str | None] = {}
 
     if isinstance(env_block, list):
         for entry in env_block:
@@ -167,8 +167,8 @@ def resolve_ref(ref_path: str, base_path: Path) -> dict:
         return json.load(f)
 
 
-def validate_against_schema(service_name: str, env_vars: Dict[str, str | None], verbose: bool = False) -> List[str]:
-    issues: List[str] = []
+def validate_against_schema(service_name: str, env_vars: dict[str, str | None], verbose: bool = False) -> list[str]:
+    issues: list[str] = []
     schema = load_schema(service_name)
     adapters = schema.get("adapters", {})
     schema_base = SERVICE_SCHEMA_DIR
@@ -193,14 +193,16 @@ def validate_against_schema(service_name: str, env_vars: Dict[str, str | None], 
             if discriminant_env_var not in env_vars:
                 if required:
                     issues.append(
-                        f"[{service_name}] Missing required env var '{discriminant_env_var}' for adapter '{adapter_name}'"
+                        f"[{service_name}] Missing required env var '{discriminant_env_var}' "
+                        f"for adapter '{adapter_name}'"
                     )
                 continue
 
             value = env_vars[discriminant_env_var]
             if value is None:
                 issues.append(
-                    f"[{service_name}] Env var '{discriminant_env_var}' for adapter '{adapter_name}' is conditional/unresolved"
+                    f"[{service_name}] Env var '{discriminant_env_var}' for adapter '{adapter_name}' "
+                    "is conditional/unresolved"
                 )
                 continue
             if enum_values and value not in enum_values:
@@ -239,7 +241,7 @@ def main() -> int:
     compose_docs = [load_compose_file(p) for p in compose_paths]
     services = merge_services(compose_docs)
 
-    issues: List[str] = []
+    issues: list[str] = []
     for service_name, service_def in services.items():
         if service_name in SKIPPED_SERVICES:
             continue

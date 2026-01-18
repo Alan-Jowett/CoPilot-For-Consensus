@@ -8,7 +8,6 @@ import sys
 from unittest.mock import Mock, patch
 
 import pytest
-
 from copilot_config.generated.adapters.archive_store import (
     AdapterConfig_ArchiveStore,
     DriverConfig_ArchiveStore_Local,
@@ -109,6 +108,7 @@ def test_main_imports_successfully():
                             with patch("uvicorn.run"):
                                 # This will catch ImportError if any imports fail
                                 import main as parsing_main
+
                                 assert parsing_main is not None
 
 

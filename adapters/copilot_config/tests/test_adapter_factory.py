@@ -8,7 +8,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
-
 from copilot_config.adapter_factory import create_adapter
 
 

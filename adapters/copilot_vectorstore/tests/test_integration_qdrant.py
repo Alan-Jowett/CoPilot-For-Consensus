@@ -3,6 +3,7 @@
 
 """Integration tests for Qdrant vector store against a real Qdrant instance."""
 
+import importlib.util
 import os
 import time
 
@@ -14,12 +15,7 @@ from copilot_config.generated.adapters.vector_store import (
 from copilot_vectorstore import SearchResult, create_vector_store
 
 # Check if qdrant-client is available
-QDRANT_AVAILABLE = False
-try:
-    import qdrant_client
-    QDRANT_AVAILABLE = True
-except ImportError:
-    pass
+QDRANT_AVAILABLE = importlib.util.find_spec("qdrant_client") is not None
 
 
 def get_qdrant_config():
@@ -268,7 +264,6 @@ class TestQdrantIntegration:
         assert len(results) == 1
         assert results[0].id == "doc1"
         assert results[0].metadata["text"] == "second"
-
 
     def test_vector_dimension_mismatch_raises_error(self, clean_store):
         """Test that vector dimension mismatch raises ValueError."""

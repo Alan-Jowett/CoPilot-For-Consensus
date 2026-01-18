@@ -8,14 +8,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from copilot_config.generated.adapters.oidc_providers import (
-    AdapterConfig_OidcProviders,
-    CompositeConfig_OidcProviders,
-    DriverConfig_OidcProviders_Github,
-    DriverConfig_OidcProviders_Google,
-    DriverConfig_OidcProviders_Microsoft,
-)
 from copilot_config.generated.adapters.document_store import (
     AdapterConfig_DocumentStore,
     DriverConfig_DocumentStore_Inmemory,
@@ -27,6 +19,13 @@ from copilot_config.generated.adapters.logger import (
 from copilot_config.generated.adapters.metrics import (
     AdapterConfig_Metrics,
     DriverConfig_Metrics_Noop,
+)
+from copilot_config.generated.adapters.oidc_providers import (
+    AdapterConfig_OidcProviders,
+    CompositeConfig_OidcProviders,
+    DriverConfig_OidcProviders_Github,
+    DriverConfig_OidcProviders_Google,
+    DriverConfig_OidcProviders_Microsoft,
 )
 from copilot_config.generated.adapters.secret_provider import (
     AdapterConfig_SecretProvider,
@@ -77,9 +76,7 @@ class TestProviderInitialization:
                 metrics_type="noop",
                 driver=DriverConfig_Metrics_Noop(),
             ),
-            oidc_providers=AdapterConfig_OidcProviders(
-                oidc_providers=CompositeConfig_OidcProviders()
-            ),
+            oidc_providers=AdapterConfig_OidcProviders(oidc_providers=CompositeConfig_OidcProviders()),
             secret_provider=AdapterConfig_SecretProvider(
                 secret_provider_type="local",
                 driver=DriverConfig_SecretProvider_Local(),
@@ -91,9 +88,7 @@ class TestProviderInitialization:
         provider = MagicMock()
         provider.discover = MagicMock()
         provider.build_pkce_pair = MagicMock(return_value=("verifier", "challenge"))
-        provider.get_authorization_url = MagicMock(
-            return_value=("https://auth.example.com", "state", "nonce")
-        )
+        provider.get_authorization_url = MagicMock(return_value=("https://auth.example.com", "state", "nonce"))
         provider.exchange_code_for_token = MagicMock(
             return_value={"access_token": "token123", "id_token": "idtoken123"}
         )
@@ -119,6 +114,7 @@ class TestProviderInitialization:
                 pass
 
         from app import service
+
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
@@ -155,6 +151,7 @@ class TestProviderInitialization:
                 pass
 
         from app import service
+
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
@@ -188,6 +185,7 @@ class TestProviderInitialization:
                 pass
 
         from app import service
+
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
@@ -221,6 +219,7 @@ class TestProviderInitialization:
                 pass
 
         from app import service
+
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
@@ -241,6 +240,7 @@ class TestProviderInitialization:
         )
 
         call_count = 0
+
         def mock_create_provider(provider_name, driver_config, *, issuer=None):
             nonlocal call_count
             call_count += 1
@@ -312,6 +312,7 @@ class TestProviderInitialization:
                 pass
 
         from app import service
+
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
@@ -327,6 +328,7 @@ class TestProviderInitialization:
         )
 
         captured_config = {}
+
         def capture_create_provider(provider_name, driver_config, *, issuer=None):
             captured_config[provider_name] = driver_config
             return self._create_mock_identity_provider()
@@ -350,6 +352,7 @@ class TestProviderInitialization:
                 pass
 
         from app import service
+
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
@@ -364,6 +367,7 @@ class TestProviderInitialization:
         )
 
         captured_config = {}
+
         def capture_create_provider(provider_name, driver_config, *, issuer=None):
             captured_config[provider_name] = driver_config
             return self._create_mock_identity_provider()
@@ -373,10 +377,7 @@ class TestProviderInitialization:
 
             # Verify default redirect URI uses service issuer
             assert "github" in captured_config
-            assert (
-                captured_config["github"].github_redirect_uri
-                == f"{mock_config.service_settings.issuer}/callback"
-            )
+            assert captured_config["github"].github_redirect_uri == f"{mock_config.service_settings.issuer}/callback"
 
         service.JWTManager = original_jwt_manager
 
@@ -390,6 +391,7 @@ class TestProviderInitialization:
                 pass
 
         from app import service
+
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 
@@ -427,6 +429,7 @@ class TestProviderInitialization:
                 pass
 
         from app import service
+
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
 

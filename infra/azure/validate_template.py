@@ -77,9 +77,7 @@ def validate_template_structure(file_path: Path) -> tuple[bool, list[str]]:
                         required_resource_props = ["type", "apiVersion", "name"]
                         for prop in required_resource_props:
                             if prop not in resource:
-                                errors.append(
-                                    f"Resource at index {i} missing required property: {prop}"
-                                )
+                                errors.append(f"Resource at index {i} missing required property: {prop}")
 
         # Validate outputs section (if present)
         if "outputs" in template:
@@ -127,9 +125,7 @@ def validate_parameters_file(file_path: Path) -> tuple[bool, list[str]]:
                     if not isinstance(param_value, dict):
                         errors.append(f"Parameter '{param_name}' must be an object")
                     elif "value" not in param_value and "reference" not in param_value:
-                        errors.append(
-                            f"Parameter '{param_name}' must have either 'value' or 'reference'"
-                        )
+                        errors.append(f"Parameter '{param_name}' must have either 'value' or 'reference'")
 
         return len(errors) == 0, errors
 

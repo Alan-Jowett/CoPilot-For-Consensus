@@ -54,7 +54,9 @@ def temp_prompt_files(tmp_path):
 
 
 @pytest.fixture
-def orchestration_service(mock_document_store, mock_publisher, mock_subscriber, mock_metrics_collector, temp_prompt_files):
+def orchestration_service(
+    mock_document_store, mock_publisher, mock_subscriber, mock_metrics_collector, temp_prompt_files
+):
     """Create an orchestration service instance."""
     system_prompt_path, user_prompt_path = temp_prompt_files
     return OrchestrationService(
@@ -70,8 +72,8 @@ def orchestration_service(mock_document_store, mock_publisher, mock_subscriber, 
 def get_collection_from_call(call):
     """Helper to extract collection name from mock call (positional or keyword arg)."""
     args, kwargs = call
-    if 'collection' in kwargs:
-        return kwargs['collection']
+    if "collection" in kwargs:
+        return kwargs["collection"]
     elif len(args) > 0:
         return args[0]
     return None
@@ -113,20 +115,23 @@ class TestOrchestratorForwardProgress:
 
         # Verify threads were queried
         calls = mock_document_store.query_documents.call_args_list
-        thread_query_call = [c for c in calls if get_collection_from_call(c) == 'threads'][0]
-        assert thread_query_call[1].get('filter_dict') == {"summary_id": None}
-        assert thread_query_call[1].get('limit') == 500
+        thread_query_call = [c for c in calls if get_collection_from_call(c) == "threads"][0]
+        assert thread_query_call[1].get("filter_dict") == {"summary_id": None}
+        assert thread_query_call[1].get("limit") == 500
 
         # Verify chunks were queried in batch
-        chunk_query_call = [c for c in calls if get_collection_from_call(c) == 'chunks'][0]
-        assert chunk_query_call[1].get('filter_dict') == {"thread_id": {"$in": ["thread-001", "thread-002"]}}
+        chunk_query_call = [c for c in calls if get_collection_from_call(c) == "chunks"][0]
+        assert chunk_query_call[1].get("filter_dict") == {"thread_id": {"$in": ["thread-001", "thread-002"]}}
 
         # Verify both threads were published (2 SummarizationRequested events)
-        publish_calls = [c for c in mock_publisher.publish.call_args_list 
-                        if c[1].get('routing_key') == 'summarization.requested']
+        publish_calls = [
+            c for c in mock_publisher.publish.call_args_list if c[1].get("routing_key") == "summarization.requested"
+        ]
         assert len(publish_calls) == 2
 
-    def test_requeue_skips_threads_without_all_embeddings(self, orchestration_service, mock_document_store, mock_publisher):
+    def test_requeue_skips_threads_without_all_embeddings(
+        self, orchestration_service, mock_document_store, mock_publisher
+    ):
         """Test that threads with incomplete embeddings are not requeued."""
         threads_without_summaries = [
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
@@ -155,12 +160,13 @@ class TestOrchestratorForwardProgress:
         orchestration_service.start(enable_startup_requeue=True)
 
         # Only thread-001 should be published
-        publish_calls = [c for c in mock_publisher.publish.call_args_list 
-                        if c[1].get('routing_key') == 'summarization.requested']
+        publish_calls = [
+            c for c in mock_publisher.publish.call_args_list if c[1].get("routing_key") == "summarization.requested"
+        ]
         assert len(publish_calls) == 1
         # Verify it's thread-001
-        event_data = publish_calls[0][1]['event']['data']
-        assert event_data['thread_ids'] == ['thread-001']
+        event_data = publish_calls[0][1]["event"]["data"]
+        assert event_data["thread_ids"] == ["thread-001"]
 
     def test_requeue_skips_threads_without_chunks(self, orchestration_service, mock_document_store, mock_publisher):
         """Test that threads without any chunks are not requeued."""
@@ -188,11 +194,12 @@ class TestOrchestratorForwardProgress:
         orchestration_service.start(enable_startup_requeue=True)
 
         # Only thread-001 should be published
-        publish_calls = [c for c in mock_publisher.publish.call_args_list 
-                        if c[1].get('routing_key') == 'summarization.requested']
+        publish_calls = [
+            c for c in mock_publisher.publish.call_args_list if c[1].get("routing_key") == "summarization.requested"
+        ]
         assert len(publish_calls) == 1
-        event_data = publish_calls[0][1]['event']['data']
-        assert event_data['thread_ids'] == ['thread-001']
+        event_data = publish_calls[0][1]["event"]["data"]
+        assert event_data["thread_ids"] == ["thread-001"]
 
     def test_requeue_publishes_correct_event_format(self, orchestration_service, mock_document_store, mock_publisher):
         """Test that requeued events have correct format."""
@@ -217,22 +224,25 @@ class TestOrchestratorForwardProgress:
         orchestration_service.start(enable_startup_requeue=True)
 
         # Verify event format
-        publish_calls = [c for c in mock_publisher.publish.call_args_list 
-                        if c[1].get('routing_key') == 'summarization.requested']
+        publish_calls = [
+            c for c in mock_publisher.publish.call_args_list if c[1].get("routing_key") == "summarization.requested"
+        ]
         assert len(publish_calls) == 1
-        
-        call_kwargs = publish_calls[0][1]
-        assert call_kwargs['exchange'] == 'copilot.events'
-        assert call_kwargs['routing_key'] == 'summarization.requested'
-        
-        event = call_kwargs['event']
-        assert event['event_type'] == 'SummarizationRequested'
-        event_data = event['data']
-        assert event_data['thread_ids'] == ['thread-001']
-        assert 'top_k' in event_data
-        assert 'prompt_template' in event_data
 
-    def test_no_requeue_when_all_threads_have_summaries(self, orchestration_service, mock_document_store, mock_publisher):
+        call_kwargs = publish_calls[0][1]
+        assert call_kwargs["exchange"] == "copilot.events"
+        assert call_kwargs["routing_key"] == "summarization.requested"
+
+        event = call_kwargs["event"]
+        assert event["event_type"] == "SummarizationRequested"
+        event_data = event["data"]
+        assert event_data["thread_ids"] == ["thread-001"]
+        assert "top_k" in event_data
+        assert "prompt_template" in event_data
+
+    def test_no_requeue_when_all_threads_have_summaries(
+        self, orchestration_service, mock_document_store, mock_publisher
+    ):
         """Test that no requeue happens when all threads have summaries."""
         # No threads without summaries
         mock_document_store.query_documents.return_value = []
@@ -240,8 +250,9 @@ class TestOrchestratorForwardProgress:
         orchestration_service.start(enable_startup_requeue=True)
 
         # Verify no events were published
-        publish_calls = [c for c in mock_publisher.publish.call_args_list 
-                        if c[1].get('routing_key') == 'summarization.requested']
+        publish_calls = [
+            c for c in mock_publisher.publish.call_args_list if c[1].get("routing_key") == "summarization.requested"
+        ]
         assert len(publish_calls) == 0
 
     def test_no_requeue_when_disabled(self, orchestration_service, mock_document_store):
@@ -251,7 +262,7 @@ class TestOrchestratorForwardProgress:
 
         # Verify no queries for threads were made
         calls = mock_document_store.query_documents.call_args_list
-        thread_calls = [c for c in calls if get_collection_from_call(c) == 'threads']
+        thread_calls = [c for c in calls if get_collection_from_call(c) == "threads"]
         assert len(thread_calls) == 0
 
     def test_requeue_continues_on_import_error(self, orchestration_service, mock_subscriber, mock_document_store):
@@ -265,7 +276,9 @@ class TestOrchestratorForwardProgress:
         # Verify subscription still happened
         mock_subscriber.subscribe.assert_called_once()
 
-    def test_requeue_continues_on_query_error(self, orchestration_service, mock_subscriber, mock_document_store, mock_metrics_collector):
+    def test_requeue_continues_on_query_error(
+        self, orchestration_service, mock_subscriber, mock_document_store, mock_metrics_collector
+    ):
         """Test that service continues startup even if query fails."""
         # Setup mock to raise exception during query
         mock_document_store.query_documents.side_effect = Exception("Database error")
@@ -277,11 +290,14 @@ class TestOrchestratorForwardProgress:
         mock_subscriber.subscribe.assert_called_once()
 
         # Verify error metrics were collected
-        metric_calls = [c for c in mock_metrics_collector.increment.call_args_list 
-                       if 'startup_requeue_errors_total' in c[0]]
+        metric_calls = [
+            c for c in mock_metrics_collector.increment.call_args_list if "startup_requeue_errors_total" in c[0]
+        ]
         assert len(metric_calls) == 1
 
-    def test_requeue_handles_threads_with_missing_thread_id(self, orchestration_service, mock_document_store, mock_publisher):
+    def test_requeue_handles_threads_with_missing_thread_id(
+        self, orchestration_service, mock_document_store, mock_publisher
+    ):
         """Test that threads with missing thread_id are skipped."""
         threads = [
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
@@ -306,22 +322,21 @@ class TestOrchestratorForwardProgress:
         orchestration_service.start(enable_startup_requeue=True)
 
         # Only thread-001 should be published
-        publish_calls = [c for c in mock_publisher.publish.call_args_list 
-                        if c[1].get('routing_key') == 'summarization.requested']
-        assert len(publish_calls) == 1
-        event_data = publish_calls[0][1]['event']['data']
-        assert event_data['thread_ids'] == ['thread-001']
-
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_batches_chunk_queries_efficiently(self, mock_requeue_class, orchestration_service, mock_document_store):
-        """Test that chunks are queried in a single batch for all threads."""
-        threads = [
-            {"thread_id": f"thread-{i:03d}", "summary_id": None, "archive_id": "archive-1"}
-            for i in range(10)
+        publish_calls = [
+            c for c in mock_publisher.publish.call_args_list if c[1].get("routing_key") == "summarization.requested"
         ]
+        assert len(publish_calls) == 1
+        event_data = publish_calls[0][1]["event"]["data"]
+        assert event_data["thread_ids"] == ["thread-001"]
+
+    @patch("copilot_startup.StartupRequeue")
+    def test_requeue_batches_chunk_queries_efficiently(
+        self, mock_requeue_class, orchestration_service, mock_document_store
+    ):
+        """Test that chunks are queried in a single batch for all threads."""
+        threads = [{"thread_id": f"thread-{i:03d}", "summary_id": None, "archive_id": "archive-1"} for i in range(10)]
         chunks = [
-            {"thread_id": f"thread-{i:03d}", "embedding_generated": True, "_id": f"chunk-{i:03d}"}
-            for i in range(10)
+            {"thread_id": f"thread-{i:03d}", "embedding_generated": True, "_id": f"chunk-{i:03d}"} for i in range(10)
         ]
 
         def query_side_effect(collection, filter_dict, limit=None):
@@ -341,16 +356,19 @@ class TestOrchestratorForwardProgress:
         # Verify chunks were queried in a single batch (during startup requeue)
         calls = mock_document_store.query_documents.call_args_list
         # Filter for batch queries - these have filter_dict with $in operator
-        chunk_batch_calls = [c for c in calls 
-                            if get_collection_from_call(c) == 'chunks' 
-                            and c[1].get('filter_dict', {}).get('thread_id', {}).get('$in') is not None]
+        chunk_batch_calls = [
+            c
+            for c in calls
+            if get_collection_from_call(c) == "chunks"
+            and c[1].get("filter_dict", {}).get("thread_id", {}).get("$in") is not None
+        ]
         assert len(chunk_batch_calls) == 1
 
         # Verify all thread IDs were included
-        chunk_filter = chunk_batch_calls[0][1].get('filter_dict')
-        assert len(chunk_filter['thread_id']['$in']) == 10
+        chunk_filter = chunk_batch_calls[0][1].get("filter_dict")
+        assert len(chunk_filter["thread_id"]["$in"]) == 10
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_respects_thread_limit(self, mock_requeue_class, orchestration_service, mock_document_store):
         """Test that requeue respects the 500 thread limit."""
         mock_document_store.query_documents.return_value = []
@@ -359,10 +377,12 @@ class TestOrchestratorForwardProgress:
 
         # Verify limit is set on thread query
         calls = mock_document_store.query_documents.call_args_list
-        thread_query_call = [c for c in calls if get_collection_from_call(c) == 'threads'][0]
-        assert thread_query_call[1].get('limit') == 500
+        thread_query_call = [c for c in calls if get_collection_from_call(c) == "threads"][0]
+        assert thread_query_call[1].get("limit") == 500
 
-    def test_requeue_emits_metrics(self, orchestration_service, mock_document_store, mock_metrics_collector, mock_publisher):
+    def test_requeue_emits_metrics(
+        self, orchestration_service, mock_document_store, mock_metrics_collector, mock_publisher
+    ):
         """Test that requeue emits appropriate metrics."""
         threads = [
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
@@ -388,11 +408,14 @@ class TestOrchestratorForwardProgress:
 
         # Verify metrics were emitted for each orchestration
         # Each _orchestrate_thread call increments orchestration_events_total
-        metric_calls = [c for c in mock_metrics_collector.increment.call_args_list 
-                       if c[0][0] == 'orchestration_events_total']
+        metric_calls = [
+            c for c in mock_metrics_collector.increment.call_args_list if c[0][0] == "orchestration_events_total"
+        ]
         assert len(metric_calls) == 2
 
-    def test_requeue_continues_on_individual_publish_failure(self, orchestration_service, mock_document_store, mock_publisher):
+    def test_requeue_continues_on_individual_publish_failure(
+        self, orchestration_service, mock_document_store, mock_publisher
+    ):
         """Test that requeue continues even if individual publish fails."""
         threads = [
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
@@ -418,12 +441,13 @@ class TestOrchestratorForwardProgress:
 
         # Make second publish fail
         publish_count = [0]
+
         def publish_side_effect(*args, **kwargs):
             publish_count[0] += 1
             if publish_count[0] == 2:
                 raise Exception("Network error")
             return True
-        
+
         mock_publisher.publish.side_effect = publish_side_effect
 
         # Should not raise - should continue with other threads

@@ -6,6 +6,7 @@
 
 class ParsingError(Exception):
     """Base exception for parsing service errors."""
+
     pass
 
 

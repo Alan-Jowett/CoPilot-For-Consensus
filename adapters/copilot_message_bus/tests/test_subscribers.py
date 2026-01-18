@@ -160,11 +160,7 @@ class TestNoopSubscriber:
 
         subscriber.subscribe("TestEvent", callback)
 
-        test_event = {
-            "event_type": "TestEvent",
-            "event_id": "123",
-            "data": {"test": "value"}
-        }
+        test_event = {"event_type": "TestEvent", "event_id": "123", "data": {"test": "value"}}
 
         subscriber.inject_event(test_event)
 
@@ -179,10 +175,7 @@ class TestNoopSubscriber:
         # and not modify subscriber state
         initial_callbacks = dict(subscriber.callbacks)
 
-        subscriber.inject_event({
-            "event_type": "UnknownEvent",
-            "event_id": "123"
-        })
+        subscriber.inject_event({"event_type": "UnknownEvent", "event_id": "123"})
 
         # Verify no callbacks were added and state unchanged
         assert subscriber.callbacks == initial_callbacks
@@ -274,10 +267,7 @@ class TestNoopSubscriber:
         subscriber.subscribe("TestEvent", lambda e: received.append(e))
 
         for i in range(5):
-            subscriber.inject_event({
-                "event_type": "TestEvent",
-                "event_id": str(i)
-            })
+            subscriber.inject_event({"event_type": "TestEvent", "event_id": str(i)})
 
         assert len(received) == 5
 
@@ -287,12 +277,7 @@ class TestRabbitMQSubscriber:
 
     def test_initialization(self):
         """Test RabbitMQ subscriber initialization."""
-        subscriber = RabbitMQSubscriber(
-            host="localhost",
-            port=5672,
-            username="test",
-            password="pass"
-        )
+        subscriber = RabbitMQSubscriber(host="localhost", port=5672, username="test", password="pass")
 
         assert subscriber.host == "localhost"
         assert subscriber.port == 5672
@@ -309,7 +294,7 @@ class TestRabbitMQSubscriber:
             username="guest",
             password="guest",
             exchange_name="custom.exchange",
-            exchange_type="fanout"
+            exchange_type="fanout",
         )
 
         assert subscriber.exchange_name == "custom.exchange"
@@ -338,9 +323,7 @@ class TestRabbitMQSubscriber:
         # Simulate pika transport state assertion error
         # Note: pika has a typo in the error message - "_initate" instead of "_initiate"
         # This is the actual error message from pika, reproduced exactly
-        transport_error = AssertionError(
-            "_AsyncTransportBase._initate_abort() expected non-_STATE_COMPLETED", 4
-        )
+        transport_error = AssertionError("_AsyncTransportBase._initate_abort() expected non-_STATE_COMPLETED", 4)
         mock_channel.start_consuming.side_effect = transport_error
 
         # Should not raise - should handle gracefully
@@ -349,9 +332,7 @@ class TestRabbitMQSubscriber:
         # Verify basic_consume was called before the error
         assert mock_channel.basic_consume.called
         mock_channel.basic_consume.assert_called_once_with(
-            queue=subscriber.queue_name,
-            on_message_callback=subscriber._on_message,
-            auto_ack=subscriber.auto_ack
+            queue=subscriber.queue_name, on_message_callback=subscriber._on_message, auto_ack=subscriber.auto_ack
         )
 
         # Verify consuming flag was reset by finally block
@@ -418,6 +399,3 @@ class TestRabbitMQSubscriber:
 
         # Verify consuming flag was reset
         assert subscriber._consuming is False
-
-
-

@@ -22,9 +22,7 @@ from .error_reporter import ErrorReporter
 __version__ = "0.1.0"
 
 _DriverConfig: TypeAlias = (
-    DriverConfig_ErrorReporter_Console
-    | DriverConfig_ErrorReporter_Sentry
-    | DriverConfig_ErrorReporter_Silent
+    DriverConfig_ErrorReporter_Console | DriverConfig_ErrorReporter_Sentry | DriverConfig_ErrorReporter_Silent
 )
 
 
@@ -50,6 +48,7 @@ def _build_sentry(config: _DriverConfig) -> ErrorReporter:
     if not isinstance(config, DriverConfig_ErrorReporter_Sentry):
         raise TypeError("driver config must be DriverConfig_ErrorReporter_Sentry")
     return SentryErrorReporter.from_config(config)
+
 
 def create_error_reporter(config: AdapterConfig_ErrorReporter) -> ErrorReporter:
     """Create an error reporter from typed configuration.

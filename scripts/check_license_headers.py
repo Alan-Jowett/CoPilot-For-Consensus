@@ -2,6 +2,7 @@
 SPDX-License-Identifier: MIT
 Copyright (c) 2025 Copilot-for-Consensus contributors
 """
+
 import argparse
 import os
 import re
@@ -12,18 +13,49 @@ SPDX_PATTERN = re.compile(r"SPDX-License-Identifier:\s*([A-Za-z0-9\-\.\+]+)")
 COPYRIGHT_PATTERN = re.compile(r"Copyright\s*\(c\)\s*\d{4}(-\d{4})?")
 
 DEFAULT_EXTENSIONS = {
-    ".py", ".sh", ".ps1", ".ts", ".tsx", ".js", ".jsx",
-    ".go", ".rs", ".java", ".kt", ".proto", ".graphql", ".sql",
-    ".css", ".scss", ".md", ".yml", ".yaml", ".toml", ".ini", ".cfg"
+    ".py",
+    ".sh",
+    ".ps1",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".go",
+    ".rs",
+    ".java",
+    ".kt",
+    ".proto",
+    ".graphql",
+    ".sql",
+    ".css",
+    ".scss",
+    ".md",
+    ".yml",
+    ".yaml",
+    ".toml",
+    ".ini",
+    ".cfg",
 }
 
 DEFAULT_FILENAMES = {"Dockerfile"}
 
 DEFAULT_EXCLUDES = {
-    ".git", "node_modules", "venv", ".venv", "env", ".env",
-    "__pycache__", "build", "dist", ".pytest_cache", ".mypy_cache",
-    ".tox", ".eggs", "*.egg-info", "htmlcov",
-    ".gdn"
+    ".git",
+    "node_modules",
+    "venv",
+    ".venv",
+    "env",
+    ".env",
+    "__pycache__",
+    "build",
+    "dist",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".tox",
+    ".eggs",
+    "*.egg-info",
+    "htmlcov",
+    ".gdn",
 }
 
 
@@ -97,12 +129,32 @@ def load_ignore_file(root: Path, ignore_file: str | None) -> set[str]:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Check SPDX and Copyright headers across the repository")
-    p.add_argument("--root", default=str(Path.cwd()), help="Root directory to scan (default: current working directory)")
-    p.add_argument("--head-lines", type=int, default=30, help="Number of lines from start of file to search for headers")
-    p.add_argument("--extensions", nargs="*", default=sorted(DEFAULT_EXTENSIONS), help="File extensions to check (space-separated)")
-    p.add_argument("--filenames", nargs="*", default=sorted(DEFAULT_FILENAMES), help="Specific filenames to check (space-separated)")
-    p.add_argument("--exclude", nargs="*", default=sorted(DEFAULT_EXCLUDES), help="Directories or patterns to exclude (space-separated)")
-    p.add_argument("--ignore-file", default=".headercheckignore", help="Path relative to root of an ignore file with patterns (one per line)")
+    p.add_argument(
+        "--root", default=str(Path.cwd()), help="Root directory to scan (default: current working directory)"
+    )
+    p.add_argument(
+        "--head-lines", type=int, default=30, help="Number of lines from start of file to search for headers"
+    )
+    p.add_argument(
+        "--extensions", nargs="*", default=sorted(DEFAULT_EXTENSIONS), help="File extensions to check (space-separated)"
+    )
+    p.add_argument(
+        "--filenames",
+        nargs="*",
+        default=sorted(DEFAULT_FILENAMES),
+        help="Specific filenames to check (space-separated)",
+    )
+    p.add_argument(
+        "--exclude",
+        nargs="*",
+        default=sorted(DEFAULT_EXCLUDES),
+        help="Directories or patterns to exclude (space-separated)",
+    )
+    p.add_argument(
+        "--ignore-file",
+        default=".headercheckignore",
+        help="Path relative to root of an ignore file with patterns (one per line)",
+    )
     return p.parse_args()
 
 

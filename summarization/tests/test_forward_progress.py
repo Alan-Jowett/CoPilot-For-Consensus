@@ -56,7 +56,9 @@ def mock_metrics_collector():
 
 
 @pytest.fixture
-def summarization_service(mock_document_store, mock_vector_store, mock_publisher, mock_subscriber, mock_summarizer, mock_metrics_collector):
+def summarization_service(
+    mock_document_store, mock_vector_store, mock_publisher, mock_subscriber, mock_summarizer, mock_metrics_collector
+):
     """Create a summarization service instance."""
     return SummarizationService(
         document_store=mock_document_store,
@@ -76,8 +78,10 @@ def summarization_service(mock_document_store, mock_vector_store, mock_publisher
 class TestSummarizationForwardProgress:
     """Test cases for summarization service forward progress logic."""
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_threads_without_summaries_on_startup(self, mock_requeue_class, summarization_service, mock_document_store, mock_publisher, mock_metrics_collector):
+    @patch("copilot_startup.StartupRequeue")
+    def test_requeue_threads_without_summaries_on_startup(
+        self, mock_requeue_class, summarization_service, mock_document_store, mock_publisher, mock_metrics_collector
+    ):
         """Test that threads without summaries are requeued on startup."""
         # Setup mock requeue instance
         mock_requeue_instance = Mock()
@@ -98,15 +102,15 @@ class TestSummarizationForwardProgress:
         mock_requeue_instance.requeue_incomplete.assert_called_once()
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
 
-        assert call_kwargs['collection'] == 'threads'
-        assert call_kwargs['query'] == {"summary_id": None}
-        assert call_kwargs['event_type'] == 'SummarizationRequested'
-        assert call_kwargs['routing_key'] == 'summarization.requested'
-        assert call_kwargs['id_field'] == 'thread_id'
-        assert call_kwargs['limit'] == 500
-        assert callable(call_kwargs['build_event_data'])
+        assert call_kwargs["collection"] == "threads"
+        assert call_kwargs["query"] == {"summary_id": None}
+        assert call_kwargs["event_type"] == "SummarizationRequested"
+        assert call_kwargs["routing_key"] == "summarization.requested"
+        assert call_kwargs["id_field"] == "thread_id"
+        assert call_kwargs["limit"] == 500
+        assert callable(call_kwargs["build_event_data"])
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_builds_correct_event_data(self, mock_requeue_class, summarization_service):
         """Test that event data is built correctly from thread documents."""
         # Setup mock requeue instance
@@ -119,7 +123,7 @@ class TestSummarizationForwardProgress:
 
         # Get the build_event_data function
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        build_event_data = call_kwargs['build_event_data']
+        build_event_data = call_kwargs["build_event_data"]
 
         # Test event data building
         test_doc = {
@@ -130,15 +134,23 @@ class TestSummarizationForwardProgress:
 
         event_data = build_event_data(test_doc)
 
-        assert event_data['thread_ids'] == ["thread-abc123"]
-        assert event_data['top_k'] == 12
-        assert event_data['llm_backend'] == "ollama"
-        assert event_data['llm_model'] == "mistral"
-        assert event_data['context_window_tokens'] == 4096
-        assert event_data['prompt_template'] == "Summarize: {email_chunks}"
+        assert event_data["thread_ids"] == ["thread-abc123"]
+        assert event_data["top_k"] == 12
+        assert event_data["llm_backend"] == "ollama"
+        assert event_data["llm_model"] == "mistral"
+        assert event_data["context_window_tokens"] == 4096
+        assert event_data["prompt_template"] == "Summarize: {email_chunks}"
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_uses_service_configuration(self, mock_requeue_class, mock_document_store, mock_vector_store, mock_publisher, mock_subscriber, mock_summarizer):
+    @patch("copilot_startup.StartupRequeue")
+    def test_requeue_uses_service_configuration(
+        self,
+        mock_requeue_class,
+        mock_document_store,
+        mock_vector_store,
+        mock_publisher,
+        mock_subscriber,
+        mock_summarizer,
+    ):
         """Test that requeue uses the service's configured parameters."""
         # Create service with custom config
         service = SummarizationService(
@@ -162,18 +174,18 @@ class TestSummarizationForwardProgress:
 
         # Get the build_event_data function and test it
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        build_event_data = call_kwargs['build_event_data']
+        build_event_data = call_kwargs["build_event_data"]
 
         test_doc = {"thread_id": "thread-001"}
         event_data = build_event_data(test_doc)
 
-        assert event_data['top_k'] == 20
-        assert event_data['llm_backend'] == "azure"
-        assert event_data['llm_model'] == "gpt-4"
-        assert event_data['context_window_tokens'] == 8192
-        assert event_data['prompt_template'] == "Custom prompt: {email_chunks}"
+        assert event_data["top_k"] == 20
+        assert event_data["llm_backend"] == "azure"
+        assert event_data["llm_model"] == "gpt-4"
+        assert event_data["context_window_tokens"] == 8192
+        assert event_data["prompt_template"] == "Custom prompt: {email_chunks}"
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_no_requeue_when_disabled(self, mock_requeue_class, summarization_service):
         """Test that requeue is skipped when disabled."""
         # Start service with requeue disabled
@@ -182,7 +194,7 @@ class TestSummarizationForwardProgress:
         # Verify StartupRequeue was never instantiated
         mock_requeue_class.assert_not_called()
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_continues_on_import_error(self, mock_requeue_class, summarization_service, mock_subscriber):
         """Test that service continues startup if copilot_startup is unavailable."""
         # Simulate ImportError when StartupRequeue is accessed
@@ -194,7 +206,7 @@ class TestSummarizationForwardProgress:
         # Verify subscription still happened
         mock_subscriber.subscribe.assert_called_once()
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_continues_on_error(self, mock_requeue_class, summarization_service, mock_subscriber):
         """Test that service continues startup even if requeue fails."""
         # Setup mock to raise exception
@@ -208,7 +220,7 @@ class TestSummarizationForwardProgress:
         # Verify subscription still happened
         mock_subscriber.subscribe.assert_called_once()
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_query_filters_by_null_summary_id(self, mock_requeue_class, summarization_service):
         """Test that requeue query only finds threads without summaries."""
         mock_requeue_instance = Mock()
@@ -219,9 +231,9 @@ class TestSummarizationForwardProgress:
 
         # Verify query filters for null summary_id
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        assert call_kwargs['query'] == {"summary_id": None}
+        assert call_kwargs["query"] == {"summary_id": None}
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_uses_correct_event_routing(self, mock_requeue_class, summarization_service):
         """Test that requeue uses correct event type and routing key."""
         mock_requeue_instance = Mock()
@@ -232,10 +244,10 @@ class TestSummarizationForwardProgress:
 
         # Verify correct event type and routing
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        assert call_kwargs['event_type'] == 'SummarizationRequested'
-        assert call_kwargs['routing_key'] == 'summarization.requested'
+        assert call_kwargs["event_type"] == "SummarizationRequested"
+        assert call_kwargs["routing_key"] == "summarization.requested"
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_limit_prevents_overload(self, mock_requeue_class, summarization_service):
         """Test that requeue respects limit to prevent startup overload."""
         mock_requeue_instance = Mock()
@@ -246,9 +258,9 @@ class TestSummarizationForwardProgress:
 
         # Verify limit is set appropriately
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        assert call_kwargs['limit'] == 500
+        assert call_kwargs["limit"] == 500
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_uses_thread_id_field(self, mock_requeue_class, summarization_service):
         """Test that requeue uses thread_id as the document ID field."""
         mock_requeue_instance = Mock()
@@ -259,9 +271,9 @@ class TestSummarizationForwardProgress:
 
         # Verify id_field is set to thread_id
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        assert call_kwargs['id_field'] == 'thread_id'
+        assert call_kwargs["id_field"] == "thread_id"
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_wraps_thread_id_in_list(self, mock_requeue_class, summarization_service):
         """Test that thread_id is wrapped in a list for the event data."""
         mock_requeue_instance = Mock()
@@ -272,18 +284,26 @@ class TestSummarizationForwardProgress:
 
         # Get the build_event_data function
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        build_event_data = call_kwargs['build_event_data']
+        build_event_data = call_kwargs["build_event_data"]
 
         # Test that thread_id is wrapped in a list
         test_doc = {"thread_id": "single-thread-id"}
         event_data = build_event_data(test_doc)
 
-        assert isinstance(event_data['thread_ids'], list)
-        assert len(event_data['thread_ids']) == 1
-        assert event_data['thread_ids'][0] == "single-thread-id"
+        assert isinstance(event_data["thread_ids"], list)
+        assert len(event_data["thread_ids"]) == 1
+        assert event_data["thread_ids"][0] == "single-thread-id"
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_handles_default_configuration(self, mock_requeue_class, mock_document_store, mock_vector_store, mock_publisher, mock_subscriber, mock_summarizer):
+    @patch("copilot_startup.StartupRequeue")
+    def test_requeue_handles_default_configuration(
+        self,
+        mock_requeue_class,
+        mock_document_store,
+        mock_vector_store,
+        mock_publisher,
+        mock_subscriber,
+        mock_summarizer,
+    ):
         """Test that requeue works with default configuration."""
         # Create service with defaults
         service = SummarizationService(
@@ -302,19 +322,19 @@ class TestSummarizationForwardProgress:
 
         # Get the build_event_data function and verify defaults
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        build_event_data = call_kwargs['build_event_data']
+        build_event_data = call_kwargs["build_event_data"]
 
         test_doc = {"thread_id": "thread-001"}
         event_data = build_event_data(test_doc)
 
         # Verify default values
-        assert event_data['top_k'] == 12  # Default from __init__
-        assert event_data['llm_backend'] == "local"  # Default from __init__
-        assert event_data['llm_model'] == "mistral"  # Default from __init__
-        assert event_data['context_window_tokens'] == 4096  # Default from __init__
-        assert event_data['prompt_template'] == ""  # Default from __init__
+        assert event_data["top_k"] == 12  # Default from __init__
+        assert event_data["llm_backend"] == "local"  # Default from __init__
+        assert event_data["llm_model"] == "mistral"  # Default from __init__
+        assert event_data["context_window_tokens"] == 4096  # Default from __init__
+        assert event_data["prompt_template"] == ""  # Default from __init__
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_subscribes_after_requeue(self, mock_requeue_class, summarization_service, mock_subscriber):
         """Test that service subscribes to events after requeue completes."""
         mock_requeue_instance = Mock()
@@ -329,10 +349,10 @@ class TestSummarizationForwardProgress:
         # Verify subscription happened after
         mock_subscriber.subscribe.assert_called_once()
         call_kwargs = mock_subscriber.subscribe.call_args[1]
-        assert call_kwargs['event_type'] == 'SummarizationRequested'
-        assert call_kwargs['routing_key'] == 'summarization.requested'
+        assert call_kwargs["event_type"] == "SummarizationRequested"
+        assert call_kwargs["routing_key"] == "summarization.requested"
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_called_on_each_start(self, mock_requeue_class, summarization_service):
         """Test that calling start multiple times requeues each time."""
         mock_requeue_instance = Mock()
@@ -346,7 +366,7 @@ class TestSummarizationForwardProgress:
         # Verify requeue was called both times
         assert mock_requeue_instance.requeue_incomplete.call_count == 2
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_respects_collection_name(self, mock_requeue_class, summarization_service):
         """Test that requeue queries the correct collection."""
         mock_requeue_instance = Mock()
@@ -357,4 +377,4 @@ class TestSummarizationForwardProgress:
 
         # Verify collection is threads
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        assert call_kwargs['collection'] == 'threads'
+        assert call_kwargs["collection"] == "threads"

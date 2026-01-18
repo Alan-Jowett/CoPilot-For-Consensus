@@ -21,6 +21,7 @@ def create_test_archive_store():
         AdapterConfig_ArchiveStore,
         DriverConfig_ArchiveStore_Local,
     )
+
     tmpdir = tempfile.TemporaryDirectory()
     archive_store = create_archive_store(
         AdapterConfig_ArchiveStore(
@@ -91,12 +92,10 @@ class TestStorageAgnosticArchives:
         """Create in-memory document store."""
         return create_validating_document_store()
 
-
     @pytest.fixture
     def publisher(self):
         """Create noop publisher that tracks events."""
         return create_tracking_publisher()
-
 
     @pytest.fixture
     def subscriber(self):
@@ -174,7 +173,7 @@ class TestStorageAgnosticArchives:
         )
 
         # Store archive in archive store
-        with open(test_mbox, 'rb') as f:
+        with open(test_mbox, "rb") as f:
             content = f.read()
 
         archive_id = service.archive_store.store_archive(
@@ -204,10 +203,7 @@ class TestStorageAgnosticArchives:
         assert len(messages) > 0
 
         # Verify JSONParsed events were published
-        json_parsed_events = [
-            e for e in service.publisher.published_events
-            if e["routing_key"] == "json.parsed"
-        ]
+        json_parsed_events = [e for e in service.publisher.published_events if e["routing_key"] == "json.parsed"]
         assert len(json_parsed_events) > 0
 
     def test_archive_not_found_publishes_event_without_file_path(self, service):
@@ -228,8 +224,5 @@ class TestStorageAgnosticArchives:
         with pytest.raises(DocumentNotFoundError, match="not found in ArchiveStore"):
             service.process_archive(archive_data)
 
-        parsing_failed_events = [
-            e for e in service.publisher.published_events
-            if e["routing_key"] == "parsing.failed"
-        ]
+        parsing_failed_events = [e for e in service.publisher.published_events if e["routing_key"] == "parsing.failed"]
         assert parsing_failed_events == []

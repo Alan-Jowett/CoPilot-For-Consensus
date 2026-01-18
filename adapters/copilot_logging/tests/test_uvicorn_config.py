@@ -237,7 +237,7 @@ class TestCreateUvicornLogConfig:
 class TestJSONFormatterIntegration:
     """Integration tests for JSONFormatter with logging system."""
 
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_json_output_format(self, mock_stdout):
         """Test that JSON formatter produces valid JSON output."""
         # Configure logging with JSON formatter
@@ -263,7 +263,7 @@ class TestJSONFormatterIntegration:
         assert log_entry["message"] == "Health check received"
         assert "timestamp" in log_entry
 
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_debug_level_messages(self, mock_stdout):
         """Test that DEBUG level messages are formatted correctly."""
         handler = logging.StreamHandler(mock_stdout)

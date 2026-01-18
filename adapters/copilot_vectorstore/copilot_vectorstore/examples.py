@@ -37,8 +37,7 @@ class EmbeddingServiceExample:
         )
         self.embedding_dimension = embedding_dimension
 
-    def process_chunks(self, chunks: list[dict[str, Any]],
-                      embeddings: list[list[float]]) -> None:
+    def process_chunks(self, chunks: list[dict[str, Any]], embeddings: list[list[float]]) -> None:
         """Store chunk embeddings in the vector store.
 
         Args:
@@ -94,6 +93,7 @@ class SummarizationServiceExample:
         Args:
             embedding_dimension: Dimension of the embedding vectors
         """
+        self.embedding_dimension = embedding_dimension
         self.vector_store = create_vector_store(
             AdapterConfig_VectorStore(
                 vector_store_type="inmemory",
@@ -101,8 +101,7 @@ class SummarizationServiceExample:
             )
         )
 
-    def get_relevant_context(self, query_embedding: list[float],
-                            top_k: int = 10) -> list[dict[str, Any]]:
+    def get_relevant_context(self, query_embedding: list[float], top_k: int = 10) -> list[dict[str, Any]]:
         """Retrieve the most relevant text chunks for a query.
 
         Args:
@@ -117,19 +116,19 @@ class SummarizationServiceExample:
         # Format results for summarization
         context_chunks = []
         for result in results:
-            context_chunks.append({
-                "chunk_id": result.id,
-                "text": result.metadata.get("text", ""),
-                "message_id": result.metadata.get("message_id"),
-                "thread_id": result.metadata.get("thread_id"),
-                "similarity_score": result.score,
-            })
+            context_chunks.append(
+                {
+                    "chunk_id": result.id,
+                    "text": result.metadata.get("text", ""),
+                    "message_id": result.metadata.get("message_id"),
+                    "thread_id": result.metadata.get("thread_id"),
+                    "similarity_score": result.score,
+                }
+            )
 
         return context_chunks
 
-    def build_prompt_with_context(self, query: str,
-                                  query_embedding: list[float],
-                                  top_k: int = 10) -> str:
+    def build_prompt_with_context(self, query: str, query_embedding: list[float], top_k: int = 10) -> str:
         """Build a summarization prompt with retrieved context.
 
         Args:
@@ -175,8 +174,7 @@ class SimpleRAGExample:
         )
         self.embedding_dimension = embedding_dimension
 
-    def index_documents(self, documents: list[dict[str, Any]],
-                       embeddings: list[list[float]]) -> None:
+    def index_documents(self, documents: list[dict[str, Any]], embeddings: list[list[float]]) -> None:
         """Index documents with their embeddings.
 
         Args:
@@ -184,15 +182,11 @@ class SimpleRAGExample:
             embeddings: Corresponding embedding vectors
         """
         ids = [doc["id"] for doc in documents]
-        metadatas = [
-            {k: v for k, v in doc.items() if k != "id"}
-            for doc in documents
-        ]
+        metadatas = [{k: v for k, v in doc.items() if k != "id"} for doc in documents]
 
         self.vector_store.add_embeddings(ids, embeddings, metadatas)
 
-    def search(self, query_embedding: list[float],
-              top_k: int = 5) -> list[dict[str, Any]]:
+    def search(self, query_embedding: list[float], top_k: int = 5) -> list[dict[str, Any]]:
         """Search for relevant documents.
 
         Args:
@@ -204,14 +198,7 @@ class SimpleRAGExample:
         """
         results = self.vector_store.query(query_embedding, top_k)
 
-        return [
-            {
-                "id": r.id,
-                "score": r.score,
-                **r.metadata
-            }
-            for r in results
-        ]
+        return [{"id": r.id, "score": r.score, **r.metadata} for r in results]
 
     def clear_index(self) -> None:
         """Clear all indexed documents."""

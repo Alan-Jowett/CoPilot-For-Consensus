@@ -62,6 +62,8 @@ def schema_type_to_python_type(schema_type: str | list[Any], default_value: Any 
     - If a list includes "null", returns Optional[T] for the non-null type.
     """
 
+    del default_value
+
     type_mapping = {
         "string": "str",
         "int": "int",
@@ -103,7 +105,7 @@ def _format_literal(value: Any) -> str:
         return repr(value)
     if isinstance(value, bool):
         return "True" if value else "False"
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return str(value)
     return repr(value)
 
@@ -259,7 +261,7 @@ def generate_driver_dataclass(
             raise ValueError(f"Driver schema for {adapter_name}/{driver_name} oneOf produced no variants")
 
         union_types = ", ".join(variant_class_names)
-        alias_lines = [f"{class_name}: TypeAlias = Union[{union_types}]" ]
+        alias_lines = [f"{class_name}: TypeAlias = Union[{union_types}]"]
         alias_code = "\n".join(alias_lines)
 
         return class_name, "\n\n\n".join([*variant_codes, alias_code])
@@ -535,7 +537,7 @@ def generate_service_settings_dataclass(
                     default_repr = repr(default)
                 elif isinstance(default, bool):
                     default_repr = str(default)
-                elif isinstance(default, (int, float)):
+                elif isinstance(default, int | float):
                     default_repr = str(default)
                 else:
                     default_repr = repr(default)
@@ -726,11 +728,7 @@ def main() -> int:
         adapters_to_generate = []
         if args.all:
             adapters_dir = schema_dir / "adapters"
-            adapters_to_generate = [
-                p.stem
-                for p in adapters_dir.glob("*.json")
-                if p.stem not in ["__pycache__"]
-            ]
+            adapters_to_generate = [p.stem for p in adapters_dir.glob("*.json") if p.stem not in ["__pycache__"]]
         else:
             adapters_to_generate = [args.adapter]
 

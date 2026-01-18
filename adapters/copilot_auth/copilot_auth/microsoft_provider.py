@@ -43,9 +43,7 @@ class MicrosoftIdentityProvider(OIDCProvider):
             redirect_uri: OAuth callback URL
             tenant: Azure AD tenant ID
         """
-        discovery_url = (
-            f"https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration"
-        )
+        discovery_url = f"https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration"
 
         super().__init__(
             client_id=client_id,
@@ -58,9 +56,7 @@ class MicrosoftIdentityProvider(OIDCProvider):
         self.tenant = tenant
 
     @classmethod
-    def from_config(
-        cls, driver_config: DriverConfig_OidcProviders_Microsoft
-    ) -> "MicrosoftIdentityProvider":
+    def from_config(cls, driver_config: DriverConfig_OidcProviders_Microsoft) -> "MicrosoftIdentityProvider":
         """Create MicrosoftIdentityProvider from typed config.
 
         Args:
@@ -76,14 +72,10 @@ class MicrosoftIdentityProvider(OIDCProvider):
         tenant = driver_config.microsoft_tenant
 
         if not client_id or not client_secret:
-            raise ValueError(
-                "MicrosoftIdentityProvider requires microsoft_client_id and microsoft_client_secret"
-            )
+            raise ValueError("MicrosoftIdentityProvider requires microsoft_client_id and microsoft_client_secret")
 
         if not redirect_uri:
-            raise ValueError(
-                "MicrosoftIdentityProvider requires microsoft_redirect_uri (or a service-level default)"
-            )
+            raise ValueError("MicrosoftIdentityProvider requires microsoft_redirect_uri (or a service-level default)")
 
         if not tenant:
             tenant = "common"
@@ -105,6 +97,7 @@ class MicrosoftIdentityProvider(OIDCProvider):
         Returns:
             User object with mapped fields
         """
+        del provider_id
         # Extract user ID (Microsoft's "oid" or "sub")
         user_id = userinfo.get("oid") or userinfo.get("sub", "unknown")
 

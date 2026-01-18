@@ -28,11 +28,7 @@ class TestValidatingEventPublisher:
         base = NoopPublisher()
         provider = MockSchemaProvider()
 
-        publisher = ValidatingEventPublisher(
-            publisher=base,
-            schema_provider=provider,
-            strict=True
-        )
+        publisher = ValidatingEventPublisher(publisher=base, schema_provider=provider, strict=True)
 
         assert publisher._publisher is base
         assert publisher._schema_provider is provider
@@ -52,13 +48,11 @@ class TestValidatingEventPublisher:
                 "version": {"type": "string"},
                 "data": {
                     "type": "object",
-                    "properties": {
-                        "archive_id": {"type": "string"}
-                    },
-                    "required": ["archive_id"]
-                }
+                    "properties": {"archive_id": {"type": "string"}},
+                    "required": ["archive_id"],
+                },
             },
-            "required": ["event_type", "event_id", "timestamp", "version", "data"]
+            "required": ["event_type", "event_id", "timestamp", "version", "data"],
         }
 
         provider = MockSchemaProvider({"TestEvent": schema})
@@ -69,7 +63,7 @@ class TestValidatingEventPublisher:
             "event_id": "123",
             "timestamp": "2025-01-01T00:00:00Z",
             "version": "1.0",
-            "data": {"archive_id": "abc"}
+            "data": {"archive_id": "abc"},
         }
 
         # Should not raise any exception
@@ -89,13 +83,11 @@ class TestValidatingEventPublisher:
                 "version": {"type": "string"},
                 "data": {
                     "type": "object",
-                    "properties": {
-                        "archive_id": {"type": "string"}
-                    },
-                    "required": ["archive_id"]
-                }
+                    "properties": {"archive_id": {"type": "string"}},
+                    "required": ["archive_id"],
+                },
             },
-            "required": ["event_type", "event_id", "timestamp", "version", "data"]
+            "required": ["event_type", "event_id", "timestamp", "version", "data"],
         }
 
         provider = MockSchemaProvider({"TestEvent": schema})
@@ -107,7 +99,7 @@ class TestValidatingEventPublisher:
             "event_id": "123",
             "timestamp": "2025-01-01T00:00:00Z",
             "version": "1.0",
-            "data": {}
+            "data": {},
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -128,23 +120,18 @@ class TestValidatingEventPublisher:
                 "event_type": {"type": "string"},
                 "data": {
                     "type": "object",
-                    "properties": {
-                        "archive_id": {"type": "string"}
-                    },
-                    "required": ["archive_id"]
-                }
+                    "properties": {"archive_id": {"type": "string"}},
+                    "required": ["archive_id"],
+                },
             },
-            "required": ["event_type", "data"]
+            "required": ["event_type", "data"],
         }
 
         provider = MockSchemaProvider({"TestEvent": schema})
         publisher = ValidatingEventPublisher(base, provider, strict=False)
 
         # Missing required data.archive_id
-        event = {
-            "event_type": "TestEvent",
-            "data": {}
-        }
+        event = {"event_type": "TestEvent", "data": {}}
 
         # Should succeed despite validation failure
         publisher.publish("copilot.events", "test.event", event)

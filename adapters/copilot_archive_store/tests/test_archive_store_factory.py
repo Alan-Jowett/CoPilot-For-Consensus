@@ -4,13 +4,13 @@
 """Tests for archive store factory with new config model."""
 
 import pytest
-
 from copilot_archive_store import create_archive_store
 from copilot_archive_store.local_volume_archive_store import LocalVolumeArchiveStore
 from copilot_config.generated.adapters.archive_store import (
     AdapterConfig_ArchiveStore,
     DriverConfig_ArchiveStore_Local,
 )
+
 
 class TestArchiveStoreFactory:
     """Test suite for create_archive_store factory with new config model."""

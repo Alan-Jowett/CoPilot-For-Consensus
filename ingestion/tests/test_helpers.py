@@ -7,9 +7,7 @@ import os
 import tempfile
 from typing import Any
 
-from copilot_schema_validation import create_schema_provider, validate_json
 from copilot_archive_store.local_volume_archive_store import LocalVolumeArchiveStore
-
 from copilot_config.generated.adapters.archive_store import (
     AdapterConfig_ArchiveStore,
     DriverConfig_ArchiveStore_Local,
@@ -39,6 +37,7 @@ from copilot_config.generated.adapters.secret_provider import (
     DriverConfig_SecretProvider_Local,
 )
 from copilot_config.generated.services.ingestion import ServiceConfig_Ingestion, ServiceSettings_Ingestion
+from copilot_schema_validation import create_schema_provider, validate_json
 
 
 def make_config(**overrides):
@@ -120,6 +119,7 @@ def get_schema_provider():
         SchemaProvider instance configured with repository schemas
     """
     from pathlib import Path
+
     schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "events"
     return create_schema_provider(schema_dir=str(schema_dir))
 

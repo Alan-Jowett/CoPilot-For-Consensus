@@ -9,21 +9,25 @@ from typing import Any
 
 class DocumentStoreError(Exception):
     """Base exception for document store errors."""
+
     pass
 
 
 class DocumentStoreNotConnectedError(DocumentStoreError):
     """Exception raised when attempting operations on a disconnected store."""
+
     pass
 
 
 class DocumentStoreConnectionError(DocumentStoreError):
     """Exception raised when connection to the document store fails."""
+
     pass
 
 
 class DocumentNotFoundError(DocumentStoreError):
     """Exception raised when a document is not found."""
+
     pass
 
 
@@ -78,9 +82,7 @@ class DocumentStore(ABC):
         pass
 
     @abstractmethod
-    def query_documents(
-        self, collection: str, filter_dict: dict[str, Any], limit: int = 100
-    ) -> list[dict[str, Any]]:
+    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Returned documents are sanitized to remove backend system fields
@@ -98,9 +100,7 @@ class DocumentStore(ABC):
         pass
 
     @abstractmethod
-    def update_document(
-        self, collection: str, doc_id: str, patch: dict[str, Any]
-    ) -> None:
+    def update_document(self, collection: str, doc_id: str, patch: dict[str, Any]) -> None:
         """Update a document with the provided patch.
 
         Args:
@@ -127,4 +127,3 @@ class DocumentStore(ABC):
             DocumentStoreError: If delete operation fails
         """
         pass
-

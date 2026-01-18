@@ -10,7 +10,7 @@ supporting both RSA and HMAC signing algorithms with key rotation.
 import secrets
 import time
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import jwt
 from cryptography.hazmat.backends import default_backend
@@ -21,7 +21,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPubl
 from .models import User
 
 # Type alias for keys that can be used with jwt.encode/decode
-JWTKeyType = Union[RSAPrivateKey, RSAPublicKey, str]
+JWTKeyType = RSAPrivateKey | RSAPublicKey | str
 
 
 class JWTManager:
@@ -79,15 +79,12 @@ class JWTManager:
             # Load RSA keys
             with open(private_key_path, "rb") as f:
                 self.private_key = serialization.load_pem_private_key(  # type: ignore[assignment]
-                    f.read(),
-                    password=None,
-                    backend=default_backend()
+                    f.read(), password=None, backend=default_backend()
                 )
 
             with open(public_key_path, "rb") as f:
                 self.public_key = serialization.load_pem_public_key(  # type: ignore[assignment]
-                    f.read(),
-                    backend=default_backend()
+                    f.read(), backend=default_backend()
                 )
 
         elif algorithm == "HS256":
@@ -114,25 +111,20 @@ class JWTManager:
             key_size: RSA key size in bits (default: 2048)
         """
         # Generate private key
-        private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=key_size,
-            backend=default_backend()
-        )
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=key_size, backend=default_backend())
 
         # Write private key
         private_pem = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption()
+            encryption_algorithm=serialization.NoEncryption(),
         )
         private_key_path.write_bytes(private_pem)
 
         # Write public key
         public_key = private_key.public_key()
         public_pem = public_key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
+            encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
         public_key_path.write_bytes(public_pem)
 
@@ -190,7 +182,7 @@ class JWTManager:
             claims,
             self.private_key,  # type: ignore[arg-type]
             algorithm=self.algorithm,
-            headers=headers
+            headers=headers,
         )
 
     def validate_token(
@@ -273,11 +265,10 @@ class JWTManager:
 
         # Export public key to PEM format
         pem = self.public_key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
+            encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
 
-        return pem.decode('utf-8')
+        return pem.decode("utf-8")
 
     @staticmethod
     def _int_to_base64url(value: int) -> str:
@@ -286,7 +277,7 @@ class JWTManager:
 
         # Convert to bytes
         byte_length = (value.bit_length() + 7) // 8
-        value_bytes = value.to_bytes(byte_length, byteorder='big')
+        value_bytes = value.to_bytes(byte_length, byteorder="big")
 
         # Encode to base64url
-        return base64.urlsafe_b64encode(value_bytes).decode('ascii').rstrip('=')
+        return base64.urlsafe_b64encode(value_bytes).decode("ascii").rstrip("=")

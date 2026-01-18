@@ -234,13 +234,9 @@ def test_publish_summarization_requested_publish_failure(orchestration_service, 
     mock_publisher.publish.side_effect = Exception("Publish failed")
 
     with pytest.raises(Exception):
-        orchestration_service._publish_summarization_requested([
-            "<thread-1@example.com>"
-        ], {
-            "thread_id": "<thread-1@example.com>",
-            "chunk_count": 1,
-            "messages": []
-        })
+        orchestration_service._publish_summarization_requested(
+            ["<thread-1@example.com>"], {"thread_id": "<thread-1@example.com>", "chunk_count": 1, "messages": []}
+        )
 
     mock_publisher.publish.assert_called_once()
 
@@ -250,9 +246,7 @@ def test_publish_orchestration_failed_publish_failure(orchestration_service, moc
     mock_publisher.publish.side_effect = Exception("Publish failed")
 
     with pytest.raises(Exception):
-        orchestration_service._publish_orchestration_failed([
-            "<thread-1@example.com>"
-        ], "boom", "TestError")
+        orchestration_service._publish_orchestration_failed(["<thread-1@example.com>"], "boom", "TestError")
 
     mock_publisher.publish.assert_called_once()
 
@@ -286,7 +280,7 @@ def test_handle_embeddings_generated_event(orchestration_service, mock_document_
             "chunk_ids": ["chunk-1", "chunk-2"],
             "embedding_count": 2,
             "embedding_model": "all-MiniLM-L6-v2",
-        }
+        },
     }
 
     chunks = [
@@ -294,13 +288,13 @@ def test_handle_embeddings_generated_event(orchestration_service, mock_document_
             "chunk_id": "chunk-1",
             "thread_id": "<thread-1@example.com>",
             "message_id": "<msg-1@example.com>",
-            "embedding_generated": True
+            "embedding_generated": True,
         },
         {
             "chunk_id": "chunk-2",
             "thread_id": "<thread-1@example.com>",
             "message_id": "<msg-1@example.com>",
-            "embedding_generated": True
+            "embedding_generated": True,
         },
     ]
 
@@ -310,7 +304,7 @@ def test_handle_embeddings_generated_event(orchestration_service, mock_document_
             "subject": "Test",
             "from": {"email": "user@example.com"},
             "date": "2023-10-15T12:00:00Z",
-            "draft_mentions": []
+            "draft_mentions": [],
         },
     ]
 
@@ -354,9 +348,7 @@ def test_publish_orchestration_failed_raises_on_publish_error(orchestration_serv
     # Verify exception is raised, not swallowed
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         orchestration_service._publish_orchestration_failed(
-            thread_ids=["<thread-1@example.com>"],
-            error_message="Test error",
-            error_type="TestError"
+            thread_ids=["<thread-1@example.com>"], error_message="Test error", error_type="TestError"
         )
 
 
@@ -391,7 +383,7 @@ def test_handle_embeddings_generated_raises_on_missing_chunk_ids(orchestration_s
         "data": {
             "embedding_count": 3,
             # Missing chunk_ids field - should trigger re-raise
-        }
+        },
     }
 
     # Service should raise an exception for missing chunk_ids field
@@ -409,7 +401,7 @@ def test_handle_embeddings_generated_raises_on_invalid_chunk_ids_type(orchestrat
         "data": {
             "chunk_ids": "not-an-array",  # Should be list, not string
             "embedding_count": 1,
-        }
+        },
     }
 
     # Service should raise an exception for invalid type
@@ -455,6 +447,7 @@ def test_idempotent_orchestration(
 
     # First call: no existing summary
     call_count = [0]
+
     def query_side_effect(collection, filter_dict, **kwargs):
         call_count[0] += 1
         if collection == "chunks":
@@ -498,6 +491,7 @@ def test_idempotent_orchestration(
     call_args = mock_publisher.publish.call_args
     assert call_args[1]["routing_key"] == "summarization.requested"
 
+
 def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publisher, mock_subscriber, prompt_files):
     """Test that metrics collector calls use tags= parameter, not labels=."""
     mock_metrics = Mock()
@@ -530,9 +524,9 @@ def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publish
 
     # Check that first call uses tags= (not labels=)
     first_call_kwargs = increment_calls[0][1] if increment_calls[0][1] else {}
-    assert 'tags' in first_call_kwargs, "metrics_collector.increment should use 'tags=' parameter"
-    assert 'labels' not in first_call_kwargs, "metrics_collector.increment should NOT use 'labels=' parameter"
-    assert first_call_kwargs['tags'] == {"event_type": "summarization_requested", "outcome": "success"}
+    assert "tags" in first_call_kwargs, "metrics_collector.increment should use 'tags=' parameter"
+    assert "labels" not in first_call_kwargs, "metrics_collector.increment should NOT use 'labels=' parameter"
+    assert first_call_kwargs["tags"] == {"event_type": "summarization_requested", "outcome": "success"}
 
     # Reset mock for next test
     mock_metrics.reset_mock()
@@ -546,37 +540,25 @@ def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publish
 
     # First call: orchestration_events_total
     first_call_kwargs = increment_calls[0][1] if increment_calls[0][1] else {}
-    assert 'tags' in first_call_kwargs, "First increment call should use 'tags=' parameter"
-    assert 'labels' not in first_call_kwargs, "First increment call should NOT use 'labels=' parameter"
-    assert first_call_kwargs['tags'] == {"event_type": "orchestration_failed", "outcome": "failure"}
+    assert "tags" in first_call_kwargs, "First increment call should use 'tags=' parameter"
+    assert "labels" not in first_call_kwargs, "First increment call should NOT use 'labels=' parameter"
+    assert first_call_kwargs["tags"] == {"event_type": "orchestration_failed", "outcome": "failure"}
 
     # Second call: orchestration_failures_total
     second_call_kwargs = increment_calls[1][1] if increment_calls[1][1] else {}
-    assert 'tags' in second_call_kwargs, "Second increment call should use 'tags=' parameter"
-    assert 'labels' not in second_call_kwargs, "Second increment call should NOT use 'labels=' parameter"
-    assert second_call_kwargs['tags'] == {"error_type": "TestError"}
+    assert "tags" in second_call_kwargs, "Second increment call should use 'tags=' parameter"
+    assert "labels" not in second_call_kwargs, "Second increment call should NOT use 'labels=' parameter"
+    assert second_call_kwargs["tags"] == {"error_type": "TestError"}
 
 
-def test_orchestrate_thread_skips_when_summary_exists(
-    orchestration_service, mock_document_store, mock_publisher
-):
+def test_orchestrate_thread_skips_when_summary_exists(orchestration_service, mock_document_store, mock_publisher):
     """Test that orchestration skips summarization when summary already exists for current chunks."""
     thread_id = "<thread-1@example.com>"
 
     # Setup: chunks exist
     chunks = [
-        {
-            "_id": "chunk-1",
-            "thread_id": thread_id,
-            "message_doc_id": "msg-1",
-            "embedding_generated": True
-        },
-        {
-            "_id": "chunk-2",
-            "thread_id": thread_id,
-            "message_doc_id": "msg-1",
-            "embedding_generated": True
-        },
+        {"_id": "chunk-1", "thread_id": thread_id, "message_doc_id": "msg-1", "embedding_generated": True},
+        {"_id": "chunk-2", "thread_id": thread_id, "message_doc_id": "msg-1", "embedding_generated": True},
     ]
 
     messages = [
@@ -585,14 +567,12 @@ def test_orchestrate_thread_skips_when_summary_exists(
             "subject": "Test",
             "from": {"email": "user@example.com"},
             "date": "2023-10-15T12:00:00Z",
-            "draft_mentions": []
+            "draft_mentions": [],
         },
     ]
 
     # Summary already exists for this combination of thread + chunks
-    existing_summary = [{
-        "_id": "summary-truncated-id"
-    }]
+    existing_summary = [{"_id": "summary-truncated-id"}]
 
     def mock_query(collection, filter_dict, **kwargs):
         if collection == "chunks":
@@ -612,26 +592,14 @@ def test_orchestrate_thread_skips_when_summary_exists(
     assert not mock_publisher.publish.called, "Should not publish when summary already exists"
 
 
-def test_orchestrate_thread_triggers_when_no_summary_exists(
-    orchestration_service, mock_document_store, mock_publisher
-):
+def test_orchestrate_thread_triggers_when_no_summary_exists(orchestration_service, mock_document_store, mock_publisher):
     """Test that orchestration triggers summarization when no summary exists for current chunks."""
     thread_id = "<thread-1@example.com>"
 
     # Setup: chunks exist
     chunks = [
-        {
-            "_id": "chunk-1",
-            "thread_id": thread_id,
-            "message_doc_id": "msg-1",
-            "embedding_generated": True
-        },
-        {
-            "_id": "chunk-2",
-            "thread_id": thread_id,
-            "message_doc_id": "msg-1",
-            "embedding_generated": True
-        },
+        {"_id": "chunk-1", "thread_id": thread_id, "message_doc_id": "msg-1", "embedding_generated": True},
+        {"_id": "chunk-2", "thread_id": thread_id, "message_doc_id": "msg-1", "embedding_generated": True},
     ]
 
     messages = [
@@ -640,7 +608,7 @@ def test_orchestrate_thread_triggers_when_no_summary_exists(
             "subject": "Test",
             "from": {"email": "user@example.com"},
             "date": "2023-10-15T12:00:00Z",
-            "draft_mentions": []
+            "draft_mentions": [],
         },
     ]
 
@@ -682,7 +650,15 @@ def test_orchestrate_thread_with_metrics_collector(mock_document_store, mock_pub
     chunks = [
         {"_id": "chunk-1", "thread_id": thread_id, "message_doc_id": "msg-1", "embedding_generated": True},
     ]
-    messages = [{"_id": "msg-1", "subject": "Test", "from": {"email": "test@example.com"}, "date": "2023-10-15T12:00:00Z", "draft_mentions": []}]
+    messages = [
+        {
+            "_id": "msg-1",
+            "subject": "Test",
+            "from": {"email": "test@example.com"},
+            "date": "2023-10-15T12:00:00Z",
+            "draft_mentions": [],
+        }
+    ]
     existing_summary = [{"_id": "summary-id"}]
 
     def mock_query_with_summary(collection, filter_dict, **kwargs):
@@ -700,8 +676,9 @@ def test_orchestrate_thread_with_metrics_collector(mock_document_store, mock_pub
 
     # Verify skipped metric was recorded
     assert mock_metrics.increment.called
-    skip_calls = [call for call in mock_metrics.increment.call_args_list
-                  if call[0][0] == "orchestrator_summary_skipped_total"]
+    skip_calls = [
+        call for call in mock_metrics.increment.call_args_list if call[0][0] == "orchestrator_summary_skipped_total"
+    ]
     assert len(skip_calls) == 1
     assert skip_calls[0][1]["tags"] == {"reason": "summary_already_exists"}
 
@@ -723,7 +700,8 @@ def test_orchestrate_thread_with_metrics_collector(mock_document_store, mock_pub
     service._orchestrate_thread(thread_id)
 
     # Verify triggered metric was recorded
-    trigger_calls = [call for call in mock_metrics.increment.call_args_list
-                     if call[0][0] == "orchestrator_summary_triggered_total"]
+    trigger_calls = [
+        call for call in mock_metrics.increment.call_args_list if call[0][0] == "orchestrator_summary_triggered_total"
+    ]
     assert len(trigger_calls) == 1
     assert trigger_calls[0][1]["tags"] == {"reason": "chunks_changed"}

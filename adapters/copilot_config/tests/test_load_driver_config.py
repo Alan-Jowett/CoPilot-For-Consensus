@@ -30,9 +30,7 @@ class TestGetServiceSchema:
         service_schema = {
             "service_name": "test-service",
             "schema_version": "1.0.0",
-            "adapters": {
-                "message_bus": {"$ref": "../adapters/message_bus.json"}
-            }
+            "adapters": {"message_bus": {"$ref": "../adapters/message_bus.json"}},
         }
         service_file = services_dir / "test-service.json"
         service_file.write_text(json.dumps(service_schema))
@@ -65,13 +63,7 @@ class TestGetAdapterSchema:
         # Create adapter schema
         adapter_schema = {
             "title": "Message Bus adapter",
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}}}},
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
@@ -94,9 +86,7 @@ class TestGetAdapterSchema:
         # Create service schema
         service_schema = {
             "service_name": "chunking",
-            "adapters": {
-                "message_bus": {"$ref": "../adapters/message_bus.json"}
-            }
+            "adapters": {"message_bus": {"$ref": "../adapters/message_bus.json"}},
         }
         service_file = services_dir / "chunking.json"
         service_file.write_text(json.dumps(service_schema))
@@ -104,13 +94,7 @@ class TestGetAdapterSchema:
         # Create adapter schema
         adapter_schema = {
             "title": "Message Bus adapter",
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}}}},
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
@@ -133,13 +117,7 @@ class TestGetAdapterSchema:
         # Create service schema with properties structure
         service_schema = {
             "service_name": "test-service",
-            "properties": {
-                "adapters": {
-                    "properties": {
-                        "logger": {"$ref": "../adapters/logger.json"}
-                    }
-                }
-            }
+            "properties": {"adapters": {"properties": {"logger": {"$ref": "../adapters/logger.json"}}}},
         }
         service_file = services_dir / "test-service.json"
         service_file.write_text(json.dumps(service_schema))
@@ -147,13 +125,7 @@ class TestGetAdapterSchema:
         # Create adapter schema
         adapter_schema = {
             "title": "Logger adapter",
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "stdout": {"$ref": "./drivers/logger/stdout.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"stdout": {"$ref": "./drivers/logger/stdout.json"}}}},
         }
         adapter_file = adapters_dir / "logger.json"
         adapter_file.write_text(json.dumps(adapter_schema))
@@ -180,12 +152,7 @@ class TestGetAdapterSchema:
         services_dir.mkdir(parents=True)
 
         # Create service schema without the requested adapter
-        service_schema = {
-            "service_name": "test-service",
-            "adapters": {
-                "logger": {"$ref": "../adapters/logger.json"}
-            }
-        }
+        service_schema = {"service_name": "test-service", "adapters": {"logger": {"$ref": "../adapters/logger.json"}}}
         service_file = services_dir / "test-service.json"
         service_file.write_text(json.dumps(service_schema))
 
@@ -200,12 +167,7 @@ class TestGetAdapterSchema:
         services_dir.mkdir(parents=True)
 
         # Create service schema with adapter but no $ref
-        service_schema = {
-            "service_name": "test-service",
-            "adapters": {
-                "message_bus": {"type": "object"}
-            }
-        }
+        service_schema = {"service_name": "test-service", "adapters": {"message_bus": {"type": "object"}}}
         service_file = services_dir / "test-service.json"
         service_file.write_text(json.dumps(service_schema))
 
@@ -222,9 +184,7 @@ class TestGetAdapterSchema:
         # Create service schema with adapter pointing to non-existent file
         service_schema = {
             "service_name": "test-service",
-            "adapters": {
-                "message_bus": {"$ref": "../adapters/missing.json"}
-            }
+            "adapters": {"message_bus": {"$ref": "../adapters/missing.json"}},
         }
         service_file = services_dir / "test-service.json"
         service_file.write_text(json.dumps(service_schema))
@@ -246,13 +206,7 @@ class TestGetDriverSchema:
 
         # Create adapter schema
         adapter_schema = {
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}}}}
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
@@ -262,8 +216,8 @@ class TestGetDriverSchema:
             "title": "RabbitMQ driver",
             "properties": {
                 "rabbitmq_host": {"type": "string", "default": "messagebus"},
-                "rabbitmq_port": {"type": "int", "default": 5672}
-            }
+                "rabbitmq_port": {"type": "int", "default": 5672},
+            },
         }
         driver_file = drivers_dir / "rabbitmq.json"
         driver_file.write_text(json.dumps(driver_schema))
@@ -283,13 +237,7 @@ class TestGetDriverSchema:
 
         # Create adapter schema without the requested driver
         adapter_schema = {
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}}}}
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
@@ -305,15 +253,7 @@ class TestGetDriverSchema:
         adapters_dir.mkdir(parents=True)
 
         # Create adapter schema with driver but no $ref
-        adapter_schema = {
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"type": "object"}
-                    }
-                }
-            }
-        }
+        adapter_schema = {"properties": {"drivers": {"properties": {"rabbitmq": {"type": "object"}}}}}
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
 
@@ -329,13 +269,7 @@ class TestGetDriverSchema:
 
         # Create adapter schema with driver pointing to non-existent file
         adapter_schema = {
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/missing.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/missing.json"}}}}
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
@@ -358,16 +292,8 @@ class TestLoadDriverConfig:
         # Create adapter schema
         adapter_schema = {
             "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}
-                    }
-                },
-                "common": {
-                    "properties": {
-                        "timeout": {"type": "int", "default": 30}
-                    }
-                }
+                "drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}}},
+                "common": {"properties": {"timeout": {"type": "int", "default": 30}}},
             }
         }
         adapter_file = adapters_dir / "message_bus.json"
@@ -377,7 +303,7 @@ class TestLoadDriverConfig:
         driver_schema = {
             "properties": {
                 "rabbitmq_host": {"type": "string", "default": "messagebus"},
-                "rabbitmq_port": {"type": "int", "default": 5672}
+                "rabbitmq_port": {"type": "int", "default": 5672},
             }
         }
         driver_file = drivers_dir / "rabbitmq.json"
@@ -385,11 +311,7 @@ class TestLoadDriverConfig:
 
         # Load driver config
         config = load_driver_config(
-            service=None,
-            adapter="message_bus",
-            driver="rabbitmq",
-            fields=None,
-            schema_dir=str(schema_dir)
+            service=None, adapter="message_bus", driver="rabbitmq", fields=None, schema_dir=str(schema_dir)
         )
 
         assert isinstance(config, DriverConfig)
@@ -411,13 +333,7 @@ class TestLoadDriverConfig:
 
         # Create adapter schema
         adapter_schema = {
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}}}}
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
@@ -427,7 +343,7 @@ class TestLoadDriverConfig:
             "properties": {
                 "rabbitmq_host": {"type": "string", "default": "messagebus"},
                 "rabbitmq_port": {"type": "int", "default": 5672},
-                "rabbitmq_username": {"type": "string"}
+                "rabbitmq_username": {"type": "string"},
             }
         }
         driver_file = drivers_dir / "rabbitmq.json"
@@ -438,11 +354,8 @@ class TestLoadDriverConfig:
             service=None,
             adapter="message_bus",
             driver="rabbitmq",
-            fields={
-                "rabbitmq_host": "custom-host",
-                "rabbitmq_username": "admin"
-            },
-            schema_dir=str(schema_dir)
+            fields={"rabbitmq_host": "custom-host", "rabbitmq_username": "admin"},
+            schema_dir=str(schema_dir),
         )
 
         assert config.driver_name == "rabbitmq"
@@ -463,42 +376,26 @@ class TestLoadDriverConfig:
         # Create service schema
         service_schema = {
             "service_name": "chunking",
-            "adapters": {
-                "message_bus": {"$ref": "../adapters/message_bus.json"}
-            }
+            "adapters": {"message_bus": {"$ref": "../adapters/message_bus.json"}},
         }
         service_file = services_dir / "chunking.json"
         service_file.write_text(json.dumps(service_schema))
 
         # Create adapter schema
         adapter_schema = {
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}}}}
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
 
         # Create driver schema
-        driver_schema = {
-            "properties": {
-                "rabbitmq_host": {"type": "string", "default": "messagebus"}
-            }
-        }
+        driver_schema = {"properties": {"rabbitmq_host": {"type": "string", "default": "messagebus"}}}
         driver_file = drivers_dir / "rabbitmq.json"
         driver_file.write_text(json.dumps(driver_schema))
 
         # Load driver config with service
         config = load_driver_config(
-            service="chunking",
-            adapter="message_bus",
-            driver="rabbitmq",
-            fields=None,
-            schema_dir=str(schema_dir)
+            service="chunking", adapter="message_bus", driver="rabbitmq", fields=None, schema_dir=str(schema_dir)
         )
 
         assert config.driver_name == "rabbitmq"
@@ -514,23 +411,13 @@ class TestLoadDriverConfig:
 
         # Create adapter schema
         adapter_schema = {
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}}}}
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
 
         # Create driver schema
-        driver_schema = {
-            "properties": {
-                "rabbitmq_host": {"type": "string", "default": "messagebus"}
-            }
-        }
+        driver_schema = {"properties": {"rabbitmq_host": {"type": "string", "default": "messagebus"}}}
         driver_file = drivers_dir / "rabbitmq.json"
         driver_file.write_text(json.dumps(driver_schema))
 
@@ -541,7 +428,7 @@ class TestLoadDriverConfig:
                 adapter="message_bus",
                 driver="rabbitmq",
                 fields={"invalid_field": "value"},
-                schema_dir=str(schema_dir)
+                schema_dir=str(schema_dir),
             )
 
     def test_load_driver_config_required_field_missing(self, tmp_path):
@@ -554,34 +441,20 @@ class TestLoadDriverConfig:
 
         # Create adapter schema
         adapter_schema = {
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}}}}
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
 
         # Create driver schema with required field
-        driver_schema = {
-            "properties": {
-                "api_key": {"type": "string", "required": True}
-            }
-        }
+        driver_schema = {"properties": {"api_key": {"type": "string", "required": True}}}
         driver_file = drivers_dir / "rabbitmq.json"
         driver_file.write_text(json.dumps(driver_schema))
 
         # Try to load without required field
         with pytest.raises(ValueError, match="Missing required field"):
             load_driver_config(
-                service=None,
-                adapter="message_bus",
-                driver="rabbitmq",
-                fields=None,
-                schema_dir=str(schema_dir)
+                service=None, adapter="message_bus", driver="rabbitmq", fields=None, schema_dir=str(schema_dir)
             )
 
     def test_load_driver_config_with_common_properties(self, tmp_path):
@@ -595,38 +468,26 @@ class TestLoadDriverConfig:
         # Create adapter schema with common properties
         adapter_schema = {
             "properties": {
-                "drivers": {
-                    "properties": {
-                        "rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}
-                    }
-                },
+                "drivers": {"properties": {"rabbitmq": {"$ref": "./drivers/message_bus/rabbitmq.json"}}},
                 "common": {
                     "properties": {
                         "timeout": {"type": "int", "default": 30},
-                        "retry_count": {"type": "int", "default": 3}
+                        "retry_count": {"type": "int", "default": 3},
                     }
-                }
+                },
             }
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
 
         # Create driver schema
-        driver_schema = {
-            "properties": {
-                "rabbitmq_host": {"type": "string", "default": "messagebus"}
-            }
-        }
+        driver_schema = {"properties": {"rabbitmq_host": {"type": "string", "default": "messagebus"}}}
         driver_file = drivers_dir / "rabbitmq.json"
         driver_file.write_text(json.dumps(driver_schema))
 
         # Load driver config
         config = load_driver_config(
-            service=None,
-            adapter="message_bus",
-            driver="rabbitmq",
-            fields={"timeout": 60},
-            schema_dir=str(schema_dir)
+            service=None, adapter="message_bus", driver="rabbitmq", fields={"timeout": 60}, schema_dir=str(schema_dir)
         )
 
         assert config.driver_name == "rabbitmq"
@@ -646,32 +507,19 @@ class TestLoadDriverConfig:
 
         # Create adapter schema
         adapter_schema = {
-            "properties": {
-                "drivers": {
-                    "properties": {
-                        "noop": {"$ref": "./drivers/message_bus/noop.json"}
-                    }
-                }
-            }
+            "properties": {"drivers": {"properties": {"noop": {"$ref": "./drivers/message_bus/noop.json"}}}}
         }
         adapter_file = adapters_dir / "message_bus.json"
         adapter_file.write_text(json.dumps(adapter_schema))
 
         # Create driver schema with no properties
-        driver_schema = {
-            "title": "NoOp driver",
-            "properties": None
-        }
+        driver_schema = {"title": "NoOp driver", "properties": None}
         driver_file = drivers_dir / "noop.json"
         driver_file.write_text(json.dumps(driver_schema))
 
         # Load driver config
         config = load_driver_config(
-            service=None,
-            adapter="message_bus",
-            driver="noop",
-            fields=None,
-            schema_dir=str(schema_dir)
+            service=None, adapter="message_bus", driver="noop", fields=None, schema_dir=str(schema_dir)
         )
 
         assert config.driver_name == "noop"

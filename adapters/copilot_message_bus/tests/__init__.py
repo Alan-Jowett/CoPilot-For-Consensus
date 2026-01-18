@@ -2,5 +2,3 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 """Tests for the copilot_message_bus package."""
-
-

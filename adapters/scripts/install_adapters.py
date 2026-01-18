@@ -44,7 +44,10 @@ ADAPTER_DEPENDENCIES = {
     "copilot_config": [],  # Config has no dependencies - must install first!
     "copilot_schema_validation": [],  # Schema validation has no dependencies
     "copilot_event_retry": [],  # Event retry has no adapter dependencies (stdlib only)
-    "copilot_storage": ["copilot_config", "copilot_schema_validation"],  # Storage depends on copilot-config and schema-validation for tests
+    "copilot_storage": [
+        "copilot_config",
+        "copilot_schema_validation",
+    ],  # Storage depends on copilot-config and schema-validation for tests
     "copilot_message_bus": ["copilot_config", "copilot_schema_validation"],  # Message-bus depends on both
     "copilot_secrets": ["copilot_logging"],  # Secrets depends on logging
     "copilot_chunking": ["copilot_config", "copilot_schema_validation"],  # Chunking depends on both
@@ -62,6 +65,7 @@ ADAPTER_DEPENDENCIES = {
     "copilot_startup": ["copilot_config"],  # Startup depends on copilot-config
 }
 
+
 def get_adapters_dir():
     """Get the adapters directory relative to this script."""
     # Script is at adapters/scripts/install_adapters.py
@@ -69,6 +73,7 @@ def get_adapters_dir():
     if not script_dir.exists():
         raise FileNotFoundError(f"Adapters directory not found: {script_dir}")
     return script_dir
+
 
 def get_all_adapter_names():
     """Get all available adapter names."""
@@ -78,6 +83,7 @@ def get_all_adapter_names():
         if item.is_dir() and ((item / "setup.py").exists() or (item / "pyproject.toml").exists()):
             all_adapters.append(item.name)
     return all_adapters
+
 
 def get_adapter_dirs():
     """Get all valid adapter directories, sorted by dependency order."""
@@ -93,6 +99,7 @@ def get_adapter_dirs():
     sorted_adapters.extend(sorted(all_adapters))
 
     return [adapters_dir / adapter for adapter in sorted_adapters]
+
 
 def resolve_dependencies(requested_adapters):
     """Resolve all dependencies for requested adapters in install order.
@@ -132,12 +139,13 @@ def resolve_dependencies(requested_adapters):
 
     return priority_sorted
 
+
 AZURE_EXTRA_ORDER = ("azure", "azuremonitor")
 
 
 def _is_setup_call(node: ast.expr) -> bool:
     """Check if node is a call to setup() (handles both simple and qualified names).
-    
+
     Returns True for:
     - setup(...) - simple name
     - setuptools.setup(...) - qualified name
@@ -151,7 +159,7 @@ def _is_setup_call(node: ast.expr) -> bool:
 
 def _extras_from_setup(setup_path: Path) -> set[str]:
     """Extract extras keys from setup.py (best-effort).
-    
+
     Returns an empty set if:
     - setup.py doesn't exist
     - setup.py cannot be parsed
@@ -195,18 +203,16 @@ def install_adapter(adapter_path):
     target = f"{str(adapter_path)}[{azure_extra}]" if azure_extra else str(adapter_path)
 
     if not azure_extra:
-        print(f"  -> No azure extras declared; installing without extras")
+        print("  -> No azure extras declared; installing without extras")
     else:
         print(f"  -> Installing with [{azure_extra}] extras")
 
-    result = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-e", target],
-        capture_output=False
-    )
+    result = subprocess.run([sys.executable, "-m", "pip", "install", "-e", target], capture_output=False)
     if result.returncode != 0:
         print(f"ERROR: Failed to install {adapter_path.name}", file=sys.stderr)
         return False
     return True
+
 
 def main():
     """Install all adapters or specific adapters in dependency order."""
@@ -223,17 +229,11 @@ Examples:
 
   # Install without dev dependencies
   python install_adapters.py --no-dev
-        """
+        """,
     )
+    parser.add_argument("adapters", nargs="*", help="Specific adapters to install (installs all if not specified)")
     parser.add_argument(
-        "adapters",
-        nargs="*",
-        help="Specific adapters to install (installs all if not specified)"
-    )
-    parser.add_argument(
-        "--no-dev",
-        action="store_true",
-        help="Skip development dependencies (ignored, for compatibility)"
+        "--no-dev", action="store_true", help="Skip development dependencies (ignored, for compatibility)"
     )
 
     args = parser.parse_args()
@@ -280,6 +280,7 @@ Examples:
 
     print(f"\nSuccessfully installed {len(adapter_paths)} adapters")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

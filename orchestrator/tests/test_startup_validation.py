@@ -8,7 +8,6 @@ import sys
 from unittest.mock import Mock, patch
 
 import pytest
-
 from copilot_config.generated.adapters.consensus_detector import (
     AdapterConfig_ConsensusDetector,
     DriverConfig_ConsensusDetector_Mock,
@@ -129,6 +128,7 @@ def test_main_imports_successfully():
                         with patch("uvicorn.run"):
                             # This will catch ImportError if any imports fail
                             import main as orchestrator_main
+
                             assert orchestrator_main is not None
 
 

@@ -25,14 +25,7 @@ def mock_auth_service():
     jwt_manager.get_public_key_pem.return_value = """-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Z6Wr1nN3dkp1pL5JHQN
 -----END PUBLIC KEY-----"""
-    jwt_manager.get_jwks.return_value = {
-        "keys": [{
-            "kty": "RSA",
-            "use": "sig",
-            "kid": "default",
-            "alg": "RS256"
-        }]
-    }
+    jwt_manager.get_jwks.return_value = {"keys": [{"kty": "RSA", "use": "sig", "kid": "default", "alg": "RS256"}]}
     service.jwt_manager = jwt_manager
 
     # main.py calls auth_service.get_jwks()

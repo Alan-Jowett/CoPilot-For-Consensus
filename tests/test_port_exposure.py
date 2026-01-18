@@ -20,12 +20,7 @@ import yaml
 def load_compose_config():
     """Load and parse docker-compose.yml"""
     try:
-        result = subprocess.run(
-            ["docker", "compose", "config"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        result = subprocess.run(["docker", "compose", "config"], capture_output=True, text=True, check=True)
         return yaml.safe_load(result.stdout)
     except subprocess.CalledProcessError as e:
         print(f"✗ Failed to load docker-compose.yml: {e.stderr}")
@@ -47,7 +42,7 @@ def check_port_binding(service_name, ports, expected_binding):
     Returns:
         tuple: (passed, message)
     """
-    if expected_binding == 'none':
+    if expected_binding == "none":
         if ports is None or len(ports) == 0:
             return (True, f"✓ {service_name}: No port mappings (internal-only)")
         else:
@@ -63,16 +58,16 @@ def check_port_binding(service_name, ports, expected_binding):
         # Parse port specification
         # Format can be "8080:8080", "127.0.0.1:8080:8080", or object with 'published' and 'target'
         if isinstance(port_spec, dict):
-            published = str(port_spec.get('published', ''))
-            target = str(port_spec.get('target', ''))
-            port_spec.get('mode', 'ingress')
-            host_ip = port_spec.get('host_ip', '')
+            published = str(port_spec.get("published", ""))
+            target = str(port_spec.get("target", ""))
+            port_spec.get("mode", "ingress")
+            host_ip = port_spec.get("host_ip", "")
         else:
-            parts = str(port_spec).split(':')
+            parts = str(port_spec).split(":")
             if len(parts) == 3:
                 host_ip, published, target = parts
             elif len(parts) == 2:
-                host_ip = ''
+                host_ip = ""
                 published, target = parts
             else:
                 messages.append(f"  ⚠ {service_name}: Invalid port format: {port_spec}")
@@ -80,15 +75,19 @@ def check_port_binding(service_name, ports, expected_binding):
                 continue
 
         # Check binding
-        if expected_binding == 'public':
-            if host_ip and host_ip != '0.0.0.0':
-                messages.append(f"  ✗ {service_name}: Port {published} should be public (0.0.0.0 or empty), but bound to {host_ip}")
+        if expected_binding == "public":
+            if host_ip and host_ip != "0.0.0.0":
+                messages.append(
+                    f"  ✗ {service_name}: Port {published} should be public (0.0.0.0 or empty), but bound to {host_ip}"
+                )
                 all_correct = False
             else:
                 messages.append(f"  ✓ {service_name}: Port {published} correctly public")
-        elif expected_binding == 'localhost':
-            if host_ip != '127.0.0.1':
-                messages.append(f"  ✗ {service_name}: Port {published} should be localhost-only (127.0.0.1), but bound to '{host_ip}'")
+        elif expected_binding == "localhost":
+            if host_ip != "127.0.0.1":
+                messages.append(
+                    f"  ✗ {service_name}: Port {published} should be localhost-only (127.0.0.1), but bound to '{host_ip}'"
+                )
                 all_correct = False
             else:
                 messages.append(f"  ✓ {service_name}: Port {published} correctly bound to localhost")
@@ -104,38 +103,35 @@ def main():
     print("Testing Docker Compose port exposure configuration...\n")
 
     config = load_compose_config()
-    services = config.get('services', {})
+    services = config.get("services", {})
 
     # Define expected port bindings for each service
     expectations = {
         # Public services (accessible from any interface)
-        'grafana': 'public',
-        'reporting': 'public',
-
+        "grafana": "public",
+        "reporting": "public",
         # Localhost-only services (accessible only from host)
-        'documentdb': 'localhost',
-        'messagebus': 'localhost',
-        'vectorstore': 'localhost',
-        'ollama': 'localhost',
-        'monitoring': 'localhost',
-        'loki': 'localhost',
-        'ingestion': 'localhost',
-        'ui': 'localhost',
-
+        "documentdb": "localhost",
+        "messagebus": "localhost",
+        "vectorstore": "localhost",
+        "ollama": "localhost",
+        "monitoring": "localhost",
+        "loki": "localhost",
+        "ingestion": "localhost",
+        "ui": "localhost",
         # Internal-only services (no port mappings)
-        'pushgateway': 'none',
-        'mongodb-exporter': 'none',
-        'mongo-doc-count-exporter': 'none',
-        'document-processing-exporter': 'none',
-        'qdrant-exporter': 'none',
-        'cadvisor': 'none',
-
+        "pushgateway": "none",
+        "mongodb-exporter": "none",
+        "mongo-doc-count-exporter": "none",
+        "document-processing-exporter": "none",
+        "qdrant-exporter": "none",
+        "cadvisor": "none",
         # Processing services (no port mappings)
-        'parsing': 'none',
-        'chunking': 'none',
-        'embedding': 'none',
-        'orchestrator': 'none',
-        'summarization': 'none',
+        "parsing": "none",
+        "chunking": "none",
+        "embedding": "none",
+        "orchestrator": "none",
+        "summarization": "none",
     }
 
     passed = 0
@@ -147,7 +143,7 @@ def main():
             continue
 
         service_config = services[service_name]
-        ports = service_config.get('ports', None)
+        ports = service_config.get("ports", None)
 
         success, message = check_port_binding(service_name, ports, expected_binding)
         print(message)

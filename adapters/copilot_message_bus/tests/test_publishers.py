@@ -183,6 +183,7 @@ class TestRabbitMQPublisher:
     def test_missing_required_parameters(self):
         """Test initialization requires explicit connection parameters."""
         import pytest
+
         with pytest.raises(TypeError):
             RabbitMQPublisher()
 
@@ -212,5 +213,3 @@ class TestRabbitMQPublisher:
 
     # Note: Actual connection tests would require a running RabbitMQ instance
     # or mocking the pika library, which is beyond the scope of basic unit tests
-
-

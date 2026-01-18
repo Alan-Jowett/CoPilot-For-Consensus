@@ -8,55 +8,59 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
 
 
 @dataclass
 class DriverConfig_OidcProviders_Github:
     """Configuration for oidc_providers adapter using github driver."""
-    github_api_base_url: str = 'https://api.github.com'
+
+    github_api_base_url: str = "https://api.github.com"
     # GitHub API base URL
-    github_client_id: Optional[str] = None
+    github_client_id: str | None = None
     # GitHub OAuth client ID
-    github_client_secret: Optional[str] = None
+    github_client_secret: str | None = None
     # GitHub OAuth client secret
-    github_redirect_uri: Optional[str] = None
+    github_redirect_uri: str | None = None
     # GitHub OAuth callback URL (defaults to {issuer}/callback)
 
 
 @dataclass
 class DriverConfig_OidcProviders_Google:
     """Configuration for oidc_providers adapter using google driver."""
-    google_client_id: Optional[str] = None
+
+    google_client_id: str | None = None
     # Google OAuth client ID
-    google_client_secret: Optional[str] = None
+    google_client_secret: str | None = None
     # Google OAuth client secret
-    google_redirect_uri: Optional[str] = None
+    google_redirect_uri: str | None = None
     # Google OAuth callback URL (defaults to {issuer}/callback)
 
 
 @dataclass
 class DriverConfig_OidcProviders_Microsoft:
     """Configuration for oidc_providers adapter using microsoft driver."""
-    microsoft_client_id: Optional[str] = None
+
+    microsoft_client_id: str | None = None
     # Microsoft OAuth client ID
-    microsoft_client_secret: Optional[str] = None
+    microsoft_client_secret: str | None = None
     # Microsoft OAuth client secret
-    microsoft_redirect_uri: Optional[str] = None
+    microsoft_redirect_uri: str | None = None
     # Microsoft OAuth callback URL (defaults to {issuer}/callback)
-    microsoft_tenant: str = 'common'
+    microsoft_tenant: str = "common"
     # Microsoft tenant ID
 
 
 @dataclass
 class CompositeConfig_OidcProviders:
     """Composite configuration container for oidc_providers adapter."""
-    github: Optional[DriverConfig_OidcProviders_Github] = None
-    google: Optional[DriverConfig_OidcProviders_Google] = None
-    microsoft: Optional[DriverConfig_OidcProviders_Microsoft] = None
+
+    github: DriverConfig_OidcProviders_Github | None = None
+    google: DriverConfig_OidcProviders_Google | None = None
+    microsoft: DriverConfig_OidcProviders_Microsoft | None = None
 
 
 @dataclass
 class AdapterConfig_OidcProviders:
     """Configuration for oidc_providers adapter."""
-    oidc_providers: Optional[CompositeConfig_OidcProviders] = None
+
+    oidc_providers: CompositeConfig_OidcProviders | None = None

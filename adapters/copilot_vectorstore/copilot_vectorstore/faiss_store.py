@@ -7,9 +7,8 @@ import importlib
 import logging
 from typing import Any
 
-from copilot_config.generated.adapters.vector_store import DriverConfig_VectorStore_Faiss
-
 import numpy as np
+from copilot_config.generated.adapters.vector_store import DriverConfig_VectorStore_Faiss
 
 from .interface import SearchResult, VectorStore
 
@@ -29,8 +28,7 @@ class FAISSVectorStore(VectorStore):
         persist_path: Optional path to persist the index to disk
     """
 
-    def __init__(self, dimension: int, index_type: str = "flat",
-                 persist_path: str | None = None):
+    def __init__(self, dimension: int, index_type: str = "flat", persist_path: str | None = None):
         """Initialize a FAISS vector store.
 
         Args:
@@ -46,9 +44,7 @@ class FAISSVectorStore(VectorStore):
         try:
             faiss = importlib.import_module("faiss")
         except ImportError as e:
-            raise ImportError(
-                "FAISS is not installed. Install it with: pip install faiss-cpu"
-            ) from e
+            raise ImportError("FAISS is not installed. Install it with: pip install faiss-cpu") from e
 
         if dimension <= 0:
             raise ValueError(f"Dimension must be positive, got {dimension}")
@@ -133,8 +129,7 @@ class FAISSVectorStore(VectorStore):
 
         if vec_array.shape[1] != self._dimension:
             raise ValueError(
-                f"Vector dimension ({vec_array.shape[1]}) doesn't match "
-                f"index dimension ({self._dimension})"
+                f"Vector dimension ({vec_array.shape[1]}) doesn't match " f"index dimension ({self._dimension})"
             )
 
         # Add to FAISS index
@@ -148,8 +143,7 @@ class FAISSVectorStore(VectorStore):
         self._vectors[id] = vec_array.flatten()
         self._next_idx += 1
 
-    def add_embeddings(self, ids: list[str], vectors: list[list[float]],
-                      metadatas: list[dict[str, Any]]) -> None:
+    def add_embeddings(self, ids: list[str], vectors: list[list[float]], metadatas: list[dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
 
         Args:
@@ -173,8 +167,7 @@ class FAISSVectorStore(VectorStore):
 
         if vec_array.shape[1] != self._dimension:
             raise ValueError(
-                f"Vector dimension ({vec_array.shape[1]}) doesn't match "
-                f"index dimension ({self._dimension})"
+                f"Vector dimension ({vec_array.shape[1]}) doesn't match " f"index dimension ({self._dimension})"
             )
 
         # Add to FAISS index in batch
@@ -213,8 +206,7 @@ class FAISSVectorStore(VectorStore):
 
         if query_array.shape[1] != self._dimension:
             raise ValueError(
-                f"Query vector dimension ({query_array.shape[1]}) doesn't match "
-                f"index dimension ({self._dimension})"
+                f"Query vector dimension ({query_array.shape[1]}) doesn't match " f"index dimension ({self._dimension})"
             )
 
         # Search in FAISS (returns distances and indices)
@@ -231,12 +223,9 @@ class FAISSVectorStore(VectorStore):
             id = self._idx_to_id[idx]
             score = 1.0 / (1.0 + float(dist))  # Convert distance to similarity
 
-            results.append(SearchResult(
-                id=id,
-                score=score,
-                vector=self._vectors[id].tolist(),
-                metadata=self._metadata[id].copy()
-            ))
+            results.append(
+                SearchResult(id=id, score=score, vector=self._vectors[id].tolist(), metadata=self._metadata[id].copy())
+            )
 
         return results
 
@@ -308,7 +297,7 @@ class FAISSVectorStore(VectorStore):
             id=id,
             score=1.0,  # Perfect match with itself
             vector=self._vectors[id].tolist(),
-            metadata=self._metadata[id].copy()
+            metadata=self._metadata[id].copy(),
         )
 
     def save(self, path: str | None = None) -> None:

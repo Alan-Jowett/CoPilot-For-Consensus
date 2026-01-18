@@ -35,6 +35,7 @@ def test_deferred_jwks_fetch_non_blocking_init(mock_jwks):
 
     # Simulate slow JWKS endpoint
     with patch("copilot_auth.middleware.httpx.get") as mock_get:
+
         def slow_response(*args, **kwargs):
             time.sleep(2)  # Simulate 2 second delay
             mock_response = MagicMock()

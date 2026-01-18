@@ -219,10 +219,10 @@ class MessageParser:
             parts = []
             for content, encoding in decoded_parts:
                 if isinstance(content, bytes):
-                    parts.append(content.decode(encoding or 'utf-8', errors='replace'))
+                    parts.append(content.decode(encoding or "utf-8", errors="replace"))
                 else:
                     parts.append(content)
-            return ' '.join(parts)
+            return " ".join(parts)
         except Exception as e:
             logger.debug(f"Failed to decode header: {e}")
             return str(header_value)
@@ -289,7 +289,7 @@ class MessageParser:
 
         addresses = []
         # Split on commas, but be careful with commas in quoted names
-        for addr_str in addr_list_str.split(','):
+        for addr_str in addr_list_str.split(","):
             addr = self._parse_address(addr_str.strip())
             if addr:
                 addresses.append(addr)
@@ -316,8 +316,8 @@ class MessageParser:
                     try:
                         payload = part.get_payload(decode=True)
                         if payload and isinstance(payload, bytes):
-                            charset = part.get_content_charset() or 'utf-8'
-                            body = payload.decode(charset, errors='replace')
+                            charset = part.get_content_charset() or "utf-8"
+                            body = payload.decode(charset, errors="replace")
                             break
                     except Exception as e:
                         logger.debug(f"Failed to decode text/plain part: {e}")
@@ -331,8 +331,8 @@ class MessageParser:
                         try:
                             payload = part.get_payload(decode=True)
                             if payload and isinstance(payload, bytes):
-                                charset = part.get_content_charset() or 'utf-8'
-                                body = payload.decode(charset, errors='replace')
+                                charset = part.get_content_charset() or "utf-8"
+                                body = payload.decode(charset, errors="replace")
                                 break
                         except Exception as e:
                             logger.debug(f"Failed to decode text/html part: {e}")
@@ -341,8 +341,8 @@ class MessageParser:
             try:
                 payload = message.get_payload(decode=True)
                 if payload and isinstance(payload, bytes):
-                    charset = message.get_content_charset() or 'utf-8'
-                    body = payload.decode(charset, errors='replace')
+                    charset = message.get_content_charset() or "utf-8"
+                    body = payload.decode(charset, errors="replace")
                 else:
                     # Fallback to string payload
                     body = str(message.get_payload())

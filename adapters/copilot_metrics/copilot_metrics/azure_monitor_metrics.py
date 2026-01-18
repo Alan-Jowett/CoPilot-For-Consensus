@@ -19,6 +19,7 @@ try:
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
     from opentelemetry.sdk.resources import Resource
+
     AZURE_MONITOR_AVAILABLE = True
 except ImportError:
     AZURE_MONITOR_AVAILABLE = False
@@ -345,13 +346,11 @@ class AzureMonitorMetricsCollector(MetricsCollector):
         # Use instance-specific provider to avoid affecting global state
         provider = getattr(self, "_provider", None)
         if provider is None:
-            logger.warning(
-                "No instance-specific meter provider found; skipping shutdown"
-            )
+            logger.warning("No instance-specific meter provider found; skipping shutdown")
             return
 
         try:
-            if hasattr(provider, 'shutdown'):
+            if hasattr(provider, "shutdown"):
                 provider.shutdown()
                 logger.info("Azure Monitor metrics collector shut down successfully")
         except Exception as e:
@@ -377,5 +376,5 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             connection_string=driver_config.connection_string,
             namespace=driver_config.namespace,
             export_interval_millis=driver_config.export_interval_millis,
-            raise_on_error=driver_config.raise_on_error
+            raise_on_error=driver_config.raise_on_error,
         )

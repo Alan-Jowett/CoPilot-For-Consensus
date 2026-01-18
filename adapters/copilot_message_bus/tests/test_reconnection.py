@@ -9,6 +9,7 @@ import pytest
 
 try:
     import pika
+
     PIKA_AVAILABLE = True
 except ImportError:
     PIKA_AVAILABLE = False
@@ -36,7 +37,7 @@ class TestRabbitMQReconnection:
         mock_channel = MagicMock()
 
         # Simulate successful initial connection
-        with patch.object(pika, 'BlockingConnection', return_value=mock_connection):
+        with patch.object(pika, "BlockingConnection", return_value=mock_connection):
             mock_connection.channel.return_value = mock_channel
             mock_channel.is_open = True
             mock_connection.is_closed = False
@@ -59,10 +60,10 @@ class TestRabbitMQReconnection:
             "event_id": "123",
             "timestamp": "2025-01-01T00:00:00Z",
             "version": "1.0",
-            "data": {}
+            "data": {},
         }
 
-        with patch.object(publisher, 'connect', side_effect=mock_reconnect_success):
+        with patch.object(publisher, "connect", side_effect=mock_reconnect_success):
             # Should successfully publish after reconnection
             publisher.publish("test.exchange", "test.key", event)
 
@@ -110,7 +111,7 @@ class TestRabbitMQReconnection:
         )
 
         # Mock failed connection
-        with patch.object(publisher, 'connect', side_effect=Exception("Connection failed")):
+        with patch.object(publisher, "connect", side_effect=Exception("Connection failed")):
             # First reconnect attempt
             result1 = publisher._reconnect()
             assert result1 is False
@@ -133,8 +134,8 @@ class TestRabbitMQReconnection:
         )
 
         # Mock time and connection
-        with patch('copilot_message_bus.rabbitmq_publisher.time.time') as mock_time:
-            with patch.object(publisher, 'connect', side_effect=Exception("Connection failed")):
+        with patch("copilot_message_bus.rabbitmq_publisher.time.time") as mock_time:
+            with patch.object(publisher, "connect", side_effect=Exception("Connection failed")):
                 # Start at t=10 (well past the initial _last_reconnect_time of 0)
                 mock_time.return_value = 10.0
 
@@ -174,7 +175,7 @@ class TestRabbitMQReconnection:
         )
 
         # Mock failed connection
-        with patch.object(publisher, 'connect', side_effect=Exception("Connection failed")):
+        with patch.object(publisher, "connect", side_effect=Exception("Connection failed")):
             # Exhaust reconnection attempts
             publisher._reconnect()
             publisher._reconnect()
@@ -202,7 +203,7 @@ class TestRabbitMQReconnection:
                 raise Exception("First attempt fails")
             # Second attempt succeeds (returns None)
 
-        with patch.object(publisher, 'connect', side_effect=mock_connect_sequence) as mock_connect:
+        with patch.object(publisher, "connect", side_effect=mock_connect_sequence) as mock_connect:
             # First attempt fails
             result1 = publisher._reconnect()
             assert result1 is False
@@ -230,8 +231,8 @@ class TestRabbitMQReconnection:
         publisher._declared_queues.add("queue2")
 
         # Mock successful reconnection
-        with patch.object(publisher, 'connect'):
-            with patch.object(publisher, 'declare_queue') as mock_declare:
+        with patch.object(publisher, "connect"):
+            with patch.object(publisher, "declare_queue") as mock_declare:
                 result = publisher._reconnect()
 
                 assert result is True
@@ -263,7 +264,7 @@ class TestRabbitMQReconnection:
             "event_id": "123",
             "timestamp": "2025-01-01T00:00:00Z",
             "version": "1.0",
-            "data": {}
+            "data": {},
         }
 
         # First publish fails with channel error, second succeeds
@@ -273,7 +274,7 @@ class TestRabbitMQReconnection:
         ]
 
         # Mock successful reconnection
-        with patch.object(publisher, '_reconnect', return_value=True):
+        with patch.object(publisher, "_reconnect", return_value=True):
             # Should not raise exception - retry succeeds
             publisher.publish("test.exchange", "test.key", event)
 
@@ -305,14 +306,14 @@ class TestRabbitMQReconnection:
             "event_id": "123",
             "timestamp": "2025-01-01T00:00:00Z",
             "version": "1.0",
-            "data": {}
+            "data": {},
         }
 
         # Initial publish raises a connection/channel error
         mock_channel.basic_publish.side_effect = pika.exceptions.ChannelWrongStateError()
 
         # Reconnection attempt fails
-        with patch.object(publisher, '_reconnect', return_value=False) as mock_reconnect:
+        with patch.object(publisher, "_reconnect", return_value=False) as mock_reconnect:
             with pytest.raises(ConnectionError, match="Failed to publish after connection error"):
                 publisher.publish("test.exchange", "test.key", event)
 
@@ -343,7 +344,7 @@ class TestRabbitMQReconnection:
             "event_id": "123",
             "timestamp": "2025-01-01T00:00:00Z",
             "version": "1.0",
-            "data": {}
+            "data": {},
         }
 
         # First publish raises connection/channel error, retry raises UnroutableError
@@ -353,7 +354,7 @@ class TestRabbitMQReconnection:
         ]
 
         # Mock successful reconnection
-        with patch.object(publisher, '_reconnect', return_value=True) as mock_reconnect:
+        with patch.object(publisher, "_reconnect", return_value=True) as mock_reconnect:
             # The retry failure should be propagated to caller
             with pytest.raises(pika.exceptions.UnroutableError):
                 publisher.publish("test.exchange", "test.key", event)

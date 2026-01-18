@@ -90,8 +90,7 @@ class OIDCProvider(IdentityProvider):
 
             if not all([self._authorization_endpoint, self._token_endpoint]):
                 raise ProviderError(
-                    "OIDC discovery response missing required endpoints "
-                    "(authorization_endpoint, token_endpoint)"
+                    "OIDC discovery response missing required endpoints " "(authorization_endpoint, token_endpoint)"
                 )
 
         except httpx.HTTPError as e:
@@ -196,6 +195,7 @@ class OIDCProvider(IdentityProvider):
             elif "application/x-www-form-urlencoded" in content_type or response.text.startswith("access_token="):
                 # Parse form-encoded response (GitHub returns this by default)
                 import urllib.parse
+
                 parsed = urllib.parse.parse_qs(response.text)
                 # Convert from dict[str, list[str]] to dict[str, str]
                 return {k: v[0] if isinstance(v, list) else v for k, v in parsed.items()}
@@ -205,6 +205,7 @@ class OIDCProvider(IdentityProvider):
                     return response.json()  # type: ignore[no-any-return]
                 except ValueError:
                     import urllib.parse
+
                     parsed = urllib.parse.parse_qs(response.text)
                     return {k: v[0] if isinstance(v, list) else v for k, v in parsed.items()}
 

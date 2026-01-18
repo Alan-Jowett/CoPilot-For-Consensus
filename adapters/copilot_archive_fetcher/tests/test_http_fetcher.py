@@ -14,11 +14,7 @@ class TestHTTPFetcher:
 
     def test_http_fetcher_init(self):
         """Test HTTPFetcher initialization."""
-        config = SourceConfig(
-            name="http-test",
-            source_type="http",
-            url="https://example.com/archive.zip"
-        )
+        config = SourceConfig(name="http-test", source_type="http", url="https://example.com/archive.zip")
         fetcher = HTTPFetcher(config)
 
         assert fetcher.source == config
@@ -27,11 +23,7 @@ class TestHTTPFetcher:
 
     def test_http_fetcher_is_abstract_fetcher(self):
         """Test that HTTPFetcher is an instance of ArchiveFetcher."""
-        config = SourceConfig(
-            name="http-test",
-            source_type="http",
-            url="https://example.com/archive.zip"
-        )
+        config = SourceConfig(name="http-test", source_type="http", url="https://example.com/archive.zip")
         fetcher = HTTPFetcher(config)
 
         assert isinstance(fetcher, ArchiveFetcher)
@@ -39,11 +31,7 @@ class TestHTTPFetcher:
     @pytest.mark.integration
     def test_http_fetcher_with_real_url(self):
         """Test HTTP fetcher with a real URL (integration test)."""
-        config = SourceConfig(
-            name="http-test",
-            source_type="http",
-            url="https://httpbin.org/image/png"
-        )
+        config = SourceConfig(name="http-test", source_type="http", url="https://httpbin.org/image/png")
         fetcher = HTTPFetcher(config)
 
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -59,7 +59,7 @@ class TestAzureCosmosDocumentStore:
             key="testkey",
             database="testdb",
             container="testcontainer",
-            partition_key="/collection"
+            partition_key="/collection",
         )
 
         assert store.endpoint == "https://test.documents.azure.com:443/"
@@ -70,10 +70,7 @@ class TestAzureCosmosDocumentStore:
 
     def test_default_values(self):
         """Test default initialization values."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert store.database_name == "copilot"
         assert store.container_name == "documents"
@@ -81,13 +78,11 @@ class TestAzureCosmosDocumentStore:
 
     def test_connect_azure_cosmos_not_installed(self, monkeypatch):
         """Test that connect() raises DocumentStoreConnectionError when azure-cosmos is not installed."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock the azure.cosmos import to raise ImportError
         import builtins
+
         original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -121,18 +116,14 @@ class TestAzureCosmosDocumentStore:
         mock_client_instance.create_database_if_not_exists.return_value = mock_database
         mock_database.create_container_if_not_exists.return_value = mock_container
 
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key=None
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key=None)
 
         store.connect()
 
         # Verify DefaultAzureCredential was used
         mock_credential.assert_called_once()
         mock_cosmos_client.assert_called_once_with(
-            "https://test.documents.azure.com:443/",
-            credential=mock_cred_instance
+            "https://test.documents.azure.com:443/", credential=mock_cred_instance
         )
 
     @patch("azure.cosmos.CosmosClient")
@@ -142,7 +133,7 @@ class TestAzureCosmosDocumentStore:
             endpoint="https://test.documents.azure.com:443/",
             key="testkey",
             database="testdb",
-            container="testcontainer"
+            container="testcontainer",
         )
 
         # Mock the client and database/container operations
@@ -159,36 +150,28 @@ class TestAzureCosmosDocumentStore:
         assert store.client is not None
         assert store.database is not None
         assert store.container is not None
-        mock_cosmos_client.assert_called_once_with(
-            "https://test.documents.azure.com:443/",
-            "testkey"
-        )
+        mock_cosmos_client.assert_called_once_with("https://test.documents.azure.com:443/", "testkey")
 
     @patch("azure.cosmos.CosmosClient")
     def test_connect_database_creation_fails(self, mock_cosmos_client):
         """Test that connect() raises error when database creation fails."""
         from azure.cosmos import exceptions
 
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock client but make database creation fail
         mock_client_instance = MagicMock()
         mock_cosmos_client.return_value = mock_client_instance
-        mock_client_instance.create_database_if_not_exists.side_effect = \
-            exceptions.CosmosHttpResponseError(status_code=403, message="Forbidden")
+        mock_client_instance.create_database_if_not_exists.side_effect = exceptions.CosmosHttpResponseError(
+            status_code=403, message="Forbidden"
+        )
 
         with pytest.raises(DocumentStoreConnectionError, match="Failed to create/access database"):
             store.connect()
 
     def test_disconnect(self):
         """Test disconnecting from Cosmos DB."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Simulate connected state
         store.client = MagicMock()
@@ -203,10 +186,7 @@ class TestAzureCosmosDocumentStore:
 
     def test_insert_document_not_connected(self):
         """Test that insert fails when not connected."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         with pytest.raises(DocumentStoreNotConnectedError):
             store.insert_document("users", {"name": "test"})
@@ -214,10 +194,7 @@ class TestAzureCosmosDocumentStore:
     @patch("uuid.uuid4")
     def test_insert_document_success(self, mock_uuid):
         """Test successful document insertion."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -227,11 +204,7 @@ class TestAzureCosmosDocumentStore:
         mock_uuid.return_value = "test-uuid-123"
 
         # Mock successful insert
-        mock_container.create_item.return_value = {
-            "id": "test-uuid-123",
-            "collection": "users",
-            "name": "Alice"
-        }
+        mock_container.create_item.return_value = {"id": "test-uuid-123", "collection": "users", "name": "Alice"}
 
         doc_id = store.insert_document("users", {"name": "Alice"})
 
@@ -247,21 +220,14 @@ class TestAzureCosmosDocumentStore:
 
     def test_insert_document_with_existing_id(self):
         """Test inserting document with pre-existing ID."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
         store.container = mock_container
 
         # Mock successful insert
-        mock_container.create_item.return_value = {
-            "id": "user-123",
-            "collection": "users",
-            "name": "Bob"
-        }
+        mock_container.create_item.return_value = {"id": "user-123", "collection": "users", "name": "Bob"}
 
         doc_id = store.insert_document("users", {"id": "user-123", "name": "Bob"})
 
@@ -297,10 +263,7 @@ class TestAzureCosmosDocumentStore:
         """Test that insert fails when document already exists."""
         from azure.cosmos import exceptions
 
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -308,8 +271,7 @@ class TestAzureCosmosDocumentStore:
 
         # Mock resource exists error
         mock_container.create_item.side_effect = exceptions.CosmosResourceExistsError(
-            status_code=409,
-            message="Document already exists"
+            status_code=409, message="Document already exists"
         )
 
         with pytest.raises(DocumentStoreError, match="already exists"):
@@ -319,10 +281,7 @@ class TestAzureCosmosDocumentStore:
         """Test that insert handles throttling errors."""
         from azure.cosmos import exceptions
 
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -330,8 +289,7 @@ class TestAzureCosmosDocumentStore:
 
         # Mock throttling error
         mock_container.create_item.side_effect = exceptions.CosmosHttpResponseError(
-            status_code=429,
-            message="Too many requests"
+            status_code=429, message="Too many requests"
         )
 
         with pytest.raises(DocumentStoreError, match="Throttled"):
@@ -339,34 +297,24 @@ class TestAzureCosmosDocumentStore:
 
     def test_get_document_not_connected(self):
         """Test that get fails when not connected."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         with pytest.raises(DocumentStoreNotConnectedError):
             store.get_document("users", "test-id")
 
     def test_get_document_success(self):
         """Test successful document retrieval.
-        
+
         Note: System fields (id, collection) are removed by sanitization.
         """
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
         store.container = mock_container
 
         # Mock successful read
-        mock_container.read_item.return_value = {
-            "id": "user-123",
-            "collection": "users",
-            "name": "Alice"
-        }
+        mock_container.read_item.return_value = {"id": "user-123", "collection": "users", "name": "Alice"}
 
         doc = store.get_document("users", "user-123")
 
@@ -375,19 +323,13 @@ class TestAzureCosmosDocumentStore:
         assert "id" not in doc
         assert "collection" not in doc
         assert doc["name"] == "Alice"
-        mock_container.read_item.assert_called_once_with(
-            item="user-123",
-            partition_key="users"
-        )
+        mock_container.read_item.assert_called_once_with(item="user-123", partition_key="users")
 
     def test_get_document_not_found(self):
         """Test retrieving non-existent document."""
         from azure.cosmos import exceptions
 
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -395,8 +337,7 @@ class TestAzureCosmosDocumentStore:
 
         # Mock not found error
         mock_container.read_item.side_effect = exceptions.CosmosResourceNotFoundError(
-            status_code=404,
-            message="Not found"
+            status_code=404, message="Not found"
         )
 
         doc = store.get_document("users", "nonexistent")
@@ -405,20 +346,14 @@ class TestAzureCosmosDocumentStore:
 
     def test_query_documents_not_connected(self):
         """Test that query fails when not connected."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         with pytest.raises(DocumentStoreNotConnectedError):
             store.query_documents("users", {"age": 30})
 
     def test_query_documents_success(self):
         """Test successful document query."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -427,7 +362,7 @@ class TestAzureCosmosDocumentStore:
         # Mock query results
         mock_container.query_items.return_value = [
             {"id": "user-1", "collection": "users", "age": 30},
-            {"id": "user-2", "collection": "users", "age": 30}
+            {"id": "user-2", "collection": "users", "age": 30},
         ]
 
         results = store.query_documents("users", {"age": 30}, limit=100)
@@ -437,19 +372,14 @@ class TestAzureCosmosDocumentStore:
 
     def test_query_documents_with_multiple_filters(self):
         """Test querying with multiple filters."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
         store.container = mock_container
 
         # Mock query results
-        mock_container.query_items.return_value = [
-            {"id": "user-1", "collection": "users", "age": 30, "city": "NYC"}
-        ]
+        mock_container.query_items.return_value = [{"id": "user-1", "collection": "users", "age": 30, "city": "NYC"}]
 
         results = store.query_documents("users", {"age": 30, "city": "NYC"})
 
@@ -463,10 +393,7 @@ class TestAzureCosmosDocumentStore:
 
     def test_query_documents_invalid_limit(self):
         """Test that query with invalid limit raises error without wrapping."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -486,32 +413,21 @@ class TestAzureCosmosDocumentStore:
 
     def test_update_document_not_connected(self):
         """Test that update fails when not connected."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         with pytest.raises(DocumentStoreNotConnectedError):
             store.update_document("users", "test-id", {"age": 31})
 
     def test_update_document_success(self):
         """Test successful document update."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
         store.container = mock_container
 
         # Mock read and replace
-        mock_container.read_item.return_value = {
-            "id": "user-123",
-            "collection": "users",
-            "name": "Alice",
-            "age": 30
-        }
+        mock_container.read_item.return_value = {"id": "user-123", "collection": "users", "name": "Alice", "age": 30}
 
         store.update_document("users", "user-123", {"age": 31})
 
@@ -529,10 +445,7 @@ class TestAzureCosmosDocumentStore:
         """Test updating non-existent document."""
         from azure.cosmos import exceptions
 
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -540,8 +453,7 @@ class TestAzureCosmosDocumentStore:
 
         # Mock not found error
         mock_container.read_item.side_effect = exceptions.CosmosResourceNotFoundError(
-            status_code=404,
-            message="Not found"
+            status_code=404, message="Not found"
         )
 
         with pytest.raises(DocumentNotFoundError):
@@ -549,20 +461,14 @@ class TestAzureCosmosDocumentStore:
 
     def test_delete_document_not_connected(self):
         """Test that delete fails when not connected."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         with pytest.raises(DocumentStoreNotConnectedError):
             store.delete_document("users", "test-id")
 
     def test_delete_document_success(self):
         """Test successful document deletion."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -570,19 +476,13 @@ class TestAzureCosmosDocumentStore:
 
         store.delete_document("users", "user-123")
 
-        mock_container.delete_item.assert_called_once_with(
-            item="user-123",
-            partition_key="users"
-        )
+        mock_container.delete_item.assert_called_once_with(item="user-123", partition_key="users")
 
     def test_delete_document_not_found(self):
         """Test deleting non-existent document."""
         from azure.cosmos import exceptions
 
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -590,8 +490,7 @@ class TestAzureCosmosDocumentStore:
 
         # Mock not found error
         mock_container.delete_item.side_effect = exceptions.CosmosResourceNotFoundError(
-            status_code=404,
-            message="Not found"
+            status_code=404, message="Not found"
         )
 
         with pytest.raises(DocumentNotFoundError):
@@ -599,29 +498,21 @@ class TestAzureCosmosDocumentStore:
 
     def test_aggregate_documents_not_connected(self):
         """Test that aggregation fails when not connected."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         with pytest.raises(DocumentStoreNotConnectedError):
             store.aggregate_documents("users", [{"$match": {"age": 30}}])
 
     def test_aggregate_documents_simple_match(self):
         """Test aggregation with simple $match."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
         store.container = mock_container
 
         # Mock query results
-        mock_container.query_items.return_value = [
-            {"id": "msg-1", "collection": "messages", "status": "pending"}
-        ]
+        mock_container.query_items.return_value = [{"id": "msg-1", "collection": "messages", "status": "pending"}]
 
         pipeline = [{"$match": {"status": "pending"}}]
         results = store.aggregate_documents("messages", pipeline)
@@ -635,10 +526,7 @@ class TestAzureCosmosDocumentStore:
 
     def test_aggregate_documents_with_exists(self):
         """Test aggregation with $exists operator."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -657,10 +545,7 @@ class TestAzureCosmosDocumentStore:
 
     def test_aggregate_documents_with_limit(self):
         """Test aggregation with $limit stage."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -669,10 +554,7 @@ class TestAzureCosmosDocumentStore:
         # Mock query results
         mock_container.query_items.return_value = []
 
-        pipeline = [
-            {"$match": {"status": "pending"}},
-            {"$limit": 10}
-        ]
+        pipeline = [{"$match": {"status": "pending"}}, {"$limit": 10}]
         store.aggregate_documents("messages", pipeline)
 
         # Verify SQL query includes OFFSET 0 LIMIT (Cosmos DB syntax)
@@ -682,10 +564,7 @@ class TestAzureCosmosDocumentStore:
 
     def test_aggregate_documents_with_lookup(self):
         """Test that $lookup stage performs client-side join."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -696,23 +575,14 @@ class TestAzureCosmosDocumentStore:
         # Second call: chunks collection (for $lookup)
         messages = [
             {"id": "msg1", "collection": "messages", "message_key": "key1", "text": "Hello"},
-            {"id": "msg2", "collection": "messages", "message_key": "key2", "text": "World"}
+            {"id": "msg2", "collection": "messages", "message_key": "key2", "text": "World"},
         ]
-        chunks = [
-            {"id": "chunk1", "collection": "chunks", "message_key": "key1", "chunk_id": "c1"}
-        ]
+        chunks = [{"id": "chunk1", "collection": "chunks", "message_key": "key1", "chunk_id": "c1"}]
 
         mock_container.query_items.side_effect = [messages, chunks]
 
         pipeline = [
-            {
-                "$lookup": {
-                    "from": "chunks",
-                    "localField": "message_key",
-                    "foreignField": "message_key",
-                    "as": "chunks"
-                }
-            }
+            {"$lookup": {"from": "chunks", "localField": "message_key", "foreignField": "message_key", "as": "chunks"}}
         ]
 
         # Should perform client-side join
@@ -730,10 +600,7 @@ class TestAzureCosmosDocumentStore:
 
     def test_aggregate_documents_lookup_with_match(self):
         """Test $lookup followed by $match to find messages without chunks (chunking service use case)."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -745,38 +612,21 @@ class TestAzureCosmosDocumentStore:
         messages = [
             {"id": "msg1", "collection": "messages", "_id": "msg1", "archive_id": 1},
             {"id": "msg2", "collection": "messages", "_id": "msg2", "archive_id": 1},
-            {"id": "msg3", "collection": "messages", "_id": "msg3", "archive_id": 1}
+            {"id": "msg3", "collection": "messages", "_id": "msg3", "archive_id": 1},
         ]
         chunks = [
             {"id": "chunk1", "collection": "chunks", "message_doc_id": "msg1"},
-            {"id": "chunk2", "collection": "chunks", "message_doc_id": "msg1"}
+            {"id": "chunk2", "collection": "chunks", "message_doc_id": "msg1"},
         ]
 
         mock_container.query_items.side_effect = [messages, chunks]
 
         # Pipeline that matches chunking service requeue logic
         pipeline = [
-            {
-                "$match": {
-                    "_id": {"$exists": True}
-                }
-            },
-            {
-                "$lookup": {
-                    "from": "chunks",
-                    "localField": "_id",
-                    "foreignField": "message_doc_id",
-                    "as": "chunks"
-                }
-            },
-            {
-                "$match": {
-                    "chunks": {"$eq": []}
-                }
-            },
-            {
-                "$limit": 1000
-            }
+            {"$match": {"_id": {"$exists": True}}},
+            {"$lookup": {"from": "chunks", "localField": "_id", "foreignField": "message_doc_id", "as": "chunks"}},
+            {"$match": {"chunks": {"$eq": []}}},
+            {"$limit": 1000},
         ]
 
         results = store.aggregate_documents("messages", pipeline)
@@ -790,45 +640,30 @@ class TestAzureCosmosDocumentStore:
 
     def test_aggregate_documents_invalid_limit(self):
         """Test that aggregation with invalid limit raises error."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
         store.container = mock_container
 
         # Test with non-integer limit
-        pipeline = [
-            {"$match": {"status": "pending"}},
-            {"$limit": "invalid"}
-        ]
+        pipeline = [{"$match": {"status": "pending"}}, {"$limit": "invalid"}]
         with pytest.raises(DocumentStoreError, match="Invalid limit value"):
             store.aggregate_documents("messages", pipeline)
 
         # Test with negative limit
-        pipeline = [
-            {"$match": {"status": "pending"}},
-            {"$limit": -1}
-        ]
+        pipeline = [{"$match": {"status": "pending"}}, {"$limit": -1}]
         with pytest.raises(DocumentStoreError, match="Invalid limit value"):
             store.aggregate_documents("messages", pipeline)
 
         # Test with zero limit
-        pipeline = [
-            {"$match": {"status": "pending"}},
-            {"$limit": 0}
-        ]
+        pipeline = [{"$match": {"status": "pending"}}, {"$limit": 0}]
         with pytest.raises(DocumentStoreError, match="Invalid limit value"):
             store.aggregate_documents("messages", pipeline)
 
     def test_aggregate_documents_match_with_nested_fields(self):
         """Test $match stage with nested field paths using dot notation."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -838,24 +673,13 @@ class TestAzureCosmosDocumentStore:
         messages = [
             {"id": "msg1", "collection": "messages", "user": {"name": "Alice", "email": "alice@example.com"}},
             {"id": "msg2", "collection": "messages", "user": {"name": "Bob", "email": "bob@example.com"}},
-            {"id": "msg3", "collection": "messages", "user": {"name": "Alice", "email": "alice2@example.com"}}
+            {"id": "msg3", "collection": "messages", "user": {"name": "Alice", "email": "alice2@example.com"}},
         ]
 
         # Pipeline with nested field match after $lookup
         pipeline = [
-            {
-                "$lookup": {
-                    "from": "chunks",
-                    "localField": "id",
-                    "foreignField": "message_id",
-                    "as": "chunks"
-                }
-            },
-            {
-                "$match": {
-                    "user.name": "Alice"
-                }
-            }
+            {"$lookup": {"from": "chunks", "localField": "id", "foreignField": "message_id", "as": "chunks"}},
+            {"$match": {"user.name": "Alice"}},
         ]
 
         # Mock query results: first query returns messages, second query for $lookup returns chunks
@@ -870,86 +694,43 @@ class TestAzureCosmosDocumentStore:
 
     def test_aggregate_documents_lookup_validation_missing_fields(self):
         """Test that $lookup with missing required fields raises error."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
         store.container = mock_container
 
         # Test with missing 'from' field
-        pipeline = [
-            {
-                "$lookup": {
-                    "localField": "_id",
-                    "foreignField": "message_id",
-                    "as": "chunks"
-                }
-            }
-        ]
+        pipeline = [{"$lookup": {"localField": "_id", "foreignField": "message_id", "as": "chunks"}}]
         with pytest.raises(DocumentStoreError, match=r"\$lookup requires string values"):
             store.aggregate_documents("messages", pipeline)
 
         # Test with missing 'as' field
-        pipeline = [
-            {
-                "$lookup": {
-                    "from": "chunks",
-                    "localField": "_id",
-                    "foreignField": "message_id"
-                }
-            }
-        ]
+        pipeline = [{"$lookup": {"from": "chunks", "localField": "_id", "foreignField": "message_id"}}]
         with pytest.raises(DocumentStoreError, match=r"\$lookup requires string values"):
             store.aggregate_documents("messages", pipeline)
 
     def test_aggregate_documents_lookup_validation_empty_strings(self):
         """Test that $lookup with empty string values raises error."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
         store.container = mock_container
 
         # Test with empty 'from' field
-        pipeline = [
-            {
-                "$lookup": {
-                    "from": "",
-                    "localField": "_id",
-                    "foreignField": "message_id",
-                    "as": "chunks"
-                }
-            }
-        ]
+        pipeline = [{"$lookup": {"from": "", "localField": "_id", "foreignField": "message_id", "as": "chunks"}}]
         with pytest.raises(DocumentStoreError, match=r"\$lookup requires non-empty values"):
             store.aggregate_documents("messages", pipeline)
 
         # Test with empty 'localField'
-        pipeline = [
-            {
-                "$lookup": {
-                    "from": "chunks",
-                    "localField": "",
-                    "foreignField": "message_id",
-                    "as": "chunks"
-                }
-            }
-        ]
+        pipeline = [{"$lookup": {"from": "chunks", "localField": "", "foreignField": "message_id", "as": "chunks"}}]
         with pytest.raises(DocumentStoreError, match=r"\$lookup requires non-empty values"):
             store.aggregate_documents("messages", pipeline)
 
     def test_aggregate_documents_lookup_validation_invalid_field_names(self):
         """Test that $lookup with invalid field names raises error."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
@@ -962,7 +743,7 @@ class TestAzureCosmosDocumentStore:
                     "from": "chunks",
                     "localField": "id; DROP TABLE",
                     "foreignField": "message_id",
-                    "as": "chunks"
+                    "as": "chunks",
                 }
             }
         ]
@@ -970,34 +751,20 @@ class TestAzureCosmosDocumentStore:
             store.aggregate_documents("messages", pipeline)
 
         # Test with invalid foreignField
-        pipeline = [
-            {
-                "$lookup": {
-                    "from": "chunks",
-                    "localField": "_id",
-                    "foreignField": "message$id",
-                    "as": "chunks"
-                }
-            }
-        ]
+        pipeline = [{"$lookup": {"from": "chunks", "localField": "_id", "foreignField": "message$id", "as": "chunks"}}]
         with pytest.raises(DocumentStoreError, match=r"Invalid foreignField.*in \$lookup"):
             store.aggregate_documents("messages", pipeline)
 
     def test_aggregate_documents_lookup_foreign_collection_query_failure(self):
         """Test that $lookup raises error when foreign collection query fails."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock connected state
         mock_container = MagicMock()
         store.container = mock_container
 
         # Mock the first query (main collection) to succeed
-        mock_container.query_items.return_value = [
-            {"id": "msg1", "collection": "messages", "_id": "msg1"}
-        ]
+        mock_container.query_items.return_value = [{"id": "msg1", "collection": "messages", "_id": "msg1"}]
 
         # Create a side effect that succeeds for first call, fails for second
         from azure.cosmos import exceptions as cosmos_exceptions
@@ -1007,24 +774,12 @@ class TestAzureCosmosDocumentStore:
                 query_side_effect.call_count += 1
                 return [{"id": "msg1", "collection": "messages", "_id": "msg1"}]
             else:
-                raise cosmos_exceptions.CosmosHttpResponseError(
-                    status_code=500,
-                    message="Internal server error"
-                )
+                raise cosmos_exceptions.CosmosHttpResponseError(status_code=500, message="Internal server error")
 
         query_side_effect.call_count = 0
         mock_container.query_items.side_effect = query_side_effect
 
-        pipeline = [
-            {
-                "$lookup": {
-                    "from": "chunks",
-                    "localField": "_id",
-                    "foreignField": "message_id",
-                    "as": "chunks"
-                }
-            }
-        ]
+        pipeline = [{"$lookup": {"from": "chunks", "localField": "_id", "foreignField": "message_id", "as": "chunks"}}]
 
         with pytest.raises(DocumentStoreError, match=r"Failed to query foreign collection.*during \$lookup"):
             store.aggregate_documents("messages", pipeline)
@@ -1035,10 +790,7 @@ class TestAzureCosmosDocumentStoreValidation:
 
     def test_is_valid_field_name_valid_simple(self):
         """Test field name validation with valid simple names."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert store._is_valid_field_name("name")
         assert store._is_valid_field_name("age")
@@ -1048,10 +800,7 @@ class TestAzureCosmosDocumentStoreValidation:
 
     def test_is_valid_field_name_valid_nested(self):
         """Test field name validation with valid nested names."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert store._is_valid_field_name("user.email")
         assert store._is_valid_field_name("address.city")
@@ -1059,19 +808,13 @@ class TestAzureCosmosDocumentStoreValidation:
 
     def test_is_valid_field_name_invalid_empty(self):
         """Test field name validation rejects empty strings."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert not store._is_valid_field_name("")
 
     def test_is_valid_field_name_invalid_special_chars(self):
         """Test field name validation rejects special characters."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert not store._is_valid_field_name("name; DROP TABLE")
         assert not store._is_valid_field_name("user@email")
@@ -1081,10 +824,7 @@ class TestAzureCosmosDocumentStoreValidation:
 
     def test_is_valid_field_name_invalid_empty_components(self):
         """Test field name validation rejects empty components in nested paths."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert not store._is_valid_field_name("user..email")
         assert not store._is_valid_field_name(".email")
@@ -1092,10 +832,7 @@ class TestAzureCosmosDocumentStoreValidation:
 
     def test_is_valid_field_name_sql_injection_attempts(self):
         """Test field name validation rejects SQL injection attempts."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert not store._is_valid_field_name("'; DROP TABLE users; --")
         assert not store._is_valid_field_name("1=1 OR name")
@@ -1103,10 +840,7 @@ class TestAzureCosmosDocumentStoreValidation:
 
     def test_is_valid_document_id_valid(self):
         """Test document ID validation with valid IDs."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert store._is_valid_document_id("abc123")
         assert store._is_valid_document_id("user-001")
@@ -1115,10 +849,7 @@ class TestAzureCosmosDocumentStoreValidation:
 
     def test_is_valid_document_id_invalid_chars(self):
         """Test document ID validation rejects invalid characters."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert not store._is_valid_document_id("doc/id")
         assert not store._is_valid_document_id("doc\\id")
@@ -1127,20 +858,14 @@ class TestAzureCosmosDocumentStoreValidation:
 
     def test_is_valid_document_id_invalid_empty(self):
         """Test document ID validation rejects empty or None."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert not store._is_valid_document_id("")
         assert not store._is_valid_document_id(None)
 
     def test_is_valid_document_id_control_chars(self):
         """Test document ID validation rejects control characters."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert not store._is_valid_document_id("doc\x00id")
         assert not store._is_valid_document_id("doc\nid")
@@ -1152,10 +877,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_query_documents_with_in_operator(self):
         """Test query_documents with $in operator translates to Cosmos SQL IN."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container directly without patching azure.cosmos import
         mock_container = MagicMock()
@@ -1167,9 +889,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
         # Query with $in operator
         result = store.query_documents(
-            collection="archives",
-            filter_dict={"status": {"$in": ["pending", "processing"]}},
-            limit=100
+            collection="archives", filter_dict={"status": {"$in": ["pending", "processing"]}}, limit=100
         )
 
         # Verify query was built correctly
@@ -1195,21 +915,14 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_query_documents_with_in_operator_empty_list(self):
         """Test query_documents with $in operator and empty list returns empty result."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container (should not be called)
         mock_container = MagicMock()
         store.container = mock_container
 
         # Query with empty $in list
-        result = store.query_documents(
-            collection="archives",
-            filter_dict={"status": {"$in": []}},
-            limit=100
-        )
+        result = store.query_documents(collection="archives", filter_dict={"status": {"$in": []}}, limit=100)
 
         # Should return empty result without querying
         assert result == []
@@ -1217,24 +930,15 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_query_documents_with_in_operator_single_value(self):
         """Test query_documents with $in operator with single value."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container
         mock_container = MagicMock()
-        mock_container.query_items.return_value = [
-            {"id": "1", "collection": "archives", "status": "pending"}
-        ]
+        mock_container.query_items.return_value = [{"id": "1", "collection": "archives", "status": "pending"}]
         store.container = mock_container
 
         # Query with $in operator with single value
-        result = store.query_documents(
-            collection="archives",
-            filter_dict={"status": {"$in": ["pending"]}},
-            limit=100
-        )
+        result = store.query_documents(collection="archives", filter_dict={"status": {"$in": ["pending"]}}, limit=100)
 
         # Verify query was built correctly
         call_args = mock_container.query_items.call_args
@@ -1247,24 +951,15 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_query_documents_with_eq_operator(self):
         """Test query_documents with explicit $eq operator."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container
         mock_container = MagicMock()
-        mock_container.query_items.return_value = [
-            {"id": "1", "collection": "archives", "status": "completed"}
-        ]
+        mock_container.query_items.return_value = [{"id": "1", "collection": "archives", "status": "completed"}]
         store.container = mock_container
 
         # Query with $eq operator
-        result = store.query_documents(
-            collection="archives",
-            filter_dict={"status": {"$eq": "completed"}},
-            limit=100
-        )
+        result = store.query_documents(collection="archives", filter_dict={"status": {"$eq": "completed"}}, limit=100)
 
         # Verify query was built correctly
         call_args = mock_container.query_items.call_args
@@ -1276,10 +971,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_query_documents_mixed_operators(self):
         """Test query_documents with mixed simple and operator filters."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container
         mock_container = MagicMock()
@@ -1291,11 +983,8 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Query with both simple equality and $in operator
         result = store.query_documents(
             collection="archives",
-            filter_dict={
-                "source": "ietf-announce",
-                "status": {"$in": ["pending", "processing"]}
-            },
-            limit=50
+            filter_dict={"source": "ietf-announce", "status": {"$in": ["pending", "processing"]}},
+            limit=50,
         )
 
         # Verify query was built
@@ -1310,10 +999,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_aggregate_documents_with_in_operator(self):
         """Test aggregate_documents with $in operator in $match stage."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container
         mock_container = MagicMock()
@@ -1326,10 +1012,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Aggregate with $in in $match
         result = store.aggregate_documents(
             collection="archives",
-            pipeline=[
-                {"$match": {"status": {"$in": ["pending", "processing"]}}},
-                {"$limit": 100}
-            ]
+            pipeline=[{"$match": {"status": {"$in": ["pending", "processing"]}}}, {"$limit": 100}],
         )
 
         # Verify query was built correctly
@@ -1343,10 +1026,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_query_documents_with_in_operator_non_list_value(self):
         """Test query_documents with $in operator given non-list value logs warning and skips field."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container
         mock_container = MagicMock()
@@ -1354,11 +1034,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         store.container = mock_container
 
         # Query with $in operator with non-list value (should be skipped)
-        result = store.query_documents(
-            collection="archives",
-            filter_dict={"status": {"$in": "pending"}},
-            limit=100
-        )
+        result = store.query_documents(collection="archives", filter_dict={"status": {"$in": "pending"}}, limit=100)
 
         # Verify query was built without the $in clause (field skipped)
         call_args = mock_container.query_items.call_args
@@ -1373,10 +1049,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_query_documents_with_non_operator_keys(self):
         """Test query_documents with mixed operator and non-operator keys logs warning and skips field."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container
         mock_container = MagicMock()
@@ -1385,9 +1058,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
         # Query with mixed operator and non-operator keys (should be skipped)
         result = store.query_documents(
-            collection="archives",
-            filter_dict={"status": {"$in": ["pending"], "invalid_key": "value"}},
-            limit=100
+            collection="archives", filter_dict={"status": {"$in": ["pending"], "invalid_key": "value"}}, limit=100
         )
 
         # Verify query was built without the status clause (field skipped)
@@ -1403,10 +1074,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_query_documents_with_unsupported_operator(self):
         """Test query_documents with unsupported operator logs warning and skips operator."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container
         mock_container = MagicMock()
@@ -1414,11 +1082,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         store.container = mock_container
 
         # Query with unsupported operator like $gt
-        result = store.query_documents(
-            collection="archives",
-            filter_dict={"age": {"$gt": 30}},
-            limit=100
-        )
+        result = store.query_documents(collection="archives", filter_dict={"age": {"$gt": 30}}, limit=100)
 
         # Verify query was built without the unsupported operator
         call_args = mock_container.query_items.call_args
@@ -1433,10 +1097,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_aggregate_documents_with_in_operator_empty_list(self):
         """Test aggregate_documents with $in operator and empty list returns empty result."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container (should not be called)
         mock_container = MagicMock()
@@ -1444,11 +1105,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
         # Aggregate with empty $in list
         result = store.aggregate_documents(
-            collection="archives",
-            pipeline=[
-                {"$match": {"status": {"$in": []}}},
-                {"$limit": 100}
-            ]
+            collection="archives", pipeline=[{"$match": {"status": {"$in": []}}}, {"$limit": 100}]
         )
 
         # Should return empty result without querying
@@ -1457,10 +1114,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_aggregate_documents_with_in_operator_non_list_value(self):
         """Test aggregate_documents with $in operator given non-list value logs warning and skips field."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container
         mock_container = MagicMock()
@@ -1469,11 +1123,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
         # Aggregate with $in operator with non-list value (should be skipped)
         result = store.aggregate_documents(
-            collection="archives",
-            pipeline=[
-                {"$match": {"status": {"$in": "pending"}}},
-                {"$limit": 100}
-            ]
+            collection="archives", pipeline=[{"$match": {"status": {"$in": "pending"}}}, {"$limit": 100}]
         )
 
         # Verify query was built without the $in clause (field skipped)
@@ -1489,10 +1139,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_aggregate_documents_with_non_operator_keys(self):
         """Test aggregate_documents with mixed operator and non-operator keys logs warning and skips field."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container
         mock_container = MagicMock()
@@ -1502,10 +1149,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Aggregate with mixed operator and non-operator keys (should be skipped)
         result = store.aggregate_documents(
             collection="archives",
-            pipeline=[
-                {"$match": {"status": {"$in": ["pending"], "invalid_key": "value"}}},
-                {"$limit": 100}
-            ]
+            pipeline=[{"$match": {"status": {"$in": ["pending"], "invalid_key": "value"}}}, {"$limit": 100}],
         )
 
         # Verify query was built without the status clause (field skipped)
@@ -1521,10 +1165,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
     def test_aggregate_documents_with_unsupported_operator(self):
         """Test aggregate_documents with unsupported operator logs warning and skips operator."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey"
-        )
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         # Mock container
         mock_container = MagicMock()
@@ -1533,11 +1174,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
         # Aggregate with unsupported operator like $regex
         result = store.aggregate_documents(
-            collection="archives",
-            pipeline=[
-                {"$match": {"name": {"$regex": "pattern"}}},
-                {"$limit": 100}
-            ]
+            collection="archives", pipeline=[{"$match": {"name": {"$regex": "pattern"}}}, {"$limit": 100}]
         )
 
         # Verify query was built without the unsupported operator
@@ -1550,4 +1187,3 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
         # Verify result
         assert result == []
-

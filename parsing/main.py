@@ -3,18 +3,14 @@
 
 """Parsing Service: Convert raw .mbox files into structured JSON."""
 
-import os
-import sys
 import threading
 from dataclasses import replace
 from typing import cast
 
-# Add app directory to path
-sys.path.insert(0, os.path.dirname(__file__))
-
 import uvicorn
-from copilot_config.runtime_loader import get_config
-from copilot_config.generated.services.parsing import ServiceConfig_Parsing
+from app import __version__
+from app.service import ParsingService
+from copilot_archive_store import create_archive_store
 from copilot_config.generated.adapters.message_bus import (
     DriverConfig_MessageBus_AzureServiceBus,
     DriverConfig_MessageBus_Rabbitmq,
@@ -24,10 +20,9 @@ from copilot_config.generated.adapters.metrics import (
     DriverConfig_Metrics_Prometheus,
     DriverConfig_Metrics_Pushgateway,
 )
-from copilot_message_bus import (
-    create_publisher,
-    create_subscriber,
-)
+from copilot_config.generated.services.parsing import ServiceConfig_Parsing
+from copilot_config.runtime_loader import get_config
+from copilot_error_reporting import create_error_reporter
 from copilot_logging import (
     create_logger,
     create_stdout_logger,
@@ -35,19 +30,19 @@ from copilot_logging import (
     get_logger,
     set_default_logger,
 )
+from copilot_message_bus import (
+    create_publisher,
+    create_subscriber,
+)
 from copilot_metrics import create_metrics_collector
-from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider, get_configuration_schema_response
 from copilot_storage import DocumentStoreConnectionError, create_document_store
-from copilot_archive_store import create_archive_store
 from fastapi import FastAPI, HTTPException
 
 # Bootstrap logger before configuration is loaded
 bootstrap_logger = create_stdout_logger(level="INFO", name="parsing")
 set_default_logger(bootstrap_logger)
 
-from app import __version__
-from app.service import ParsingService
 logger = bootstrap_logger
 
 # Create FastAPI app
@@ -144,12 +139,8 @@ def main():
             try:
                 from copilot_auth import create_jwt_middleware
 
-                auth_service_url = str(
-                    config.service_settings.auth_service_url or "http://auth:8090"
-                )
-                audience = str(
-                    config.service_settings.service_audience or "copilot-for-consensus"
-                )
+                auth_service_url = str(config.service_settings.auth_service_url or "http://auth:8090")
+                audience = str(config.service_settings.service_audience or "copilot-for-consensus")
                 auth_middleware = create_jwt_middleware(
                     auth_service_url=auth_service_url,
                     audience=audience,
@@ -208,6 +199,7 @@ def main():
 
         # Refresh module-level service logger to use the current default
         from app import service as parsing_service_module
+
         parsing_service_module.logger = get_logger(parsing_service_module.__name__)
 
         # Create event publisher with schema validation
@@ -225,9 +217,7 @@ def main():
                 logger.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
-                logger.warning(
-                    f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}"
-                )
+                logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
         # Create event subscriber with built-in schema validation
         logger.info("Creating event subscriber...")
@@ -302,7 +292,7 @@ def main():
         logger.info("Shutting down parsing service")
     except Exception as e:
         logger.error(f"Fatal error in parsing service: {e}", exc_info=True)
-        sys.exit(1)
+        raise SystemExit(1)
     finally:
         # Cleanup
         if parsing_service:

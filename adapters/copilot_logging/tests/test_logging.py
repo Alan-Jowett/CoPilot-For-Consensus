@@ -13,7 +13,6 @@ from copilot_config.generated.adapters.logger import (
     DriverConfig_Logger_Silent,
     DriverConfig_Logger_Stdout,
 )
-
 from copilot_logging.factory import create_logger
 from copilot_logging.logger import Logger
 from copilot_logging.silent_logger import SilentLogger
@@ -270,7 +269,7 @@ class TestStdoutLogger:
         with pytest.raises(ValueError, match="Invalid log level"):
             StdoutLogger(level="INVALID")
 
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_info_logging_output(self, mock_stdout):
         """Test that info logging produces correct JSON output."""
         logger = StdoutLogger(level="INFO", name="test")
@@ -285,7 +284,7 @@ class TestStdoutLogger:
         assert log_entry["logger"] == "test"
         assert "timestamp" in log_entry
 
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_warning_logging_output(self, mock_stdout):
         """Test that warning logging produces correct JSON output."""
         logger = StdoutLogger(level="INFO", name="test")
@@ -298,7 +297,7 @@ class TestStdoutLogger:
         assert log_entry["level"] == "WARNING"
         assert log_entry["message"] == "Test warning message"
 
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_error_logging_output(self, mock_stdout):
         """Test that error logging produces correct JSON output."""
         logger = StdoutLogger(level="INFO", name="test")
@@ -311,7 +310,7 @@ class TestStdoutLogger:
         assert log_entry["level"] == "ERROR"
         assert log_entry["message"] == "Test error message"
 
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_debug_logging_output(self, mock_stdout):
         """Test that debug logging produces correct JSON output."""
         logger = StdoutLogger(level="DEBUG", name="test")
@@ -324,7 +323,7 @@ class TestStdoutLogger:
         assert log_entry["level"] == "DEBUG"
         assert log_entry["message"] == "Test debug message"
 
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_logging_with_extra_fields(self, mock_stdout):
         """Test logging with additional structured data."""
         logger = StdoutLogger(level="INFO", name="test")
@@ -339,23 +338,23 @@ class TestStdoutLogger:
         assert log_entry["extra"]["action"] == "login"
         assert log_entry["extra"]["ip"] == "192.168.1.1"
 
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_log_level_filtering(self, mock_stdout):
         """Test that logs below the configured level are not output."""
         logger = StdoutLogger(level="WARNING", name="test")
 
         logger.debug("Debug message")  # Should not output
-        logger.info("Info message")    # Should not output
+        logger.info("Info message")  # Should not output
         logger.warning("Warning message")  # Should output
 
         output = mock_stdout.getvalue().strip()
 
         # Only one line should be output (the WARNING)
-        assert output.count('\n') == 0  # No newlines means one log
+        assert output.count("\n") == 0  # No newlines means one log
         log_entry = json.loads(output)
         assert log_entry["level"] == "WARNING"
 
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_multiple_logs(self, mock_stdout):
         """Test multiple log messages."""
         logger = StdoutLogger(level="INFO", name="test")
@@ -365,14 +364,14 @@ class TestStdoutLogger:
         logger.info("Message 3")
 
         output = mock_stdout.getvalue().strip()
-        lines = output.split('\n')
+        lines = output.split("\n")
 
         assert len(lines) == 3
         for i, line in enumerate(lines, 1):
             log_entry = json.loads(line)
             assert log_entry["message"] == f"Message {i}"
 
-    @patch('sys.stdout', new_callable=StringIO)
+    @patch("sys.stdout", new_callable=StringIO)
     def test_timestamp_format(self, mock_stdout):
         """Test that timestamp is in ISO format with Z suffix."""
         logger = StdoutLogger(level="INFO", name="test")

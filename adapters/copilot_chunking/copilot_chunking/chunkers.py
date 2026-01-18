@@ -21,11 +21,8 @@ from copilot_config.generated.adapters.chunker import (
 )
 from copilot_schema_validation import generate_chunk_id
 
-
 ChunkerDriverConfig: TypeAlias = (
-    DriverConfig_Chunker_FixedSize
-    | DriverConfig_Chunker_Semantic
-    | DriverConfig_Chunker_TokenWindow
+    DriverConfig_Chunker_FixedSize | DriverConfig_Chunker_Semantic | DriverConfig_Chunker_TokenWindow
 )
 
 
@@ -44,6 +41,7 @@ class Chunk:
         start_offset: Character offset in original text (optional)
         end_offset: End character offset in original text (optional)
     """
+
     chunk_id: str
     text: str
     chunk_index: int
@@ -67,6 +65,7 @@ class Thread:
         message_id: RFC 5322 Message-ID header, optional
         messages: Optional list of individual messages in the thread
     """
+
     thread_id: str
     text: str
     metadata: dict[str, Any]
@@ -112,13 +111,7 @@ class TokenWindowChunker(ThreadChunker):
         max_chunk_size: Maximum chunk size (hard limit)
     """
 
-    def __init__(
-        self,
-        chunk_size: int = 384,
-        overlap: int = 50,
-        min_chunk_size: int = 100,
-        max_chunk_size: int = 512
-    ):
+    def __init__(self, chunk_size: int = 384, overlap: int = 50, min_chunk_size: int = 100, max_chunk_size: int = 512):
         """Initialize TokenWindowChunker.
 
         Args:
@@ -198,7 +191,7 @@ class TokenWindowChunker(ThreadChunker):
                     token_count=len(chunk_words),
                     metadata=thread.metadata.copy(),
                     start_offset=None,  # Could calculate character offsets if needed
-                    end_offset=None
+                    end_offset=None,
                 )
                 chunks.append(chunk)
                 chunk_index += 1
@@ -275,7 +268,7 @@ class FixedSizeChunker(ThreadChunker):
 
         chunks = []
         for i in range(0, len(message_blocks), self.messages_per_chunk):
-            chunk_blocks = message_blocks[i:i + self.messages_per_chunk]
+            chunk_blocks = message_blocks[i : i + self.messages_per_chunk]
             chunk_text = "\n\n".join(chunk_blocks)
 
             # Simple word count as token approximation
@@ -289,7 +282,7 @@ class FixedSizeChunker(ThreadChunker):
                 text=chunk_text,
                 chunk_index=chunk_idx,
                 token_count=token_count,
-                metadata=thread.metadata.copy()
+                metadata=thread.metadata.copy(),
             )
             chunks.append(chunk)
 
@@ -313,18 +306,16 @@ class FixedSizeChunker(ThreadChunker):
         messages = thread.messages or []
 
         for i in range(0, len(messages), self.messages_per_chunk):
-            chunk_messages = messages[i:i + self.messages_per_chunk]
+            chunk_messages = messages[i : i + self.messages_per_chunk]
 
             # Combine message texts
-            chunk_text = "\n\n".join(
-                msg.get("text", msg.get("body", ""))
-                for msg in chunk_messages
-            )
+            chunk_text = "\n\n".join(msg.get("text", msg.get("body", "")) for msg in chunk_messages)
 
             # Require message_doc_id on each message; fail fast if missing to avoid ambiguous IDs
             missing_info = [
                 f"index {idx} (message_id: {msg.get('message_id', 'unknown')})"
-                for idx, msg in enumerate(chunk_messages) if not msg.get("message_doc_id")
+                for idx, msg in enumerate(chunk_messages)
+                if not msg.get("message_doc_id")
             ]
             if missing_info:
                 max_display = 5
@@ -351,7 +342,7 @@ class FixedSizeChunker(ThreadChunker):
                 text=chunk_text,
                 chunk_index=chunk_idx,
                 token_count=token_count,
-                metadata=combined_metadata
+                metadata=combined_metadata,
             )
             chunks.append(chunk)
 
@@ -370,11 +361,7 @@ class SemanticChunker(ThreadChunker):
         split_on_speaker: Whether to split on speaker changes (not yet implemented)
     """
 
-    def __init__(
-        self,
-        target_chunk_size: int = 400,
-        split_on_speaker: bool = False
-    ):
+    def __init__(self, target_chunk_size: int = 400, split_on_speaker: bool = False):
         """Initialize SemanticChunker.
 
         Args:
@@ -441,7 +428,7 @@ class SemanticChunker(ThreadChunker):
                     text=chunk_text,
                     chunk_index=chunk_index,
                     token_count=current_token_count,
-                    metadata=thread.metadata.copy()
+                    metadata=thread.metadata.copy(),
                 )
                 chunks.append(chunk)
                 chunk_index += 1
@@ -463,7 +450,7 @@ class SemanticChunker(ThreadChunker):
                 text=chunk_text,
                 chunk_index=chunk_index,
                 token_count=current_token_count,
-                metadata=thread.metadata.copy()
+                metadata=thread.metadata.copy(),
             )
             chunks.append(chunk)
 
@@ -484,7 +471,7 @@ class SemanticChunker(ThreadChunker):
         import re
 
         # Split on sentence terminators followed by whitespace
-        sentences = re.split(r'(?<=[.!?])\s+', text)
+        sentences = re.split(r"(?<=[.!?])\s+", text)
         return [s.strip() for s in sentences if s.strip()]
 
 
@@ -506,9 +493,7 @@ def create_chunker(
     def _build_token_window(driver_config: ChunkerDriverConfig) -> ThreadChunker:
         if isinstance(driver_config, DriverConfig_Chunker_TokenWindow):
             return TokenWindowChunker.from_config(driver_config)
-        raise TypeError(
-            f"Expected token_window config, got {type(driver_config).__name__}"
-        )
+        raise TypeError(f"Expected token_window config, got {type(driver_config).__name__}")
 
     def _build_fixed_size(driver_config: ChunkerDriverConfig) -> ThreadChunker:
         if isinstance(driver_config, DriverConfig_Chunker_FixedSize):
@@ -531,4 +516,3 @@ def create_chunker(
             "semantic": _build_semantic,
         },
     )
-

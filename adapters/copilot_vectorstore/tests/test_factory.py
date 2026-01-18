@@ -13,13 +13,13 @@ from copilot_config.generated.adapters.vector_store import (
     DriverConfig_VectorStore_Inmemory,
     DriverConfig_VectorStore_Qdrant,
 )
-
 from copilot_vectorstore import create_vector_store
 from copilot_vectorstore.inmemory import InMemoryVectorStore
 
 try:
     import faiss  # type: ignore[import]  # noqa: F401
     from copilot_vectorstore.faiss_store import FAISSVectorStore
+
     FAISS_AVAILABLE = True
 except ImportError:
     FAISS_AVAILABLE = False

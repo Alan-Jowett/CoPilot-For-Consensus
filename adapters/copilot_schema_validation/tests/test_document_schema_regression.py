@@ -30,7 +30,7 @@ class TestMessageSchemaRegression:
             "thread_id": "feedfacecafebeef",
             "date": None,
             "body_normalized": "Test message body",
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
@@ -45,7 +45,7 @@ class TestMessageSchemaRegression:
             "thread_id": "feedfacecafebeef",
             "subject": None,
             "body_normalized": "Test message body",
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
@@ -60,7 +60,7 @@ class TestMessageSchemaRegression:
             "thread_id": "feedfacecafebeef",
             "from": None,
             "body_normalized": "Test message body",
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
@@ -75,7 +75,7 @@ class TestMessageSchemaRegression:
             "thread_id": "feedfacecafebeef",
             "references": ["ref-1", "ref-2", "ref-1"],  # Duplicate ref-1
             "body_normalized": "Test message body",
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
@@ -89,7 +89,7 @@ class TestMessageSchemaRegression:
             "archive_id": "a1b2c3d4e5f67890",
             "thread_id": "feedfacecafebeef",
             "body_normalized": "Test message body",
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
@@ -104,7 +104,7 @@ class TestMessageSchemaRegression:
             "thread_id": "feedfacecafebeef",
             "subject": "Valid Subject",
             "body_normalized": "Test message body",
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
@@ -119,7 +119,7 @@ class TestMessageSchemaRegression:
             "thread_id": "feedfacecafebeef",
             "subject": "",  # Empty string is allowed
             "body_normalized": "Test message body",
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
@@ -134,10 +134,10 @@ class TestMessageSchemaRegression:
             "thread_id": "feedfacecafebeef",
             "from": {
                 "name": "",  # Empty string now allowed
-                "email": "sender@example.com"
+                "email": "sender@example.com",
             },
             "body_normalized": "Test message body",
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
@@ -160,7 +160,7 @@ class TestThreadSchemaRegression:
             "first_message_date": None,
             "last_message_date": "2025-01-02T00:00:00Z",
             "has_consensus": False,
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(thread, threads_schema, schema_provider=document_schema_provider)
@@ -174,7 +174,7 @@ class TestThreadSchemaRegression:
             "first_message_date": "2025-01-01T00:00:00Z",
             "last_message_date": None,
             "has_consensus": False,
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(thread, threads_schema, schema_provider=document_schema_provider)
@@ -187,7 +187,7 @@ class TestThreadSchemaRegression:
             "archive_id": "a1b2c3d4e5f67890",
             "consensus_type": None,
             "has_consensus": False,
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(thread, threads_schema, schema_provider=document_schema_provider)
@@ -200,7 +200,7 @@ class TestThreadSchemaRegression:
             "archive_id": "a1b2c3d4e5f67890",
             "summary_id": None,
             "has_consensus": False,
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(thread, threads_schema, schema_provider=document_schema_provider)
@@ -212,7 +212,7 @@ class TestThreadSchemaRegression:
             "_id": "a1b2c3d4e5f67890",
             "archive_id": "a1b2c3d4e5f67890",
             "has_consensus": False,
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         is_valid, errors = validate_json(thread, threads_schema, schema_provider=document_schema_provider)
@@ -236,7 +236,7 @@ class TestArchiveSchemaRegression:
             "source": "test-source",
             "ingestion_date": "2025-01-01T00:00:00Z",
             "status": "completed",
-            "custom_field": "custom_value"  # Additional property
+            "custom_field": "custom_value",  # Additional property
         }
 
         is_valid, errors = validate_json(archive, archives_schema, schema_provider=document_schema_provider)
@@ -262,7 +262,7 @@ class TestChunkSchemaRegression:
             "text": "Test chunk text",
             "created_at": "2025-01-01T00:00:00Z",
             "embedding_generated": False,
-            "custom_field": "custom_value"  # Additional property
+            "custom_field": "custom_value",  # Additional property
         }
 
         is_valid, errors = validate_json(chunk, chunks_schema, schema_provider=document_schema_provider)
@@ -284,7 +284,7 @@ class TestSummarySchemaRegression:
             "summary_type": "thread",
             "generated_at": "2025-01-01T00:00:00Z",
             "content_markdown": "# Test Summary\n\nThis is a test.",
-            "custom_field": "custom_value"  # Additional property
+            "custom_field": "custom_value",  # Additional property
         }
 
         is_valid, errors = validate_json(summary, summaries_schema, schema_provider=document_schema_provider)

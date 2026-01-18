@@ -17,7 +17,7 @@ class TestOpenAISummarizer:
         """Test creating an OpenAI summarizer."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-        with patch.dict('sys.modules', {'openai': mock_module}):
+        with patch.dict("sys.modules", {"openai": mock_module}):
             summarizer = OpenAISummarizer(api_key="test-key")
             assert summarizer.api_key == "test-key"
             assert summarizer.model == "gpt-3.5-turbo"
@@ -28,11 +28,8 @@ class TestOpenAISummarizer:
         """Test creating an OpenAI summarizer with custom model."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-        with patch.dict('sys.modules', {'openai': mock_module}):
-            summarizer = OpenAISummarizer(
-                api_key="test-key",
-                model="gpt-4"
-            )
+        with patch.dict("sys.modules", {"openai": mock_module}):
+            summarizer = OpenAISummarizer(api_key="test-key", model="gpt-4")
             assert summarizer.model == "gpt-4"
             assert summarizer.is_azure is False
 
@@ -47,15 +44,13 @@ class TestOpenAISummarizer:
 
         mock_client.chat.completions.create = Mock(return_value=mock_response)
 
-        with patch.dict('sys.modules', {'openai': mock_module}):
+        with patch.dict("sys.modules", {"openai": mock_module}):
             summarizer = OpenAISummarizer(api_key="test-key", model="gpt-4")
 
-            complete_prompt = "Summarize the following discussion thread:\n\nMessage 1:\nMessage 1\n\nMessage 2:\nMessage 2\n\n"
-            thread = Thread(
-                thread_id="test-thread-123",
-                messages=["Message 1", "Message 2"],
-                prompt=complete_prompt
+            complete_prompt = (
+                "Summarize the following discussion thread:\n\nMessage 1:\nMessage 1\n\nMessage 2:\nMessage 2\n\n"
             )
+            thread = Thread(thread_id="test-thread-123", messages=["Message 1", "Message 2"], prompt=complete_prompt)
 
             summary = summarizer.summarize(thread)
 
@@ -77,7 +72,7 @@ class TestOpenAISummarizer:
 
     def test_openai_initialization_without_library(self):
         """Test that initialization fails without openai library."""
-        with patch.dict('sys.modules', {'openai': None}):
+        with patch.dict("sys.modules", {"openai": None}):
             with pytest.raises(ImportError) as exc_info:
                 OpenAISummarizer(api_key="test-key")
 

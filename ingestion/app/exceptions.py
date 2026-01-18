@@ -6,11 +6,13 @@
 
 class IngestionError(Exception):
     """Base exception for ingestion service errors."""
+
     pass
 
 
 class SourceConfigurationError(IngestionError):
     """Raised when source configuration is invalid or missing required fields."""
+
     pass
 
 
@@ -32,6 +34,7 @@ class FetchError(IngestionError):
 
 class ChecksumPersistenceError(IngestionError):
     """Raised when checksum metadata cannot be saved."""
+
     pass
 
 

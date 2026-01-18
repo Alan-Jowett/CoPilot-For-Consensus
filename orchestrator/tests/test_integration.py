@@ -3,15 +3,16 @@
 
 """Integration tests for the orchestration service."""
 
-from pathlib import Path
-
 import pytest
 from app.service import OrchestrationService
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
+from copilot_event_retry.event_handler import DocumentNotFoundError
 from copilot_message_bus import create_publisher, create_subscriber
 from copilot_storage import create_document_store
-from copilot_event_retry.event_handler import DocumentNotFoundError
-from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
-from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
 
 pytestmark = pytest.mark.integration
 
@@ -25,6 +26,7 @@ def create_query_with_in_support(original_query):
     Returns:
         A custom query function that supports $in operator
     """
+
     def custom_query(collection, filter_dict, limit=100):
         # Handle $in operator for chunk_ids
         if "chunk_id" in filter_dict and isinstance(filter_dict["chunk_id"], dict):

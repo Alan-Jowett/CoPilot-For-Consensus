@@ -3,19 +3,25 @@
 
 """Unit tests for ingestion API endpoints."""
 
-import pytest
 from unittest.mock import patch
 
+import pytest
 from app.api import create_api_router
 from app.service import IngestionService
-from copilot_config.generated.adapters.document_store import AdapterConfig_DocumentStore, DriverConfig_DocumentStore_Inmemory
-from copilot_config.generated.adapters.error_reporter import AdapterConfig_ErrorReporter, DriverConfig_ErrorReporter_Silent
+from copilot_config.generated.adapters.document_store import (
+    AdapterConfig_DocumentStore,
+    DriverConfig_DocumentStore_Inmemory,
+)
+from copilot_config.generated.adapters.error_reporter import (
+    AdapterConfig_ErrorReporter,
+    DriverConfig_ErrorReporter_Silent,
+)
 from copilot_config.generated.adapters.logger import AdapterConfig_Logger, DriverConfig_Logger_Silent
 from copilot_config.generated.adapters.message_bus import AdapterConfig_MessageBus, DriverConfig_MessageBus_Noop
 from copilot_config.generated.adapters.metrics import AdapterConfig_Metrics, DriverConfig_Metrics_Noop
 from copilot_error_reporting import create_error_reporter
-from copilot_message_bus import create_publisher
 from copilot_logging import create_logger
+from copilot_message_bus import create_publisher
 from copilot_metrics import create_metrics_collector
 from copilot_storage import create_document_store
 from fastapi import FastAPI
@@ -52,7 +58,9 @@ def service(document_store, tmp_path):
     publisher.connect()
 
     logger = create_logger(
-        AdapterConfig_Logger(logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test"))
+        AdapterConfig_Logger(
+            logger_type="silent", driver=DriverConfig_Logger_Silent(level="INFO", name="ingestion-test")
+        )
     )
     metrics = create_metrics_collector(AdapterConfig_Metrics(metrics_type="noop", driver=DriverConfig_Metrics_Noop()))
     error_reporter = create_error_reporter(
@@ -385,31 +393,46 @@ class TestSourcesEndpoints:
         # Add some mock data to document store to simulate associated data
         if service.document_store:
             # Add an archive
-            service.document_store.insert_document("archives", {
-                "_id": "archive-123",
-                "source": "test-source",
-                "file_hash": "abc123",
-            })
+            service.document_store.insert_document(
+                "archives",
+                {
+                    "_id": "archive-123",
+                    "source": "test-source",
+                    "file_hash": "abc123",
+                },
+            )
             # Add a thread
-            service.document_store.insert_document("threads", {
-                "_id": "thread-123",
-                "source": "test-source",
-            })
+            service.document_store.insert_document(
+                "threads",
+                {
+                    "_id": "thread-123",
+                    "source": "test-source",
+                },
+            )
             # Add a message
-            service.document_store.insert_document("messages", {
-                "_id": "message-123",
-                "source": "test-source",
-            })
+            service.document_store.insert_document(
+                "messages",
+                {
+                    "_id": "message-123",
+                    "source": "test-source",
+                },
+            )
             # Add a chunk
-            service.document_store.insert_document("chunks", {
-                "_id": "chunk-123",
-                "source": "test-source",
-            })
+            service.document_store.insert_document(
+                "chunks",
+                {
+                    "_id": "chunk-123",
+                    "source": "test-source",
+                },
+            )
             # Add a summary
-            service.document_store.insert_document("summaries", {
-                "_id": "summary-123",
-                "source": "test-source",
-            })
+            service.document_store.insert_document(
+                "summaries",
+                {
+                    "_id": "summary-123",
+                    "source": "test-source",
+                },
+            )
 
         # Delete with cascade
         response = client.delete("/api/sources/test-source?cascade=true")
@@ -452,11 +475,14 @@ class TestSourcesEndpoints:
         # Add some mock data to document store to simulate associated data
         if service.document_store:
             # Add an archive
-            service.document_store.insert_document("archives", {
-                "_id": "archive-456",
-                "source": "test-source",
-                "file_hash": "def456",
-            })
+            service.document_store.insert_document(
+                "archives",
+                {
+                    "_id": "archive-456",
+                    "source": "test-source",
+                    "file_hash": "def456",
+                },
+            )
 
         # Delete without cascade (default)
         response = client.delete("/api/sources/test-source")
@@ -485,27 +511,39 @@ class TestSourcesEndpoints:
 
         # Add test data
         if service.document_store:
-            service.document_store.insert_document("archives", {
-                "_id": "archive-123",
-                "source": "test-source",
-                "file_hash": "abc123",
-            })
-            service.document_store.insert_document("threads", {
-                "_id": "thread-123",
-                "source": "test-source",
-            })
-            service.document_store.insert_document("threads", {
-                "_id": "thread-456",
-                "source": "test-source",
-            })
-            service.document_store.insert_document("messages", {
-                "_id": "message-123",
-                "source": "test-source",
-            })
+            service.document_store.insert_document(
+                "archives",
+                {
+                    "_id": "archive-123",
+                    "source": "test-source",
+                    "file_hash": "abc123",
+                },
+            )
+            service.document_store.insert_document(
+                "threads",
+                {
+                    "_id": "thread-123",
+                    "source": "test-source",
+                },
+            )
+            service.document_store.insert_document(
+                "threads",
+                {
+                    "_id": "thread-456",
+                    "source": "test-source",
+                },
+            )
+            service.document_store.insert_document(
+                "messages",
+                {
+                    "_id": "message-123",
+                    "source": "test-source",
+                },
+            )
 
         # Mock delete_document to fail for one specific thread
         original_delete = service.document_store.delete_document
-        
+
         # NOTE: The document_store fixture uses an in-memory driver, so calling the
         # original delete_document implementation here is safe and side-effect free.
         # We do this deliberately to preserve realistic cascade-delete behavior while
@@ -514,13 +552,13 @@ class TestSourcesEndpoints:
             if collection == "threads" and doc_id == "thread-123":
                 raise Exception("Simulated deletion failure")
             return original_delete(collection, doc_id)
-        
-        with patch.object(service.document_store, 'delete_document', side_effect=mock_delete):
+
+        with patch.object(service.document_store, "delete_document", side_effect=mock_delete):
             response = client.delete("/api/sources/test-source?cascade=true")
 
         assert response.status_code == 200
         data = response.json()
-        
+
         # Should still succeed overall, with partial counts
         assert data["cascade"] is True
         assert "deletion_counts" in data
@@ -540,30 +578,33 @@ class TestSourcesEndpoints:
 
         # Add archive to document store
         if service.document_store:
-            service.document_store.insert_document("archives", {
-                "_id": "archive-123",
-                "source": "test-source",
-                "file_hash": "abc123",
-            })
+            service.document_store.insert_document(
+                "archives",
+                {
+                    "_id": "archive-123",
+                    "source": "test-source",
+                    "file_hash": "abc123",
+                },
+            )
 
         # Track archive_store delete calls
         delete_archive_calls = []
-        
+
         def track_delete_archive(archive_id):
             delete_archive_calls.append(archive_id)
             return True
-        
+
         # Use patch.object as context manager for clean teardown
-        with patch.object(service.archive_store, 'delete_archive', side_effect=track_delete_archive):
+        with patch.object(service.archive_store, "delete_archive", side_effect=track_delete_archive):
             response = client.delete("/api/sources/test-source?cascade=true")
 
         assert response.status_code == 200
         data = response.json()
-        
+
         # Verify archive_store.delete_archive was called
         assert len(delete_archive_calls) == 1
         assert "archive-123" in delete_archive_calls
-        
+
         # Verify deletion count includes archive_store
         assert data["deletion_counts"]["archives_archivestore"] == 1
 
@@ -751,8 +792,9 @@ class TestUploadEndpoint:
         """Test uploading a file exceeding size limit."""
         # Mock MAX_UPLOAD_SIZE to avoid allocating 101MB in tests
         import app.api
+
         original_max = app.api.MAX_UPLOAD_SIZE
-        monkeypatch.setattr(app.api, 'MAX_UPLOAD_SIZE', 1000)  # 1KB limit for testing
+        monkeypatch.setattr(app.api, "MAX_UPLOAD_SIZE", 1000)  # 1KB limit for testing
 
         try:
             # Create file content larger than mocked limit
@@ -765,7 +807,7 @@ class TestUploadEndpoint:
             assert "too large" in response.json()["detail"].lower()
         finally:
             # Restore original value
-            monkeypatch.setattr(app.api, 'MAX_UPLOAD_SIZE', original_max)
+            monkeypatch.setattr(app.api, "MAX_UPLOAD_SIZE", original_max)
 
     def test_upload_tar_gz_compound_extension(self, client):
         """Test uploading a file with compound extension (.tar.gz)."""
@@ -780,7 +822,3 @@ class TestUploadEndpoint:
         # Verify compound extension is preserved
         assert data["filename"].endswith(".tar.gz")
         assert "archive" in data["filename"]
-
-
-
-

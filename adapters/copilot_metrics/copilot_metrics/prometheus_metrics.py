@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 # Import prometheus_client with graceful fallback
 try:
-    from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, REGISTRY
+    from prometheus_client import REGISTRY, CollectorRegistry, Counter, Gauge, Histogram
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -72,7 +73,7 @@ class PrometheusMetricsCollector(MetricsCollector):
         self._gauges: dict[PrometheusMetricsCollector._CacheKey, Gauge] = {}
         self._metrics_errors_count = 0
 
-    def _get_or_create_counter(self, name: str, tags: dict[str, str] | None = None) -> 'Counter':
+    def _get_or_create_counter(self, name: str, tags: dict[str, str] | None = None) -> Counter:
         """Get or create a Prometheus counter.
 
         Args:
@@ -91,12 +92,12 @@ class PrometheusMetricsCollector(MetricsCollector):
                 documentation=f"Counter metric: {name}",
                 labelnames=labelnames,
                 namespace=self.namespace,
-                registry=self.registry
+                registry=self.registry,
             )
 
         return self._counters[cache_key]
 
-    def _get_or_create_histogram(self, name: str, tags: dict[str, str] | None = None) -> 'Histogram':
+    def _get_or_create_histogram(self, name: str, tags: dict[str, str] | None = None) -> Histogram:
         """Get or create a Prometheus histogram.
 
         Args:
@@ -115,12 +116,12 @@ class PrometheusMetricsCollector(MetricsCollector):
                 documentation=f"Histogram metric: {name}",
                 labelnames=labelnames,
                 namespace=self.namespace,
-                registry=self.registry
+                registry=self.registry,
             )
 
         return self._histograms[cache_key]
 
-    def _get_or_create_gauge(self, name: str, tags: dict[str, str] | None = None) -> 'Gauge':
+    def _get_or_create_gauge(self, name: str, tags: dict[str, str] | None = None) -> Gauge:
         """Get or create a Prometheus gauge.
 
         Args:
@@ -139,7 +140,7 @@ class PrometheusMetricsCollector(MetricsCollector):
                 documentation=f"Gauge metric: {name}",
                 labelnames=labelnames,
                 namespace=self.namespace,
-                registry=self.registry
+                registry=self.registry,
             )
 
         return self._gauges[cache_key]
@@ -216,7 +217,7 @@ class PrometheusMetricsCollector(MetricsCollector):
         return self._metrics_errors_count
 
     @classmethod
-    def from_config(cls, driver_config: DriverConfig_Metrics_Prometheus) -> "PrometheusMetricsCollector":
+    def from_config(cls, driver_config: DriverConfig_Metrics_Prometheus) -> PrometheusMetricsCollector:
         """Create a PrometheusMetricsCollector from configuration.
 
         Args:

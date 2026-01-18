@@ -8,7 +8,6 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from ..adapters.archive_store import AdapterConfig_ArchiveStore
 from ..adapters.document_store import AdapterConfig_DocumentStore
@@ -22,18 +21,20 @@ from ..adapters.secret_provider import AdapterConfig_SecretProvider
 @dataclass
 class ServiceSettings_Parsing:
     """Service-specific settings for parsing."""
-    auth_service_url: Optional[str] = 'http://auth:8090'
-    http_host: Optional[str] = '0.0.0.0'
-    http_port: Optional[int] = 8000
-    jwt_auth_enabled: Optional[bool] = True
-    max_retries: Optional[int] = 3
-    retry_delay_seconds: Optional[int] = 5
-    service_audience: Optional[str] = 'copilot-for-consensus'
+
+    auth_service_url: str | None = "http://auth:8090"
+    http_host: str | None = "0.0.0.0"
+    http_port: int | None = 8000
+    jwt_auth_enabled: bool | None = True
+    max_retries: int | None = 3
+    retry_delay_seconds: int | None = 5
+    service_audience: str | None = "copilot-for-consensus"
 
 
 @dataclass
 class ServiceConfig_Parsing:
     """Top-level configuration for parsing service."""
+
     service_settings: ServiceSettings_Parsing
     archive_store: AdapterConfig_ArchiveStore
     document_store: AdapterConfig_DocumentStore

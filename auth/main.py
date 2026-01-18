@@ -10,18 +10,19 @@ This service provides:
 - User info retrieval
 """
 
-import os
-import sys
 import inspect
 from contextlib import asynccontextmanager
 from enum import Enum
 from typing import Any
 
-# Add app directory to path
-sys.path.insert(0, os.path.dirname(__file__))
-
-
 import uvicorn
+from app import SUPPORTED_PROVIDERS, __version__
+from app.config import load_auth_config
+from app.service import AuthService
+from copilot_config.generated.adapters.metrics import (
+    AdapterConfig_Metrics,
+    DriverConfig_Metrics_Noop,
+)
 from copilot_logging import (
     create_logger,
     create_stdout_logger,
@@ -30,11 +31,6 @@ from copilot_logging import (
     set_default_logger,
 )
 from copilot_metrics import create_metrics_collector
-from copilot_config.generated.adapters.metrics import (
-    AdapterConfig_Metrics,
-    DriverConfig_Metrics_Noop,
-    DriverConfig_Metrics_Pushgateway,
-)
 from fastapi import FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
@@ -42,10 +38,6 @@ from pydantic import BaseModel, Field
 # Bootstrap logger for early initialization (before config is loaded)
 logger = create_stdout_logger(level="INFO", name="auth")
 set_default_logger(logger)
-
-from app import SUPPORTED_PROVIDERS, __version__
-from app.config import load_auth_config
-from app.service import AuthService
 
 # Global service instance
 auth_service: AuthService | None = None
@@ -80,6 +72,7 @@ def _require_auth_service() -> AuthService:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage service lifecycle."""
+    del app
     global auth_service
     global metrics
     global logger
@@ -93,6 +86,7 @@ async def lifespan(app: FastAPI):
     set_default_logger(logger)
     logger.info("Logger initialized from service configuration")
     from app import service as auth_service_module
+
     auth_service_module.logger = get_logger(auth_service_module.__name__)
 
     # Initialize metrics from config
@@ -218,9 +212,7 @@ async def login(
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     try:
-        authorization_url, state, nonce = await service.initiate_login(
-            provider=provider, audience=aud, prompt=prompt
-        )
+        authorization_url, state, nonce = await service.initiate_login(provider=provider, audience=aud, prompt=prompt)
 
         # Store state and nonce in session (for production, use Redis/cookie)
         # For MVP, we'll pass them as query params to callback
@@ -348,9 +340,7 @@ async def logout() -> JSONResponse:
     metrics.increment("logout_total")
 
     # Create response
-    response = JSONResponse(
-        content={"message": "Logged out successfully"}
-    )
+    response = JSONResponse(content={"message": "Logged out successfully"})
 
     # Clear the auth cookie by setting it with max_age=0
     # Use same secure flag as when setting the cookie
@@ -382,6 +372,7 @@ def token_exchange(request: Request) -> JSONResponse:
     Returns:
         JSON with local JWT token
     """
+    del request
     global auth_service
 
     if not auth_service:
@@ -523,21 +514,17 @@ async def get_public_key() -> Response:
         return Response(
             content=public_key_pem,
             media_type="application/x-pem-file",
-            headers={
-                "Content-Disposition": 'attachment; filename="public_key.pem"'
-            }
+            headers={"Content-Disposition": 'attachment; filename="public_key.pem"'},
         )
     except Exception as e:
         logger.error(f"Failed to retrieve public key: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve public key")
 
 
-
-
-
 # Pydantic models for admin API
 class SearchByField(str, Enum):
     """Enum for valid search fields."""
+
     USER_ID = "user_id"
     EMAIL = "email"
     NAME = "name"

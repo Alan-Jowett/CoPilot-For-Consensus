@@ -9,8 +9,8 @@ instantiated via the factory with its required parameters.
 
 import json
 from pathlib import Path
-import pytest
 
+import pytest
 from copilot_config.generated.adapters.vector_store import (
     AdapterConfig_VectorStore,
     DriverConfig_VectorStore_AzureAiSearch,
@@ -61,13 +61,13 @@ def _driver_config_for(driver: str):
 
 class TestVectorStoreAllDrivers:
     """Test factory creation for all vector store drivers."""
-    
+
     def test_all_drivers_instantiate(self):
         """Test that each driver in schema can be instantiated via factory."""
         schema_dir = get_schema_dir()
         schema = load_json(schema_dir / "vector_store.json")
         drivers_enum = schema["properties"]["discriminant"]["enum"]
-        
+
         for driver in drivers_enum:
             # Should not raise any exceptions (skip if optional dependencies are missing)
             try:
@@ -86,4 +86,3 @@ class TestVectorStoreAllDrivers:
                 if any(x in error_str for x in ["connection", "refused", "connect", "timeout"]):
                     pytest.skip(f"Cannot connect to {driver} service: {type(e).__name__}")
                 raise  # Re-raise other exceptions
-

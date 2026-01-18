@@ -10,22 +10,17 @@ new users and optional auto-approval into default roles.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import logging
-
 from copilot_auth.models import User
 from copilot_auth.provider import AuthenticationError
-from copilot_schema_validation import create_schema_provider
-from copilot_config.generated.adapters.document_store import (
-    AdapterConfig_DocumentStore,
-    DriverConfig_DocumentStore_Inmemory,
-)
 from copilot_config.generated.services.auth import ServiceConfig_Auth
-from copilot_storage import DocumentStore, create_document_store
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
 
 logger = logging.getLogger(__name__)
 

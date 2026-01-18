@@ -37,14 +37,9 @@ _DriverConfig: TypeAlias = (
 
 
 def _build_openai(driver_config: _DriverConfig) -> Summarizer:
-    if isinstance(
-        driver_config,
-        (DriverConfig_LlmBackend_Openai, DriverConfig_LlmBackend_AzureOpenaiGpt),
-    ):
+    if isinstance(driver_config, DriverConfig_LlmBackend_Openai | DriverConfig_LlmBackend_AzureOpenaiGpt):
         return OpenAISummarizer.from_config(driver_config)
-    raise TypeError(
-        f"Expected openai/azure_openai_gpt config, got {type(driver_config).__name__}"
-    )
+    raise TypeError(f"Expected openai/azure_openai_gpt config, got {type(driver_config).__name__}")
 
 
 def _build_local(driver_config: _DriverConfig) -> Summarizer:

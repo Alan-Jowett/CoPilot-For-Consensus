@@ -91,10 +91,7 @@ def get_queue_by_name(queue_name: str) -> dict:
 
 
 @pytest.mark.integration
-@pytest.mark.skipif(
-    os.getenv("SKIP_RABBITMQ_TESTS") == "1",
-    reason="RabbitMQ not available in test environment"
-)
+@pytest.mark.skipif(os.getenv("SKIP_RABBITMQ_TESTS") == "1", reason="RabbitMQ not available in test environment")
 class TestQueueDrainage:
     """Tests to verify queues drain properly when system is idle."""
 
@@ -137,10 +134,10 @@ class TestQueueDrainage:
 
         # Queues that SHOULD exist (have active consumers)
         required_queues = {
-            "archive.ingested",     # Consumed by parsing service
-            "json.parsed",          # Consumed by chunking service
+            "archive.ingested",  # Consumed by parsing service
+            "json.parsed",  # Consumed by chunking service
             "summarization.requested",  # Consumed by summarization service
-            "summary.complete",     # Consumed by reporting service
+            "summary.complete",  # Consumed by reporting service
         }
 
         # Note: embedding-service and orchestrator-service queues are created dynamically
@@ -149,8 +146,7 @@ class TestQueueDrainage:
         missing = required_queues - queue_names
         if missing:
             pytest.skip(
-                f"Required queues not found: {missing}. "
-                "RabbitMQ may not be initialized with definitions.json yet."
+                f"Required queues not found: {missing}. " "RabbitMQ may not be initialized with definitions.json yet."
             )
 
     def test_queues_drain_when_idle(self):
@@ -175,13 +171,15 @@ class TestQueueDrainage:
             total = queue.get("messages", 0)
 
             if ready > 0 or unacked > 0:
-                queues_with_messages.append({
-                    "name": name,
-                    "ready": ready,
-                    "unacked": unacked,
-                    "total": total,
-                    "consumers": queue.get("consumers", 0),
-                })
+                queues_with_messages.append(
+                    {
+                        "name": name,
+                        "ready": ready,
+                        "unacked": unacked,
+                        "total": total,
+                        "consumers": queue.get("consumers", 0),
+                    }
+                )
 
         # If any queues have messages, provide detailed diagnostic info
         if queues_with_messages:
@@ -223,14 +221,12 @@ class TestQueueDrainage:
 
             actual_count = queue.get("consumers", 0)
             if actual_count < expected_count:
-                missing_consumers.append(
-                    f"{queue_name}: expected {expected_count} consumer(s), found {actual_count}"
-                )
+                missing_consumers.append(f"{queue_name}: expected {expected_count} consumer(s), found {actual_count}")
 
         if missing_consumers:
             pytest.skip(
-                "Queues missing expected consumers (services may not be running):\n" +
-                "\n".join(f"  - {msg}" for msg in missing_consumers)
+                "Queues missing expected consumers (services may not be running):\n"
+                + "\n".join(f"  - {msg}" for msg in missing_consumers)
             )
 
     def test_queue_message_rates_balanced(self):
@@ -264,8 +260,8 @@ class TestQueueDrainage:
 
         if imbalanced_queues:
             pytest.skip(
-                "Queues showing message accumulation (may indicate processing issues):\n" +
-                "\n".join(f"  - {msg}" for msg in imbalanced_queues)
+                "Queues showing message accumulation (may indicate processing issues):\n"
+                + "\n".join(f"  - {msg}" for msg in imbalanced_queues)
             )
 
 

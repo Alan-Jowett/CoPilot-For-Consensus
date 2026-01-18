@@ -10,7 +10,7 @@ configurations for deploying the Copilot-for-Consensus API via Azure API Managem
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from adapter_base import GatewayAdapter
 
@@ -89,43 +89,43 @@ Monitoring:
         """Load the OpenAPI specification from YAML file."""
         import yaml
 
-        with open(self.openapi_spec_path, 'r') as f:
+        with open(self.openapi_spec_path) as f:
             self.openapi_spec = yaml.safe_load(f)
 
     def validate_spec(self) -> bool:
         """Validate OpenAPI spec for Azure APIM compatibility."""
-        required_fields = ['openapi', 'info', 'paths']
+        required_fields = ["openapi", "info", "paths"]
         for field in required_fields:
             if field not in self.openapi_spec:
                 raise ValueError(f"OpenAPI spec missing required field: {field}")
 
         # Check OpenAPI version (APIM supports 2.0 and 3.0)
-        version = self.openapi_spec.get('openapi', '')
-        if not (version.startswith('3.') or version.startswith('2.')):
+        version = self.openapi_spec.get("openapi", "")
+        if not (version.startswith("3.") or version.startswith("2.")):
             raise ValueError(f"Azure APIM requires OpenAPI 2.x or 3.x, got {version}")
 
         return True
 
-    def generate_config(self, output_dir: Path) -> Dict[str, Path]:
+    def generate_config(self, output_dir: Path) -> dict[str, Path]:
         """Generate Azure APIM configuration files."""
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate ARM template
         arm_template = self._generate_arm_template()
         arm_template_path = output_dir / "azure-apim-template.json"
-        with open(arm_template_path, 'w') as f:
+        with open(arm_template_path, "w") as f:
             json.dump(arm_template, f, indent=2)
 
         # Generate parameters file
         parameters = self._generate_parameters()
         parameters_path = output_dir / "azure-apim-parameters.json"
-        with open(parameters_path, 'w') as f:
+        with open(parameters_path, "w") as f:
             json.dump(parameters, f, indent=2)
 
         # Generate Bicep template
         bicep = self._generate_bicep_template()
         bicep_path = output_dir / "azure-apim.bicep"
-        with open(bicep_path, 'w') as f:
+        with open(bicep_path, "w") as f:
             f.write(bicep)
 
         # Generate policy files
@@ -133,15 +133,15 @@ Monitoring:
         policies_dir.mkdir(exist_ok=True)
 
         cors_policy_path = policies_dir / "cors-policy.xml"
-        with open(cors_policy_path, 'w') as f:
+        with open(cors_policy_path, "w") as f:
             f.write(self._generate_cors_policy())
 
         rate_limit_policy_path = policies_dir / "rate-limit-policy.xml"
-        with open(rate_limit_policy_path, 'w') as f:
+        with open(rate_limit_policy_path, "w") as f:
             f.write(self._generate_rate_limit_policy())
 
         jwt_policy_path = policies_dir / "jwt-validation-policy.xml"
-        with open(jwt_policy_path, 'w') as f:
+        with open(jwt_policy_path, "w") as f:
             f.write(self._generate_jwt_policy())
 
         return {
@@ -150,10 +150,10 @@ Monitoring:
             "bicep": bicep_path,
             "cors_policy": cors_policy_path,
             "rate_limit_policy": rate_limit_policy_path,
-            "jwt_policy": jwt_policy_path
+            "jwt_policy": jwt_policy_path,
         }
 
-    def validate_config(self, config_files: Dict[str, Path]) -> bool:
+    def validate_config(self, config_files: dict[str, Path]) -> bool:
         """Validate generated Azure configuration files."""
         # Check that all files exist
         for file_path in config_files.values():
@@ -163,31 +163,36 @@ Monitoring:
         # Validate ARM template JSON structure
         arm_template_path = config_files.get("arm_template")
         if arm_template_path:
-            with open(arm_template_path, 'r') as f:
+            with open(arm_template_path) as f:
                 arm_template = json.load(f)
-                required_arm_fields = ['$schema', 'contentVersion', 'parameters', 'resources']
+                required_arm_fields = ["$schema", "contentVersion", "parameters", "resources"]
                 for field in required_arm_fields:
                     if field not in arm_template:
                         raise ValueError(f"ARM template missing required field: {field}")
 
         # Check for unreplaced placeholders in generated files
-        placeholders = ['REPLACE_WITH_UNIQUE_SUFFIX', 'admin@example.com',
-                       'your-backend-', 'https://your-backend-', 'example.com']
+        placeholders = [
+            "REPLACE_WITH_UNIQUE_SUFFIX",
+            "admin@example.com",
+            "your-backend-",
+            "https://your-backend-",
+            "example.com",
+        ]
 
         for name, file_path in config_files.items():
-            if file_path.suffix in ['.json', '.bicep', '.xml']:
-                with open(file_path, 'r') as f:
+            if file_path.suffix in [".json", ".bicep", ".xml"]:
+                with open(file_path) as f:
                     content = f.read()
                     found_placeholders = [p for p in placeholders if p in content]
                     if found_placeholders:
                         print(f"⚠️  Warning: {name} contains unreplaced placeholders: {', '.join(found_placeholders)}")
-                        print(f"   These must be configured before deployment. See deployment guide.")
+                        print("   These must be configured before deployment. See deployment guide.")
 
         return True
 
-    def _generate_arm_template(self) -> Dict[str, Any]:
+    def _generate_arm_template(self) -> dict[str, Any]:
         """Generate Azure Resource Manager (ARM) template for APIM."""
-        info = self.openapi_spec.get('info', {})
+        info = self.openapi_spec.get("info", {})
 
         return {
             "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -195,180 +200,113 @@ Monitoring:
             "parameters": {
                 "apimServiceName": {
                     "type": "string",
-                    "metadata": {
-                        "description": "Name of the API Management service (must be globally unique)"
-                    }
+                    "metadata": {"description": "Name of the API Management service (must be globally unique)"},
                 },
                 "location": {
                     "type": "string",
                     "defaultValue": "[resourceGroup().location]",
-                    "metadata": {
-                        "description": "Azure region for deployment"
-                    }
+                    "metadata": {"description": "Azure region for deployment"},
                 },
-                "publisherEmail": {
-                    "type": "string",
-                    "metadata": {
-                        "description": "Publisher email for API Management"
-                    }
-                },
-                "publisherName": {
-                    "type": "string",
-                    "metadata": {
-                        "description": "Publisher organization name"
-                    }
-                },
+                "publisherEmail": {"type": "string", "metadata": {"description": "Publisher email for API Management"}},
+                "publisherName": {"type": "string", "metadata": {"description": "Publisher organization name"}},
                 "sku": {
                     "type": "string",
                     "defaultValue": "Developer",
                     "allowedValues": ["Developer", "Standard", "Premium"],
-                    "metadata": {
-                        "description": "API Management pricing tier"
-                    }
+                    "metadata": {"description": "API Management pricing tier"},
                 },
-                "skuCapacity": {
-                    "type": "int",
-                    "defaultValue": 1,
-                    "metadata": {
-                        "description": "Number of scale units"
-                    }
-                },
+                "skuCapacity": {"type": "int", "defaultValue": 1, "metadata": {"description": "Number of scale units"}},
                 "backendReportingUrl": {
                     "type": "string",
-                    "metadata": {
-                        "description": "Backend URL for reporting service"
-                    }
+                    "metadata": {"description": "Backend URL for reporting service"},
                 },
                 "backendIngestionUrl": {
                     "type": "string",
-                    "metadata": {
-                        "description": "Backend URL for ingestion service"
-                    }
+                    "metadata": {"description": "Backend URL for ingestion service"},
                 },
-                "backendAuthUrl": {
-                    "type": "string",
-                    "metadata": {
-                        "description": "Backend URL for auth service"
-                    }
-                }
+                "backendAuthUrl": {"type": "string", "metadata": {"description": "Backend URL for auth service"}},
             },
-            "variables": {
-                "apiName": "copilot-for-consensus-api",
-                "apiVersion": info.get('version', '0.1.0')
-            },
+            "variables": {"apiName": "copilot-for-consensus-api", "apiVersion": info.get("version", "0.1.0")},
             "resources": [
                 {
                     "type": "Microsoft.ApiManagement/service",
                     "apiVersion": "2021-08-01",
                     "name": "[parameters('apimServiceName')]",
                     "location": "[parameters('location')]",
-                    "sku": {
-                        "name": "[parameters('sku')]",
-                        "capacity": "[parameters('skuCapacity')]"
-                    },
+                    "sku": {"name": "[parameters('sku')]", "capacity": "[parameters('skuCapacity')]"},
                     "properties": {
                         "publisherEmail": "[parameters('publisherEmail')]",
-                        "publisherName": "[parameters('publisherName')]"
-                    }
+                        "publisherName": "[parameters('publisherName')]",
+                    },
                 },
                 {
                     "type": "Microsoft.ApiManagement/service/apis",
                     "apiVersion": "2021-08-01",
                     "name": "[concat(parameters('apimServiceName'), '/', variables('apiName'))]",
-                    "dependsOn": [
-                        "[resourceId('Microsoft.ApiManagement/service', parameters('apimServiceName'))]"
-                    ],
+                    "dependsOn": ["[resourceId('Microsoft.ApiManagement/service', parameters('apimServiceName'))]"],
                     "properties": {
-                        "displayName": info.get('title', 'Copilot-for-Consensus API'),
-                        "description": info.get('description', ''),
+                        "displayName": info.get("title", "Copilot-for-Consensus API"),
+                        "description": info.get("description", ""),
                         "path": "",
                         "protocols": ["https"],
                         "subscriptionRequired": True,
                         "format": "openapi+json",
-                        "value": json.dumps(self.openapi_spec)
-                    }
+                        "value": json.dumps(self.openapi_spec),
+                    },
                 },
                 {
                     "type": "Microsoft.ApiManagement/service/backends",
                     "apiVersion": "2021-08-01",
                     "name": "[concat(parameters('apimServiceName'), '/reporting-backend')]",
-                    "dependsOn": [
-                        "[resourceId('Microsoft.ApiManagement/service', parameters('apimServiceName'))]"
-                    ],
-                    "properties": {
-                        "protocol": "http",
-                        "url": "[parameters('backendReportingUrl')]"
-                    }
+                    "dependsOn": ["[resourceId('Microsoft.ApiManagement/service', parameters('apimServiceName'))]"],
+                    "properties": {"protocol": "http", "url": "[parameters('backendReportingUrl')]"},
                 },
                 {
                     "type": "Microsoft.ApiManagement/service/backends",
                     "apiVersion": "2021-08-01",
                     "name": "[concat(parameters('apimServiceName'), '/ingestion-backend')]",
-                    "dependsOn": [
-                        "[resourceId('Microsoft.ApiManagement/service', parameters('apimServiceName'))]"
-                    ],
-                    "properties": {
-                        "protocol": "http",
-                        "url": "[parameters('backendIngestionUrl')]"
-                    }
+                    "dependsOn": ["[resourceId('Microsoft.ApiManagement/service', parameters('apimServiceName'))]"],
+                    "properties": {"protocol": "http", "url": "[parameters('backendIngestionUrl')]"},
                 },
                 {
                     "type": "Microsoft.ApiManagement/service/backends",
                     "apiVersion": "2021-08-01",
                     "name": "[concat(parameters('apimServiceName'), '/auth-backend')]",
-                    "dependsOn": [
-                        "[resourceId('Microsoft.ApiManagement/service', parameters('apimServiceName'))]"
-                    ],
-                    "properties": {
-                        "protocol": "http",
-                        "url": "[parameters('backendAuthUrl')]"
-                    }
-                }
+                    "dependsOn": ["[resourceId('Microsoft.ApiManagement/service', parameters('apimServiceName'))]"],
+                    "properties": {"protocol": "http", "url": "[parameters('backendAuthUrl')]"},
+                },
             ],
             "outputs": {
                 "apimGatewayUrl": {
                     "type": "string",
-                    "value": "[reference(resourceId('Microsoft.ApiManagement/service', parameters('apimServiceName'))).gatewayUrl]"
+                    "value": (
+                        "[reference(resourceId('Microsoft.ApiManagement/service', "
+                        "parameters('apimServiceName'))).gatewayUrl]"
+                    ),
                 }
-            }
+            },
         }
 
-    def _generate_parameters(self) -> Dict[str, Any]:
+    def _generate_parameters(self) -> dict[str, Any]:
         """Generate parameters file for ARM template."""
         return {
             "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
             "contentVersion": "1.0.0.0",
             "parameters": {
-                "apimServiceName": {
-                    "value": "copilot-apim-REPLACE_WITH_UNIQUE_SUFFIX"
-                },
-                "publisherEmail": {
-                    "value": "admin@example.com"
-                },
-                "publisherName": {
-                    "value": "Copilot for Consensus"
-                },
-                "sku": {
-                    "value": "Developer"
-                },
-                "skuCapacity": {
-                    "value": 1
-                },
-                "backendReportingUrl": {
-                    "value": "https://your-backend-reporting-service.azurewebsites.net"
-                },
-                "backendIngestionUrl": {
-                    "value": "https://your-backend-ingestion-service.azurewebsites.net"
-                },
-                "backendAuthUrl": {
-                    "value": "https://your-backend-auth-service.azurewebsites.net"
-                }
-            }
+                "apimServiceName": {"value": "copilot-apim-REPLACE_WITH_UNIQUE_SUFFIX"},
+                "publisherEmail": {"value": "admin@example.com"},
+                "publisherName": {"value": "Copilot for Consensus"},
+                "sku": {"value": "Developer"},
+                "skuCapacity": {"value": 1},
+                "backendReportingUrl": {"value": "https://your-backend-reporting-service.azurewebsites.net"},
+                "backendIngestionUrl": {"value": "https://your-backend-ingestion-service.azurewebsites.net"},
+                "backendAuthUrl": {"value": "https://your-backend-auth-service.azurewebsites.net"},
+            },
         }
 
     def _generate_bicep_template(self) -> str:
         """Generate Bicep template (infrastructure as code)."""
-        info = self.openapi_spec.get('info', {})
+        info = self.openapi_spec.get("info", {})
 
         return f"""// SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
@@ -469,12 +407,12 @@ output apimResourceId string = apimService.id
 
     def _generate_cors_policy(self) -> str:
         """Generate CORS policy XML for APIM."""
-        gateway_config = self.openapi_spec.get('x-gateway-config', {})
-        cors_config = gateway_config.get('cors', {})
+        gateway_config = self.openapi_spec.get("x-gateway-config", {})
+        cors_config = gateway_config.get("cors", {})
 
-        allowed_origins = cors_config.get('allowed-origins', ['*'])
-        allowed_methods = cors_config.get('allowed-methods', ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
-        allowed_headers = cors_config.get('allowed-headers', ['Authorization', 'Content-Type'])
+        allowed_origins = cors_config.get("allowed-origins", ["*"])
+        allowed_methods = cors_config.get("allowed-methods", ["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+        allowed_headers = cors_config.get("allowed-headers", ["Authorization", "Content-Type"])
 
         return f"""<policies>
     <inbound>
@@ -505,7 +443,9 @@ output apimResourceId string = apimService.id
         """Generate JWT validation policy XML for APIM."""
         return """<policies>
     <inbound>
-        <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized">
+        <validate-jwt header-name="Authorization"
+            failed-validation-httpcode="401"
+            failed-validation-error-message="Unauthorized">
             <openid-config url="https://your-auth-service/.well-known/openid-configuration" />
             <audiences>
                 <audience>copilot-for-consensus</audience>

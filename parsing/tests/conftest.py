@@ -3,6 +3,8 @@
 
 """Pytest configuration and fixtures for parsing service tests."""
 
+# ruff: noqa: E402
+
 import os
 import sys
 import tempfile
@@ -62,8 +64,14 @@ def set_test_environment():
     yield
 
     # Cleanup
-    for key in ["SERVICE_VERSION", "MESSAGE_BUS_TYPE", "DOCUMENT_STORE_TYPE",
-                "ARCHIVE_STORE_TYPE", "METRICS_BACKEND", "ERROR_REPORTER_TYPE"]:
+    for key in [
+        "SERVICE_VERSION",
+        "MESSAGE_BUS_TYPE",
+        "DOCUMENT_STORE_TYPE",
+        "ARCHIVE_STORE_TYPE",
+        "METRICS_BACKEND",
+        "ERROR_REPORTER_TYPE",
+    ]:
         os.environ.pop(key, None)
 
 

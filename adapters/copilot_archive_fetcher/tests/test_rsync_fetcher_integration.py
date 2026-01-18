@@ -10,8 +10,10 @@ from copilot_archive_fetcher import RsyncFetcher, SourceConfig
 
 
 @pytest.mark.integration
-@pytest.mark.skipif(os.getenv("RSYNC_INTEGRATION_ENABLED") != "true" and os.getenv("RSYNC_INTEGRATION_ENABLED") != "1",
-                    reason="Rsync integration not enabled")
+@pytest.mark.skipif(
+    os.getenv("RSYNC_INTEGRATION_ENABLED") != "true" and os.getenv("RSYNC_INTEGRATION_ENABLED") != "1",
+    reason="Rsync integration not enabled",
+)
 def test_rsync_fetcher_syncs_fixture(tmp_path):
     host = os.getenv("RSYNC_HOST", "localhost")
     port = os.getenv("RSYNC_PORT", "8730")

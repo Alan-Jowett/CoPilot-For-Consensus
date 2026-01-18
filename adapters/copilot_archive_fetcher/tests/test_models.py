@@ -4,7 +4,6 @@
 """Tests for archive fetcher models."""
 
 import pytest
-
 from copilot_archive_fetcher import SourceConfig
 
 
@@ -13,11 +12,7 @@ class TestSourceConfig:
 
     def test_source_config_creation(self):
         """Test creating a basic SourceConfig."""
-        config = SourceConfig(
-            name="test-source",
-            source_type="http",
-            url="https://example.com/archive.zip"
-        )
+        config = SourceConfig(name="test-source", source_type="http", url="https://example.com/archive.zip")
 
         assert config.name == "test-source"
         assert config.source_type == "http"
@@ -37,7 +32,7 @@ class TestSourceConfig:
             port=993,
             username="user@example.com",
             password="secret",
-            folder="INBOX"
+            folder="INBOX",
         )
 
         assert config.name == "imap-source"
@@ -50,22 +45,14 @@ class TestSourceConfig:
 
     def test_source_config_rsync(self):
         """Test creating a rsync SourceConfig."""
-        config = SourceConfig(
-            name="rsync-source",
-            source_type="rsync",
-            url="rsync://example.com/archive/"
-        )
+        config = SourceConfig(name="rsync-source", source_type="rsync", url="rsync://example.com/archive/")
 
         assert config.source_type == "rsync"
         assert config.url == "rsync://example.com/archive/"
 
     def test_source_config_local(self):
         """Test creating a local SourceConfig."""
-        config = SourceConfig(
-            name="local-source",
-            source_type="local",
-            url="/path/to/local/archive"
-        )
+        config = SourceConfig(name="local-source", source_type="local", url="/path/to/local/archive")
 
         assert config.source_type == "local"
         assert config.url == "/path/to/local/archive"

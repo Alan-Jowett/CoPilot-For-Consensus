@@ -27,6 +27,7 @@ pytestmark = pytest.mark.integration
 # Test if azure-storage-blob is available
 try:
     import importlib
+
     importlib.import_module("azure.storage.blob")
     AZURE_AVAILABLE = True
 except ImportError:
@@ -48,7 +49,7 @@ def has_azure_credentials() -> bool:
 
 @pytest.mark.skipif(
     not AZURE_AVAILABLE or not has_azure_credentials(),
-    reason="Azure credentials not available or azure-storage-blob not installed"
+    reason="Azure credentials not available or azure-storage-blob not installed",
 )
 class TestAzureBlobArchiveStoreIntegration:
     """Integration tests using actual Azure Blob Storage."""
@@ -70,9 +71,7 @@ class TestAzureBlobArchiveStoreIntegration:
 
             # Recreate connection to avoid using the store's potentially stale state
             if os.getenv("AZURE_STORAGE_CONNECTION_STRING"):
-                service_client = BlobServiceClient.from_connection_string(
-                    os.environ["AZURE_STORAGE_CONNECTION_STRING"]
-                )
+                service_client = BlobServiceClient.from_connection_string(os.environ["AZURE_STORAGE_CONNECTION_STRING"])
             else:
                 account_name = os.environ["AZURE_STORAGE_ACCOUNT"]
                 if os.getenv("AZURE_STORAGE_KEY"):
@@ -102,9 +101,7 @@ class TestAzureBlobArchiveStoreIntegration:
 
         # Store archive
         archive_id = store.store_archive(
-            source_name="integration-test-source",
-            file_path="test-archive.mbox",
-            content=content
+            source_name="integration-test-source", file_path="test-archive.mbox", content=content
         )
 
         assert archive_id is not None
@@ -119,11 +116,7 @@ class TestAzureBlobArchiveStoreIntegration:
         content = b"Lifecycle test content"
 
         # Store
-        archive_id = store.store_archive(
-            source_name="lifecycle-test",
-            file_path="lifecycle.mbox",
-            content=content
-        )
+        archive_id = store.store_archive(source_name="lifecycle-test", file_path="lifecycle.mbox", content=content)
 
         # Check exists
         assert store.archive_exists(archive_id) is True
@@ -146,17 +139,9 @@ class TestAzureBlobArchiveStoreIntegration:
         content = b"Duplicate content test"
 
         # Store same content twice with different metadata
-        id1 = store.store_archive(
-            source_name="dedup-source-1",
-            file_path="file1.mbox",
-            content=content
-        )
+        id1 = store.store_archive(source_name="dedup-source-1", file_path="file1.mbox", content=content)
 
-        id2 = store.store_archive(
-            source_name="dedup-source-2",
-            file_path="file2.mbox",
-            content=content
-        )
+        id2 = store.store_archive(source_name="dedup-source-2", file_path="file2.mbox", content=content)
 
         # Should have same ID due to content-addressable storage
         assert id1 == id2
@@ -174,11 +159,7 @@ class TestAzureBlobArchiveStoreIntegration:
         content_hash = hashlib.sha256(content).hexdigest()
 
         # Store archive
-        archive_id = store.store_archive(
-            source_name="hash-test",
-            file_path="hash-test.mbox",
-            content=content
-        )
+        archive_id = store.store_archive(source_name="hash-test", file_path="hash-test.mbox", content=content)
 
         # Look up by hash
         found_id = store.get_archive_by_hash(content_hash)
@@ -214,11 +195,7 @@ class TestAzureBlobArchiveStoreIntegration:
         content = b"X" * (2 * 1024 * 1024)
 
         # Store
-        archive_id = store.store_archive(
-            source_name="large-test",
-            file_path="large-archive.mbox",
-            content=content
-        )
+        archive_id = store.store_archive(source_name="large-test", file_path="large-archive.mbox", content=content)
 
         # Retrieve and verify
         retrieved = store.get_archive(archive_id)
@@ -235,11 +212,7 @@ class TestAzureBlobArchiveStoreIntegration:
         content = b"Persistence test content"
 
         # Store archive
-        archive_id = store.store_archive(
-            source_name="persistence-test",
-            file_path="persist.mbox",
-            content=content
-        )
+        archive_id = store.store_archive(source_name="persistence-test", file_path="persist.mbox", content=content)
 
         # Create new store instance (should load existing metadata)
         prefix = store.prefix
@@ -268,9 +241,7 @@ class TestAzureBlobArchiveStoreIntegration:
 
         for filename in filenames:
             archive_id = store.store_archive(
-                source_name="special-chars-test",
-                file_path=filename,
-                content=content + filename.encode()
+                source_name="special-chars-test", file_path=filename, content=content + filename.encode()
             )
 
             # Should be able to retrieve

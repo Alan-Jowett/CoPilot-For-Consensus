@@ -44,8 +44,7 @@ def _add_in_operator_support(store):
 def in_memory_document_store():
     """Create an in-memory document store with MongoDB-like $in support."""
     schema_provider = create_schema_provider(
-        schema_dir=str(Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"),
-        schema_type="documents"
+        schema_dir=str(Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"), schema_type="documents"
     )
 
     document_store = create_document_store(
@@ -217,8 +216,7 @@ def test_end_to_end_embedding_generation(
 
     # Verify chunk status was updated
     updated_chunks = in_memory_document_store.query_documents(
-        collection="chunks",
-        filter_dict={"embedding_generated": True}
+        collection="chunks", filter_dict={"embedding_generated": True}
     )
 
     assert len(updated_chunks) == 3
@@ -297,8 +295,7 @@ def test_batch_processing_integration(
 
     # Verify all chunks have embedding_generated=True
     updated_chunks = in_memory_document_store.query_documents(
-        collection="chunks",
-        filter_dict={"embedding_generated": True}
+        collection="chunks", filter_dict={"embedding_generated": True}
     )
 
     assert len(updated_chunks) == 5

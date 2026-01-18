@@ -8,7 +8,6 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from ..adapters.consensus_detector import AdapterConfig_ConsensusDetector
 from ..adapters.document_store import AdapterConfig_DocumentStore
@@ -24,26 +23,28 @@ from ..adapters.vector_store import AdapterConfig_VectorStore
 @dataclass
 class ServiceSettings_Orchestrator:
     """Service-specific settings for orchestrator."""
-    auth_service_url: Optional[str] = 'http://auth:8090'
-    consensus_timeout_seconds: Optional[int] = 300
-    context_window_tokens: Optional[int] = 2048
-    http_port: Optional[int] = 8000
-    jwt_auth_enabled: Optional[bool] = True
-    llm_max_tokens: Optional[int] = 1024
-    llm_temperature: Optional[float] = 0.7
-    max_parallel_reviews: Optional[int] = 10
-    max_retries: Optional[int] = 3
-    request_timeout_seconds: Optional[int] = 60
-    service_audience: Optional[str] = 'copilot-for-consensus'
-    system_prompt_path: Optional[str] = '/app/prompts/system.txt'
-    top_k: Optional[int] = 5
-    user_prompt_path: Optional[str] = '/app/prompts/user.txt'
-    workflow_history_retention_days: Optional[int] = 90
+
+    auth_service_url: str | None = "http://auth:8090"
+    consensus_timeout_seconds: int | None = 300
+    context_window_tokens: int | None = 2048
+    http_port: int | None = 8000
+    jwt_auth_enabled: bool | None = True
+    llm_max_tokens: int | None = 1024
+    llm_temperature: float | None = 0.7
+    max_parallel_reviews: int | None = 10
+    max_retries: int | None = 3
+    request_timeout_seconds: int | None = 60
+    service_audience: str | None = "copilot-for-consensus"
+    system_prompt_path: str | None = "/app/prompts/system.txt"
+    top_k: int | None = 5
+    user_prompt_path: str | None = "/app/prompts/user.txt"
+    workflow_history_retention_days: int | None = 90
 
 
 @dataclass
 class ServiceConfig_Orchestrator:
     """Top-level configuration for orchestrator service."""
+
     service_settings: ServiceSettings_Orchestrator
     consensus_detector: AdapterConfig_ConsensusDetector
     document_store: AdapterConfig_DocumentStore

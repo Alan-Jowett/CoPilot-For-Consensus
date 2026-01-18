@@ -21,11 +21,8 @@ class TestValidationIntegration:
         schema = {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "type": "object",
-            "properties": {
-                "id": {"type": "string"},
-                "name": {"type": "string"}
-            },
-            "required": ["id", "name"]
+            "properties": {"id": {"type": "string"}, "name": {"type": "string"}},
+            "required": ["id", "name"],
         }
 
         (schema_dir / "TestEvent.schema.json").write_text(json.dumps(schema))
@@ -61,11 +58,8 @@ class TestValidationIntegration:
         doc_schema = {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "type": "object",
-            "properties": {
-                "archive_id": {"type": "string"},
-                "status": {"type": "string"}
-            },
-            "required": ["archive_id", "status"]
+            "properties": {"archive_id": {"type": "string"}, "status": {"type": "string"}},
+            "required": ["archive_id", "status"],
         }
 
         # Validate a document

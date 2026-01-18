@@ -103,15 +103,15 @@ class ValidatingEventPublisher(EventPublisher):
                     return True, []
                 return False, [f"No schema found for event type '{event_type}'"]
         except Exception as exc:
-            logger.error(
-                "Failed to retrieve schema for event type '%s': %s",
-                event_type, exc
-            )
+            logger.error("Failed to retrieve schema for event type '%s': %s", event_type, exc)
             return False, [f"Schema retrieval failed: {exc}"]
 
         # Validate event against schema
         try:
-            from copilot_schema_validation import validate_json  # type: ignore[import-not-found] # pylint: disable=import-outside-toplevel
+            from copilot_schema_validation import (
+                validate_json,  # type: ignore[import-not-found] # pylint: disable=import-outside-toplevel
+            )
+
             is_valid, errors = validate_json(event, schema, schema_provider=self._schema_provider)
             return is_valid, errors
         except Exception as exc:
@@ -141,10 +141,7 @@ class ValidatingEventPublisher(EventPublisher):
                 raise ValidationError(event_type, errors)
 
             # In non-strict mode, log warning and continue
-            logger.warning(
-                "Event validation failed for '%s' but continuing in non-strict mode: %s",
-                event_type, errors
-            )
+            logger.warning("Event validation failed for '%s' but continuing in non-strict mode: %s", event_type, errors)
 
         # Delegate to underlying publisher
         self._publisher.publish(exchange, routing_key, event)
