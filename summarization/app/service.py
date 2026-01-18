@@ -49,6 +49,10 @@ class SummarizationService:
         llm_model: str = "mistral",
         context_window_tokens: int = 4096,
         prompt_template: str = "",
+        batch_mode_enabled: bool = False,
+        batch_max_threads: int = 50,
+        batch_poll_interval_seconds: int = 60,
+        batch_timeout_hours: int = 24,
         event_retry_config: RetryConfig | None = None,
     ):
         """Initialize summarization service.
@@ -69,6 +73,10 @@ class SummarizationService:
             llm_model: LLM model name (default: mistral)
             context_window_tokens: LLM context window size (default: 4096)
             prompt_template: Prompt template for summarization (default: empty)
+            batch_mode_enabled: Enable batch mode for OpenAI/Azure (default: False)
+            batch_max_threads: Maximum threads per batch (default: 50)
+            batch_poll_interval_seconds: Polling interval for batch status (default: 60)
+            batch_timeout_hours: Maximum wait time for batch completion in hours (default: 24)
             event_retry_config: Retry configuration for event race condition handling (optional)
         """
         self.document_store = document_store
@@ -86,6 +94,10 @@ class SummarizationService:
         self.llm_model = llm_model
         self.context_window_tokens = context_window_tokens
         self.prompt_template = prompt_template
+        self.batch_mode_enabled = batch_mode_enabled
+        self.batch_max_threads = batch_max_threads
+        self.batch_poll_interval_seconds = batch_poll_interval_seconds
+        self.batch_timeout_hours = batch_timeout_hours
         self.event_retry_config = event_retry_config or RetryConfig()
 
         # Stats
@@ -229,13 +241,24 @@ class SummarizationService:
         top_k = event_data.get("top_k", self.top_k)
         prompt_template = event_data.get("prompt_template", self.prompt_template)
 
-        for thread_id in thread_ids:
-            self._process_thread(
-                thread_id=thread_id,
+        # Use batch mode if enabled and summarizer supports it (OpenAI/Azure only)
+        if self.batch_mode_enabled and len(thread_ids) > 1 and hasattr(self.summarizer, 'create_batch'):
+            logger.info(f"Processing {len(thread_ids)} threads in batch mode")
+            self._process_threads_batch(
+                thread_ids=thread_ids,
                 top_k=top_k,
                 context_window_tokens=self.context_window_tokens,
                 prompt_template=prompt_template,
             )
+        else:
+            # Process threads individually (original behavior)
+            for thread_id in thread_ids:
+                self._process_thread(
+                    thread_id=thread_id,
+                    top_k=top_k,
+                    context_window_tokens=self.context_window_tokens,
+                    prompt_template=prompt_template,
+                )
 
     def _process_thread(
         self,
@@ -431,6 +454,243 @@ class SummarizationService:
                         )
                         # Push metrics to Pushgateway
                         self.metrics_collector.safe_push()
+
+    def _process_threads_batch(
+        self,
+        thread_ids: list[str],
+        top_k: int,
+        context_window_tokens: int,
+        prompt_template: str,
+    ):
+        """Process multiple threads using batch mode.
+
+        This method uses the OpenAI Batch API to process multiple threads
+        in a single batch job, which is approximately 50% cheaper than
+        interactive mode.
+
+        Args:
+            thread_ids: List of thread identifiers
+            top_k: Number of chunks to retrieve per thread
+            context_window_tokens: Token budget for context
+            prompt_template: Prompt template with placeholders to substitute
+        """
+        from copilot_summarization import Thread
+
+        start_time = time.time()
+        logger.info(f"Creating batch job for {len(thread_ids)} threads")
+
+        try:
+            # Prepare Thread objects for all threads
+            threads = []
+            thread_contexts = {}  # Store contexts for later citation generation
+
+            for thread_id in thread_ids:
+                # Retrieve context
+                context = self._retrieve_context(thread_id, top_k)
+
+                if not context or not context.get("messages"):
+                    logger.warning(f"No context retrieved for thread {thread_id}, skipping in batch")
+                    self._publish_summarization_failed(
+                        thread_id=thread_id,
+                        error_type="NoContextError",
+                        error_message="No context retrieved from vector/document stores",
+                        retry_count=0,
+                    )
+                    continue
+
+                # Substitute template variables
+                complete_prompt = self._substitute_prompt_template(
+                    prompt_template=prompt_template,
+                    thread_id=thread_id,
+                    context=context,
+                )
+
+                # Build Thread object
+                thread = Thread(
+                    thread_id=thread_id,
+                    messages=context["messages"],
+                    top_k=top_k,
+                    context_window_tokens=context_window_tokens,
+                    prompt=complete_prompt,
+                )
+                threads.append(thread)
+                thread_contexts[thread_id] = context
+
+            if not threads:
+                logger.warning("No valid threads to process in batch")
+                return
+
+            # Enforce configured maximum batch size
+            total_threads = len(threads)
+            if total_threads > self.batch_max_threads:
+                raise ValueError(
+                    f"Requested batch size {total_threads} exceeds configured "
+                    f"maximum {self.batch_max_threads}"
+                )
+
+            # Create batch job
+            batch_id = self.summarizer.create_batch(threads)
+            logger.info(f"Created batch job {batch_id} for {total_threads} threads")
+
+            # Poll for completion
+            max_wait_seconds = self.batch_timeout_hours * 3600
+            elapsed = 0
+            
+            # Initialize status before the loop to handle edge cases
+            status = None
+            
+            # Check status immediately without sleeping first to reduce latency
+            status_info = self.summarizer.get_batch_status(batch_id)
+            status = status_info["status"]
+            completed = status_info["request_counts"]["completed"]
+            total = status_info["request_counts"]["total"]
+
+            logger.info(f"Batch {batch_id} status: {status}, completed: {completed}/{total}")
+
+            if status == "completed":
+                pass  # Job already completed, skip polling loop
+            elif status in ["failed", "expired", "cancelled"]:
+                raise RuntimeError(f"Batch job {batch_id} ended with status: {status}")
+            else:
+                # Continue polling with sleep intervals until timeout or completion
+                while elapsed < max_wait_seconds:
+                    time.sleep(self.batch_poll_interval_seconds)
+                    elapsed += self.batch_poll_interval_seconds
+
+                    status_info = self.summarizer.get_batch_status(batch_id)
+                    status = status_info["status"]
+                    completed = status_info["request_counts"]["completed"]
+                    total = status_info["request_counts"]["total"]
+
+                    logger.info(f"Batch {batch_id} status: {status}, completed: {completed}/{total}")
+
+                    if status == "completed":
+                        break
+                    elif status in ["failed", "expired", "cancelled"]:
+                        raise RuntimeError(f"Batch job {batch_id} ended with status: {status}")
+
+            if status != "completed":
+                raise RuntimeError(f"Batch job {batch_id} did not complete within {max_wait_seconds}s")
+
+            # Retrieve results
+            summaries = self.summarizer.retrieve_batch_results(batch_id)
+
+            # Process and publish each summary
+            for summary in summaries:
+                thread_id = summary.thread_id
+                context = thread_contexts.get(thread_id)
+
+                if not context:
+                    logger.error(f"No context found for thread {thread_id} in batch results")
+                    continue
+
+                # Generate citations from chunks
+                chunks = context.get("chunks", [])
+                citations_from_chunks = [
+                    Citation(
+                        message_id=chunk.get("message_id", ""),
+                        chunk_id=chunk.get("_id", ""),
+                        offset=chunk.get("offset", 0),
+                    )
+                    for chunk in chunks
+                ]
+
+                # Format citations
+                formatted_citations = self._format_citations(
+                    citations_from_chunks,
+                    chunks,
+                )
+
+                # Generate deterministic summary ID
+                summary_id = self._generate_summary_id(thread_id, formatted_citations)
+
+                # Update stats
+                self.summaries_generated += 1
+
+                # Publish success event
+                self._publish_summary_complete(
+                    summary_id=summary_id,
+                    thread_id=thread_id,
+                    summary_markdown=summary.summary_markdown,
+                    citations=formatted_citations,
+                    llm_backend=summary.llm_backend,
+                    llm_model=summary.llm_model,
+                    tokens_prompt=summary.tokens_prompt,
+                    tokens_completion=summary.tokens_completion,
+                    latency_ms=summary.latency_ms,
+                )
+
+                logger.info(
+                    f"Successfully summarized thread {thread_id} in batch "
+                    f"(tokens: {summary.tokens_prompt}+{summary.tokens_completion})"
+                )
+
+                # Collect metrics
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "summarization_events_total",
+                        tags={"event_type": "requested", "outcome": "success", "mode": "batch"},
+                    )
+                    self.metrics_collector.increment(
+                        "summarization_llm_calls_total",
+                        tags={"backend": summary.llm_backend, "model": summary.llm_model, "mode": "batch"},
+                    )
+                    self.metrics_collector.increment(
+                        "summarization_tokens_total",
+                        summary.tokens_prompt,
+                        tags={"type": "prompt", "mode": "batch"},
+                    )
+                    self.metrics_collector.increment(
+                        "summarization_tokens_total",
+                        summary.tokens_completion,
+                        tags={"type": "completion", "mode": "batch"},
+                    )
+
+            # Calculate total duration
+            duration = time.time() - start_time
+            self.last_processing_time = duration
+
+            if self.metrics_collector:
+                self.metrics_collector.observe(
+                    "summarization_batch_latency_seconds",
+                    duration,
+                )
+                self.metrics_collector.safe_push()
+
+            logger.info(f"Batch job {batch_id} completed successfully in {duration:.2f}s")
+
+        except Exception as e:
+            logger.error(f"Batch processing failed: {e}", exc_info=True)
+
+            # NOTE: We publish failure events for all threads in the original request.
+            # In a real-world scenario, some threads may have completed successfully 
+            # before the batch failed. A more sophisticated implementation would track
+            # which threads were actually included in the batch and check batch results
+            # to identify specific failures. For now, we err on the side of caution
+            # by marking all threads as failed to ensure they get reprocessed.
+            for thread_id in thread_ids:
+                try:
+                    self._publish_summarization_failed(
+                        thread_id=thread_id,
+                        error_type=type(e).__name__,
+                        error_message=f"Batch processing failed: {str(e)}",
+                        retry_count=0,
+                    )
+                except Exception as publish_error:
+                    logger.error(f"Failed to publish batch failure for {thread_id}: {publish_error}")
+
+            if self.error_reporter:
+                self.error_reporter.report(e, context={"thread_ids": thread_ids, "mode": "batch"})
+
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "summarization_failures_total",
+                    tags={"error_type": type(e).__name__, "mode": "batch"},
+                )
+                self.metrics_collector.safe_push()
+
+            # Re-raise to trigger message requeue
+            raise
 
     def _substitute_prompt_template(self, prompt_template: str, thread_id: str, context: dict[str, Any]) -> str:
         """Substitute placeholder variables in prompt template with actual context data.
