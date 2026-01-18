@@ -313,6 +313,61 @@ When documenting JSON/YAML configs:
 
 ***
 
+## Coding Conventions
+
+### Configuration and Environment Variables
+
+**Rule: Service runtime code MUST NOT read OS environment variables directly.**
+
+Service code should use typed, schematized configuration objects instead of reading environment variables with `os.environ.get()`, `os.getenv()`, or `os.environ[]`. This ensures:
+
+- **Type safety**: Configuration is validated at startup
+- **Documentation**: Schema serves as single source of truth
+- **Testability**: Easy to mock configuration in tests
+- **Deployment consistency**: Same validation across all environments
+
+**Bad:**
+```python
+# DON'T: Reading env vars directly bypasses schema validation
+retry_limit = int(os.environ.get('RETRY_LIMIT', '3'))
+batch_size = int(os.getenv('BATCH_SIZE', '32'))
+```
+
+**Good:**
+```python
+# DO: Use typed config from schema
+from copilot_config.runtime_loader import get_config
+from copilot_config.generated.services.myservice import ServiceConfig_MyService
+
+config = get_config("myservice")
+retry_limit = config.service_settings.retry_limit
+batch_size = config.service_settings.batch_size
+```
+
+**CI Enforcement:**
+
+The CI pipeline runs `scripts/check_no_runtime_env_vars.py` to detect direct environment variable access in service code. This check scans:
+- `auth/`, `chunking/`, `embedding/`, `ingestion/`, `orchestrator/`, `parsing/`, `reporting/`, `summarization/`
+- Excludes: `**/tests/**`, `scripts/**`
+
+**Exceptions:**
+
+Rare cases requiring direct env var access (e.g., backward compatibility fallbacks) can be allowlisted in `scripts/env_var_allowlist.txt`. Each exception requires:
+1. A comment explaining why it's needed
+2. A migration plan (for backward compatibility cases)
+3. Optional regex pattern to limit scope
+
+Example allowlist entry:
+```
+# Backward compatibility: Legacy RETRY_MAX env var fallback
+# TODO: Remove after v2.0 migration
+myservice/main.py:RETRY_MAX
+```
+
+For more details on configuration, see [SCHEMA_DRIVEN_CONFIGURATION.md](SCHEMA_DRIVEN_CONFIGURATION.md).
+
+***
+
 ## Diagram Guidelines
 
 ### Mermaid Diagrams

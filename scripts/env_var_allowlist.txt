@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+#
+# Allowlist for direct OS environment variable access in service runtime code.
+#
+# Format:
+#   path/to/file.py                    - Allow entire file
+#   path/to/file.py:regex_pattern      - Allow only lines matching regex
+#
+# Use this sparingly! Direct env var access bypasses schematized configuration.
+# Only add entries for:
+# - Backward compatibility fallbacks (with migration plan)
+# - Infrastructure integration that cannot use config (e.g., Docker health checks)
+#
+# Each entry should have a comment explaining why it's needed.
+
+# Backward compatibility: Legacy INGESTION_SOURCES_CONFIG_PATH env var fallback.
+# TODO: Remove after migration period (when all deployments use config.service_settings.sources_file_path)
+ingestion/main.py:INGESTION_SOURCES_CONFIG_PATH
