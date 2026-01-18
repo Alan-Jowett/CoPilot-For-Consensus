@@ -13,7 +13,7 @@ uvicorn>=0.40.0
 httpx>=0.28.1  # Required for FastAPI TestClient
 python-dotenv>=1.2.1
 # Monitoring
-prometheus-client>=0.23.1
+prometheus-client>=0.24.1
 # Authentication
 PyJWT>=2.10.1
 cryptography>=46.0.3
