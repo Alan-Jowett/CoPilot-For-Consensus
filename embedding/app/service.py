@@ -574,43 +574,27 @@ class EmbeddingService:
             # Delete embeddings from vectorstore
             if chunk_ids:
                 try:
-                    # Try to delete by payload (source_name/archive_id metadata)
-                    # If vectorstore supports it, this is more efficient
-                    try:
-                        # Attempt metadata-based deletion first
-                        delete_filter = {"source": source_name}
-                        deleted = self.vector_store.delete(
-                            collection=self.vector_store_collection,
-                            filter=delete_filter
-                        )
-                        if deleted:
-                            deletion_counts["embeddings"] = deleted
-                            logger.info(
-                                "Deleted embeddings by metadata filter",
+                    # Delete embeddings by chunk IDs
+                    for chunk_id in chunk_ids:
+                        try:
+                            self.vector_store.delete(chunk_id)
+                            deletion_counts["embeddings"] += 1
+                        except KeyError:
+                            # Embedding doesn't exist (already deleted or never created)
+                            # This is expected and not an error in idempotent cleanup
+                            pass
+                        except Exception as e:
+                            logger.warning(
+                                "Failed to delete embedding during cascade cleanup",
+                                chunk_id=chunk_id,
                                 source_name=source_name,
-                                count=deleted,
+                                error=str(e),
                             )
-                    except (AttributeError, NotImplementedError, TypeError):
-                        # Fallback: delete by chunk IDs
-                        for chunk_id in chunk_ids:
-                            try:
-                                self.vector_store.delete(
-                                    collection=self.vector_store_collection,
-                                    ids=[chunk_id]
-                                )
-                                deletion_counts["embeddings"] += 1
-                            except Exception as e:
-                                logger.warning(
-                                    "Failed to delete embedding during cascade cleanup",
-                                    chunk_id=chunk_id,
-                                    source_name=source_name,
-                                    error=str(e),
-                                )
-                        logger.info(
-                            "Deleted embeddings by chunk IDs",
-                            source_name=source_name,
-                            count=deletion_counts["embeddings"],
-                        )
+                    logger.info(
+                        "Deleted embeddings by chunk IDs",
+                        source_name=source_name,
+                        count=deletion_counts["embeddings"],
+                    )
                 except Exception as e:
                     logger.error(
                         "Failed to delete embeddings during cascade cleanup",
