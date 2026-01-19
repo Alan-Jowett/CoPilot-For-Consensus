@@ -542,6 +542,7 @@ class EmbeddingService:
             # Delete embeddings from vectorstore
             # Strategy: Use archive_ids from event to construct expected chunk IDs
             # This avoids race condition where chunking service may have already deleted chunks
+            chunk_ids: list[str] = []
             
             # First, try to query chunks (may be empty if chunking service already deleted them)
             try:
@@ -558,7 +559,7 @@ class EmbeddingService:
                         ) or []
                         chunks.extend(archive_chunks)
 
-                chunk_ids: list[str] = []
+
                 for chunk in chunks:
                     chunk_id = chunk.get("_id")
                     if isinstance(chunk_id, str) and chunk_id:
