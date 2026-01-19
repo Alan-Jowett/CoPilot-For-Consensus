@@ -171,7 +171,9 @@ Expected: 401 Unauthorized (token is invalid)
    - Cookie is sent automatically
    - Backend receives valid token
 
-## Test 7: Token Expiry
+## Test 7: Token Expiry (Legacy Behavior - Now Auto-Refreshes)
+
+**Note**: With automatic token refresh enabled, this scenario should no longer occur in normal usage. Tokens are automatically refreshed before expiration.
 
 ### Steps:
 1. Login and note the time
@@ -183,6 +185,87 @@ Expected: 401 Unauthorized (token is invalid)
 - Network tab shows 401 response
 - Redirects to `/ui/login`
 - Cookie is cleared
+
+## Test 7a: Automatic Token Refresh
+
+**NEW**: Test that tokens are automatically refreshed before expiration.
+
+### Setup:
+For faster testing, configure a short token lifetime:
+```bash
+# In docker-compose.yml or .env
+JWT_DEFAULT_EXPIRY=180  # 3 minutes for testing (default: 1800 = 30 min)
+```
+
+### Steps:
+1. Login to the UI at http://localhost:8080/ui/
+2. Open browser DevTools > Console
+3. Watch for refresh-related log messages:
+   - `[AuthContext] Token expires in Xs, scheduling refresh in Ys`
+   - `[AuthContext] Refresh timer triggered`
+   - `[AuthContext] Attempting silent token refresh`
+4. Stay on any page and wait for automatic refresh
+5. Page should briefly reload (redirect to /auth/refresh, then back)
+6. Session continues without interruption
+
+### Verification with Console Logs:
+```
+[AuthContext] Token expires in 180s, scheduling refresh in 90s
+...wait 90 seconds...
+[AuthContext] Refresh timer triggered
+[AuthContext] Attempting silent token refresh
+[Callback] Token refreshed, returning to: /ui/reports
+[AuthContext] User authenticated: user@example.com
+[AuthContext] Token expires in 180s, scheduling refresh in 90s
+```
+
+### Verification with Network Tab:
+1. Open DevTools > Network tab
+2. Wait for refresh timer to trigger
+3. Should see sequence:
+   - Request to `/auth/refresh` → 302 redirect
+   - Redirect to OIDC provider (with `prompt=none`)
+   - Redirect to `/auth/callback` → 200 with new token
+   - Return to original page
+
+### Verification with Cookies:
+1. Open DevTools > Application > Cookies
+2. Note the `auth_token` cookie value
+3. Wait for refresh
+4. Cookie value should change (new token)
+5. Expiration time should be extended
+
+### Test Refresh Failure (OIDC Session Expired):
+
+**Setup**: Close/reopen browser to clear OIDC session cookies (provider-side)
+
+1. Login to UI
+2. Close all browser windows
+3. Reopen browser and navigate back to UI
+4. Wait for token to near expiration
+5. Automatic refresh should fail (no valid OIDC session)
+6. Should redirect to login page
+
+**Expected Console Logs**:
+```
+[Callback] Silent refresh failed (OIDC session expired), redirecting to login
+```
+
+## Test 7b: Manual Token Refresh Testing
+
+Test the `/auth/refresh` endpoint directly:
+
+### Steps:
+1. Login at http://localhost:8080/ui/
+2. Open new tab and navigate to http://localhost:8080/auth/refresh
+3. Should redirect to OIDC provider with `prompt=none`
+4. Provider should silently authenticate (if session valid)
+5. Should redirect back to UI with new token
+
+### Verification:
+- Check that you're redirected back to UI
+- Check that cookie is updated (new expiration)
+- Session continues without login prompt
 
 ## Test 8: Admin Features
 
@@ -259,6 +342,25 @@ After testing, verify:
 - [ ] XSS cannot access token (test in console)
 - [ ] CSRF attacks blocked (test cross-site POST)
 - [ ] Token expiry works correctly
+- [ ] **NEW**: Automatic token refresh works (check console logs)
+- [ ] **NEW**: Token refresh preserves user location
+- [ ] **NEW**: Failed refresh redirects to login
 - [ ] Logout clears cookies
 - [ ] API calls work with cookies
 - [ ] Admin access control works
+
+## Token Refresh Checklist
+
+**NEW**: Specific checks for automatic token refresh feature:
+
+- [ ] `/auth/userinfo` includes `exp` field with future timestamp
+- [ ] AuthContext logs show refresh scheduling message
+- [ ] Refresh timer triggers before token expires (check logs)
+- [ ] `/auth/refresh` endpoint redirects to OIDC provider
+- [ ] OIDC provider receives `prompt=none` parameter
+- [ ] Successful refresh updates cookie with new expiration
+- [ ] Successful refresh returns user to original page
+- [ ] Failed refresh (expired OIDC session) redirects to login
+- [ ] Multiple tabs share the same refreshed token (cookie-based)
+- [ ] Admin dashboard remains usable during long sessions
+- [ ] Console shows no errors during refresh process
