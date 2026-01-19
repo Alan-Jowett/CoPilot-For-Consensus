@@ -6,7 +6,7 @@
 import asyncio
 import secrets
 import time
-from dataclasses import asdict, replace
+from dataclasses import replace
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Callable, Protocol, cast
 
