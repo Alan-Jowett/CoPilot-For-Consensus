@@ -9,12 +9,16 @@ on:
     paths:
       - 'docs/schemas/configs/**'
       - 'adapters/copilot_config/**'
+      - 'adapters/copilot_config/copilot_config/generated/**'
+      - 'scripts/generate_typed_configs.py'
       - '.github/workflows/schema-validation.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'docs/schemas/configs/**'
       - 'adapters/copilot_config/**'
+      - 'adapters/copilot_config/copilot_config/generated/**'
+      - 'scripts/generate_typed_configs.py'
       - '.github/workflows/schema-validation.yml'
   workflow_dispatch:  # Allow manual triggering
 
