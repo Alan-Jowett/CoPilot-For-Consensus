@@ -177,7 +177,7 @@ class TestParsingForwardProgress:
         parsing_service.start(enable_startup_requeue=True)
 
         # Verify subscription still happened
-        mock_subscriber.subscribe.assert_called_once()
+        assert mock_subscriber.subscribe.call_count == 2
 
     @patch('copilot_startup.StartupRequeue')
     def test_requeue_continues_on_error(self, mock_requeue_class, parsing_service, mock_subscriber):
@@ -191,7 +191,7 @@ class TestParsingForwardProgress:
         parsing_service.start(enable_startup_requeue=True)
 
         # Verify subscription still happened
-        mock_subscriber.subscribe.assert_called_once()
+        assert mock_subscriber.subscribe.call_count == 2
 
     @patch('copilot_startup.StartupRequeue')
     def test_requeue_respects_query_status_filter(self, mock_requeue_class, parsing_service):

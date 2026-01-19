@@ -729,12 +729,27 @@ class TestParsingService:
         # Start the service
         service.start()
 
-        # Verify subscription was called
-        mock_subscriber.subscribe.assert_called_once()
-        call_args = mock_subscriber.subscribe.call_args
-        assert call_args[1]["exchange"] == "copilot.events"
-        assert call_args[1]["routing_key"] == "archive.ingested"
-        assert call_args[1]["callback"] == service._handle_archive_ingested
+        # Verify subscription was called for both ArchiveIngested and SourceDeletionRequested
+        from unittest.mock import call
+
+        assert mock_subscriber.subscribe.call_count == 2
+        mock_subscriber.subscribe.assert_has_calls(
+            [
+                call(
+                    event_type="ArchiveIngested",
+                    exchange="copilot.events",
+                    routing_key="archive.ingested",
+                    callback=service._handle_archive_ingested,
+                ),
+                call(
+                    event_type="SourceDeletionRequested",
+                    exchange="copilot.events",
+                    routing_key="source.deletion.requested",
+                    callback=service._handle_source_deletion_requested,
+                ),
+            ],
+            any_order=False,
+        )
 
     def test_handle_archive_ingested_event(self, document_store, publisher, subscriber, sample_mbox_file):
         """Test that _handle_archive_ingested processes events correctly."""
@@ -1538,21 +1553,49 @@ def test_cascade_cleanup_handler():
     )
     
     # Add test data
-    document_store.insert_document("threads", {
-        "_id": "thread-1",
-        "source": "test-source",
-        "subject": "Test Thread"
-    })
-    document_store.insert_document("messages", {
-        "_id": "message-1",
-        "source": "test-source",
-        "subject": "Test Message"
-    })
-    document_store.insert_document("messages", {
-        "_id": "message-2",
-        "source": "test-source",
-        "subject": "Test Message 2"
-    })
+    # Insert schema-compliant documents (ValidatingDocumentStore is strict by default)
+    archive_id = "aaaaaaaaaaaaaaaa"
+    thread_id = "bbbbbbbbbbbbbbbb"
+
+    document_store.insert_document(
+        "threads",
+        {
+            "_id": thread_id,
+            "thread_id": thread_id,
+            "archive_id": archive_id,
+            "has_consensus": False,
+            "created_at": "2025-01-18T00:00:00Z",
+            "source": "test-source",
+            "subject": "Test Thread",
+        },
+    )
+
+    document_store.insert_document(
+        "messages",
+        {
+            "_id": "cccccccccccccccc",
+            "message_id": "<message-1@example.com>",
+            "archive_id": archive_id,
+            "thread_id": thread_id,
+            "body_normalized": "Test Message",
+            "created_at": "2025-01-18T00:00:00Z",
+            "source": "test-source",
+            "subject": "Test Message",
+        },
+    )
+    document_store.insert_document(
+        "messages",
+        {
+            "_id": "dddddddddddddddd",
+            "message_id": "<message-2@example.com>",
+            "archive_id": archive_id,
+            "thread_id": thread_id,
+            "body_normalized": "Test Message 2",
+            "created_at": "2025-01-18T00:00:00Z",
+            "source": "test-source",
+            "subject": "Test Message 2",
+        },
+    )
     
     # Simulate SourceDeletionRequested event
     event = {
