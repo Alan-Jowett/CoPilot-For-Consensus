@@ -25,7 +25,7 @@
     Environment name: dev, staging, or prod (default: dev).
 
 .PARAMETER ImageTag
-    Container image tag to deploy (default: latest).
+    Container image tag to deploy (default: azure).
 
 .PARAMETER ValidateOnly
     Only validate the template without deploying.
@@ -59,7 +59,7 @@ param(
     [string]$Environment = "dev",
 
     [Parameter(Mandatory=$false)]
-    [string]$ImageTag = "latest",
+    [string]$ImageTag = "azure",
 
     [Parameter(Mandatory=$false)]
     [switch]$ValidateOnly

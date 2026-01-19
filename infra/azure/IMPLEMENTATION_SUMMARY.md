@@ -127,7 +127,7 @@ The ARM template deploys:
 
 ✅ **Each service is deployed using its container image from ghcr.io**
 - Images referenced as `ghcr.io/alan-jowett/copilot-for-consensus/<service>:<tag>`
-- Tag is parameterized (default: latest)
+- Tag is parameterized (default: azure)
 
 ## Deployment Modes
 
