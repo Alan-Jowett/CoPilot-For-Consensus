@@ -260,6 +260,149 @@ class TestAzureBlobArchiveStore:
                 container_name="archives"
             )
 
+    def test_get_archive_reload_metadata_on_cache_miss(self, store):
+        """get_archive should reload metadata index when cache is stale.
+
+        Long-lived services may start with an empty metadata cache and later
+        receive events for archives stored by another instance. The store should
+        reload metadata on miss so archives become visible without restart.
+        """
+        archive_id = "9b548dcbf26aec88"
+        content = b"hello-archive"
+
+        # Ensure cache is empty to simulate a long-lived process started before ingest.
+        store._metadata = {}
+        store._hash_index = {}
+
+        # Mock metadata index blob download to return updated metadata containing the archive.
+        metadata_json = (
+            '{'
+            '  "9b548dcbf26aec88": {'
+            '    "archive_id": "9b548dcbf26aec88",'
+            '    "source_name": "test",'
+            '    "blob_name": "test/test-archive.mbox",'
+            '    "original_path": "/data/raw_archives/test/test-archive.mbox",'
+            '    "content_hash": "9b548dcbf26aec88e7c66961410ccc204c549eec9bb4bea86fed03ecbe2bb25d",'
+            '    "size_bytes": 11,'
+            '    "stored_at": "2026-01-19T16:57:18.547683Z"'
+            '  }'
+            '}'
+        ).encode("utf-8")
+
+        mock_metadata_download = MagicMock()
+        mock_metadata_download.readall.return_value = metadata_json
+        mock_metadata_download.properties.etag = "etag-1"
+
+        mock_metadata_blob = MagicMock()
+        mock_metadata_blob.download_blob.return_value = mock_metadata_download
+
+        # Mock archive blob download.
+        mock_archive_download = MagicMock()
+        mock_archive_download.readall.return_value = content
+
+        mock_archive_blob = MagicMock()
+        mock_archive_blob.download_blob.return_value = mock_archive_download
+
+        def _blob_client_for(name: str):
+            if name == store.metadata_blob_name:
+                return mock_metadata_blob
+            if name == "test/test-archive.mbox":
+                return mock_archive_blob
+            return MagicMock()
+
+        store.container_client.get_blob_client.side_effect = _blob_client_for
+
+        assert store.get_archive(archive_id) == content
+
+    def test_archive_exists_reload_metadata_on_cache_miss(self, store):
+        """archive_exists should reload metadata index when cache is stale."""
+        archive_id = "9b548dcbf26aec88"
+        content_hash = "9b548dcbf26aec88e7c66961410ccc204c549eec9bb4bea86fed03ecbe2bb25d"
+
+        store._metadata = {}
+        store._hash_index = {}
+
+        metadata_json = (
+            '{'
+            '  "9b548dcbf26aec88": {'
+            '    "archive_id": "9b548dcbf26aec88",'
+            '    "source_name": "test",'
+            '    "blob_name": "test/test-archive.mbox",'
+            '    "original_path": "/data/raw_archives/test/test-archive.mbox",'
+            f'    "content_hash": "{content_hash}",'
+            '    "size_bytes": 11,'
+            '    "stored_at": "2026-01-19T16:57:18.547683Z"'
+            '  }'
+            '}'
+        ).encode("utf-8")
+
+        mock_metadata_download = MagicMock()
+        mock_metadata_download.readall.return_value = metadata_json
+        mock_metadata_download.properties.etag = "etag-1"
+
+        mock_metadata_blob = MagicMock()
+        mock_metadata_blob.download_blob.return_value = mock_metadata_download
+
+        mock_archive_blob = MagicMock()
+        mock_archive_blob.exists.return_value = True
+
+        def _blob_client_for(name: str):
+            if name == store.metadata_blob_name:
+                return mock_metadata_blob
+            if name == "test/test-archive.mbox":
+                return mock_archive_blob
+            return MagicMock()
+
+        store.container_client.get_blob_client.side_effect = _blob_client_for
+
+        assert store.archive_exists(archive_id) is True
+
+    def test_get_archive_by_hash_reload_metadata_on_cache_miss(self, store):
+        """get_archive_by_hash should reload metadata index when cache is stale."""
+        archive_id = "9b548dcbf26aec88"
+        content_hash = "9b548dcbf26aec88e7c66961410ccc204c549eec9bb4bea86fed03ecbe2bb25d"
+
+        store._metadata = {}
+        store._hash_index = {}
+
+        metadata_json = (
+            '{'
+            '  "9b548dcbf26aec88": {'
+            '    "archive_id": "9b548dcbf26aec88",'
+            '    "source_name": "test",'
+            '    "blob_name": "test/test-archive.mbox",'
+            '    "original_path": "/data/raw_archives/test/test-archive.mbox",'
+            f'    "content_hash": "{content_hash}",'
+            '    "size_bytes": 11,'
+            '    "stored_at": "2026-01-19T16:57:18.547683Z"'
+            '  }'
+            '}'
+        ).encode("utf-8")
+
+        mock_metadata_download = MagicMock()
+        mock_metadata_download.readall.return_value = metadata_json
+        mock_metadata_download.properties.etag = "etag-1"
+
+        mock_metadata_blob = MagicMock()
+        mock_metadata_blob.download_blob.return_value = mock_metadata_download
+
+        store.container_client.get_blob_client.side_effect = (
+            lambda name: mock_metadata_blob if name == store.metadata_blob_name else MagicMock()
+        )
+
+        assert store.get_archive_by_hash(content_hash) == archive_id
+
+    def test_get_archive_by_hash_does_not_reload_metadata_on_cache_hit(self, store):
+        """get_archive_by_hash should not reload metadata when hash is already cached."""
+        archive_id = "9b548dcbf26aec88"
+        content_hash = "9b548dcbf26aec88e7c66961410ccc204c549eec9bb4bea86fed03ecbe2bb25d"
+
+        store._hash_index = {content_hash: archive_id}
+        store._load_metadata = MagicMock()
+
+        assert store.get_archive_by_hash(content_hash) == archive_id
+        store._load_metadata.assert_not_called()
+
     def test_initialization_container_already_exists(self):
         """Test successful initialization when container already exists."""
         with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
