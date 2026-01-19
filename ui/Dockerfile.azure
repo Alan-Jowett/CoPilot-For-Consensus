@@ -33,6 +33,8 @@ server {
   server_name _;
   root /usr/share/nginx/html;
 
+  add_header X-CFC-UI 1 always;
+
   # Disable sendfile for Azure Container Apps / Envoy compatibility
   # When running behind Envoy (ACA ingress), sendfile can cause response truncation
   sendfile off;
@@ -41,6 +43,21 @@ server {
 
   # Increase client body size limit for file uploads (100MB)
   client_max_body_size 100M;
+
+  # Reduce transferred bytes for large JS/CSS assets.
+  # This can mitigate intermittent truncation observed behind proxy chains (e.g., ACA ingress).
+  gzip on;
+  gzip_comp_level 6;
+  gzip_min_length 1024;
+  gzip_proxied any;
+  gzip_vary on;
+  gzip_types
+    text/plain
+    text/css
+    application/json
+    application/javascript
+    application/xml
+    image/svg+xml;
 
   location / {
     try_files $uri $uri/ /index.html;
