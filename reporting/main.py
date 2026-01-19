@@ -43,7 +43,9 @@ from copilot_message_bus import create_publisher, create_subscriber
 from copilot_metrics import create_metrics_collector
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import DocumentStoreConnectionError, create_document_store
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 
 # Bootstrap logger before configuration is loaded
 bootstrap_logger = create_stdout_logger(level="INFO", name="reporting")
@@ -53,6 +55,11 @@ logger = bootstrap_logger
 
 # Create FastAPI app
 app = FastAPI(title="Reporting Service", version=__version__)
+
+# Compress larger responses (e.g., /api/reports) to reduce bytes-on-the-wire.
+# This is a pragmatic workaround for intermittent truncation/reset issues behind
+# proxies (e.g., Azure Container Apps ingress) when transferring larger JSON.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # Global service instance
 reporting_service = None
@@ -99,6 +106,7 @@ def get_stats():
 
 @app.get("/api/reports")
 def get_reports(
+    request: Request,
     thread_id: str = Query(None, description="Filter by thread ID"),
     limit: int = Query(10, ge=1, le=100, description="Maximum number of results"),
     skip: int = Query(0, ge=0, description="Number of results to skip"),
@@ -142,12 +150,21 @@ def get_reports(
             sort_order=sort_order,
         )
 
-        return {
+        payload = {
             "reports": reports,
             "count": len(reports),
             "limit": limit,
             "skip": skip,
         }
+
+        response = JSONResponse(content=payload)
+
+        # Echo request correlation ID when present.
+        request_id = request.headers.get("x-request-id")
+        if request_id:
+            response.headers["X-Request-ID"] = request_id
+
+        return response
 
     except Exception as e:
         logger.error(f"Error fetching reports: {e}", exc_info=True)
