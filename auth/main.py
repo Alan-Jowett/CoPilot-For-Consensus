@@ -411,7 +411,20 @@ async def refresh(
         elif ":" in sub:
             inferred_provider = sub.split(":", 1)[0]
 
-        # Use explicitly provided provider or inferred provider, fallback to first available
+        # Provider selection priority:
+        # 1. Explicitly provided provider parameter (override)
+        # 2. Inferred provider from token's sub claim
+        # 3. First available configured provider (fallback)
+        #
+        # SECURITY NOTE: Provider inference from token's sub claim is safe because:
+        # - The inferred provider is validated against configured providers (line 428)
+        # - The actual OIDC authentication happens with the provider's authorization server
+        # - The provider cannot be spoofed to access a different identity provider
+        # - The OIDC session at the provider validates the user's identity
+        # However, an attacker with a valid token from provider A could force refresh via
+        # provider B if both are configured. This is acceptable because:
+        # - The refresh will fail if user doesn't have a valid session at provider B
+        # - The token issuer is validated during the full OIDC flow
         if provider:
             target_provider = provider
         elif inferred_provider:

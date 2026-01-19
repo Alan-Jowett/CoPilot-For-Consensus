@@ -6,7 +6,7 @@ import { useSearchParams } from 'react-router-dom'
 import styles from './Callback.module.css'
 
 // Delay before redirecting to login after failed silent refresh (milliseconds)
-const FAILED_REFRESH_REDIRECT_DELAY_MS = 2000
+const SILENT_REFRESH_FAILURE_LOGIN_DELAY_MS = 2000
 
 export function Callback() {
   const [searchParams] = useSearchParams()
@@ -58,13 +58,13 @@ export function Callback() {
       const isSilentRefresh = !!sessionStorage.getItem('postRefreshUrl')
       if (isSilentRefresh && (error_param === 'login_required' || error_param === 'interaction_required')) {
         // Silent refresh failed because OIDC session expired
-        // Consume the refresh redirect URL so it doesn't linger in storage.
-        getRedirectUrl()
+        // Clear the postRefreshUrl from sessionStorage to prevent it from lingering
+        sessionStorage.removeItem('postRefreshUrl')
         console.log('[Callback] Silent refresh failed (OIDC session expired), redirecting to login')
-        setError('Your session has expired. Please log in again.')
+        setError('Your authentication session has expired. Please log in again.')
         setTimeout(() => {
           window.location.href = `${import.meta.env.BASE_URL}login`
-        }, FAILED_REFRESH_REDIRECT_DELAY_MS)
+        }, SILENT_REFRESH_FAILURE_LOGIN_DELAY_MS)
         return
       }
       

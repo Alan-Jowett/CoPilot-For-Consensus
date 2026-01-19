@@ -35,6 +35,13 @@ export const getUnauthorizedCallback = () => globalOnUnauthorized
 const TOKEN_REFRESH_BUFFER_SECONDS = 300 // Refresh 5 minutes before expiration
 const MIN_REFRESH_BUFFER_FRACTION = 0.5 // Or halfway for short-lived tokens
 
+// Note: Multi-tab coordination
+// Currently, each tab independently schedules refresh timers. Since the refresh involves
+// a full-page redirect and tokens are shared via httpOnly cookies, race conditions are
+// handled by the browser's cookie mechanism. However, multiple simultaneous refreshes may
+// occur if tabs refresh at similar times. Future improvement could use BroadcastChannel API
+// or localStorage events to coordinate refresh across tabs.
+
 /**
  * Check if the user has admin role from user info
  */
@@ -89,22 +96,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   // Function to refresh the token silently
-  const refreshToken = async () => {
-    try {
-      console.log('[AuthContext] Attempting silent token refresh')
-      
-      // Save current location so we can return after refresh
-      const currentPath = window.location.pathname + window.location.search
-      sessionStorage.setItem('postRefreshUrl', currentPath)
-      
-      // Redirect to refresh endpoint which will initiate OIDC prompt=none flow
-      // The OIDC provider will redirect back to /callback which will set new cookie
-      // and redirect back to the saved location
-      window.location.href = '/auth/refresh'
-    } catch (error) {
-      console.error('[AuthContext] Error refreshing token:', error)
-      clearRefreshTimer()
-    }
+  // Note: This function initiates navigation and never returns
+  const refreshToken = () => {
+    console.log('[AuthContext] Attempting silent token refresh')
+    
+    // Save current location so we can return after refresh
+    const currentPath = window.location.pathname + window.location.search
+    sessionStorage.setItem('postRefreshUrl', currentPath)
+    
+    // Redirect to refresh endpoint which will initiate OIDC prompt=none flow
+    // The OIDC provider will redirect back to /callback which will set new cookie
+    // and redirect back to the saved location
+    window.location.href = '/auth/refresh'
   }
 
   // Schedule automatic token refresh before expiration
@@ -115,6 +118,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const expiresIn = expirationTimestamp - now // Time until expiration in seconds
     
     // Refresh before expiration with a buffer, or halfway through for short-lived tokens
+    // For tokens >10 minutes: refresh 5 minutes before expiry
+    // For tokens <10 minutes: refresh halfway through (e.g., 3 min token refreshes at 1.5 min)
+    // For tokens <60 seconds: schedule immediately (don't wait for negative time)
     const refreshBuffer = Math.min(TOKEN_REFRESH_BUFFER_SECONDS, Math.floor(expiresIn * MIN_REFRESH_BUFFER_FRACTION))
     const refreshIn = Math.max(0, expiresIn - refreshBuffer)
 
@@ -130,9 +136,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       refreshTimerIdRef.current = timerId
     } else {
-      // Token already expired or very close to expiration, refresh immediately
-      console.log('[AuthContext] Token already expired, refreshing immediately')
-      refreshToken()
+      // Token already expired or very close to expiration; defer refresh slightly
+      // to allow the UI to render first, avoiding redirect during initial render
+      console.log('[AuthContext] Token already expired, scheduling immediate refresh')
+      const timerId = setTimeout(() => {
+        console.log('[AuthContext] Immediate refresh timer triggered')
+        refreshToken()
+      }, 100) as number // 100ms delay to let UI render
+      refreshTimerIdRef.current = timerId
     }
   }
 
