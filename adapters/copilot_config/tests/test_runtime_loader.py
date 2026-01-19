@@ -141,7 +141,7 @@ def test_get_config_auth_composite_oidc_providers(monkeypatch, tmp_path):
     secrets_dir = tmp_path / "secrets"
     secrets_dir.mkdir()
 
-    # Service JWT keys (required for RS256 at runtime, but loader should still surface secrets)
+    # JWT signer keys (required for local RS256)
     (secrets_dir / "jwt_private_key").write_text("PRIVATE_KEY")
     (secrets_dir / "jwt_public_key").write_text("PUBLIC_KEY")
 
@@ -152,6 +152,8 @@ def test_get_config_auth_composite_oidc_providers(monkeypatch, tmp_path):
     monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
     monkeypatch.setenv("SECRETS_BASE_PATH", str(secrets_dir))
 
+    monkeypatch.setenv("JWT_SIGNER_TYPE", "local")
+
     # Required adapters for auth
     monkeypatch.setenv("LOG_TYPE", "stdout")
     monkeypatch.setenv("METRICS_TYPE", "noop")
@@ -161,8 +163,11 @@ def test_get_config_auth_composite_oidc_providers(monkeypatch, tmp_path):
     config = get_config("auth")
 
     assert config.service_settings.issuer == "http://issuer.example"
-    assert config.service_settings.jwt_private_key == "PRIVATE_KEY"
-    assert config.service_settings.jwt_public_key == "PUBLIC_KEY"
+
+    assert config.jwt_signer is not None
+    assert config.jwt_signer.signer_type == "local"
+    assert config.jwt_signer.driver.private_key == "PRIVATE_KEY"
+    assert config.jwt_signer.driver.public_key == "PUBLIC_KEY"
 
     assert config.oidc_providers is not None
     assert config.oidc_providers.oidc_providers is not None
@@ -181,6 +186,7 @@ def test_get_config_auth_hs256_requires_jwt_secret_key(monkeypatch, tmp_path):
     monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
     monkeypatch.setenv("SECRETS_BASE_PATH", str(secrets_dir))
 
+    monkeypatch.setenv("JWT_SIGNER_TYPE", "local")
     monkeypatch.setenv("AUTH_JWT_ALGORITHM", "HS256")
     monkeypatch.setenv("AUTH_ISSUER", "http://issuer.example")
 
@@ -191,10 +197,12 @@ def test_get_config_auth_hs256_requires_jwt_secret_key(monkeypatch, tmp_path):
 
     config = get_config("auth")
 
-    assert config.service_settings.jwt_algorithm == "HS256"
-    assert config.service_settings.jwt_secret_key == "HMAC_SECRET"
-    assert config.service_settings.jwt_private_key is None
-    assert config.service_settings.jwt_public_key is None
+    assert config.jwt_signer is not None
+    assert config.jwt_signer.signer_type == "local"
+    assert config.jwt_signer.driver.algorithm == "HS256"
+    assert config.jwt_signer.driver.secret_key == "HMAC_SECRET"
+    assert config.jwt_signer.driver.private_key is None
+    assert config.jwt_signer.driver.public_key is None
 
 
 def test_get_config_auth_hs256_missing_jwt_secret_key_raises(monkeypatch, tmp_path):
@@ -205,6 +213,7 @@ def test_get_config_auth_hs256_missing_jwt_secret_key_raises(monkeypatch, tmp_pa
     monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
     monkeypatch.setenv("SECRETS_BASE_PATH", str(secrets_dir))
 
+    monkeypatch.setenv("JWT_SIGNER_TYPE", "local")
     monkeypatch.setenv("AUTH_JWT_ALGORITHM", "HS256")
     monkeypatch.setenv("AUTH_ISSUER", "http://issuer.example")
 
@@ -213,7 +222,7 @@ def test_get_config_auth_hs256_missing_jwt_secret_key_raises(monkeypatch, tmp_pa
     monkeypatch.setenv("METRICS_TYPE", "noop")
     monkeypatch.setenv("DOCUMENT_STORE_TYPE", "inmemory")
 
-    with pytest.raises(ValueError, match=r"jwt_secret_key parameter is required"):
+    with pytest.raises(ValueError, match=r"secret_key parameter is required"):
         get_config("auth")
 
 

@@ -119,6 +119,7 @@ module = [
     "copilot_storage.*",
     "copilot_summarization.*",
     "copilot_vectorstore.*",
+    "copilot_jwt_signer.*",
     "copilot_startup.*",
 ]
 ignore_missing_imports = true
@@ -128,6 +129,7 @@ ignore_missing_imports = true
 extraPaths = [
     "adapters/copilot_config",
     "adapters/copilot_auth",
+    "adapters/copilot_jwt_signer",
     "adapters/copilot_archive_fetcher",
     "adapters/copilot_archive_store",
     "adapters/copilot_chunking",
