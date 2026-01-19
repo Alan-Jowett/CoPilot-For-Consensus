@@ -10,6 +10,29 @@ export function Callback() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Helper function to determine redirect URL after successful authentication
+  const getRedirectUrl = (): string => {
+    // Check if this is a token refresh (return to saved page)
+    const postRefreshUrl = sessionStorage.getItem('postRefreshUrl')
+    if (postRefreshUrl) {
+      sessionStorage.removeItem('postRefreshUrl')
+      console.log('[Callback] Token refreshed, returning to:', postRefreshUrl)
+      return postRefreshUrl
+    }
+
+    // Check for legacy postLoginUrl for backward compatibility
+    const postLoginUrl = sessionStorage.getItem('postLoginUrl')
+    if (postLoginUrl) {
+      sessionStorage.removeItem('postLoginUrl')
+      console.log('[Callback] Normal login, returning to:', postLoginUrl)
+      return postLoginUrl
+    }
+
+    // Default to reports page
+    console.log('[Callback] Normal login, redirecting to reports')
+    return '/ui/reports'
+  }
+
   useEffect(() => {
     console.log('[Callback] Component mounted, searchParams:', Object.fromEntries(searchParams))
 
@@ -52,28 +75,8 @@ export function Callback() {
       // The token is already set as an httpOnly cookie by the auth service
       console.log('[Callback] Token found in URL params, cookie should be set by auth service')
 
-      // Check if this is a token refresh (return to saved page)
-      const postRefreshUrl = sessionStorage.getItem('postRefreshUrl')
-      let redirectUrl = '/ui/reports'
-
-      if (postRefreshUrl) {
-        // Return to page where refresh was triggered
-        redirectUrl = postRefreshUrl
-        sessionStorage.removeItem('postRefreshUrl')
-        console.log('[Callback] Token refreshed, returning to:', redirectUrl)
-      } else {
-        // Check for legacy postLoginUrl for backward compatibility
-        const postLoginUrl = sessionStorage.getItem('postLoginUrl')
-        if (postLoginUrl) {
-          redirectUrl = postLoginUrl
-          sessionStorage.removeItem('postLoginUrl')
-          console.log('[Callback] Normal login, returning to:', redirectUrl)
-        } else {
-          console.log('[Callback] Normal login, redirecting to reports')
-        }
-      }
-
-      // Redirect to destination
+      // Determine where to redirect and perform redirect
+      const redirectUrl = getRedirectUrl()
       console.log('[Callback] Redirecting to', redirectUrl)
       window.location.href = redirectUrl
     } else if (code) {
@@ -117,26 +120,8 @@ export function Callback() {
         // No need to store in localStorage (security improvement)
         console.log('[Callback] Token received and set as httpOnly cookie by auth service')
 
-        // Check if this is a token refresh (return to saved page)
-        const postRefreshUrl = sessionStorage.getItem('postRefreshUrl')
-        let redirectUrl = '/ui/reports'
-
-        if (postRefreshUrl) {
-          // Return to page where refresh was triggered
-          redirectUrl = postRefreshUrl
-          sessionStorage.removeItem('postRefreshUrl')
-          console.log('[Callback] Token refreshed, returning to:', redirectUrl)
-        } else {
-          // Check for legacy postLoginUrl for backward compatibility
-          const postLoginUrl = sessionStorage.getItem('postLoginUrl')
-          if (postLoginUrl) {
-            redirectUrl = postLoginUrl
-            sessionStorage.removeItem('postLoginUrl')
-            console.log('[Callback] Normal login, returning to:', redirectUrl)
-          } else {
-            console.log('[Callback] Normal login, redirecting to reports')
-          }
-        }
+        // Determine where to redirect using helper function
+        const redirectUrl = getRedirectUrl()
 
         // Redirect after a short delay to allow logs to be read
         console.log('[Callback] Will redirect to', redirectUrl, 'in 1 second (or enable "Preserve log" in DevTools)')

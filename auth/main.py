@@ -13,7 +13,7 @@ This service provides:
 import os
 import sys
 import inspect
-import jwt as jwt_lib
+import jwt
 from contextlib import asynccontextmanager
 from enum import Enum
 from typing import Any
@@ -376,9 +376,12 @@ async def refresh(
         raise HTTPException(status_code=401, detail="No token found to refresh")
 
     try:
-        # Decode token to get audience (don't fully validate, just decode)
-        # We'll use any audience since we just need to know what to request
-        unverified_claims = jwt_lib.decode(token, options={"verify_signature": False})
+        # Decode token WITHOUT signature verification to extract claims for provider inference
+        # SECURITY NOTE: This is safe because:
+        # 1. We only use the decoded data to infer the provider (non-security-critical)
+        # 2. The actual token validation happens later in the OIDC flow
+        # 3. The provider is validated against the configured providers list
+        unverified_claims = jwt.decode(token, options={"verify_signature": False})
         audience = unverified_claims.get("aud", "copilot-for-consensus")
 
         # Try to infer provider from sub claim (format: "provider|id" or "provider:id")
