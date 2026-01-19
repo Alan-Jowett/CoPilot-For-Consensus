@@ -457,6 +457,65 @@ export interface PendingRoleAssignment {
   user_name?: string
 }
 
+function normalizePendingRoleAssignment(input: unknown): PendingRoleAssignment | null {
+  if (!input || typeof input !== 'object') return null
+
+  const record = input as Record<string, unknown>
+  const userId = record.user_id
+  if (typeof userId !== 'string' || userId.length === 0) return null
+
+  const asStringArray = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && v.length > 0) : []
+
+  const requestedRolesFromRequested = asStringArray(record.requested_roles)
+  const requestedRolesFromRoles = asStringArray(record.roles)
+  const requestedRoles =
+    requestedRolesFromRequested.length > 0
+      ? requestedRolesFromRequested
+      : requestedRolesFromRoles.length > 0
+        ? requestedRolesFromRoles
+        : typeof record.requested_role === 'string' && record.requested_role.length > 0
+          ? [record.requested_role]
+          : typeof record.role === 'string' && record.role.length > 0
+            ? [record.role]
+            : []
+
+  // If an assignment has no requested roles, it's not actionable and should not be shown.
+  if (requestedRoles.length === 0) return null
+
+  const requestedAt =
+    typeof record.requested_at === 'string'
+      ? record.requested_at
+      : typeof record.updated_at === 'string'
+        ? record.updated_at
+        : new Date().toISOString()
+
+  const status = typeof record.status === 'string' && record.status.length > 0 ? record.status : 'pending'
+
+  const userEmail =
+    typeof record.user_email === 'string'
+      ? record.user_email
+      : typeof record.email === 'string'
+        ? record.email
+        : undefined
+
+  const userName =
+    typeof record.user_name === 'string'
+      ? record.user_name
+      : typeof record.name === 'string'
+        ? record.name
+        : undefined
+
+  return {
+    user_id: userId,
+    requested_roles: requestedRoles,
+    requested_at: requestedAt,
+    status,
+    user_email: userEmail,
+    user_name: userName,
+  }
+}
+
 export interface UserRoleRecord {
   user_id: string
   email?: string
@@ -502,9 +561,15 @@ export async function fetchPendingRoleAssignments(
   // The admin endpoint has evolved over time. Some deployments return a simple
   // array of assignments; others return a paginated object.
   if (Array.isArray(json)) {
+    const normalizedAssignments = (json as unknown[])
+      .map(normalizePendingRoleAssignment)
+      .filter(
+        (assignment: PendingRoleAssignment | null): assignment is PendingRoleAssignment =>
+          assignment !== null
+      )
     return {
-      assignments: json as PendingRoleAssignment[],
-      total: json.length,
+      assignments: normalizedAssignments,
+      total: normalizedAssignments.length,
       limit: params.limit ?? 50,
       skip: params.skip ?? 0,
     }
@@ -515,7 +580,14 @@ export async function fetchPendingRoleAssignments(
   const limit = typeof json?.limit === 'number' ? json.limit : params.limit ?? 50
   const skip = typeof json?.skip === 'number' ? json.skip : params.skip ?? 0
 
-  return { assignments, total, limit, skip }
+  const normalizedAssignments = assignments
+    .map(normalizePendingRoleAssignment)
+    .filter(
+      (assignment: PendingRoleAssignment | null): assignment is PendingRoleAssignment =>
+        assignment !== null
+    )
+
+  return { assignments: normalizedAssignments, total, limit, skip }
 }
 
 export async function fetchUserRoles(userId: string): Promise<UserRoleRecord> {
