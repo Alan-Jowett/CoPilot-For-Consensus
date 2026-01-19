@@ -51,12 +51,12 @@ Each service subscribes to `SourceDeletionRequested` events and handles cleanup 
 - Publishes: `SourceCleanupProgress` event
 
 #### Orchestrator/Reporting Service
-- Subscribes to: `source.cleanup.progress`
+- Subscribes to: `source.deletion.requested`
 - Deletes: Derived reports and summaries
-- Aggregates progress from all services
-- Publishes: `SourceCleanupCompleted` event with overall status
+- Aggregates progress from all services (future enhancement)
+- Publishes: `SourceCleanupCompleted` event with overall status (future enhancement)
 
-**Note**: Aggregation logic is not yet implemented. Currently, the reporting service only deletes its own summaries and does not aggregate progress events or publish SourceCleanupCompleted. This is planned for a future enhancement.
+**Note**: Aggregation logic is not yet implemented. Currently, the reporting service subscribes to `SourceDeletionRequested` events to delete its own summaries. It does not yet aggregate progress events or publish SourceCleanupCompleted. This is planned for a future enhancement.
 
 #### Aggregation Logic (Future Enhancement)
 
