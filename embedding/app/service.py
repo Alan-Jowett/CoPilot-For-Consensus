@@ -559,7 +559,17 @@ class EmbeddingService:
                         ) or []
                         chunks.extend(archive_chunks)
 
-                chunk_ids = [chunk.get("_id") for chunk in chunks if chunk.get("_id")]
+                chunk_ids: list[str] = []
+                for chunk in chunks:
+                    chunk_id = chunk.get("_id")
+                    if isinstance(chunk_id, str) and chunk_id:
+                        chunk_ids.append(chunk_id)
+                    elif chunk_id is not None:
+                        logger.warning(
+                            "Skipping chunk with non-string _id during cascade cleanup",
+                            source_name=source_name,
+                            chunk_id_type=type(chunk_id).__name__,
+                        )
 
                 logger.info(
                     "Found chunks for source",
