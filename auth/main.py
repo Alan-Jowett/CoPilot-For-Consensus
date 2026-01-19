@@ -13,6 +13,7 @@ This service provides:
 import os
 import sys
 import inspect
+import jwt as jwt_lib
 from contextlib import asynccontextmanager
 from enum import Enum
 from typing import Any
@@ -377,7 +378,6 @@ async def refresh(
     try:
         # Decode token to get audience (don't fully validate, just decode)
         # We'll use any audience since we just need to know what to request
-        import jwt as jwt_lib
         unverified_claims = jwt_lib.decode(token, options={"verify_signature": False})
         audience = unverified_claims.get("aud", "copilot-for-consensus")
 
@@ -390,7 +390,18 @@ async def refresh(
             inferred_provider = sub.split(":")[0]
 
         # Use explicitly provided provider or inferred provider, fallback to first available
-        target_provider = provider or inferred_provider or list(service.providers.keys())[0]
+        if provider:
+            target_provider = provider
+        elif inferred_provider:
+            target_provider = inferred_provider
+        elif service.providers:
+            # Use first available provider if no preference specified
+            target_provider = list(service.providers.keys())[0]
+        else:
+            raise HTTPException(
+                status_code=503,
+                detail="No authentication providers configured"
+            )
 
         if target_provider not in service.providers:
             raise HTTPException(

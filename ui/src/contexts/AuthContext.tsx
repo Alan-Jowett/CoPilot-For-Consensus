@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true)
-  const [refreshTimerId, setRefreshTimerId] = useState<number | null>(null)
+  const [refreshTimerId, setRefreshTimerId] = useState<ReturnType<typeof setTimeout> | null>(null)
 
   // Function to check authentication status by calling /auth/userinfo
   const checkAuth = async () => {
@@ -118,7 +118,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     )
 
     if (refreshIn > 0) {
-      const timerId = window.setTimeout(() => {
+      const timerId = setTimeout(() => {
         console.log('[AuthContext] Refresh timer triggered')
         refreshToken()
       }, refreshIn * 1000) // Convert to milliseconds
@@ -134,7 +134,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Clear the refresh timer
   const clearRefreshTimer = () => {
     if (refreshTimerId !== null) {
-      window.clearTimeout(refreshTimerId)
+      clearTimeout(refreshTimerId)
       setRefreshTimerId(null)
     }
   }
