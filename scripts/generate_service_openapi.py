@@ -52,6 +52,7 @@ def load_fastapi_app(service_name: str) -> Any:
     # Get repository root
     repo_root = Path(__file__).parent.parent.resolve()
     service_path = repo_root / service_name / "main.py"
+    service_root = repo_root / service_name
 
     if not service_path.exists():
         raise FileNotFoundError(f"Service not found: {service_path}")
@@ -64,8 +65,16 @@ def load_fastapi_app(service_name: str) -> Any:
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
 
-    # Execute the module to populate it
-    spec.loader.exec_module(module)
+    # Execute the module to populate it.
+    # Many services use a local `app/` package (e.g., `from app import ...`).
+    # Ensure the service directory is importable while executing `main.py`.
+    original_sys_path = list(sys.path)
+    try:
+        sys.path.insert(0, str(service_root))
+        sys.path.insert(0, str(repo_root))
+        spec.loader.exec_module(module)
+    finally:
+        sys.path = original_sys_path
 
     # Get the FastAPI app
     if not hasattr(module, "app"):
