@@ -8,7 +8,7 @@ import secrets
 import time
 from dataclasses import asdict, replace
 from importlib import import_module
-from typing import Any, Callable, Protocol, cast
+from typing import TYPE_CHECKING, Any, Callable, Protocol, cast
 
 from copilot_auth import AuthenticationError, JWTManager, create_identity_provider
 from copilot_config.generated.adapters.oidc_providers import AdapterConfig_OidcProviders
@@ -46,9 +46,10 @@ class _OidcProvider(Protocol):
     def validate_and_get_user(self, token_response: dict, nonce: str | None = None) -> Any: ...
 
 
-class _JwtSigner(Protocol):
-    algorithm: str
-    key_id: str
+if TYPE_CHECKING:
+    from copilot_jwt_signer import JWTSigner as _JwtSigner
+else:
+    _JwtSigner = Any
 
 
 def _load_create_jwt_signer(*, requirement_message: str) -> Callable[[AdapterConfig_JwtSigner], _JwtSigner]:
