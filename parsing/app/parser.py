@@ -3,10 +3,11 @@
 
 """Email message parsing from mbox format."""
 
-import email
 import logging
 import mailbox
 from datetime import datetime, timezone
+from email.header import decode_header
+from email.message import Message
 from email.utils import parseaddr, parsedate_to_datetime
 from typing import Any
 
@@ -96,7 +97,7 @@ class MessageParser:
 
         return parsed_messages
 
-    def parse_message(self, message: email.message.Message, archive_id: str) -> dict[str, Any]:
+    def parse_message(self, message: Message, archive_id: str) -> dict[str, Any]:
         """Parse a single email message.
 
         Args:
@@ -157,7 +158,7 @@ class MessageParser:
 
         return parsed
 
-    def _extract_message_id(self, message: email.message.Message) -> str | None:
+    def _extract_message_id(self, message: Message) -> str | None:
         """Extract and clean Message-ID header.
 
         Args:
@@ -172,7 +173,7 @@ class MessageParser:
             return message_id.strip("<>")
         return None
 
-    def _extract_in_reply_to(self, message: email.message.Message) -> str | None:
+    def _extract_in_reply_to(self, message: Message) -> str | None:
         """Extract In-Reply-To header.
 
         Args:
@@ -215,7 +216,7 @@ class MessageParser:
             return ""
 
         try:
-            decoded_parts = email.header.decode_header(header_value)
+            decoded_parts = decode_header(header_value)
             parts = []
             for content, encoding in decoded_parts:
                 if isinstance(content, bytes):
@@ -296,7 +297,7 @@ class MessageParser:
 
         return addresses
 
-    def _extract_body(self, message: email.message.Message) -> str:
+    def _extract_body(self, message: Message) -> str:
         """Extract body text from email message.
 
         Args:
@@ -352,7 +353,7 @@ class MessageParser:
 
         return body
 
-    def _extract_extra_headers(self, message: email.message.Message) -> dict[str, str]:
+    def _extract_extra_headers(self, message: Message) -> dict[str, str]:
         """Extract additional headers for metadata.
 
         Args:

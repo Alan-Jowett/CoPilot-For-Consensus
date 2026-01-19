@@ -25,8 +25,8 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
             cache_dir: Directory to cache models
         """
         try:
-            import torch
-            from transformers import AutoModel, AutoTokenizer
+            import torch  # pyright: ignore[reportMissingImports]
+            from transformers import AutoModel, AutoTokenizer  # pyright: ignore[reportMissingImports]
         except ImportError:
             raise ImportError(
                 "transformers and torch are required for HuggingFaceEmbeddingProvider. "

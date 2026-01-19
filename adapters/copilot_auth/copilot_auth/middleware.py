@@ -250,9 +250,12 @@ class JWTMiddleware(BaseHTTPMiddleware):
                                 timeout=5.0,  # Quick timeout for on-demand fetch
                             )
                             response.raise_for_status()
-                            self.jwks = response.json()
+                            jwks = response.json()
+                            if not isinstance(jwks, dict):
+                                raise ValueError("JWKS response is not an object")
+                            self.jwks = jwks
                             self.jwks_last_fetched = time.time()
-                            logger.info(f"Emergency JWKS fetch succeeded ({len(self.jwks.get('keys', []))} keys)")
+                            logger.info(f"Emergency JWKS fetch succeeded ({len(jwks.get('keys', []))} keys)")
                         except Exception as e:
                             logger.error(f"Emergency JWKS fetch failed: {e}")
                             self.jwks = {"keys": []}
