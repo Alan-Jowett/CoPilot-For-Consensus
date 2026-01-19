@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react'
 
 interface UserInfo {
   sub: string
@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const refreshTimerIdRef = useRef<number | null>(null)
 
   // Function to check authentication status by calling /auth/userinfo
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       console.log('[AuthContext] Checking authentication via /auth/userinfo')
       const response = await fetch('/auth/userinfo', {
@@ -93,15 +93,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setIsCheckingAuth(false)
     }
-  }
+  }, []) // Empty deps since we use state setters which are stable
 
   // Function to refresh the token silently
   // Note: This function initiates navigation and never returns
   const refreshToken = () => {
     console.log('[AuthContext] Attempting silent token refresh')
     
-    // Save current location so we can return after refresh
-    const currentPath = window.location.pathname + window.location.search
+    // Save current location so we can return after refresh (including hash fragment)
+    const currentPath = window.location.pathname + window.location.search + window.location.hash
     sessionStorage.setItem('postRefreshUrl', currentPath)
     
     // Redirect to refresh endpoint which will initiate OIDC prompt=none flow
@@ -120,7 +120,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Refresh before expiration with a buffer, or halfway through for short-lived tokens
     // For tokens >10 minutes: refresh 5 minutes before expiry
     // For tokens <10 minutes: refresh halfway through (e.g., 3 min token refreshes at 1.5 min)
-    // For tokens <60 seconds: schedule immediately (don't wait for negative time)
+    // For very short or expired tokens: schedule a deferred refresh to allow initial render
     const refreshBuffer = Math.min(TOKEN_REFRESH_BUFFER_SECONDS, Math.floor(expiresIn * MIN_REFRESH_BUFFER_FRACTION))
     const refreshIn = Math.max(0, expiresIn - refreshBuffer)
 
@@ -164,7 +164,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       clearRefreshTimer()
     }
-  }, [])
+  }, [checkAuth]) // Include checkAuth in dependencies
 
   const login = (provider: string = 'github') => {
     const audience = 'copilot-for-consensus'

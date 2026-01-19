@@ -388,7 +388,7 @@ async def refresh(
         # 3. The provider is validated against the configured providers list
         try:
             unverified_claims = jwt.decode(token, options={"verify_signature": False})
-        except jwt.PyJWTError as exc:
+        except (jwt.DecodeError, jwt.InvalidTokenError) as exc:
             raise HTTPException(status_code=400, detail="Malformed token") from exc
 
         if not isinstance(unverified_claims, dict):
@@ -417,7 +417,7 @@ async def refresh(
         # 3. First available configured provider (fallback)
         #
         # SECURITY NOTE: Provider inference from token's sub claim is safe because:
-        # - The inferred provider is validated against configured providers (line 428)
+        # - The inferred provider is validated against the configured providers list
         # - The actual OIDC authentication happens with the provider's authorization server
         # - The provider cannot be spoofed to access a different identity provider
         # - The OIDC session at the provider validates the user's identity

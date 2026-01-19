@@ -242,3 +242,92 @@ def test_refresh_endpoint_with_invalid_provider(test_client: TestClient):
 
     assert response.status_code == 400
     assert "not configured" in response.json()["detail"]
+
+
+def test_refresh_endpoint_with_malformed_jwt(test_client: TestClient):
+    """Test that /refresh returns 400 for malformed JWT."""
+    # Token with wrong number of segments (should be 3)
+    response = test_client.get(
+        "/refresh",
+        cookies={"auth_token": "invalid.token"},
+    )
+
+    assert response.status_code == 400
+    assert "Invalid token format" in response.json()["detail"]
+
+
+def test_refresh_endpoint_with_jwt_decode_error(test_client: TestClient):
+    """Test that /refresh handles JWT decode errors gracefully."""
+    import jwt
+
+    with patch("main.jwt.decode", side_effect=jwt.DecodeError("Invalid JWT")):
+        response = test_client.get(
+            "/refresh",
+            cookies={"auth_token": "header.payload.signature"},
+        )
+
+    assert response.status_code == 400
+    assert "Malformed token" in response.json()["detail"]
+
+
+def test_refresh_endpoint_with_missing_sub_claim(test_client: TestClient):
+    """Test that /refresh returns 400 when token missing sub claim."""
+    with patch(
+        "main.jwt.decode",
+        return_value={"aud": "copilot-for-consensus"},  # Missing 'sub'
+    ):
+        response = test_client.get(
+            "/refresh",
+            cookies={"auth_token": "valid.jwt.token"},
+        )
+
+    assert response.status_code == 400
+    assert "Missing or invalid 'sub' claim" in response.json()["detail"]
+
+
+def test_refresh_endpoint_with_invalid_sub_format(test_client: TestClient):
+    """Test that /refresh handles sub claim without delimiter."""
+    with patch(
+        "main.jwt.decode",
+        return_value={"sub": "nodelimiter123", "aud": "copilot-for-consensus"},
+    ):
+        response = test_client.get(
+            "/refresh",
+            cookies={"auth_token": "valid.jwt.token"},
+            follow_redirects=False,
+        )
+
+    # Should still work, will use first available provider as fallback
+    assert response.status_code == 302
+
+
+def test_refresh_endpoint_with_array_audience(test_client: TestClient):
+    """Test that /refresh handles array audience correctly."""
+    with patch(
+        "main.jwt.decode",
+        return_value={"sub": "github|12345", "aud": ["copilot-for-consensus", "other-aud"]},
+    ):
+        response = test_client.get(
+            "/refresh",
+            cookies={"auth_token": "valid.jwt.token"},
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 302
+    location = response.headers["Location"]
+    parsed = urlparse(location)
+    query = parse_qs(parsed.query)
+    # Should use first audience from array
+    assert query.get("aud") == ["copilot-for-consensus"]
+
+
+def test_refresh_endpoint_with_non_dict_payload(test_client: TestClient):
+    """Test that /refresh returns 400 for non-dict JWT payload."""
+    with patch("main.jwt.decode", return_value="not a dict"):
+        response = test_client.get(
+            "/refresh",
+            cookies={"auth_token": "valid.jwt.token"},
+        )
+
+    assert response.status_code == 400
+    assert "Invalid token payload" in response.json()["detail"]
