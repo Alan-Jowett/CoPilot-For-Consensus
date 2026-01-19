@@ -49,6 +49,39 @@ The UI uses **httpOnly cookie-based authentication** to protect against XSS atta
 3. Auth service clears httpOnly cookie (sets `max_age=0`)
 4. UI redirects to login page
 
+#### Automatic Token Refresh Flow
+
+**NEW**: The system now automatically refreshes tokens before they expire, preventing users from being logged out during active sessions.
+
+1. **Token Expiration Detection**:
+   - When user authenticates, `/auth/userinfo` returns token expiration (`exp` claim)
+   - UI's AuthContext schedules automatic refresh 5 minutes before expiration
+   - For short-lived tokens (<10 minutes), refresh is scheduled at halfway point
+
+2. **Silent Token Refresh**:
+   - When refresh timer triggers, UI saves current page location
+   - UI redirects to `/auth/refresh` endpoint (with existing cookie)
+   - Auth service extracts token, infers OIDC provider from `sub` claim
+   - Auth service redirects to OIDC provider with `prompt=none` (silent authentication)
+   
+3. **Provider Handles Silent Auth**:
+   - If OIDC session is still valid: provider silently issues new authorization code
+   - If OIDC session expired: provider returns `login_required` error
+   
+4. **Callback Processing**:
+   - On success: new token is set as httpOnly cookie, user returns to saved page
+   - On failure: user is redirected to login page (OIDC session truly expired)
+
+5. **User Experience**:
+   - **Success**: Seamless - page briefly reloads, user stays in same location
+   - **Failure**: User must log in again (OIDC session expired at identity provider)
+
+**Key Benefits**:
+- Admin dashboard can be kept open for extended sessions
+- No manual login required as long as OIDC session is valid
+- Token expiration is independent of user session expiration
+- Standard OAuth 2.0 mechanism (`prompt=none`) for compatibility
+
 ### 5. Gateway Cookie-to-Header Translation
 
 The API Gateway extracts JWT tokens from cookies and converts them to Authorization headers for backend services:
@@ -111,6 +144,11 @@ const checkAuth = async () => {
     const data = await response.json()
     setUserInfo(data)
     setIsAuthenticated(true)
+    
+    // NEW: Schedule automatic token refresh based on expiration
+    if (data.exp) {
+      scheduleTokenRefresh(data.exp)
+    }
   }
 }
 ```
@@ -118,7 +156,72 @@ const checkAuth = async () => {
 The `/auth/userinfo` endpoint:
 - Accepts JWT from either Authorization header or `auth_token` cookie
 - Returns user information including roles
+- Returns token expiration timestamp (`exp`) for refresh scheduling
 - Returns 401 if token is invalid or expired
+
+## Authentication Endpoints
+
+### `/auth/login` - Initiate OIDC Login
+Redirects to OIDC provider's authorization endpoint.
+
+**Parameters**:
+- `provider`: OIDC provider (github, google, microsoft)
+- `aud`: Target audience for JWT (default: copilot-for-consensus)
+
+**Example**: `/auth/login?provider=github&aud=copilot-for-consensus`
+
+### `/auth/callback` - OIDC Callback Handler
+Exchanges authorization code for tokens and sets httpOnly cookie.
+
+**Parameters**:
+- `code`: Authorization code from OIDC provider
+- `state`: OAuth state parameter (CSRF protection)
+
+**Response**: JSON with access token and sets `auth_token` httpOnly cookie
+
+### `/auth/refresh` - Silent Token Refresh
+**NEW**: Initiates silent authentication to refresh expiring token.
+
+**Behavior**:
+- Extracts current token from cookie or Authorization header
+- Infers OIDC provider from token's `sub` claim
+- Redirects to OIDC provider with `prompt=none` for silent authentication
+- If OIDC session valid: returns new token via callback
+- If OIDC session expired: returns `login_required` error
+
+**Parameters**:
+- `provider` (optional): Override provider inference
+
+**Example**: `/auth/refresh` or `/auth/refresh?provider=github`
+
+**Usage**: Called automatically by UI's AuthContext before token expires
+
+### `/auth/userinfo` - Get User Information
+Returns user information from JWT token.
+
+**Authentication**: Accepts token from Authorization header or `auth_token` cookie
+
+**Response**:
+```json
+{
+  "sub": "github|12345678",
+  "email": "user@example.com",
+  "name": "User Name",
+  "roles": ["admin"],
+  "affiliations": [],
+  "aud": "copilot-for-consensus",
+  "exp": 1704123456  // NEW: Token expiration timestamp
+}
+```
+
+### `/auth/logout` - Clear Authentication
+Clears httpOnly authentication cookie.
+
+**Method**: POST
+
+**Authentication**: Requires valid auth cookie
+
+**Response**: Success message and clears `auth_token` cookie
 
 ## Production Configuration
 

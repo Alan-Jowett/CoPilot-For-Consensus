@@ -11,6 +11,7 @@ This service provides:
 """
 
 import inspect
+import jwt
 from contextlib import asynccontextmanager
 from enum import Enum
 from typing import Any
@@ -321,6 +322,141 @@ async def callback(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@app.get("/refresh")
+async def refresh(
+    request: Request,
+    provider: str = Query(None, description="OIDC provider (optional, inferred from existing token)"),
+) -> Response:
+    """Initiate silent token refresh using OIDC prompt=none.
+
+    This endpoint attempts to refresh the user's token without user interaction
+    by using the OIDC provider's silent authentication with prompt=none.
+
+    The refresh flow:
+    1. Extract current token to determine provider and audience
+    2. Initiate OIDC flow with prompt=none (silent re-authentication)
+    3. If user's OIDC session is still valid, provider returns new token
+    4. If OIDC session expired, provider returns login_required error
+    5. UI should catch the error and redirect to login
+
+    Args:
+        request: FastAPI request object (to extract current token)
+        provider: Optional provider override (defaults to provider from current token)
+
+    Returns:
+        Redirect to provider authorization endpoint with prompt=none
+
+    Raises:
+        401: No valid token found
+        503: Service not initialized
+    """
+    global auth_service
+
+    service = auth_service
+    if not service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    # Extract current token to get audience and provider info
+    token = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    else:
+        token = request.cookies.get("auth_token")
+
+    if not token:
+        raise HTTPException(status_code=401, detail="No token found to refresh")
+
+    try:
+        # Validate token structure before decoding.
+        # A JWT has three dot-separated segments.
+        if token.count(".") != 2:
+            raise HTTPException(status_code=400, detail="Invalid token format")
+
+        # Decode token WITHOUT signature verification to extract claims for provider inference
+        # SECURITY NOTE: This is safe because:
+        # 1. We only use the decoded data to infer the provider (non-security-critical)
+        # 2. The actual token validation happens later in the OIDC flow
+        # 3. The provider is validated against the configured providers list
+        try:
+            unverified_claims = jwt.decode(token, options={"verify_signature": False})
+        except (jwt.DecodeError, jwt.InvalidTokenError) as exc:
+            raise HTTPException(status_code=400, detail="Malformed token") from exc
+
+        if not isinstance(unverified_claims, dict):
+            raise HTTPException(status_code=400, detail="Invalid token payload")
+
+        raw_audience = unverified_claims.get("aud", "copilot-for-consensus")
+        if isinstance(raw_audience, (list, tuple)) and raw_audience:
+            audience = str(raw_audience[0])
+        else:
+            audience = str(raw_audience)
+
+        # Try to infer provider from sub claim (format: "provider|id" or "provider:id")
+        sub = unverified_claims.get("sub")
+        if not isinstance(sub, str) or not sub:
+            raise HTTPException(status_code=400, detail="Missing or invalid 'sub' claim in token")
+
+        inferred_provider = None
+        if "|" in sub:
+            inferred_provider = sub.split("|", 1)[0]
+        elif ":" in sub:
+            inferred_provider = sub.split(":", 1)[0]
+
+        # Provider selection priority:
+        # 1. Explicitly provided provider parameter (override)
+        # 2. Inferred provider from token's sub claim
+        # 3. First available configured provider (fallback)
+        #
+        # SECURITY NOTE: Provider inference from token's sub claim is safe because:
+        # - The inferred provider is validated against the configured providers list
+        # - The actual OIDC authentication happens with the provider's authorization server
+        # - The provider cannot be spoofed to access a different identity provider
+        # - The OIDC session at the provider validates the user's identity
+        # However, an attacker with a valid token from provider A could force refresh via
+        # provider B if both are configured. This is acceptable because:
+        # - The refresh will fail if user doesn't have a valid session at provider B
+        # - The token issuer is validated during the full OIDC flow
+        if provider:
+            target_provider = provider
+        elif inferred_provider:
+            target_provider = inferred_provider
+        elif service.providers:
+            # Use first available provider if no preference specified
+            target_provider = list(service.providers.keys())[0]
+        else:
+            raise HTTPException(
+                status_code=503,
+                detail="No authentication providers configured"
+            )
+
+        if target_provider not in service.providers:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Provider '{target_provider}' not configured"
+            )
+
+        # Initiate login with prompt=none for silent refresh
+        authorization_url, state, nonce = await service.initiate_login(
+            provider=target_provider,
+            audience=audience,
+            prompt="none"  # Silent authentication - no user interaction
+        )
+
+        logger.info(f"Initiated silent refresh for provider={target_provider}, aud={audience}")
+        metrics.increment("refresh_initiated_total", tags={"provider": target_provider})
+
+        # Redirect to authorization URL (will silently authenticate or return error)
+        return RedirectResponse(url=authorization_url, status_code=302)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Token refresh initiation failed: {e}")
+        metrics.increment("refresh_failed_total", tags={"error": "initiation_error"})
+        raise HTTPException(status_code=400, detail=f"Failed to initiate refresh: {str(e)}")
+
+
 @app.post("/logout")
 async def logout() -> JSONResponse:
     """Logout endpoint that clears the auth cookie.
@@ -434,6 +570,7 @@ def userinfo(request: Request) -> JSONResponse:
                         "roles": claims.get("roles", []),
                         "affiliations": claims.get("affiliations", []),
                         "aud": claims.get("aud"),  # Include actual audience from token
+                        "exp": claims.get("exp"),  # Include expiration timestamp for token refresh logic
                     }
                 )
             except Exception as e:

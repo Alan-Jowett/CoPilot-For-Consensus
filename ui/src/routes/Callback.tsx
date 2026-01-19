@@ -1,75 +1,42 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import styles from './Callback.module.css'
+
+// Delay before redirecting to login after failed silent refresh (milliseconds)
+const SILENT_REFRESH_FAILURE_LOGIN_DELAY_MS = 2000
 
 export function Callback() {
   const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    console.log('[Callback] Component mounted, searchParams:', Object.fromEntries(searchParams))
-
-    // Extract token from URL parameters
-    // OAuth2 authorization servers typically redirect with:
-    // - code parameter: authorization code to exchange for token
-    // - state parameter: CSRF protection
-    // Or for implicit flow:
-    // - token parameter: JWT token directly
-    // - token_type parameter: usually "Bearer"
-
-    const token = searchParams.get('token')
-    const code = searchParams.get('code')
-    const error_param = searchParams.get('error')
-
-    console.log('[Callback] Extracted: token=%s, code=%s, error=%s', !!token, !!code, error_param)
-
-    if (error_param) {
-      setError(`OAuth error: ${error_param}`)
-      setLoading(false)
-      return
+  // Helper function to determine redirect URL after successful authentication
+  const getRedirectUrl = useCallback((): string => {
+    // Check if this is a token refresh (return to saved page)
+    const postRefreshUrl = sessionStorage.getItem('postRefreshUrl')
+    if (postRefreshUrl) {
+      sessionStorage.removeItem('postRefreshUrl')
+      console.log('[Callback] Token refreshed, returning to:', postRefreshUrl)
+      return postRefreshUrl
     }
 
-    if (token) {
-      // Token received directly from auth service
-      // The token is already set as an httpOnly cookie by the auth service
-      console.log('[Callback] Token found in URL params, cookie should be set by auth service')
-
-      // Check if this is a token refresh (automatic permission re-sync)
-      const isRefresh = searchParams.get('refresh') === 'true'
-      let redirectUrl = '/ui/reports'
-
-      if (isRefresh) {
-        // Return to original page
-        const postLoginUrl = sessionStorage.getItem('postLoginUrl')
-        if (postLoginUrl) {
-          redirectUrl = postLoginUrl
-          sessionStorage.removeItem('postLoginUrl')
-          console.log('[Callback] Token refreshed, returning to:', redirectUrl)
-        } else {
-          console.log('[Callback] Token refreshed, location lost, using default')
-        }
-      } else {
-        console.log('[Callback] Normal login, redirecting to reports')
-      }
-
-      // Redirect to destination
-      console.log('[Callback] Redirecting to', redirectUrl)
-      window.location.href = redirectUrl
-    } else if (code) {
-      // Exchange authorization code for token
-      console.log('[Callback] Code found, exchanging for token')
-      exchangeCodeForToken(code)
-    } else {
-      setError('No authorization token received')
-      setLoading(false)
+    // Check for legacy postLoginUrl for backward compatibility
+    const postLoginUrl = sessionStorage.getItem('postLoginUrl')
+    if (postLoginUrl) {
+      sessionStorage.removeItem('postLoginUrl')
+      console.log('[Callback] Normal login, returning to:', postLoginUrl)
+      return postLoginUrl
     }
-  }, [searchParams])
 
-  const exchangeCodeForToken = async (code: string) => {
+    // Default to reports page
+    console.log('[Callback] Normal login, redirecting to reports')
+    return '/ui/reports'
+  }, [])
+
+  const exchangeCodeForToken = useCallback(async (code: string) => {
     try {
       // The /callback endpoint is actually handled by the auth service at the gateway
       // We need to fetch it with the code and state parameters
@@ -100,23 +67,8 @@ export function Callback() {
         // No need to store in localStorage (security improvement)
         console.log('[Callback] Token received and set as httpOnly cookie by auth service')
 
-        // Check if this is a token refresh (automatic permission re-sync)
-        const isRefresh = searchParams.get('refresh') === 'true'
-        let redirectUrl = '/ui/reports'
-
-        if (isRefresh) {
-          // Return to original page
-          const postLoginUrl = sessionStorage.getItem('postLoginUrl')
-          if (postLoginUrl) {
-            redirectUrl = postLoginUrl
-            sessionStorage.removeItem('postLoginUrl')
-            console.log('[Callback] Token refreshed, returning to:', redirectUrl)
-          } else {
-            console.log('[Callback] Token refreshed, location lost, using default')
-          }
-        } else {
-          console.log('[Callback] Normal login, redirecting to reports')
-        }
+        // Determine where to redirect using helper function
+        const redirectUrl = getRedirectUrl()
 
         // Redirect after a short delay to allow logs to be read
         console.log('[Callback] Will redirect to', redirectUrl, 'in 1 second (or enable "Preserve log" in DevTools)')
@@ -132,7 +84,63 @@ export function Callback() {
       setError(err instanceof Error ? err.message : 'Token exchange failed')
       setLoading(false)
     }
-  }
+  }, [searchParams, getRedirectUrl])
+
+  useEffect(() => {
+    console.log('[Callback] Component mounted, searchParams:', Object.fromEntries(searchParams))
+
+    // Extract token from URL parameters
+    // OAuth2 authorization servers typically redirect with:
+    // - code parameter: authorization code to exchange for token
+    // - state parameter: CSRF protection
+    // Or for implicit flow:
+    // - token parameter: JWT token directly
+    // - token_type parameter: usually "Bearer"
+
+    const token = searchParams.get('token')
+    const code = searchParams.get('code')
+    const error_param = searchParams.get('error')
+
+    console.log('[Callback] Extracted: token=%s, code=%s, error=%s', !!token, !!code, error_param)
+
+    if (error_param) {
+      // Check if this is a silent refresh that failed (e.g., login_required)
+      const isSilentRefresh = !!sessionStorage.getItem('postRefreshUrl')
+      if (isSilentRefresh && (error_param === 'login_required' || error_param === 'interaction_required')) {
+        // Silent refresh failed because OIDC session expired
+        // Clear the postRefreshUrl from sessionStorage to prevent it from lingering
+        sessionStorage.removeItem('postRefreshUrl')
+        console.log('[Callback] Silent refresh failed (OIDC session expired), redirecting to login')
+        setError('Your authentication session has expired. Please log in again.')
+        setTimeout(() => {
+          window.location.href = `${import.meta.env.BASE_URL}login`
+        }, SILENT_REFRESH_FAILURE_LOGIN_DELAY_MS)
+        return
+      }
+      
+      setError(`OAuth error: ${error_param}`)
+      setLoading(false)
+      return
+    }
+
+    if (token) {
+      // Token received directly from auth service
+      // The token is already set as an httpOnly cookie by the auth service
+      console.log('[Callback] Token found in URL params, cookie should be set by auth service')
+
+      // Determine where to redirect and perform redirect
+      const redirectUrl = getRedirectUrl()
+      console.log('[Callback] Redirecting to', redirectUrl)
+      window.location.href = redirectUrl
+    } else if (code) {
+      // Exchange authorization code for token
+      console.log('[Callback] Code found, exchanging for token')
+      exchangeCodeForToken(code)
+    } else {
+      setError('No authorization token received')
+      setLoading(false)
+    }
+  }, [searchParams, getRedirectUrl, exchangeCodeForToken])
 
   return (
     <div className={styles.container}>
