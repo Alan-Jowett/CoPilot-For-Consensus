@@ -11,7 +11,7 @@ import importlib
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, Union, get_args, get_origin, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, Union, cast, get_args, get_origin, overload
 
 from .models import ServiceConfig
 from .schema_validation import validate_config_against_schema_dict
@@ -323,7 +323,7 @@ def _load_adapter_config(
         return None
 
     discriminant_env_var = discriminant_info.get("env_var")
-    selected_driver = os.environ.get(discriminant_env_var) if discriminant_env_var else None
+    selected_driver: str | None = os.environ.get(discriminant_env_var) if discriminant_env_var else None
 
     if not selected_driver:
         is_required = discriminant_info.get("required", False)
@@ -335,11 +335,14 @@ def _load_adapter_config(
                 f"set environment variable {discriminant_env_var}"
             )
 
-        if default_driver:
+        if isinstance(default_driver, str) and default_driver:
             selected_driver = default_driver
         else:
             # Optional adapter with no default - skip it
             return None
+
+    if not isinstance(selected_driver, str):
+        raise ValueError(f"Adapter {adapter_name} has invalid discriminant value: {selected_driver!r}")
 
     # Find driver schema
     drivers_data = adapter_schema.get("properties", {}).get("drivers", {}).get("properties", {})
@@ -516,6 +519,7 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
 
                         from .secret_provider import SecretConfigProvider
 
+                        driver_config: DriverConfig_SecretProvider_Local | DriverConfig_SecretProvider_AzureKeyVault
                         if secret_driver_name == "local":
                             driver_config = DriverConfig_SecretProvider_Local(**secret_config_dict)
                         elif secret_driver_name == "azure_key_vault":
@@ -526,9 +530,11 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
                                 "Supported drivers: local, azure_key_vault"
                             )
 
+                        secret_provider_type = cast(Literal["local", "azure_key_vault"], secret_driver_name)
+
                         secret_provider_instance = create_secrets_provider(
                             AdapterConfig_SecretProvider(
-                                secret_provider_type=secret_driver_name,
+                                secret_provider_type=secret_provider_type,
                                 driver=driver_config,
                             )
                         )
@@ -552,7 +558,7 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
     service_settings_schema = service_schema.get("service_settings", {})
 
     for setting_name, setting_spec in service_settings_schema.items():
-        value = None
+        value: Any = None
 
         if setting_spec.get("source") == "env":
             env_var = setting_spec.get("env_var")
@@ -571,11 +577,11 @@ def get_config(service_name: str, schema_dir: str | None = None) -> Any:
                 if setting_spec.get("type") in ("int", "integer"):
                     try:
                         value = int(value)
-                    except ValueError:
+                    except (TypeError, ValueError):
                         # Ignore conversion errors and keep the original string value.
                         pass
                 elif setting_spec.get("type") in ("bool", "boolean"):
-                    value = value.lower() in ("true", "1", "yes")
+                    value = str(value).lower() in ("true", "1", "yes")
             elif setting_spec.get("default") is not None:
                 value = setting_spec.get("default")
 

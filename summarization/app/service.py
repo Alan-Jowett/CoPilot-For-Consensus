@@ -172,7 +172,7 @@ class SummarizationService:
             summarization_requested = SummarizationRequestedEvent(data=event.get("data", {}))
 
             thread_count = len(summarization_requested.data.get("thread_ids", []))
-            logger.info("Received SummarizationRequested event for %d threads", thread_count)
+            logger.info(f"Received SummarizationRequested event for {thread_count} threads")
 
             # Process with retry logic for race condition handling
             # Generate idempotency key from thread IDs

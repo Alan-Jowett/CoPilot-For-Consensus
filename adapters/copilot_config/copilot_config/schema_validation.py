@@ -24,7 +24,7 @@ import json
 import re
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 
@@ -74,8 +74,10 @@ def _adapter_driver_schema_path(*, schema_dir: Path, adapter: str, driver: str) 
 
 
 def _as_mapping(config: object) -> dict[str, Any]:
-    if is_dataclass(config):
-        return asdict(config)
+    # dataclasses.is_dataclass() returns True for both dataclass *instances* and
+    # the dataclass *type*. asdict() only accepts instances.
+    if is_dataclass(config) and not isinstance(config, type):
+        return asdict(cast(Any, config))
     if isinstance(config, dict):
         return config
 

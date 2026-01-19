@@ -113,6 +113,7 @@ module = [
     "copilot_draft_diff.*",
     "copilot_embedding.*",
     "copilot_error_reporting.*",
+    "copilot_event_retry.*",
     "copilot_message_bus.*",
     "copilot_metrics.*",
     "copilot_storage.*",

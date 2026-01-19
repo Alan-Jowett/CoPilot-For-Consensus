@@ -4,7 +4,7 @@
 """MongoDB document store implementation."""
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_Mongodb
 
@@ -85,8 +85,10 @@ class MongoDocumentStore(DocumentStore):
         self.password = password
         self.database_name = database
         self.client_options = kwargs
-        self.client = None
-        self.database = None
+        # These are initialized in connect(); keep them loosely typed so this
+        # adapter can be type-checked without requiring full PyMongo stubs.
+        self.client: Any = None
+        self.database: Any = None
 
     def connect(self) -> None:
         """Connect to MongoDB.
@@ -120,7 +122,7 @@ class MongoDocumentStore(DocumentStore):
             connection_params.update(self.client_options)
 
             # Create client with options
-            self.client = MongoClient(**connection_params)
+            self.client = MongoClient(**cast(Any, connection_params))
 
             # Test connection
             self.client.admin.command("ping")
@@ -198,6 +200,7 @@ class MongoDocumentStore(DocumentStore):
             coll = self.database[collection]
 
             # Try to convert to ObjectId if possible
+            query: dict[str, Any]
             try:
                 query = {"_id": ObjectId(doc_id)}
             except (TypeError, ValueError, InvalidId):
@@ -284,6 +287,7 @@ class MongoDocumentStore(DocumentStore):
             coll = self.database[collection]
 
             # Try to convert to ObjectId if possible
+            query: dict[str, Any]
             try:
                 query = {"_id": ObjectId(doc_id)}
             except (TypeError, ValueError, InvalidId):
@@ -326,6 +330,7 @@ class MongoDocumentStore(DocumentStore):
             coll = self.database[collection]
 
             # Try to convert to ObjectId if possible
+            query: dict[str, Any]
             try:
                 query = {"_id": ObjectId(doc_id)}
             except (TypeError, ValueError, InvalidId):

@@ -421,6 +421,7 @@ class SchemaConfigLoader:
         key = self._get_key_for_source(field_spec)
 
         # Load the value
+        value: Any
         if field_spec.field_type == "bool":
             value = provider.get_bool(key, field_spec.default if field_spec.default is not None else False)
         elif field_spec.field_type == "int":

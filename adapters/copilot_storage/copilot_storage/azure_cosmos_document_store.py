@@ -892,7 +892,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             ) from e
 
         # Build an index of foreign documents by foreign_field for efficient lookup
-        foreign_index = {}
+        foreign_index: dict[Any, list[dict[str, Any]]] = {}
         for foreign_doc in foreign_docs:
             # Handle nested field access (e.g., "user.email")
             foreign_value = self._get_nested_field(foreign_doc, foreign_field)
@@ -944,7 +944,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         # Handle nested field access
         parts = field_path.split(".")
-        value = doc
+        value: Any = doc
         for part in parts:
             if not isinstance(value, dict):
                 return None

@@ -293,7 +293,11 @@ class ValidatingDocumentStore(DocumentStore):
         if not callable(wrapper_fn):
             raise ValueError("Query wrapper must be callable")
         original_query = self._store.query_documents
-        self._store.query_documents = wrapper_fn(original_query)
+        # This intentionally monkey-patches the underlying store method for tracing/
+        # validation scenarios. Use Any to keep static type checkers from treating
+        # this as an illegal method assignment.
+        store_any = cast(Any, self._store)
+        store_any.query_documents = wrapper_fn(original_query)
 
     def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.

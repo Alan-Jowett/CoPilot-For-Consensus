@@ -5,7 +5,7 @@
 
 import json
 import os
-from typing import Any
+from typing import Any, Literal, cast
 
 from .load_driver_config import load_driver_config  # noqa: F401
 from .models import AdapterConfig, DriverConfig, ServiceConfig
@@ -259,11 +259,14 @@ def load_service_config(service_name: str, schema_dir: str | None = None, **kwar
                     f"set environment variable {discriminant_env_var}"
                 )
 
-            if default_driver:
+            if isinstance(default_driver, str) and default_driver:
                 selected_driver = default_driver
             else:
                 # Optional adapter with no default - skip it
                 return
+
+        if not isinstance(selected_driver, str):
+            raise ValueError(f"Adapter {adapter_name} has invalid discriminant value: {selected_driver!r}")
 
         drivers_data = adapter_schema_data.get("properties", {}).get("drivers", {}).get("properties", {})
         driver_schema_ref = None
@@ -404,6 +407,7 @@ def load_service_config(service_name: str, schema_dir: str | None = None, **kwar
                 secret_driver_name = secret_adapter.driver_name
                 secret_config_dict = getattr(secret_adapter.driver_config, "config", {})
 
+                driver_config: DriverConfig_SecretProvider_Local | DriverConfig_SecretProvider_AzureKeyVault
                 if secret_driver_name == "local":
                     driver_config = DriverConfig_SecretProvider_Local(**secret_config_dict)
                 elif secret_driver_name == "azure_key_vault":
@@ -414,9 +418,11 @@ def load_service_config(service_name: str, schema_dir: str | None = None, **kwar
                         "Supported drivers: local, azure_key_vault"
                     )
 
+                secret_provider_type = cast(Literal["local", "azure_key_vault"], secret_driver_name)
+
                 secret_provider_instance = create_secrets_provider(
                     AdapterConfig_SecretProvider(
-                        secret_provider_type=secret_driver_name,
+                        secret_provider_type=secret_provider_type,
                         driver=driver_config,
                     )
                 )

@@ -1914,6 +1914,10 @@ class IngestionService:
 
         # Update global stats
         if status == "success":
-            total_ingested = self._stats["total_files_ingested"]
+            total_ingested_raw = self._stats.get("total_files_ingested")
+            try:
+                total_ingested = int(total_ingested_raw) if total_ingested_raw is not None else 0
+            except (TypeError, ValueError):
+                total_ingested = 0
             self._stats["total_files_ingested"] = total_ingested + files_processed
             self._stats["last_ingestion_at"] = now
