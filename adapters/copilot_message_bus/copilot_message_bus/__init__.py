@@ -32,6 +32,10 @@ from copilot_schema_validation import (  # type: ignore[import-not-found]
     ReportDeliveryFailedEvent,
     # Reporting Service Events
     ReportPublishedEvent,
+    # Source Cascade Cleanup Events
+    SourceCleanupCompletedEvent,
+    SourceCleanupProgressEvent,
+    SourceDeletionRequestedEvent,
     SummarizationFailedEvent,
     # Orchestration Service Events
     SummarizationRequestedEvent,
@@ -45,7 +49,6 @@ from .factory import create_publisher, create_subscriber
 # Import validation exceptions (needed for error handling)
 from .validating_publisher import ValidationError
 from .validating_subscriber import SubscriberValidationError
-
 
 __all__ = [
     # Version
@@ -75,4 +78,7 @@ __all__ = [
     "SummarizationFailedEvent",
     "ReportPublishedEvent",
     "ReportDeliveryFailedEvent",
+    "SourceDeletionRequestedEvent",
+    "SourceCleanupProgressEvent",
+    "SourceCleanupCompletedEvent",
 ]

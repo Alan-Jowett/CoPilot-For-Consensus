@@ -212,12 +212,26 @@ def test_service_start_subscribes_to_events(reporting_service, mock_subscriber):
     """Test that service subscribes to summary.complete events on start."""
     reporting_service.start()
 
-    mock_subscriber.subscribe.assert_called_once()
-    call_args = mock_subscriber.subscribe.call_args
+    from unittest.mock import call
 
-    assert call_args[1]["exchange"] == "copilot.events"
-    assert call_args[1]["routing_key"] == "summary.complete"
-    assert call_args[1]["callback"] is not None
+    assert mock_subscriber.subscribe.call_count == 2
+    mock_subscriber.subscribe.assert_has_calls(
+        [
+            call(
+                event_type="SummaryComplete",
+                exchange="copilot.events",
+                routing_key="summary.complete",
+                callback=reporting_service._handle_summary_complete,
+            ),
+            call(
+                event_type="SourceDeletionRequested",
+                exchange="copilot.events",
+                routing_key="source.deletion.requested",
+                callback=reporting_service._handle_source_deletion_requested,
+            ),
+        ],
+        any_order=False,
+    )
 
 
 def test_process_summary_stores_document(
@@ -1301,3 +1315,117 @@ def test_get_chunk_by_id_not_found(reporting_service, mock_document_store):
     chunk = reporting_service.get_chunk_by_id("nonexistent")
 
     assert chunk is None
+
+
+def test_cascade_cleanup_handler():
+    """Test that reporting service handles SourceDeletionRequested events and deletes summaries."""
+    from copilot_config.generated.adapters.document_store import (
+        AdapterConfig_DocumentStore,
+        DriverConfig_DocumentStore_Inmemory,
+    )
+    from copilot_storage import create_document_store
+    from unittest.mock import Mock
+    
+    # Create test service
+    document_store = create_document_store(
+        AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        )
+    )
+    
+    # Create a mock publisher that captures events
+    class MockPublisher:
+        def __init__(self):
+            self.published_events = []
+        
+        def connect(self):
+            pass
+        
+        def disconnect(self):
+            pass
+        
+        def publish(self, event, routing_key, exchange):
+            self.published_events.append({
+                "event": event,
+                "routing_key": routing_key,
+                "exchange": exchange,
+            })
+    
+    mock_publisher = MockPublisher()
+    
+    class MockSubscriber:
+        def connect(self):
+            pass
+        
+        def disconnect(self):
+            pass
+        
+        def subscribe(self, event_type, exchange, routing_key, callback):
+            pass
+    
+    from app.service import ReportingService
+    service = ReportingService(
+        document_store=document_store,
+        publisher=mock_publisher,
+        subscriber=MockSubscriber(),
+        metrics_collector=Mock(),
+    )
+    
+    # Add test data
+    document_store.insert_document(
+        "summaries",
+        {
+            "_id": "0123456789abcdef",
+            "source": "test-source",
+            "thread_id": "aaaaaaaaaaaaaaaa",
+            "summary_type": "thread",
+            "generated_at": "2025-01-18T00:00:00Z",
+            "content_markdown": "Test summary 1",
+        },
+    )
+    document_store.insert_document(
+        "summaries",
+        {
+            "_id": "fedcba9876543210",
+            "source": "test-source",
+            "thread_id": "bbbbbbbbbbbbbbbb",
+            "summary_type": "thread",
+            "generated_at": "2025-01-18T00:00:00Z",
+            "content_markdown": "Test summary 2",
+        },
+    )
+    
+    # Simulate SourceDeletionRequested event
+    event = {
+        "event_type": "SourceDeletionRequested",
+        "event_id": "test-event-123",
+        "timestamp": "2025-01-18T00:00:00Z",
+        "version": "1.0",
+        "data": {
+            "source_name": "test-source",
+            "correlation_id": "test-correlation-123",
+            "requested_at": "2025-01-18T00:00:00Z",
+            "archive_ids": ["archive-1"],
+            "delete_mode": "hard"
+        }
+    }
+    
+    # Call the handler
+    service._handle_source_deletion_requested(event)
+    
+    # Verify data was deleted
+    summaries = document_store.query_documents("summaries", {"source": "test-source"})
+    assert len(summaries) == 0, "Summaries should be deleted"
+    
+    # Verify SourceCleanupProgress event was published
+    assert len(mock_publisher.published_events) == 1, "Should publish one progress event"
+    
+    progress_event = mock_publisher.published_events[0]
+    assert progress_event["routing_key"] == "source.cleanup.progress"
+    assert progress_event["event"]["event_type"] == "SourceCleanupProgress"
+    assert progress_event["event"]["data"]["source_name"] == "test-source"
+    assert progress_event["event"]["data"]["service_name"] == "reporting"
+    assert progress_event["event"]["data"]["status"] == "completed"
+    assert progress_event["event"]["data"]["correlation_id"] == "test-correlation-123"
+    assert progress_event["event"]["data"]["deletion_counts"]["summaries"] == 2

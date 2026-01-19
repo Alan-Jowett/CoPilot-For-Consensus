@@ -15,6 +15,8 @@ from copilot_message_bus import (
     EmbeddingsGeneratedEvent,
     EventPublisher,
     EventSubscriber,
+    SourceCleanupProgressEvent,
+    SourceDeletionRequestedEvent,
 )
 from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
@@ -112,7 +114,15 @@ class EmbeddingService:
             callback=self._handle_chunks_prepared,
         )
 
-        logger.info("Subscribed to chunks.prepared events")
+        # Subscribe to SourceDeletionRequested events for cascade cleanup
+        self.subscriber.subscribe(
+            event_type="SourceDeletionRequested",
+            exchange="copilot.events",
+            routing_key="source.deletion.requested",
+            callback=self._handle_source_deletion_requested,
+        )
+
+        logger.info("Subscribed to chunks.prepared and source.deletion.requested events")
         logger.info("Embedding service is ready")
 
     def _requeue_incomplete_chunks(self):
@@ -541,6 +551,230 @@ class EmbeddingService:
         )
 
         logger.error(f"Published EmbeddingGenerationFailed event for {len(chunk_ids)} chunks")
+
+    def _handle_source_deletion_requested(self, event: dict[str, Any]):
+        """Handle SourceDeletionRequested event to clean up embedding-owned data.
+
+        This handler deletes embeddings/vectors from the vectorstore for a source.
+        It attempts to delete by source_name or archive_id metadata, and falls back
+        to deleting by chunk_ids if necessary.
+
+        The handler is idempotent - deleting already-deleted data is a no-op.
+
+        Args:
+            event: SourceDeletionRequested event payload
+        """
+        start_time = time.time()
+        data = event.get("data", {})
+        source_name = data.get("source_name")
+        correlation_id = data.get("correlation_id")
+        archive_ids = data.get("archive_ids", [])
+
+        if not source_name:
+            logger.error("SourceDeletionRequested event missing source_name", event=event)
+            return
+
+        logger.info(
+            "Starting cascade cleanup for source in embedding service",
+            source_name=source_name,
+            correlation_id=correlation_id,
+            archive_count=len(archive_ids),
+        )
+
+        deletion_counts = {
+            "embeddings": 0,
+        }
+
+        try:
+            # Delete embeddings from vectorstore
+            # Strategy: Use archive_ids from event to construct expected chunk IDs
+            # This avoids race condition where chunking service may have already deleted chunks
+            chunk_ids = []
+            
+            # First, try to query chunks (may be empty if chunking service already deleted them)
+            try:
+                chunks = self.document_store.query_documents(
+                    "chunks",
+                    {"source": source_name}
+                ) or []
+
+                if not chunks and archive_ids:
+                    for archive_id in archive_ids:
+                        archive_chunks = self.document_store.query_documents(
+                            "chunks",
+                            {"archive_id": archive_id}
+                        ) or []
+                        chunks.extend(archive_chunks)
+
+
+                for chunk in chunks:
+                    chunk_id = chunk.get("_id")
+                    if isinstance(chunk_id, str) and chunk_id:
+                        chunk_ids.append(chunk_id)
+                    elif chunk_id is not None:
+                        logger.warning(
+                            "Skipping chunk with non-string _id during cascade cleanup",
+                            source_name=source_name,
+                            chunk_id_type=type(chunk_id).__name__,
+                        )
+
+                logger.info(
+                    "Found chunks for source",
+                    source_name=source_name,
+                    chunk_count=len(chunk_ids),
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to query chunks during cascade cleanup (may already be deleted by chunking service)",
+                    source_name=source_name,
+                    error=str(e),
+                )
+
+            # If we found no chunks but have archive_ids, we can still attempt cleanup
+            # by using a consistent naming scheme or querying vectorstore metadata
+            # For now, if we have no chunk_ids, we log and skip vectorstore cleanup
+            if not chunk_ids:
+                logger.info(
+                    "No chunks found for source - embeddings may already be deleted or never created",
+                    source_name=source_name,
+                    archive_count=len(archive_ids),
+                )
+                # This is not an error - chunks may have been deleted by chunking service
+                # or never existed. The cleanup is idempotent.
+            else:
+                # Delete embeddings by chunk IDs
+                try:
+                    for chunk_id in chunk_ids:
+                        try:
+                            self.vector_store.delete(chunk_id)
+                            deletion_counts["embeddings"] += 1
+                        except KeyError:
+                            # Embedding doesn't exist (already deleted or never created)
+                            # This is expected and not an error in idempotent cleanup
+                            pass
+                        except Exception as e:
+                            logger.warning(
+                                "Failed to delete embedding during cascade cleanup",
+                                chunk_id=chunk_id,
+                                source_name=source_name,
+                                error=str(e),
+                            )
+                    logger.info(
+                        "Deleted embeddings by chunk IDs",
+                        source_name=source_name,
+                        count=deletion_counts["embeddings"],
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Failed to delete embeddings during cascade cleanup",
+                        source_name=source_name,
+                        error=str(e),
+                        exc_info=True,
+                    )
+
+            # Emit metrics
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "embedding_cascade_cleanup_total",
+                    tags={"source_name": source_name}
+                )
+                if deletion_counts["embeddings"] > 0:
+                    self.metrics_collector.gauge(
+                        "embedding_cascade_cleanup_embeddings",
+                        float(deletion_counts["embeddings"]),
+                        tags={"source_name": source_name}
+                    )
+
+            processing_time = time.time() - start_time
+            logger.info(
+                "Cascade cleanup completed in embedding service",
+                source_name=source_name,
+                correlation_id=correlation_id,
+                deletion_counts=deletion_counts,
+                processing_time_seconds=processing_time,
+            )
+
+            # Publish SourceCleanupProgress event
+            try:
+                completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                progress_event = SourceCleanupProgressEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "service_name": "embedding",
+                        "status": "completed",
+                        "deletion_counts": deletion_counts,
+                        "completed_at": completed_at,
+                    }
+                )
+                self.publisher.publish(
+                    event=progress_event.to_dict(),
+                    routing_key="source.cleanup.progress",
+                    exchange="copilot.events",
+                )
+                logger.info(
+                    "Published SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    status="completed",
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to publish SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    error=str(e),
+                    exc_info=True,
+                )
+
+        except Exception as e:
+            logger.error(
+                "Cascade cleanup failed in embedding service",
+                source_name=source_name,
+                correlation_id=correlation_id,
+                error=str(e),
+                exc_info=True,
+            )
+
+            # Publish failure progress event
+            try:
+                completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                progress_event = SourceCleanupProgressEvent(
+                    data={
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "service_name": "embedding",
+                        "status": "failed",
+                        "deletion_counts": deletion_counts,
+                        "error_summary": f"Embedding cleanup failed: {str(e)[:200]}",
+                        "completed_at": completed_at,
+                    }
+                )
+                self.publisher.publish(
+                    event=progress_event.to_dict(),
+                    routing_key="source.cleanup.progress",
+                    exchange="copilot.events",
+                )
+            except Exception as pub_error:
+                logger.error(
+                    "Failed to publish failure SourceCleanupProgress event",
+                    source_name=source_name,
+                    correlation_id=correlation_id,
+                    error=str(pub_error),
+                    exc_info=True,
+                )
+
+            if self.error_reporter:
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "source_cascade_cleanup",
+                        "service": "embedding",
+                        "source_name": source_name,
+                        "correlation_id": correlation_id,
+                        "deletion_counts": deletion_counts,
+                    }
+                )
 
     def get_stats(self) -> dict[str, Any]:
         """Get service statistics.

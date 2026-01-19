@@ -110,11 +110,27 @@ def test_service_start(chunking_service, mock_subscriber):
     """Test that the service subscribes to events on start."""
     chunking_service.start()
 
-    # Verify subscription was called
-    mock_subscriber.subscribe.assert_called_once()
-    call_args = mock_subscriber.subscribe.call_args
-    assert call_args[1]["exchange"] == "copilot.events"
-    assert call_args[1]["routing_key"] == "json.parsed"
+    # Verify subscription was called for both JSONParsed and SourceDeletionRequested
+    from unittest.mock import call
+
+    assert mock_subscriber.subscribe.call_count == 2
+    mock_subscriber.subscribe.assert_has_calls(
+        [
+            call(
+                event_type="JSONParsed",
+                exchange="copilot.events",
+                routing_key="json.parsed",
+                callback=chunking_service._handle_json_parsed,
+            ),
+            call(
+                event_type="SourceDeletionRequested",
+                exchange="copilot.events",
+                routing_key="source.deletion.requested",
+                callback=chunking_service._handle_source_deletion_requested,
+            ),
+        ],
+        any_order=False,
+    )
 
 
 def test_chunk_message_success(chunking_service, mock_document_store):
@@ -1017,3 +1033,139 @@ def test_schema_validation_enforced_for_chunks(chunking_service):
     # Validate each chunk against the schema
     for chunk in chunks:
         assert_valid_document_schema(chunk, "chunks")
+
+
+def test_cascade_cleanup_handler():
+    """Test that chunking service handles SourceDeletionRequested events and deletes chunks."""
+    from copilot_config.generated.adapters.document_store import (
+        AdapterConfig_DocumentStore,
+        DriverConfig_DocumentStore_Inmemory,
+    )
+    from copilot_storage import create_document_store
+    from copilot_chunking import create_chunker
+    from copilot_config.generated.adapters.chunker import (
+        AdapterConfig_Chunker,
+        DriverConfig_Chunker_Semantic,
+    )
+    from unittest.mock import Mock
+    
+    # Create test service
+    document_store = create_document_store(
+        AdapterConfig_DocumentStore(
+            doc_store_type="inmemory",
+            driver=DriverConfig_DocumentStore_Inmemory(),
+        )
+    )
+    
+    # Create a mock publisher that captures events
+    class MockPublisher:
+        def __init__(self):
+            self.published_events = []
+        
+        def connect(self):
+            pass
+        
+        def disconnect(self):
+            pass
+        
+        def publish(self, event, routing_key, exchange):
+            self.published_events.append({
+                "event": event,
+                "routing_key": routing_key,
+                "exchange": exchange,
+            })
+    
+    mock_publisher = MockPublisher()
+    
+    class MockSubscriber:
+        def connect(self):
+            pass
+        
+        def disconnect(self):
+            pass
+        
+        def subscribe(self, event_type, exchange, routing_key, callback):
+            pass
+    
+    chunker = create_chunker(
+        AdapterConfig_Chunker(
+            chunking_strategy="semantic",
+            driver=DriverConfig_Chunker_Semantic(target_chunk_size=512, split_on_speaker=False),
+        )
+    )
+    
+    from app.service import ChunkingService
+    service = ChunkingService(
+        document_store=document_store,
+        publisher=mock_publisher,
+        subscriber=MockSubscriber(),
+        chunker=chunker,
+        metrics_collector=Mock(),
+    )
+    
+    # Add test data
+    # Insert schema-compliant chunk documents (ValidatingDocumentStore is strict by default)
+    document_store.insert_document(
+        "chunks",
+        {
+            "_id": "0123456789abcdef",
+            "message_doc_id": "1111111111111111",
+            "message_id": "<msg-1@example.com>",
+            "thread_id": "2222222222222222",
+            "archive_id": "archive-1",
+            "chunk_index": 0,
+            "text": "Test chunk 1",
+            "created_at": "2025-01-18T00:00:00Z",
+            "embedding_generated": False,
+            "source": "test-source",
+        },
+    )
+    document_store.insert_document(
+        "chunks",
+        {
+            "_id": "fedcba9876543210",
+            "message_doc_id": "3333333333333333",
+            "message_id": "<msg-2@example.com>",
+            "thread_id": "4444444444444444",
+            "archive_id": "archive-1",
+            "chunk_index": 1,
+            "text": "Test chunk 2",
+            "created_at": "2025-01-18T00:00:00Z",
+            "embedding_generated": False,
+            "source": "test-source",
+        },
+    )
+    
+    # Simulate SourceDeletionRequested event
+    event = {
+        "event_type": "SourceDeletionRequested",
+        "event_id": "test-event-123",
+        "timestamp": "2025-01-18T00:00:00Z",
+        "version": "1.0",
+        "data": {
+            "source_name": "test-source",
+            "correlation_id": "test-correlation-123",
+            "requested_at": "2025-01-18T00:00:00Z",
+            "archive_ids": ["archive-1"],
+            "delete_mode": "hard"
+        }
+    }
+    
+    # Call the handler
+    service._handle_source_deletion_requested(event)
+    
+    # Verify data was deleted
+    chunks = document_store.query_documents("chunks", {"source": "test-source"})
+    assert len(chunks) == 0, "Chunks should be deleted"
+    
+    # Verify SourceCleanupProgress event was published
+    assert len(mock_publisher.published_events) == 1, "Should publish one progress event"
+    
+    progress_event = mock_publisher.published_events[0]
+    assert progress_event["routing_key"] == "source.cleanup.progress"
+    assert progress_event["event"]["event_type"] == "SourceCleanupProgress"
+    assert progress_event["event"]["data"]["source_name"] == "test-source"
+    assert progress_event["event"]["data"]["service_name"] == "chunking"
+    assert progress_event["event"]["data"]["status"] == "completed"
+    assert progress_event["event"]["data"]["correlation_id"] == "test-correlation-123"
+    assert progress_event["event"]["data"]["deletion_counts"]["chunks"] == 2

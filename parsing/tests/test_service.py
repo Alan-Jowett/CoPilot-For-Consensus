@@ -728,12 +728,27 @@ class TestParsingService:
         # Start the service
         service.start()
 
-        # Verify subscription was called
-        mock_subscriber.subscribe.assert_called_once()
-        call_args = mock_subscriber.subscribe.call_args
-        assert call_args[1]["exchange"] == "copilot.events"
-        assert call_args[1]["routing_key"] == "archive.ingested"
-        assert call_args[1]["callback"] == service._handle_archive_ingested
+        # Verify subscription was called for both ArchiveIngested and SourceDeletionRequested
+        from unittest.mock import call
+
+        assert mock_subscriber.subscribe.call_count == 2
+        mock_subscriber.subscribe.assert_has_calls(
+            [
+                call(
+                    event_type="ArchiveIngested",
+                    exchange="copilot.events",
+                    routing_key="archive.ingested",
+                    callback=service._handle_archive_ingested,
+                ),
+                call(
+                    event_type="SourceDeletionRequested",
+                    exchange="copilot.events",
+                    routing_key="source.deletion.requested",
+                    callback=service._handle_source_deletion_requested,
+                ),
+            ],
+            any_order=False,
+        )
 
     def test_handle_archive_ingested_event(self, document_store, publisher, subscriber, sample_mbox_file):
         """Test that _handle_archive_ingested processes events correctly."""
@@ -1484,3 +1499,122 @@ class TestArchiveEventDataValidation:
 
             event_data = service._build_archive_ingested_event_data(test_doc)
             assert event_data["source_type"] == source_type, f"Failed for {source_type}"
+
+
+def test_cascade_cleanup_handler():
+    """Test that parsing service handles SourceDeletionRequested events and deletes data."""
+    # Create test service
+    document_store = create_validating_document_store()
+    
+    # Create a mock publisher that captures events
+    class MockPublisher:
+        def __init__(self):
+            self.published_events = []
+        
+        def connect(self):
+            pass
+        
+        def disconnect(self):
+            pass
+        
+        def publish(self, event, routing_key, exchange):
+            self.published_events.append({
+                "event": event,
+                "routing_key": routing_key,
+                "exchange": exchange,
+            })
+    
+    mock_publisher = MockPublisher()
+    subscriber = create_noop_subscriber()
+    metrics = Mock()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=mock_publisher,
+        subscriber=subscriber,
+        metrics_collector=metrics,
+        archive_store=create_test_archive_store(),
+    )
+    
+    # Add test data
+    # Insert schema-compliant documents (ValidatingDocumentStore is strict by default)
+    archive_id = "aaaaaaaaaaaaaaaa"
+    thread_id = "bbbbbbbbbbbbbbbb"
+
+    document_store.insert_document(
+        "threads",
+        {
+            "_id": thread_id,
+            "thread_id": thread_id,
+            "archive_id": archive_id,
+            "has_consensus": False,
+            "created_at": "2025-01-18T00:00:00Z",
+            "source": "test-source",
+            "subject": "Test Thread",
+        },
+    )
+
+    document_store.insert_document(
+        "messages",
+        {
+            "_id": "cccccccccccccccc",
+            "message_id": "<message-1@example.com>",
+            "archive_id": archive_id,
+            "thread_id": thread_id,
+            "body_normalized": "Test Message",
+            "created_at": "2025-01-18T00:00:00Z",
+            "source": "test-source",
+            "subject": "Test Message",
+        },
+    )
+    document_store.insert_document(
+        "messages",
+        {
+            "_id": "dddddddddddddddd",
+            "message_id": "<message-2@example.com>",
+            "archive_id": archive_id,
+            "thread_id": thread_id,
+            "body_normalized": "Test Message 2",
+            "created_at": "2025-01-18T00:00:00Z",
+            "source": "test-source",
+            "subject": "Test Message 2",
+        },
+    )
+    
+    # Simulate SourceDeletionRequested event
+    event = {
+        "event_type": "SourceDeletionRequested",
+        "event_id": "test-event-123",
+        "timestamp": "2025-01-18T00:00:00Z",
+        "version": "1.0",
+        "data": {
+            "source_name": "test-source",
+            "correlation_id": "test-correlation-123",
+            "requested_at": "2025-01-18T00:00:00Z",
+            "archive_ids": ["archive-1"],
+            "delete_mode": "hard"
+        }
+    }
+    
+    # Call the handler
+    service._handle_source_deletion_requested(event)
+    
+    # Verify data was deleted
+    threads = document_store.query_documents("threads", {"source": "test-source"})
+    assert len(threads) == 0, "Threads should be deleted"
+    
+    messages = document_store.query_documents("messages", {"source": "test-source"})
+    assert len(messages) == 0, "Messages should be deleted"
+    
+    # Verify SourceCleanupProgress event was published
+    assert len(mock_publisher.published_events) == 1, "Should publish one progress event"
+    
+    progress_event = mock_publisher.published_events[0]
+    assert progress_event["routing_key"] == "source.cleanup.progress"
+    assert progress_event["event"]["event_type"] == "SourceCleanupProgress"
+    assert progress_event["event"]["data"]["source_name"] == "test-source"
+    assert progress_event["event"]["data"]["service_name"] == "parsing"
+    assert progress_event["event"]["data"]["status"] == "completed"
+    assert progress_event["event"]["data"]["correlation_id"] == "test-correlation-123"
+    assert progress_event["event"]["data"]["deletion_counts"]["threads"] == 1
+    assert progress_event["event"]["data"]["deletion_counts"]["messages"] == 2
