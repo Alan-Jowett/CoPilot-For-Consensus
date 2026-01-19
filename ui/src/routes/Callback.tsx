@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import styles from './Callback.module.css'
 
@@ -14,7 +14,7 @@ export function Callback() {
   const [loading, setLoading] = useState(true)
 
   // Helper function to determine redirect URL after successful authentication
-  const getRedirectUrl = (): string => {
+  const getRedirectUrl = useCallback((): string => {
     // Check if this is a token refresh (return to saved page)
     const postRefreshUrl = sessionStorage.getItem('postRefreshUrl')
     if (postRefreshUrl) {
@@ -34,7 +34,57 @@ export function Callback() {
     // Default to reports page
     console.log('[Callback] Normal login, redirecting to reports')
     return '/ui/reports'
-  }
+  }, [])
+
+  const exchangeCodeForToken = useCallback(async (code: string) => {
+    try {
+      // The /callback endpoint is actually handled by the auth service at the gateway
+      // We need to fetch it with the code and state parameters
+      const state = searchParams.get('state')
+      if (!state) {
+        throw new Error('Missing state parameter')
+      }
+
+      console.log('[Callback] Exchanging code for token, calling /auth/callback...')
+      const response = await fetch(`/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, {
+        credentials: 'include'  // Include cookies in request
+      })
+
+      console.log('[Callback] Response status:', response.status)
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({
+          detail: `Token exchange failed: ${response.status}`,
+        }))
+        throw new Error(error.detail)
+      }
+
+      const data = await response.json()
+      console.log('[Callback] Got response:', { access_token: !!data.access_token, token_type: data.token_type })
+
+      if (data.access_token) {
+        // Token is set as httpOnly cookie by the auth service
+        // No need to store in localStorage (security improvement)
+        console.log('[Callback] Token received and set as httpOnly cookie by auth service')
+
+        // Determine where to redirect using helper function
+        const redirectUrl = getRedirectUrl()
+
+        // Redirect after a short delay to allow logs to be read
+        console.log('[Callback] Will redirect to', redirectUrl, 'in 1 second (or enable "Preserve log" in DevTools)')
+        setTimeout(() => {
+          console.log('[Callback] NOW redirecting to', redirectUrl)
+          window.location.href = redirectUrl
+        }, 1000)
+      } else {
+        throw new Error('No token in response')
+      }
+    } catch (err) {
+      console.error('[Callback] Error:', err)
+      setError(err instanceof Error ? err.message : 'Token exchange failed')
+      setLoading(false)
+    }
+  }, [searchParams, getRedirectUrl])
 
   useEffect(() => {
     console.log('[Callback] Component mounted, searchParams:', Object.fromEntries(searchParams))
@@ -90,57 +140,7 @@ export function Callback() {
       setError('No authorization token received')
       setLoading(false)
     }
-  }, [searchParams])
-
-  const exchangeCodeForToken = async (code: string) => {
-    try {
-      // The /callback endpoint is actually handled by the auth service at the gateway
-      // We need to fetch it with the code and state parameters
-      const state = searchParams.get('state')
-      if (!state) {
-        throw new Error('Missing state parameter')
-      }
-
-      console.log('[Callback] Exchanging code for token, calling /auth/callback...')
-      const response = await fetch(`/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, {
-        credentials: 'include'  // Include cookies in request
-      })
-
-      console.log('[Callback] Response status:', response.status)
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({
-          detail: `Token exchange failed: ${response.status}`,
-        }))
-        throw new Error(error.detail)
-      }
-
-      const data = await response.json()
-      console.log('[Callback] Got response:', { access_token: !!data.access_token, token_type: data.token_type })
-
-      if (data.access_token) {
-        // Token is set as httpOnly cookie by the auth service
-        // No need to store in localStorage (security improvement)
-        console.log('[Callback] Token received and set as httpOnly cookie by auth service')
-
-        // Determine where to redirect using helper function
-        const redirectUrl = getRedirectUrl()
-
-        // Redirect after a short delay to allow logs to be read
-        console.log('[Callback] Will redirect to', redirectUrl, 'in 1 second (or enable "Preserve log" in DevTools)')
-        setTimeout(() => {
-          console.log('[Callback] NOW redirecting to', redirectUrl)
-          window.location.href = redirectUrl
-        }, 1000)
-      } else {
-        throw new Error('No token in response')
-      }
-    } catch (err) {
-      console.error('[Callback] Error:', err)
-      setError(err instanceof Error ? err.message : 'Token exchange failed')
-      setLoading(false)
-    }
-  }
+  }, [searchParams, getRedirectUrl, exchangeCodeForToken])
 
   return (
     <div className={styles.container}>

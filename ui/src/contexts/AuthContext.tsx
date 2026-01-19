@@ -156,6 +156,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [scheduleTokenRefresh, clearRefreshTimer])
 
   // Check authentication on mount
+  // Note: checkAuth is included in dependencies to satisfy exhaustive-deps, but since
+  // it's wrapped in useCallback with stable dependencies (scheduleTokenRefresh, clearRefreshTimer),
+  // it won't cause re-renders after the initial mount. The effect only runs once on mount.
   useEffect(() => {
     console.log('[AuthContext] Component mounted, checking auth')
     checkAuth()
@@ -164,7 +167,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       clearRefreshTimer()
     }
-  }, [checkAuth]) // Include checkAuth in dependencies
+  }, [checkAuth, clearRefreshTimer]) // checkAuth is stable due to useCallback with stable deps
 
   const login = (provider: string = 'github') => {
     const audience = 'copilot-for-consensus'
