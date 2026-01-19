@@ -28,6 +28,20 @@ export function Callback() {
     console.log('[Callback] Extracted: token=%s, code=%s, error=%s', !!token, !!code, error_param)
 
     if (error_param) {
+      // Check if this is a silent refresh that failed (e.g., login_required)
+      const postRefreshUrl = sessionStorage.getItem('postRefreshUrl')
+      if (postRefreshUrl && (error_param === 'login_required' || error_param === 'interaction_required')) {
+        // Silent refresh failed because OIDC session expired
+        // Clear the saved URL and redirect to login
+        sessionStorage.removeItem('postRefreshUrl')
+        console.log('[Callback] Silent refresh failed (OIDC session expired), redirecting to login')
+        setError('Your session has expired. Please log in again.')
+        setTimeout(() => {
+          window.location.href = `${import.meta.env.BASE_URL}login`
+        }, 2000)
+        return
+      }
+      
       setError(`OAuth error: ${error_param}`)
       setLoading(false)
       return
@@ -38,22 +52,25 @@ export function Callback() {
       // The token is already set as an httpOnly cookie by the auth service
       console.log('[Callback] Token found in URL params, cookie should be set by auth service')
 
-      // Check if this is a token refresh (automatic permission re-sync)
-      const isRefresh = searchParams.get('refresh') === 'true'
+      // Check if this is a token refresh (return to saved page)
+      const postRefreshUrl = sessionStorage.getItem('postRefreshUrl')
       let redirectUrl = '/ui/reports'
 
-      if (isRefresh) {
-        // Return to original page
+      if (postRefreshUrl) {
+        // Return to page where refresh was triggered
+        redirectUrl = postRefreshUrl
+        sessionStorage.removeItem('postRefreshUrl')
+        console.log('[Callback] Token refreshed, returning to:', redirectUrl)
+      } else {
+        // Check for legacy postLoginUrl for backward compatibility
         const postLoginUrl = sessionStorage.getItem('postLoginUrl')
         if (postLoginUrl) {
           redirectUrl = postLoginUrl
           sessionStorage.removeItem('postLoginUrl')
-          console.log('[Callback] Token refreshed, returning to:', redirectUrl)
+          console.log('[Callback] Normal login, returning to:', redirectUrl)
         } else {
-          console.log('[Callback] Token refreshed, location lost, using default')
+          console.log('[Callback] Normal login, redirecting to reports')
         }
-      } else {
-        console.log('[Callback] Normal login, redirecting to reports')
       }
 
       // Redirect to destination
@@ -100,22 +117,25 @@ export function Callback() {
         // No need to store in localStorage (security improvement)
         console.log('[Callback] Token received and set as httpOnly cookie by auth service')
 
-        // Check if this is a token refresh (automatic permission re-sync)
-        const isRefresh = searchParams.get('refresh') === 'true'
+        // Check if this is a token refresh (return to saved page)
+        const postRefreshUrl = sessionStorage.getItem('postRefreshUrl')
         let redirectUrl = '/ui/reports'
 
-        if (isRefresh) {
-          // Return to original page
+        if (postRefreshUrl) {
+          // Return to page where refresh was triggered
+          redirectUrl = postRefreshUrl
+          sessionStorage.removeItem('postRefreshUrl')
+          console.log('[Callback] Token refreshed, returning to:', redirectUrl)
+        } else {
+          // Check for legacy postLoginUrl for backward compatibility
           const postLoginUrl = sessionStorage.getItem('postLoginUrl')
           if (postLoginUrl) {
             redirectUrl = postLoginUrl
             sessionStorage.removeItem('postLoginUrl')
-            console.log('[Callback] Token refreshed, returning to:', redirectUrl)
+            console.log('[Callback] Normal login, returning to:', redirectUrl)
           } else {
-            console.log('[Callback] Token refreshed, location lost, using default')
+            console.log('[Callback] Normal login, redirecting to reports')
           }
-        } else {
-          console.log('[Callback] Normal login, redirecting to reports')
         }
 
         // Redirect after a short delay to allow logs to be read

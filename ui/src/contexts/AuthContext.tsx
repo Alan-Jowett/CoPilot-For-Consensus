@@ -8,6 +8,7 @@ interface UserInfo {
   email: string
   name: string
   roles?: string[]
+  exp?: number  // Token expiration timestamp (seconds since epoch)
 }
 
 interface AuthContextType {
@@ -43,6 +44,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true)
+  const [refreshTimerId, setRefreshTimerId] = useState<number | null>(null)
 
   // Function to check authentication status by calling /auth/userinfo
   const checkAuth = async () => {
@@ -58,19 +60,82 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUserInfo(data)
         setIsAuthenticated(true)
         setIsAdmin(data.roles?.includes('admin') ?? false)
+        
+        // Schedule token refresh if expiration is available
+        if (data.exp) {
+          scheduleTokenRefresh(data.exp)
+        }
       } else {
         console.log('[AuthContext] Not authenticated (status:', response.status, ')')
         setUserInfo(null)
         setIsAuthenticated(false)
         setIsAdmin(false)
+        clearRefreshTimer()
       }
     } catch (error) {
       console.error('[AuthContext] Error checking auth:', error)
       setUserInfo(null)
       setIsAuthenticated(false)
       setIsAdmin(false)
+      clearRefreshTimer()
     } finally {
       setIsCheckingAuth(false)
+    }
+  }
+
+  // Function to refresh the token silently
+  const refreshToken = async () => {
+    try {
+      console.log('[AuthContext] Attempting silent token refresh')
+      
+      // Save current location so we can return after refresh
+      const currentPath = window.location.pathname + window.location.search
+      sessionStorage.setItem('postRefreshUrl', currentPath)
+      
+      // Redirect to refresh endpoint which will initiate OIDC prompt=none flow
+      // The OIDC provider will redirect back to /callback which will set new cookie
+      // and redirect back to the saved location
+      window.location.href = '/auth/refresh'
+    } catch (error) {
+      console.error('[AuthContext] Error refreshing token:', error)
+      clearRefreshTimer()
+    }
+  }
+
+  // Schedule automatic token refresh before expiration
+  const scheduleTokenRefresh = (expirationTimestamp: number) => {
+    clearRefreshTimer()
+
+    const now = Math.floor(Date.now() / 1000) // Current time in seconds
+    const expiresIn = expirationTimestamp - now // Time until expiration in seconds
+    
+    // Refresh 5 minutes (300 seconds) before expiration, or halfway to expiration if less than 10 minutes remain
+    const refreshBuffer = Math.min(300, Math.floor(expiresIn / 2))
+    const refreshIn = Math.max(0, expiresIn - refreshBuffer)
+
+    console.log(
+      `[AuthContext] Token expires in ${expiresIn}s, scheduling refresh in ${refreshIn}s`
+    )
+
+    if (refreshIn > 0) {
+      const timerId = window.setTimeout(() => {
+        console.log('[AuthContext] Refresh timer triggered')
+        refreshToken()
+      }, refreshIn * 1000) // Convert to milliseconds
+
+      setRefreshTimerId(timerId)
+    } else {
+      // Token already expired or very close to expiration, refresh immediately
+      console.log('[AuthContext] Token already expired, refreshing immediately')
+      refreshToken()
+    }
+  }
+
+  // Clear the refresh timer
+  const clearRefreshTimer = () => {
+    if (refreshTimerId !== null) {
+      window.clearTimeout(refreshTimerId)
+      setRefreshTimerId(null)
     }
   }
 
@@ -78,6 +143,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     console.log('[AuthContext] Component mounted, checking auth')
     checkAuth()
+
+    // Cleanup refresh timer on unmount
+    return () => {
+      clearRefreshTimer()
+    }
   }, [])
 
   const login = (provider: string = 'github') => {
@@ -89,6 +159,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
+      // Clear refresh timer
+      clearRefreshTimer()
+
       // Call the logout endpoint to clear the httpOnly cookie
       const response = await fetch('/auth/logout', {
         method: 'POST',
