@@ -376,28 +376,40 @@ async def refresh(
         raise HTTPException(status_code=401, detail="No token found to refresh")
 
     try:
-        # Validate token structure before decoding
-        if not token or not isinstance(token, str) or token.count('.') != 2:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid token format"
-            )
+        # Validate token structure before decoding.
+        # A JWT has three dot-separated segments.
+        if token.count(".") != 2:
+            raise HTTPException(status_code=400, detail="Invalid token format")
 
         # Decode token WITHOUT signature verification to extract claims for provider inference
         # SECURITY NOTE: This is safe because:
         # 1. We only use the decoded data to infer the provider (non-security-critical)
         # 2. The actual token validation happens later in the OIDC flow
         # 3. The provider is validated against the configured providers list
-        unverified_claims = jwt.decode(token, options={"verify_signature": False})
-        audience = unverified_claims.get("aud", "copilot-for-consensus")
+        try:
+            unverified_claims = jwt.decode(token, options={"verify_signature": False})
+        except jwt.PyJWTError as exc:
+            raise HTTPException(status_code=400, detail="Malformed token") from exc
+
+        if not isinstance(unverified_claims, dict):
+            raise HTTPException(status_code=400, detail="Invalid token payload")
+
+        raw_audience = unverified_claims.get("aud", "copilot-for-consensus")
+        if isinstance(raw_audience, (list, tuple)) and raw_audience:
+            audience = str(raw_audience[0])
+        else:
+            audience = str(raw_audience)
 
         # Try to infer provider from sub claim (format: "provider|id" or "provider:id")
-        sub = unverified_claims.get("sub", "")
+        sub = unverified_claims.get("sub")
+        if not isinstance(sub, str) or not sub:
+            raise HTTPException(status_code=400, detail="Missing or invalid 'sub' claim in token")
+
         inferred_provider = None
         if "|" in sub:
-            inferred_provider = sub.split("|")[0]
+            inferred_provider = sub.split("|", 1)[0]
         elif ":" in sub:
-            inferred_provider = sub.split(":")[0]
+            inferred_provider = sub.split(":", 1)[0]
 
         # Use explicitly provided provider or inferred provider, fallback to first available
         if provider:
@@ -432,6 +444,8 @@ async def refresh(
         # Redirect to authorization URL (will silently authenticate or return error)
         return RedirectResponse(url=authorization_url, status_code=302)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Token refresh initiation failed: {e}")
         metrics.increment("refresh_failed_total", tags={"error": "initiation_error"})

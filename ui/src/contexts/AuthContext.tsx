@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react'
 
 interface UserInfo {
   sub: string
@@ -48,8 +48,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true)
-  // Using number for browser setTimeout (not NodeJS.Timeout)
-  const [refreshTimerId, setRefreshTimerId] = useState<number | null>(null)
+  // Track refresh timer in a ref so cleanup never captures stale state.
+  const refreshTimerIdRef = useRef<number | null>(null)
 
   // Function to check authentication status by calling /auth/userinfo
   const checkAuth = async () => {
@@ -128,7 +128,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         refreshToken()
       }, refreshIn * 1000) as number // setTimeout returns number in browser
 
-      setRefreshTimerId(timerId)
+      refreshTimerIdRef.current = timerId
     } else {
       // Token already expired or very close to expiration, refresh immediately
       console.log('[AuthContext] Token already expired, refreshing immediately')
@@ -138,9 +138,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Clear the refresh timer
   const clearRefreshTimer = () => {
-    if (refreshTimerId !== null) {
-      clearTimeout(refreshTimerId)
-      setRefreshTimerId(null)
+    if (refreshTimerIdRef.current !== null) {
+      clearTimeout(refreshTimerIdRef.current)
+      refreshTimerIdRef.current = null
     }
   }
 

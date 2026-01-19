@@ -6,7 +6,8 @@
 import sys
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi.testclient import TestClient
@@ -125,11 +126,15 @@ def test_refresh_endpoint_exists(test_client: TestClient):
 
 def test_refresh_endpoint_with_valid_token(test_client: TestClient):
     """Test that /refresh redirects to OIDC provider with prompt=none."""
-    response = test_client.get(
-        "/refresh",
-        cookies={"auth_token": "valid.jwt.token"},
-        follow_redirects=False
-    )
+    with patch(
+        "main.jwt.decode",
+        return_value={"sub": "github|12345", "aud": "copilot-for-consensus"},
+    ):
+        response = test_client.get(
+            "/refresh",
+            cookies={"auth_token": "valid.jwt.token"},
+            follow_redirects=False,
+        )
 
     # Should redirect to OIDC provider
     assert response.status_code == 302
@@ -137,45 +142,68 @@ def test_refresh_endpoint_with_valid_token(test_client: TestClient):
     
     # Check that redirect URL includes prompt=none
     location = response.headers["Location"]
-    assert "prompt=none" in location
-    assert "github.com/authorize" in location
+    parsed = urlparse(location)
+    assert parsed.scheme == "https"
+    assert parsed.netloc == "github.com"
+    assert parsed.path == "/authorize"
+
+    query = parse_qs(parsed.query)
+    assert query.get("prompt") == ["none"]
 
 
 def test_refresh_endpoint_infers_provider_from_token(test_client: TestClient):
     """Test that /refresh infers provider from token's sub claim."""
-    response = test_client.get(
-        "/refresh",
-        cookies={"auth_token": "valid.jwt.token"},
-        follow_redirects=False
-    )
+    with patch(
+        "main.jwt.decode",
+        return_value={"sub": "github|12345", "aud": "copilot-for-consensus"},
+    ):
+        response = test_client.get(
+            "/refresh",
+            cookies={"auth_token": "valid.jwt.token"},
+            follow_redirects=False,
+        )
 
     assert response.status_code == 302
     location = response.headers["Location"]
     # Token has sub="github|12345", so should use github provider
-    assert "github.com" in location
+    parsed = urlparse(location)
+    assert parsed.scheme == "https"
+    assert parsed.netloc == "github.com"
+    assert parsed.path == "/authorize"
 
 
 def test_refresh_endpoint_with_explicit_provider(test_client: TestClient):
     """Test that /refresh accepts explicit provider parameter."""
-    response = test_client.get(
-        "/refresh?provider=google",
-        cookies={"auth_token": "valid.jwt.token"},
-        follow_redirects=False
-    )
+    with patch(
+        "main.jwt.decode",
+        return_value={"sub": "github|12345", "aud": "copilot-for-consensus"},
+    ):
+        response = test_client.get(
+            "/refresh?provider=google",
+            cookies={"auth_token": "valid.jwt.token"},
+            follow_redirects=False,
+        )
 
     assert response.status_code == 302
     location = response.headers["Location"]
     # Should use explicitly specified google provider
-    assert "google.com" in location
+    parsed = urlparse(location)
+    assert parsed.scheme == "https"
+    assert parsed.netloc == "google.com"
+    assert parsed.path == "/authorize"
 
 
 def test_refresh_endpoint_with_authorization_header(test_client: TestClient):
     """Test that /refresh works with Authorization header."""
-    response = test_client.get(
-        "/refresh",
-        headers={"Authorization": "Bearer valid.jwt.token"},
-        follow_redirects=False
-    )
+    with patch(
+        "main.jwt.decode",
+        return_value={"sub": "github|12345", "aud": "copilot-for-consensus"},
+    ):
+        response = test_client.get(
+            "/refresh",
+            headers={"Authorization": "Bearer valid.jwt.token"},
+            follow_redirects=False,
+        )
 
     assert response.status_code == 302
     assert "Location" in response.headers
@@ -183,24 +211,34 @@ def test_refresh_endpoint_with_authorization_header(test_client: TestClient):
 
 def test_refresh_endpoint_preserves_audience(test_client: TestClient):
     """Test that /refresh preserves the token's audience."""
-    response = test_client.get(
-        "/refresh",
-        cookies={"auth_token": "valid.jwt.token"},
-        follow_redirects=False
-    )
+    with patch(
+        "main.jwt.decode",
+        return_value={"sub": "github|12345", "aud": "copilot-for-consensus"},
+    ):
+        response = test_client.get(
+            "/refresh",
+            cookies={"auth_token": "valid.jwt.token"},
+            follow_redirects=False,
+        )
 
     assert response.status_code == 302
     location = response.headers["Location"]
+    parsed = urlparse(location)
+    query = parse_qs(parsed.query)
     # Should include the original audience
-    assert "aud=copilot-for-consensus" in location
+    assert query.get("aud") == ["copilot-for-consensus"]
 
 
 def test_refresh_endpoint_with_invalid_provider(test_client: TestClient):
     """Test that /refresh returns 400 for unconfigured provider."""
-    response = test_client.get(
-        "/refresh?provider=invalid-provider",
-        cookies={"auth_token": "valid.jwt.token"}
-    )
+    with patch(
+        "main.jwt.decode",
+        return_value={"sub": "github|12345", "aud": "copilot-for-consensus"},
+    ):
+        response = test_client.get(
+            "/refresh?provider=invalid-provider",
+            cookies={"auth_token": "valid.jwt.token"},
+        )
 
     assert response.status_code == 400
     assert "not configured" in response.json()["detail"]

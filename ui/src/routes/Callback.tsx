@@ -55,11 +55,11 @@ export function Callback() {
 
     if (error_param) {
       // Check if this is a silent refresh that failed (e.g., login_required)
-      const postRefreshUrl = sessionStorage.getItem('postRefreshUrl')
-      if (postRefreshUrl && (error_param === 'login_required' || error_param === 'interaction_required')) {
+      const isSilentRefresh = !!sessionStorage.getItem('postRefreshUrl')
+      if (isSilentRefresh && (error_param === 'login_required' || error_param === 'interaction_required')) {
         // Silent refresh failed because OIDC session expired
-        // Clear the saved URL and redirect to login
-        sessionStorage.removeItem('postRefreshUrl')
+        // Consume the refresh redirect URL so it doesn't linger in storage.
+        getRedirectUrl()
         console.log('[Callback] Silent refresh failed (OIDC session expired), redirecting to login')
         setError('Your session has expired. Please log in again.')
         setTimeout(() => {
