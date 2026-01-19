@@ -10,6 +10,7 @@ configuration objects generated from JSON schemas.
 import importlib
 import json
 import os
+import types
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, Union, cast, get_args, get_origin, overload
 
@@ -232,7 +233,9 @@ def _instantiate_driver_config(driver_class: Any, driver_config_dict: dict[str, 
     if origin is None:
         return driver_class(**driver_config_dict)
 
-    if origin is Union:
+    # Generated unions may be expressed as `typing.Union[...]` or via PEP 604 (`A | B`).
+    union_type = getattr(types, "UnionType", None)
+    if origin is Union or (union_type is not None and origin is union_type):
         discriminant_key: str | None = None
         auth_type_key: str | None = None
         type_key: str | None = None
