@@ -8,7 +8,6 @@ import sys
 from unittest.mock import Mock, patch
 
 import pytest
-
 from copilot_config.generated.adapters.chunker import (
     AdapterConfig_Chunker,
     DriverConfig_Chunker_TokenWindow,
@@ -227,7 +226,9 @@ def test_service_allows_noop_publisher_failure():
 
                                             # Setup mock publisher that fails to connect (but is noop)
                                             mock_publisher = Mock()
-                                            mock_publisher.connect = Mock(side_effect=ConnectionError("Connection failed"))
+                                            mock_publisher.connect = Mock(
+                                                side_effect=ConnectionError("Connection failed")
+                                            )
                                             mock_create_publisher.return_value = mock_publisher
 
                                             # Setup mock subscriber that connects successfully
@@ -261,7 +262,9 @@ def test_service_allows_noop_publisher_failure():
                                             except SystemExit as e:
                                                 # Only fail if exit code is non-zero
                                                 if e.code != 0:
-                                                    pytest.fail(f"Service should not fail with noop publisher, but got exit code {e.code}")
+                                                    pytest.fail(
+                                                        f"Service should not fail with noop publisher, but got exit code {e.code}"
+                                                    )
 
 
 @pytest.mark.skip(reason="Schema validation at startup not yet implemented")

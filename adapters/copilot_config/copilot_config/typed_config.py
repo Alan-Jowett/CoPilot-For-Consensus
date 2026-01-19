@@ -5,18 +5,14 @@
 
 import json
 import os
-from typing import Any
+from typing import Any, Literal, cast
 
 from .load_driver_config import load_driver_config  # noqa: F401
 from .models import AdapterConfig, DriverConfig, ServiceConfig
 from .schema_validation import validate_config_against_schema_dict
 
 
-def load_service_config(
-    service_name: str,
-    schema_dir: str | None = None,
-    **kwargs
-) -> ServiceConfig:
+def load_service_config(service_name: str, schema_dir: str | None = None, **kwargs) -> ServiceConfig:
     """Load and validate service configuration with hierarchical adapters.
 
     This is the RECOMMENDED way to load configuration in services going forward.
@@ -47,6 +43,7 @@ def load_service_config(
     # Try to import secrets support (optional)
     try:
         import copilot_secrets  # noqa: F401
+
         secrets_available = True
     except ImportError:
         secrets_available = False
@@ -69,9 +66,7 @@ def load_service_config(
             discriminant_env_var = discriminant_info.get("env_var")
 
             if not discriminant_field or not discriminant_env_var:
-                raise ValueError(
-                    "Driver schema uses oneOf but is missing discriminant.field or discriminant.env_var"
-                )
+                raise ValueError("Driver schema uses oneOf but is missing discriminant.field or discriminant.env_var")
 
             selected_variant = os.environ.get(discriminant_env_var)
             if not selected_variant:
@@ -79,7 +74,8 @@ def load_service_config(
                 default_variant = discriminant_info.get("default")
                 if is_required and not default_variant:
                     raise ValueError(
-                        f"Driver schema requires discriminant configuration: set environment variable {discriminant_env_var}"
+                        "Driver schema requires discriminant configuration: set environment variable "
+                        f"{discriminant_env_var}"
                     )
                 selected_variant = default_variant
 
@@ -150,6 +146,7 @@ def load_service_config(
                             break
                     except Exception:
                         import logging
+
                         logger = logging.getLogger("copilot_config")
                         logger.debug("Failed to load secret")
                         continue
@@ -180,9 +177,7 @@ def load_service_config(
                 else:
                     details.append(field_name)
 
-            raise ValueError(
-                "Missing required driver configuration: " + ", ".join(details)
-            )
+            raise ValueError("Missing required driver configuration: " + ", ".join(details))
 
         validate_config_against_schema_dict(schema=driver_schema_data, config=driver_config_dict)
         return driver_config_dict
@@ -264,11 +259,14 @@ def load_service_config(
                     f"set environment variable {discriminant_env_var}"
                 )
 
-            if default_driver:
+            if isinstance(default_driver, str) and default_driver:
                 selected_driver = default_driver
             else:
                 # Optional adapter with no default - skip it
                 return
+
+        if not isinstance(selected_driver, str):
+            raise ValueError(f"Adapter {adapter_name} has invalid discriminant value: {selected_driver!r}")
 
         drivers_data = adapter_schema_data.get("properties", {}).get("drivers", {}).get("properties", {})
         driver_schema_ref = None
@@ -279,9 +277,7 @@ def load_service_config(
                 break
 
         if not driver_schema_ref:
-            raise ValueError(
-                f"Adapter {adapter_name} has no schema reference for driver {selected_driver}"
-            )
+            raise ValueError(f"Adapter {adapter_name} has no schema reference for driver {selected_driver}")
 
         driver_schema_path = os.path.join(
             os.path.dirname(adapter_schema_path),
@@ -289,9 +285,7 @@ def load_service_config(
         )
 
         if not os.path.exists(driver_schema_path):
-            raise FileNotFoundError(
-                f"Driver schema file not found: {driver_schema_path}"
-            )
+            raise FileNotFoundError(f"Driver schema file not found: {driver_schema_path}")
 
         with open(driver_schema_path) as f:
             driver_schema_data = json.load(f)
@@ -356,9 +350,7 @@ def load_service_config(
             adapter_schema_path = os.path.join(schema_dir_path, adapter_schema_ref.lstrip("../"))
 
             if not os.path.exists(adapter_schema_path):
-                raise FileNotFoundError(
-                    f"Adapter schema file not found: {adapter_schema_path}"
-                )
+                raise FileNotFoundError(f"Adapter schema file not found: {adapter_schema_path}")
 
             with open(adapter_schema_path) as f:
                 adapter_schema_data = json.load(f)
@@ -415,6 +407,7 @@ def load_service_config(
                 secret_driver_name = secret_adapter.driver_name
                 secret_config_dict = getattr(secret_adapter.driver_config, "config", {})
 
+                driver_config: DriverConfig_SecretProvider_Local | DriverConfig_SecretProvider_AzureKeyVault
                 if secret_driver_name == "local":
                     driver_config = DriverConfig_SecretProvider_Local(**secret_config_dict)
                 elif secret_driver_name == "azure_key_vault":
@@ -425,15 +418,18 @@ def load_service_config(
                         "Supported drivers: local, azure_key_vault"
                     )
 
+                secret_provider_type = cast(Literal["local", "azure_key_vault"], secret_driver_name)
+
                 secret_provider_instance = create_secrets_provider(
                     AdapterConfig_SecretProvider(
-                        secret_provider_type=secret_driver_name,
+                        secret_provider_type=secret_provider_type,
                         driver=driver_config,
                     )
                 )
                 secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
         except Exception as e:
             import logging
+
             logger = logging.getLogger("copilot_config")
             logger.warning(f"Failed to initialize secret_provider: {e}. Secrets will not be available.", exc_info=True)
             secret_provider = None

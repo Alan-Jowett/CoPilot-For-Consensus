@@ -46,6 +46,7 @@ def create_client(service):
     """Create test client with specified mock auth service."""
     with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
         import main
+
         main.auth_service = service
         return TestClient(main.app)
 
@@ -119,6 +120,7 @@ class TestProvidersEndpoint:
         """Test /providers endpoint when auth service is not initialized."""
         with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
             import main
+
             main.auth_service = None
             client = TestClient(main.app)
 

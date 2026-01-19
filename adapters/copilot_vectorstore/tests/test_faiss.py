@@ -11,6 +11,7 @@ try:
     import faiss  # type: ignore[import]  # noqa: F401
     from copilot_vectorstore.faiss_store import FAISSVectorStore
     from copilot_vectorstore.interface import SearchResult
+
     FAISS_AVAILABLE = True
 except ImportError:
     FAISS_AVAILABLE = False
@@ -42,11 +43,7 @@ class TestFAISSVectorStore:
         """Test adding a single embedding."""
         store = FAISSVectorStore(dimension=3)
 
-        store.add_embedding(
-            id="doc1",
-            vector=[1.0, 0.0, 0.0],
-            metadata={"text": "hello"}
-        )
+        store.add_embedding(id="doc1", vector=[1.0, 0.0, 0.0], metadata={"text": "hello"})
 
         assert store.count() == 1
 
@@ -72,16 +69,8 @@ class TestFAISSVectorStore:
 
         store.add_embeddings(
             ids=["doc1", "doc2", "doc3"],
-            vectors=[
-                [1.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0]
-            ],
-            metadatas=[
-                {"text": "first"},
-                {"text": "second"},
-                {"text": "third"}
-            ]
+            vectors=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            metadatas=[{"text": "first"}, {"text": "second"}, {"text": "third"}],
         )
 
         assert store.count() == 3
@@ -91,11 +80,7 @@ class TestFAISSVectorStore:
         store = FAISSVectorStore(dimension=2)
 
         with pytest.raises(ValueError, match="same length"):
-            store.add_embeddings(
-                ids=["doc1", "doc2"],
-                vectors=[[1.0, 0.0]],
-                metadatas=[{"text": "first"}]
-            )
+            store.add_embeddings(ids=["doc1", "doc2"], vectors=[[1.0, 0.0]], metadatas=[{"text": "first"}])
 
     def test_query_empty_store(self):
         """Test querying an empty store returns empty list."""
@@ -112,16 +97,8 @@ class TestFAISSVectorStore:
         # Add three vectors
         store.add_embeddings(
             ids=["doc1", "doc2", "doc3"],
-            vectors=[
-                [1.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.9, 0.1, 0.0]
-            ],
-            metadatas=[
-                {"text": "first"},
-                {"text": "second"},
-                {"text": "third"}
-            ]
+            vectors=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.9, 0.1, 0.0]],
+            metadatas=[{"text": "first"}, {"text": "second"}, {"text": "third"}],
         )
 
         # Query with vector similar to doc1
@@ -138,13 +115,8 @@ class TestFAISSVectorStore:
 
         store.add_embeddings(
             ids=["doc1", "doc2", "doc3", "doc4"],
-            vectors=[
-                [1.0, 0.0],
-                [0.9, 0.1],
-                [0.8, 0.2],
-                [0.7, 0.3]
-            ],
-            metadatas=[{} for _ in range(4)]
+            vectors=[[1.0, 0.0], [0.9, 0.1], [0.8, 0.2], [0.7, 0.3]],
+            metadatas=[{} for _ in range(4)],
         )
 
         results = store.query([1.0, 0.0], top_k=2)
@@ -182,9 +154,7 @@ class TestFAISSVectorStore:
         store = FAISSVectorStore(dimension=2)
 
         store.add_embeddings(
-            ids=["doc1", "doc2", "doc3"],
-            vectors=[[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]],
-            metadatas=[{}, {}, {}]
+            ids=["doc1", "doc2", "doc3"], vectors=[[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]], metadatas=[{}, {}, {}]
         )
 
         assert store.count() == 3
@@ -264,7 +234,7 @@ class TestFAISSVectorStore:
         import tempfile
 
         # Create a temporary file for the index
-        with tempfile.NamedTemporaryFile(suffix='.faiss', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".faiss", delete=False) as tmp:
             tmp_path = tmp.name
 
         try:

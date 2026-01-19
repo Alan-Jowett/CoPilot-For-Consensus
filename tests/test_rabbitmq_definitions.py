@@ -28,9 +28,7 @@ def test_rabbitmq_definitions_completeness():
 
     # Extract routing keys from bindings
     bound_routing_keys = {
-        b["routing_key"]
-        for b in definitions.get("bindings", [])
-        if b.get("source") == "copilot.events"
+        b["routing_key"] for b in definitions.get("bindings", []) if b.get("source") == "copilot.events"
     }
 
     # Find all routing keys used in service code
@@ -124,15 +122,13 @@ def test_rabbitmq_definitions_structure():
 
         # Verify the bound queue exists
         queue_name = binding["destination"]
-        assert queue_name in {q["name"] for q in queues}, (
-            f"Binding references non-existent queue: {queue_name}"
-        )
+        assert queue_name in {q["name"] for q in queues}, f"Binding references non-existent queue: {queue_name}"
 
         # Verify routing key matches queue name (convention)
         routing_key = binding["routing_key"]
-        assert routing_key == queue_name, (
-            f"Routing key '{routing_key}' should match queue name '{queue_name}' (convention)"
-        )
+        assert (
+            routing_key == queue_name
+        ), f"Routing key '{routing_key}' should match queue name '{queue_name}' (convention)"
 
     print("✓ RabbitMQ definitions structure is valid")
     print(f"✓ Found {len(queues)} queues, {len(bindings)} bindings")

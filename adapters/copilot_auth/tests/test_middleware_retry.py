@@ -146,11 +146,7 @@ def test_jwks_fetch_no_retry_on_404_error():
         mock_404_response = MagicMock()
         mock_404_response.status_code = 404
 
-        mock_get.side_effect = httpx.HTTPStatusError(
-            "Not found",
-            request=MagicMock(),
-            response=mock_404_response
-        )
+        mock_get.side_effect = httpx.HTTPStatusError("Not found", request=MagicMock(), response=mock_404_response)
 
         with patch("copilot_auth.middleware.time.sleep"):  # Speed up test by mocking sleep
             middleware = JWTMiddleware(

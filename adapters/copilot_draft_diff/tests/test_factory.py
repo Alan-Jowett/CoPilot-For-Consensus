@@ -39,10 +39,7 @@ class TestDiffProviderFactory:
 
     def test_create_datatracker_provider_with_config(self):
         """Test creating datatracker provider with custom config."""
-        config = DriverConfig_DraftDiffProvider_Datatracker(
-            base_url="https://custom.example.com",
-            diff_format="text"
-        )
+        config = DriverConfig_DraftDiffProvider_Datatracker(base_url="https://custom.example.com", diff_format="text")
         provider = DiffProviderFactory.create("datatracker", config)
 
         assert isinstance(provider, DatatrackerDiffProvider)
@@ -82,6 +79,7 @@ class TestDiffProviderFactory:
 
     def test_register_custom_provider(self):
         """Test registering a custom provider."""
+
         # Create a custom provider class
         class CustomProvider(DraftDiffProvider):
             def getdiff(self, draft_name, version_a, version_b):
@@ -97,6 +95,7 @@ class TestDiffProviderFactory:
 
     def test_register_invalid_provider(self):
         """Test that registering invalid provider raises TypeError."""
+
         # Try to register a class that doesn't inherit from DraftDiffProvider
         class InvalidProvider:
             pass

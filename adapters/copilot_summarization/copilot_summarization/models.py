@@ -15,6 +15,7 @@ class Citation:
         chunk_id: ID of the chunk within the message
         offset: Character offset within the chunk
     """
+
     message_id: str
     chunk_id: str
     offset: int
@@ -31,6 +32,7 @@ class Thread:
         context_window_tokens: Maximum context window size
         prompt: Complete prompt text ready to send to LLM (with all substitutions and messages)
     """
+
     thread_id: str
     messages: list[str]
     top_k: int = 10
@@ -52,6 +54,7 @@ class Summary:
         tokens_completion: Number of completion tokens generated
         latency_ms: Generation latency in milliseconds
     """
+
     thread_id: str
     summary_markdown: str
     citations: list[Citation] = field(default_factory=list)

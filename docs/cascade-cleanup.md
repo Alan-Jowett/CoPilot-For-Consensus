@@ -24,10 +24,14 @@ When `DELETE /api/sources/{source_name}?cascade=true` is called:
    - `requested_at`: Timestamp of deletion request
 
 3. Ingestion service performs its local cleanup:
-   - Deletes archives from document store and archive store
-   - Publishes `SourceCleanupProgress` event with status "completed"
-   
-   **Note**: The ingestion service's current `delete_source_cascade()` method also deletes threads, messages, chunks, and summaries as a legacy synchronous operation. This provides backward compatibility and ensures cleanup happens even if other services are unavailable. The distributed event-driven handlers in parsing, chunking, embedding, and reporting services provide additional resilience and will skip already-deleted data (idempotent behavior).
+  - Deletes threads from document store
+  - Deletes messages from document store
+  - Deletes chunks from document store
+  - Deletes summaries from document store
+  - Deletes archives from document store and archive store
+  - Publishes `SourceCleanupProgress` event with status "completed"
+
+  **Note**: The ingestion service's current `delete_source_cascade()` method also deletes threads, messages, chunks, and summaries as a legacy synchronous operation. This provides backward compatibility and ensures cleanup happens even if other services are unavailable. The distributed event-driven handlers in parsing, chunking, embedding, and reporting services provide additional resilience and will skip already-deleted data (idempotent behavior).
 
 4. Deletes the source record itself
 
@@ -176,6 +180,8 @@ Schema: `docs/schemas/events/SourceCleanupCompleted.schema.json`
 - Deleting already-deleted data is a no-op success
 - Services rely on idempotent delete operations; they do not currently persist per-`correlation_id` completion state, so repeated events may trigger redundant but safe cleanup work
 - Future enhancement: Implement correlation_id tracking to skip already-processed cleanup requests
+ - Services rely on idempotent delete operations; they do not currently persist per-`correlation_id` completion state, so repeated events may trigger redundant but safe cleanup work
+ - Future enhancement: Implement correlation_id tracking to skip already-processed cleanup requests
 
 ### Partial Failure Handling
 - Cleanup continues even if some operations fail
@@ -207,6 +213,19 @@ Schema: `docs/schemas/events/SourceCleanupCompleted.schema.json`
 - ✅ Reporting service subscribes and implements cleanup handler
 - ✅ Tests for ingestion service event publishing
 - ✅ All services emit metrics and progress events
+
+### Future Work
+- ⏳ Orchestrator: Aggregate progress events and publish `SourceCleanupCompleted`
+- ⏳ Add vectorstore metadata tagging for efficient deletion by source_name/archive_id
+- ⏳ Implement cleanup status tracking and API endpoint
+- ⏳ Add integration tests for full cascade flow
+- ⏳ Add per-service tests for cleanup handlers
+ - ✅ Parsing service subscribes and implements cleanup handler
+ - ✅ Chunking service subscribes and implements cleanup handler
+ - ✅ Embedding service subscribes and implements cleanup handler
+ - ✅ Reporting service subscribes and implements cleanup handler
+ - ✅ Tests for ingestion service event publishing
+ - ✅ All services emit metrics and progress events
 
 ### Future Work
 - ⏳ Orchestrator: Aggregate progress events and publish `SourceCleanupCompleted`

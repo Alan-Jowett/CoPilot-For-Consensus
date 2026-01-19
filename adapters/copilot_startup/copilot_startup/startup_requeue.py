@@ -69,8 +69,7 @@ class StartupRequeue:
             Exception: If document query or event publishing fails
         """
         logger.info(
-            f"Startup requeue: scanning {collection} for incomplete documents "
-            f"(query: {query}, limit: {limit})"
+            f"Startup requeue: scanning {collection} for incomplete documents " f"(query: {query}, limit: {limit})"
         )
 
         try:
@@ -118,38 +117,27 @@ class StartupRequeue:
 
                 except Exception as e:
                     logger.error(
-                        f"Failed to requeue document {doc.get(id_field, 'unknown')} "
-                        f"from {collection}: {e}",
-                        exc_info=True
+                        f"Failed to requeue document {doc.get(id_field, 'unknown')} " f"from {collection}: {e}",
+                        exc_info=True,
                     )
                     # Continue with other documents
 
             # Emit metrics
             if self.metrics_collector:
                 self.metrics_collector.increment(
-                    "startup_requeue_documents_total",
-                    requeued,
-                    tags={"collection": collection}
+                    "startup_requeue_documents_total", requeued, tags={"collection": collection}
                 )
 
-            logger.info(
-                f"Startup requeue completed for {collection}: "
-                f"{requeued}/{count} documents requeued"
-            )
+            logger.info(f"Startup requeue completed for {collection}: " f"{requeued}/{count} documents requeued")
 
             return requeued
 
         except Exception as e:
-            logger.error(
-                f"Startup requeue failed for {collection}: {e}",
-                exc_info=True
-            )
+            logger.error(f"Startup requeue failed for {collection}: {e}", exc_info=True)
             # Emit error metric
             if self.metrics_collector:
                 self.metrics_collector.increment(
-                    "startup_requeue_errors_total",
-                    1,
-                    tags={"collection": collection, "error_type": type(e).__name__}
+                    "startup_requeue_errors_total", 1, tags={"collection": collection, "error_type": type(e).__name__}
                 )
             raise
 

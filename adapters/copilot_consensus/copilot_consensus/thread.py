@@ -21,6 +21,7 @@ class Message:
         in_reply_to: ID of the message this is replying to (if any)
         metadata: Additional metadata about the message
     """
+
     message_id: str
     author: str
     subject: str
@@ -44,6 +45,7 @@ class Thread:
         last_activity_at: Timestamp of the most recent message
         metadata: Additional metadata about the thread
     """
+
     thread_id: str
     subject: str
     messages: list[Message] = field(default_factory=list)

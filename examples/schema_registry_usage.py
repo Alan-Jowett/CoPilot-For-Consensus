@@ -54,8 +54,8 @@ def example_basic_usage():
             "file_size_bytes": 1048576,
             "file_hash_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "ingestion_started_at": "2025-12-21T11:00:00Z",
-            "ingestion_completed_at": "2025-12-21T12:00:00Z"
-        }
+            "ingestion_completed_at": "2025-12-21T12:00:00Z",
+        },
     }
 
     # Validate the event
@@ -76,7 +76,7 @@ def example_basic_usage():
             "archive_id": "a1b2c3d4e5f6789a",
             "source_name": "ietf-announce",
             # Missing required fields...
-        }
+        },
     }
 
     is_valid, errors = validate_json(invalid_event, schema)
@@ -176,7 +176,7 @@ def example_document_validation():
         "file_size_bytes": 1048576,
         "source": "ietf-announce",
         "ingestion_date": "2025-12-21T12:00:00Z",
-        "status": "completed"
+        "status": "completed",
     }
 
     is_valid, errors = validate_json(valid_archive, schema)
@@ -226,6 +226,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Error running examples: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

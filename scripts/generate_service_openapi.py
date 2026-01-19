@@ -27,7 +27,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 
 try:
     import yaml
@@ -52,6 +52,7 @@ def load_fastapi_app(service_name: str) -> Any:
     # Get repository root
     repo_root = Path(__file__).parent.parent.resolve()
     service_path = repo_root / service_name / "main.py"
+    service_root = repo_root / service_name
 
     if not service_path.exists():
         raise FileNotFoundError(f"Service not found: {service_path}")
@@ -64,17 +65,25 @@ def load_fastapi_app(service_name: str) -> Any:
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
 
-    # Execute the module to populate it
-    spec.loader.exec_module(module)
+    # Execute the module to populate it.
+    # Many services use a local `app/` package (e.g., `from app import ...`).
+    # Ensure the service directory is importable while executing `main.py`.
+    original_sys_path = list(sys.path)
+    try:
+        sys.path.insert(0, str(service_root))
+        sys.path.insert(0, str(repo_root))
+        spec.loader.exec_module(module)
+    finally:
+        sys.path = original_sys_path
 
     # Get the FastAPI app
-    if not hasattr(module, 'app'):
+    if not hasattr(module, "app"):
         raise AttributeError(f"Module {service_name} does not have an 'app' attribute")
 
     return module.app
 
 
-def generate_openapi_spec(service_name: str, output_format: str = 'yaml') -> Dict[str, Any]:
+def generate_openapi_spec(service_name: str, output_format: str = "yaml") -> dict[str, Any]:
     """Generate OpenAPI specification for a service.
 
     Args:
@@ -98,17 +107,18 @@ def generate_openapi_spec(service_name: str, output_format: str = 'yaml') -> Dic
     openapi_spec = app.openapi()
 
     # Add metadata about generation
-    openapi_spec['info']['x-generated-by'] = 'generate_service_openapi.py'
-    openapi_spec['info']['x-service-name'] = service_name
-    openapi_spec['info']['description'] = (
-        openapi_spec.get('info', {}).get('description', '') +
-        f"\n\nThis specification is auto-generated from the {service_name} service FastAPI definition."
+    openapi_spec["info"]["x-generated-by"] = "generate_service_openapi.py"
+    openapi_spec["info"]["x-service-name"] = service_name
+    openapi_spec["info"]["x-output-format"] = output_format
+    openapi_spec["info"]["description"] = (
+        openapi_spec.get("info", {}).get("description", "")
+        + f"\n\nThis specification is auto-generated from the {service_name} service FastAPI definition."
     )
 
     return openapi_spec
 
 
-def save_spec(spec: Dict[str, Any], output_path: Path, output_format: str = 'yaml') -> None:
+def save_spec(spec: dict[str, Any], output_path: Path, output_format: str = "yaml") -> None:
     """Save OpenAPI spec to file.
 
     Args:
@@ -118,8 +128,8 @@ def save_spec(spec: Dict[str, Any], output_path: Path, output_format: str = 'yam
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, 'w') as f:
-        if output_format == 'yaml':
+    with open(output_path, "w") as f:
+        if output_format == "yaml":
             yaml.dump(spec, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
         else:
             json.dump(spec, f, indent=2)
@@ -156,7 +166,7 @@ def validate_spec(spec_path: Path) -> bool:
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description='Generate OpenAPI specifications for internal services',
+        description="Generate OpenAPI specifications for internal services",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -168,54 +178,42 @@ Examples:
 
   # Generate and validate
   ./generate_service_openapi.py --service reporting --validate
-        """
+        """,
     )
 
     parser.add_argument(
-        '--service',
+        "--service",
         type=str,
-        choices=['reporting', 'ingestion', 'auth', 'orchestrator'],
-        help='Service name to generate spec for'
+        choices=["reporting", "ingestion", "auth", "orchestrator"],
+        help="Service name to generate spec for",
     )
 
-    parser.add_argument(
-        '--all',
-        action='store_true',
-        help='Generate specs for all services'
-    )
+    parser.add_argument("--all", action="store_true", help="Generate specs for all services")
 
     parser.add_argument(
-        '--format',
-        type=str,
-        choices=['yaml', 'json'],
-        default='yaml',
-        help='Output format (default: yaml)'
+        "--format", type=str, choices=["yaml", "json"], default="yaml", help="Output format (default: yaml)"
     )
 
-    parser.add_argument(
-        '--validate',
-        action='store_true',
-        help='Validate generated specifications'
-    )
+    parser.add_argument("--validate", action="store_true", help="Validate generated specifications")
 
     parser.add_argument(
-        '--output-dir',
+        "--output-dir",
         type=Path,
-        default=Path(__file__).parent.parent / 'openapi' / 'generated',
-        help='Output directory for generated specs (default: openapi/generated)'
+        default=Path(__file__).parent.parent / "openapi" / "generated",
+        help="Output directory for generated specs (default: openapi/generated)",
     )
 
     args = parser.parse_args()
 
     # Determine which services to process
     if args.all:
-        services = ['reporting', 'ingestion', 'auth', 'orchestrator']
+        services = ["reporting", "ingestion", "auth", "orchestrator"]
     elif args.service:
         services = [args.service]
     else:
         parser.error("Must specify either --service or --all")
 
-    print(f"\n🔧 Service OpenAPI Generator")
+    print("\n🔧 Service OpenAPI Generator")
     print(f"Output Directory: {args.output_dir}")
     print(f"Format: {args.format}")
     print(f"Services: {', '.join(services)}\n")
@@ -256,5 +254,5 @@ Examples:
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

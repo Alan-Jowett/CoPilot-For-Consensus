@@ -31,6 +31,7 @@ def make_delayed_jwks_handler(start_time, ready_after_seconds=3):
     Returns:
         Handler class configured with the specified timing
     """
+
     class DelayedJWKSHandler(http.server.SimpleHTTPRequestHandler):
         """HTTP handler that delays responses to simulate auth service startup."""
 
@@ -88,10 +89,7 @@ def test_jwks_fetch_during_startup():
     actual_port_queue = multiprocessing.Queue()
 
     # Start mock auth server in background with dynamic port (0 = OS assigns available port)
-    server_process = multiprocessing.Process(
-        target=run_mock_auth_server,
-        args=(0, ready_event, actual_port_queue)
-    )
+    server_process = multiprocessing.Process(target=run_mock_auth_server, args=(0, ready_event, actual_port_queue))
     server_process.start()
 
     try:

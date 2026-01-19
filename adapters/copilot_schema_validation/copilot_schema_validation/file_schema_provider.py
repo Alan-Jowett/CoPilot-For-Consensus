@@ -15,10 +15,7 @@ from .schema_provider import SchemaProvider
 logger = logging.getLogger(__name__)
 
 
-def create_schema_provider(
-    schema_dir: Path | str | None = None,
-    schema_type: str = "events"
-) -> SchemaProvider:
+def create_schema_provider(schema_dir: Path | str | None = None, schema_type: str = "events") -> SchemaProvider:
     """Create a schema provider instance.
 
     Factory function that returns a SchemaProvider implementation.
@@ -48,11 +45,7 @@ def create_schema_provider(
 class FileSchemaProvider(SchemaProvider):
     """Schema provider that loads schemas from JSON files on disk."""
 
-    def __init__(
-        self,
-        schema_dir: Path | str | None = None,
-        schema_type: str = "events"
-    ):
+    def __init__(self, schema_dir: Path | str | None = None, schema_type: str = "events"):
         """Initialize the file-based schema provider.
 
         Args:
@@ -103,7 +96,7 @@ class FileSchemaProvider(SchemaProvider):
             return None
 
         try:
-            with open(schema_file, encoding='utf-8') as f:
+            with open(schema_file, encoding="utf-8") as f:
                 schema = json.load(f)
             self._schema_cache[event_type] = schema
             logger.debug(f"Loaded schema for event type: {event_type}")

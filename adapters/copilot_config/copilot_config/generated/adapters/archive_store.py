@@ -8,77 +8,88 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Literal, TypeAlias
 
 
 @dataclass
 class DriverConfig_ArchiveStore_Azureblob_ConnectionString:
     """Configuration variant for archive_store adapter using azureblob driver."""
+
     azureblob_connection_string: str
     # Azure Storage connection string
-    azureblob_auth_type: Literal['connection_string'] = 'connection_string'
+    azureblob_auth_type: Literal["connection_string"] = "connection_string"
     # Authentication mode discriminator
-    azureblob_container_name: str = 'archives'
+    azureblob_container_name: str = "archives"
     # Azure Blob Storage container name for archives
-    azureblob_prefix: str = ''
+    azureblob_prefix: str = ""
     # Optional path prefix for organizing blobs
 
 
 @dataclass
 class DriverConfig_ArchiveStore_Azureblob_AccountKey:
     """Configuration variant for archive_store adapter using azureblob driver."""
+
     azureblob_account_key: str
     # Azure Storage account key
     azureblob_account_name: str
     # Azure Storage account name
-    azureblob_auth_type: Literal['account_key'] = 'account_key'
+    azureblob_auth_type: Literal["account_key"] = "account_key"
     # Authentication mode discriminator
-    azureblob_container_name: str = 'archives'
+    azureblob_container_name: str = "archives"
     # Azure Blob Storage container name for archives
-    azureblob_prefix: str = ''
+    azureblob_prefix: str = ""
     # Optional path prefix for organizing blobs
 
 
 @dataclass
 class DriverConfig_ArchiveStore_Azureblob_SasToken:
     """Configuration variant for archive_store adapter using azureblob driver."""
+
     azureblob_account_name: str
     # Azure Storage account name
     azureblob_sas_token: str
     # Azure Storage SAS token (may include leading '?')
-    azureblob_auth_type: Literal['sas_token'] = 'sas_token'
+    azureblob_auth_type: Literal["sas_token"] = "sas_token"
     # Authentication mode discriminator
-    azureblob_container_name: str = 'archives'
+    azureblob_container_name: str = "archives"
     # Azure Blob Storage container name for archives
-    azureblob_prefix: str = ''
+    azureblob_prefix: str = ""
     # Optional path prefix for organizing blobs
 
 
 @dataclass
 class DriverConfig_ArchiveStore_Azureblob_ManagedIdentity:
     """Configuration variant for archive_store adapter using azureblob driver."""
+
     azureblob_account_name: str
     # Azure Storage account name
-    azureblob_auth_type: Literal['managed_identity'] = 'managed_identity'
+    azureblob_auth_type: Literal["managed_identity"] = "managed_identity"
     # Authentication mode discriminator
-    azureblob_container_name: str = 'archives'
+    azureblob_container_name: str = "archives"
     # Azure Blob Storage container name for archives
-    azureblob_prefix: str = ''
+    azureblob_prefix: str = ""
     # Optional path prefix for organizing blobs
 
 
-DriverConfig_ArchiveStore_Azureblob: TypeAlias = Union[DriverConfig_ArchiveStore_Azureblob_ConnectionString, DriverConfig_ArchiveStore_Azureblob_AccountKey, DriverConfig_ArchiveStore_Azureblob_SasToken, DriverConfig_ArchiveStore_Azureblob_ManagedIdentity]
+DriverConfig_ArchiveStore_Azureblob: TypeAlias = (
+    DriverConfig_ArchiveStore_Azureblob_ConnectionString
+    | DriverConfig_ArchiveStore_Azureblob_AccountKey
+    | DriverConfig_ArchiveStore_Azureblob_SasToken
+    | DriverConfig_ArchiveStore_Azureblob_ManagedIdentity
+)
 
 
 @dataclass
 class DriverConfig_ArchiveStore_Local:
     """Configuration for archive_store adapter using local driver."""
-    archive_base_path: str = '/data/raw_archives'
+
+    archive_base_path: str = "/data/raw_archives"
     # Base path for archive storage on local filesystem
 
 
 @dataclass
 class AdapterConfig_ArchiveStore:
     """Configuration for archive_store adapter."""
+
     archive_store_type: Literal["azureblob", "local"]
-    driver: Union[DriverConfig_ArchiveStore_Azureblob, DriverConfig_ArchiveStore_Local]
+    driver: DriverConfig_ArchiveStore_Azureblob | DriverConfig_ArchiveStore_Local

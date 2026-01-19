@@ -8,32 +8,34 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Literal
 
 
 @dataclass
 class DriverConfig_EmbeddingBackend_AzureOpenai:
     """Configuration for embedding_backend adapter using azure_openai driver."""
+
     api_base: str
     # Azure OpenAI endpoint URL
     api_key: str
     # Azure OpenAI API key
     deployment_name: str
     # Azure OpenAI deployment name for embeddings
-    api_version: str = '2024-02-15-preview'
+    api_version: str = "2024-02-15-preview"
     # Azure OpenAI API version
-    model: Optional[str] = None
+    model: str | None = None
     # Optional model name to map to deployment
 
 
 @dataclass
 class DriverConfig_EmbeddingBackend_Huggingface:
     """Configuration for embedding_backend adapter using huggingface driver."""
+
     device: str
     # Device to use (e.g., "cpu", "mps", "cuda", "cuda:0", "cuda:1")
     model_name: str
     # HuggingFace model name (e.g., 'sentence-transformers/all-MiniLM-L6-v2')
-    cache_dir: Optional[str] = None
+    cache_dir: str | None = None
     # Cache directory for model files
     max_length: int = 512
     # Maximum sequence length for tokenization
@@ -42,6 +44,7 @@ class DriverConfig_EmbeddingBackend_Huggingface:
 @dataclass
 class DriverConfig_EmbeddingBackend_Mock:
     """Configuration for embedding_backend adapter using mock driver."""
+
     dimension: int = 384
     # Embedding dimension for mock backend
 
@@ -49,33 +52,36 @@ class DriverConfig_EmbeddingBackend_Mock:
 @dataclass
 class DriverConfig_EmbeddingBackend_Openai:
     """Configuration for embedding_backend adapter using openai driver."""
+
     api_key: str
     # OpenAI API key
     model: str
     # OpenAI embedding model name
-    organization: Optional[str] = None
+    organization: str | None = None
     # Optional OpenAI organization id
 
 
 @dataclass
 class DriverConfig_EmbeddingBackend_Sentencetransformers:
     """Configuration for embedding_backend adapter using sentencetransformers driver."""
-    cache_dir: Optional[str] = None
+
+    cache_dir: str | None = None
     # Cache folder for model files
-    device: str = 'cpu'
+    device: str = "cpu"
     # Device to use (supported: 'cpu', 'mps', 'cuda', 'cuda:N' like 'cuda:0')
-    model_name: str = 'all-MiniLM-L6-v2'
+    model_name: str = "all-MiniLM-L6-v2"
     # SentenceTransformers model name to use
 
 
 @dataclass
 class AdapterConfig_EmbeddingBackend:
     """Configuration for embedding_backend adapter."""
+
     embedding_backend_type: Literal["azure_openai", "huggingface", "mock", "openai", "sentencetransformers"]
-    driver: Union[
-        DriverConfig_EmbeddingBackend_AzureOpenai,
-        DriverConfig_EmbeddingBackend_Huggingface,
-        DriverConfig_EmbeddingBackend_Mock,
-        DriverConfig_EmbeddingBackend_Openai,
-        DriverConfig_EmbeddingBackend_Sentencetransformers
-    ]
+    driver: (
+        DriverConfig_EmbeddingBackend_AzureOpenai
+        | DriverConfig_EmbeddingBackend_Huggingface
+        | DriverConfig_EmbeddingBackend_Mock
+        | DriverConfig_EmbeddingBackend_Openai
+        | DriverConfig_EmbeddingBackend_Sentencetransformers
+    )

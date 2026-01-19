@@ -149,9 +149,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
                     raise ImportError("azure-servicebus library is not installed")
 
                 logger.info("Connecting to Azure Service Bus using connection string")
-                self.client = ServiceBusClient.from_connection_string(
-                    conn_str=self.connection_string
-                )
+                self.client = ServiceBusClient.from_connection_string(conn_str=self.connection_string)
 
             if self.queue_name:
                 source = f"queue={self.queue_name}"
@@ -192,6 +190,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
             routing_key: Not used for Azure Service Bus (kept for interface compatibility)
             exchange: Not used for Azure Service Bus (kept for interface compatibility)
         """
+        del routing_key, exchange
         if not self.client:
             raise RuntimeError("Not connected. Call connect() first.")
 
@@ -222,9 +221,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
         try:
             # Choose receive mode based on auto_complete setting
             receive_mode = (
-                ServiceBusReceiveMode.RECEIVE_AND_DELETE
-                if self.auto_complete
-                else ServiceBusReceiveMode.PEEK_LOCK
+                ServiceBusReceiveMode.RECEIVE_AND_DELETE if self.auto_complete else ServiceBusReceiveMode.PEEK_LOCK
             )
 
             # Get receiver based on queue or topic/subscription

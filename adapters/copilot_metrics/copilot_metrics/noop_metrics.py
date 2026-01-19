@@ -29,6 +29,7 @@ class NoOpMetricsCollector(MetricsCollector):
         Args:
             **kwargs: Ignored (for compatibility with factory method)
         """
+        del kwargs
         self.counters: list[tuple[str, float, dict[str, str] | None]] = []
         self.observations: list[tuple[str, float, dict[str, str] | None]] = []
         self.gauges: list[tuple[str, float, dict[str, str] | None]] = []
@@ -100,7 +101,8 @@ class NoOpMetricsCollector(MetricsCollector):
             List of observed values
         """
         return [
-            value for obs_name, value, obs_tags in self.observations
+            value
+            for obs_name, value, obs_tags in self.observations
             if obs_name == name and (tags is None or obs_tags == tags)
         ]
 
@@ -115,7 +117,8 @@ class NoOpMetricsCollector(MetricsCollector):
             Most recent gauge value, or None if not found
         """
         matching_gauges = [
-            value for gauge_name, value, gauge_tags in self.gauges
+            value
+            for gauge_name, value, gauge_tags in self.gauges
             if gauge_name == name and (tags is None or gauge_tags == tags)
         ]
         return matching_gauges[-1] if matching_gauges else None
@@ -130,4 +133,5 @@ class NoOpMetricsCollector(MetricsCollector):
         Returns:
             Configured NoOpMetricsCollector instance
         """
+        del driver_config
         return cls()

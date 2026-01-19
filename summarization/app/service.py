@@ -5,9 +5,15 @@
 
 import hashlib
 import time
-from typing import Any
 from string import Formatter
+from typing import Any
 
+from copilot_error_reporting import ErrorReporter
+from copilot_event_retry import (
+    RetryConfig,
+    handle_event_with_retry,
+)
+from copilot_logging import get_logger
 from copilot_message_bus import (
     EventPublisher,
     EventSubscriber,
@@ -15,16 +21,10 @@ from copilot_message_bus import (
     SummarizationRequestedEvent,
     SummaryCompleteEvent,
 )
-from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
-from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from copilot_summarization import Citation, Summarizer, Thread
 from copilot_vectorstore import VectorStore
-from copilot_event_retry import (
-    RetryConfig,
-    handle_event_with_retry,
-)
 
 logger = get_logger(__name__)
 
@@ -171,20 +171,21 @@ class SummarizationService:
             # Parse event
             summarization_requested = SummarizationRequestedEvent(data=event.get("data", {}))
 
-            logger.info(f"Received SummarizationRequested event for {len(summarization_requested.data.get('thread_ids', []))} threads")
+            thread_count = len(summarization_requested.data.get("thread_ids", []))
+            logger.info(f"Received SummarizationRequested event for {thread_count} threads")
 
             # Process with retry logic for race condition handling
             # Generate idempotency key from thread IDs
             # Use all thread IDs for uniqueness (limited to reasonable length for key storage)
             thread_ids = summarization_requested.data.get("thread_ids", [])
-            thread_ids_str = '-'.join(str(tid) for tid in thread_ids)
+            thread_ids_str = "-".join(str(tid) for tid in thread_ids)
             # Hash if too long to keep key manageable
             if len(thread_ids_str) > 100:
                 thread_ids_hash = hashlib.sha256(thread_ids_str.encode()).hexdigest()[:16]
                 idempotency_key = f"summarization-{thread_ids_hash}"
             else:
                 idempotency_key = f"summarization-{thread_ids_str}"
-            
+
             # Wrap processing with retry logic
             handle_event_with_retry(
                 handler=lambda e: self.process_summarization(e.get("data", {})),
@@ -378,8 +379,7 @@ class SummarizationService:
             except Exception as e:
                 retry_count += 1
                 logger.error(
-                    f"Error summarizing thread {thread_id} "
-                    f"(attempt {retry_count}/{self.retry_max_attempts}): {e}",
+                    f"Error summarizing thread {thread_id} " f"(attempt {retry_count}/{self.retry_max_attempts}): {e}",
                     exc_info=True,
                 )
 
@@ -387,7 +387,7 @@ class SummarizationService:
                     # Exponential backoff with maximum cap
                     backoff = min(
                         self.retry_backoff_seconds * (2 ** (retry_count - 1)),
-                        60  # Maximum 60 seconds
+                        60,  # Maximum 60 seconds
                     )
                     logger.info(f"Retrying in {backoff} seconds...")
                     time.sleep(backoff)
@@ -411,10 +411,16 @@ class SummarizationService:
                         logger.error(
                             f"Failed to publish SummarizationFailed event for {thread_id}",
                             exc_info=True,
-                            extra={"original_error": str(e), "publish_error": str(publish_error)}
+                            extra={"original_error": str(e), "publish_error": str(publish_error)},
                         )
                         if self.error_reporter:
-                            self.error_reporter.report(publish_error, context={"thread_id": thread_id, "publish_failed": True})
+                            self.error_reporter.report(
+                                publish_error,
+                                context={
+                                    "thread_id": thread_id,
+                                    "publish_failed": True,
+                                },
+                            )
                         # Re-raise the original exception to trigger message requeue
                         raise e from publish_error
 
@@ -489,9 +495,7 @@ class SummarizationService:
             date_range = "Unknown"
 
         # Format email chunks (all available messages, respecting natural chunking)
-        email_chunks_text = "\n\n".join(
-            f"Message {i+1}:\n{msg}" for i, msg in enumerate(messages)
-        )
+        email_chunks_text = "\n\n".join(f"Message {i+1}:\n{msg}" for i, msg in enumerate(messages))
         if not email_chunks_text:
             email_chunks_text = "(No messages available)"
 
@@ -506,11 +510,7 @@ class SummarizationService:
         }
 
         # Validate template placeholders before formatting to surface clear errors
-        parsed_placeholders = {
-            field_name
-            for _, field_name, _, _ in Formatter().parse(prompt_template)
-            if field_name
-        }
+        parsed_placeholders = {field_name for _, field_name, _, _ in Formatter().parse(prompt_template) if field_name}
         unexpected = parsed_placeholders - allowed_placeholders
         if unexpected:
             error_msg = (
@@ -542,7 +542,7 @@ class SummarizationService:
 
         Returns:
             Dictionary with 'messages' and 'chunks' keys
-            
+
         Notes:
             If no messages are found, returns an empty context; callers are
             responsible for publishing a `NoContextError` failure event.
@@ -570,16 +570,18 @@ class SummarizationService:
         # In a real implementation, you'd query the vector store with a query embedding
         chunks = []
         for i, msg in enumerate(messages[:top_k]):
-            chunks.append({
-                "_id": msg.get("_id", msg.get("message_id", f"chunk_{i}")),
-                "message_id": msg.get("message_id", ""),
-                "text": msg.get("body_normalized", ""),
-                "offset": 0,
-                # Include metadata for template substitution
-                "from": msg.get("from", {}),
-                "date": msg.get("date", ""),
-                "draft_mentions": msg.get("draft_mentions", []),
-            })
+            chunks.append(
+                {
+                    "_id": msg.get("_id", msg.get("message_id", f"chunk_{i}")),
+                    "message_id": msg.get("message_id", ""),
+                    "text": msg.get("body_normalized", ""),
+                    "offset": 0,
+                    # Include metadata for template substitution
+                    "from": msg.get("from", {}),
+                    "date": msg.get("date", ""),
+                    "draft_mentions": msg.get("draft_mentions", []),
+                }
+            )
 
         return {
             "messages": message_texts[:top_k],
@@ -601,29 +603,27 @@ class SummarizationService:
             List of formatted citation dictionaries
         """
         # Create a lookup map for chunks by _id, skipping invalid IDs
-        chunk_map = {
-            chunk["_id"]: chunk
-            for chunk in chunks
-            if chunk.get("_id") is not None
-        }
+        chunk_map = {chunk["_id"]: chunk for chunk in chunks if chunk.get("_id") is not None}
 
         formatted: list[dict[str, Any]] = []
 
         # Limit to citation_count
-        for citation in citations[:self.citation_count]:
+        for citation in citations[: self.citation_count]:
             chunk = chunk_map.get(citation.chunk_id)
-            
+
             # Always include the citation, even if chunk is missing
             # If chunk exists, use its _id and text; otherwise use empty text
             chunk_id = chunk.get("_id") if chunk else citation.chunk_id
             text = chunk.get("text", "") if chunk else ""
 
-            formatted.append({
-                "message_id": citation.message_id,
-                "chunk_id": chunk_id,
-                "offset": citation.offset,
-                "text": text,
-            })
+            formatted.append(
+                {
+                    "message_id": citation.message_id,
+                    "chunk_id": chunk_id,
+                    "offset": citation.offset,
+                    "text": text,
+                }
+            )
 
         return formatted
 
@@ -747,8 +747,7 @@ class SummarizationService:
             raise
 
         logger.warning(
-            f"Published SummarizationFailed event for thread {thread_id}: "
-            f"{error_type} - {error_message}"
+            f"Published SummarizationFailed event for thread {thread_id}: " f"{error_type} - {error_message}"
         )
 
     def get_stats(self) -> dict[str, Any]:

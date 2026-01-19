@@ -43,4 +43,3 @@ __all__ = [
     "sanitize_document",
     "sanitize_documents",
 ]
-

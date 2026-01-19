@@ -17,6 +17,7 @@ from copilot_vectorstore import create_vector_store
 AZURE_AVAILABLE = False
 try:
     import azure.search.documents  # type: ignore[import]  # noqa: F401
+
     AZURE_AVAILABLE = True
 except ImportError:
     # Azure SDK not installed - integration tests will be skipped
@@ -131,11 +132,7 @@ class TestAzureAISearchIntegration:
         """Test adding multiple embeddings in batch."""
         vectors = [[0.1] * 384, [0.2] * 384, [0.3] * 384]
         ids = ["doc1", "doc2", "doc3"]
-        metadatas = [
-            {"text": "First doc"},
-            {"text": "Second doc"},
-            {"text": "Third doc"}
-        ]
+        metadatas = [{"text": "First doc"}, {"text": "Second doc"}, {"text": "Third doc"}]
 
         clean_store.add_embeddings(ids, vectors, metadatas)
 
@@ -156,11 +153,7 @@ class TestAzureAISearchIntegration:
             [0.0, 0.0, 1.0] + [0.0] * 381,
         ]
         ids = ["doc1", "doc2", "doc3"]
-        metadatas = [
-            {"text": "First"},
-            {"text": "Second"},
-            {"text": "Third"}
-        ]
+        metadatas = [{"text": "First"}, {"text": "Second"}, {"text": "Third"}]
 
         clean_store.add_embeddings(ids, vectors, metadatas)
 
@@ -259,7 +252,7 @@ class TestAzureAISearchIntegration:
             "source": "integration_test",
             "tags": ["test", "integration"],
             "score": 0.95,
-            "nested": {"key": "value"}
+            "nested": {"key": "value"},
         }
 
         clean_store.add_embedding("doc1", vector, metadata)

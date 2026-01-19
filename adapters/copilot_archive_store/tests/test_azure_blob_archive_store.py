@@ -9,15 +9,16 @@ import pytest
 
 # Test if azure-storage-blob is available
 try:
-    from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
+    from azure.core.exceptions import AzureError, ResourceNotFoundError
     from azure.storage.blob import BlobServiceClient  # noqa: F401 - availability check
+
     AZURE_AVAILABLE = True
 except ImportError:
     AZURE_AVAILABLE = False
 
 if AZURE_AVAILABLE:
-    from copilot_archive_store.azure_blob_archive_store import AzureBlobArchiveStore
     from copilot_archive_store.archive_store import ArchiveStoreConnectionError
+    from copilot_archive_store.azure_blob_archive_store import AzureBlobArchiveStore
     from copilot_config.generated.adapters.archive_store import (
         DriverConfig_ArchiveStore_Azureblob_AccountKey,
         DriverConfig_ArchiveStore_Azureblob_ConnectionString,
@@ -33,7 +34,7 @@ class TestAzureBlobArchiveStore:
     @pytest.fixture
     def mock_blob_service_client(self):
         """Create a mock BlobServiceClient."""
-        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+        with patch("copilot_archive_store.azure_blob_archive_store.BlobServiceClient") as mock_bsc:
             mock_service = MagicMock()
             mock_bsc.return_value = mock_service
 
@@ -60,10 +61,7 @@ class TestAzureBlobArchiveStore:
         mock_container.get_blob_client.return_value = mock_metadata_blob
 
         store = AzureBlobArchiveStore(
-            account_name="testaccount",
-            account_key="testkey123==",
-            container_name="test-archives",
-            prefix="test-prefix"
+            account_name="testaccount", account_key="testkey123==", container_name="test-archives", prefix="test-prefix"
         )
 
         # Reset mock for test usage
@@ -80,11 +78,7 @@ class TestAzureBlobArchiveStore:
         mock_metadata_blob.download_blob.side_effect = ResourceNotFoundError()
         mock_container.get_blob_client.return_value = mock_metadata_blob
 
-        store = AzureBlobArchiveStore(
-            account_name="testaccount",
-            account_key="testkey123==",
-            container_name="archives"
-        )
+        store = AzureBlobArchiveStore(account_name="testaccount", account_key="testkey123==", container_name="archives")
 
         assert store.account_name == "testaccount"
         assert store.account_key == "testkey123=="
@@ -104,9 +98,7 @@ class TestAzureBlobArchiveStore:
         mock_container.get_blob_client.return_value = mock_metadata_blob
 
         store = AzureBlobArchiveStore(
-            account_name="testaccount",
-            sas_token="?sv=2022-11-02&ss=b...",
-            container_name="archives"
+            account_name="testaccount", sas_token="?sv=2022-11-02&ss=b...", container_name="archives"
         )
 
         assert store.sas_token == "?sv=2022-11-02&ss=b..."
@@ -114,7 +106,7 @@ class TestAzureBlobArchiveStore:
 
     def test_initialization_with_connection_string(self):
         """Test initialization with connection string."""
-        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+        with patch("copilot_archive_store.azure_blob_archive_store.BlobServiceClient") as mock_bsc:
             mock_service = MagicMock()
             mock_bsc.from_connection_string.return_value = mock_service
 
@@ -126,11 +118,10 @@ class TestAzureBlobArchiveStore:
             mock_metadata_blob.download_blob.side_effect = ResourceNotFoundError()
             mock_container.get_blob_client.return_value = mock_metadata_blob
 
-            conn_str = "DefaultEndpointsProtocol=https;AccountName=test;AccountKey=key==;EndpointSuffix=core.windows.net"
-            store = AzureBlobArchiveStore(
-                connection_string=conn_str,
-                container_name="archives"
+            conn_str = (
+                "DefaultEndpointsProtocol=https;AccountName=test;AccountKey=key==;EndpointSuffix=core.windows.net"
             )
+            store = AzureBlobArchiveStore(connection_string=conn_str, container_name="archives")
 
             assert store.connection_string == conn_str
             mock_bsc.from_connection_string.assert_called_once_with(conn_str)
@@ -222,6 +213,7 @@ class TestAzureBlobArchiveStore:
         """
         try:
             import azure.identity  # noqa: F401
+
             has_identity = True
         except ImportError:
             has_identity = False
@@ -234,7 +226,7 @@ class TestAzureBlobArchiveStore:
                 )
             return
 
-        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+        with patch("copilot_archive_store.azure_blob_archive_store.BlobServiceClient") as mock_bsc:
             mock_service = MagicMock()
             mock_bsc.return_value = mock_service
 
@@ -255,10 +247,7 @@ class TestAzureBlobArchiveStore:
     def test_initialization_missing_account_name(self):
         """Test that initialization fails without account name."""
         with pytest.raises(ValueError, match="Authentication configuration required"):
-            AzureBlobArchiveStore(
-                account_key="testkey123==",
-                container_name="archives"
-            )
+            AzureBlobArchiveStore(account_key="testkey123==", container_name="archives")
 
     def test_get_archive_reload_metadata_on_cache_miss(self, store):
         """get_archive should reload metadata index when cache is stale.
@@ -405,7 +394,7 @@ class TestAzureBlobArchiveStore:
 
     def test_initialization_container_already_exists(self):
         """Test successful initialization when container already exists."""
-        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+        with patch("copilot_archive_store.azure_blob_archive_store.BlobServiceClient") as mock_bsc:
             mock_service = MagicMock()
             mock_bsc.return_value = mock_service
 
@@ -414,6 +403,7 @@ class TestAzureBlobArchiveStore:
 
             # Container creation raises ResourceExistsError (already exists)
             from azure.core.exceptions import ResourceExistsError
+
             mock_container.create_container.side_effect = ResourceExistsError("Container exists")
 
             # Mock metadata blob (not found initially)
@@ -423,9 +413,7 @@ class TestAzureBlobArchiveStore:
 
             # Should succeed even when ResourceExistsError is raised
             store = AzureBlobArchiveStore(
-                account_name="testaccount",
-                account_key="testkey123==",
-                container_name="test-archives"
+                account_name="testaccount", account_key="testkey123==", container_name="test-archives"
             )
 
             assert store.container_name == "test-archives"
@@ -434,7 +422,7 @@ class TestAzureBlobArchiveStore:
 
     def test_initialization_azure_error_during_container_creation(self):
         """Test that unexpected Azure errors during container creation are surfaced."""
-        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+        with patch("copilot_archive_store.azure_blob_archive_store.BlobServiceClient") as mock_bsc:
             mock_service = MagicMock()
             mock_bsc.return_value = mock_service
 
@@ -447,23 +435,19 @@ class TestAzureBlobArchiveStore:
             # Should raise ArchiveStoreConnectionError with preserved cause
             with pytest.raises(ArchiveStoreConnectionError, match="Unexpected Azure error while creating container"):
                 AzureBlobArchiveStore(
-                    account_name="testaccount",
-                    account_key="testkey123==",
-                    container_name="test-archives"
+                    account_name="testaccount", account_key="testkey123==", container_name="test-archives"
                 )
 
     def test_initialization_blob_service_client_failure(self):
         """Test that BlobServiceClient initialization failures are wrapped properly."""
-        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+        with patch("copilot_archive_store.azure_blob_archive_store.BlobServiceClient") as mock_bsc:
             # BlobServiceClient constructor raises an exception
             mock_bsc.side_effect = ValueError("Invalid connection string")
 
             # Should raise ArchiveStoreConnectionError with wrapped cause
             with pytest.raises(ArchiveStoreConnectionError, match="Failed to initialize Azure Blob Archive Store"):
                 AzureBlobArchiveStore(
-                    account_name="testaccount",
-                    account_key="testkey123==",
-                    container_name="test-archives"
+                    account_name="testaccount", account_key="testkey123==", container_name="test-archives"
                 )
 
     def test_store_archive(self, store, mock_blob_service_client):
@@ -493,11 +477,7 @@ class TestAzureBlobArchiveStore:
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
         # Store archive
-        store.store_archive(
-            source_name="test-source",
-            file_path="/path/to/archive.mbox",
-            content=content
-        )
+        store.store_archive(source_name="test-source", file_path="/path/to/archive.mbox", content=content)
 
         # Verify archive blob was uploaded
         mock_archive_blob.upload_blob.assert_called_once()
@@ -538,11 +518,7 @@ class TestAzureBlobArchiveStore:
 
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
-        store.store_archive(
-            source_name="test-source",
-            file_path="test.mbox",
-            content=content
-        )
+        store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
         # Verify get_blob_properties was NOT called (result had etag attribute)
         mock_metadata_blob.get_blob_properties.assert_not_called()
@@ -573,11 +549,7 @@ class TestAzureBlobArchiveStore:
 
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
-        store.store_archive(
-            source_name="test-source",
-            file_path="test.mbox",
-            content=content
-        )
+        store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
         # Verify get_blob_properties was NOT called (result was dict with etag)
         mock_metadata_blob.get_blob_properties.assert_not_called()
@@ -606,11 +578,7 @@ class TestAzureBlobArchiveStore:
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
         # Should NOT raise an exception despite ETag refresh failure
-        store.store_archive(
-            source_name="test-source",
-            file_path="test.mbox",
-            content=content
-        )
+        store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
         # Verify get_blob_properties was called (and failed)
         mock_metadata_blob.get_blob_properties.assert_called_once()
@@ -636,11 +604,7 @@ class TestAzureBlobArchiveStore:
 
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
-        archive_id = store.store_archive(
-            source_name="test-source",
-            file_path="test.mbox",
-            content=content
-        )
+        archive_id = store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
         # Mock download
         mock_download_stream = MagicMock()
@@ -677,11 +641,7 @@ class TestAzureBlobArchiveStore:
 
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
-        archive_id = store.store_archive(
-            source_name="test-source",
-            file_path="test.mbox",
-            content=content
-        )
+        archive_id = store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
         # Mock blob not found during retrieval
         mock_archive_blob.download_blob.side_effect = ResourceNotFoundError()
@@ -693,6 +653,7 @@ class TestAzureBlobArchiveStore:
     def test_get_archive_by_hash(self, store, mock_blob_service_client):
         """Test retrieving archive ID by content hash."""
         import hashlib
+
         _, _, mock_container = mock_blob_service_client
 
         content = b"Test content for hash lookup"
@@ -711,11 +672,7 @@ class TestAzureBlobArchiveStore:
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
         # Store the archive
-        archive_id = store.store_archive(
-            source_name="test-source",
-            file_path="test.mbox",
-            content=content
-        )
+        archive_id = store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
         # Look up by hash
         found_id = store.get_archive_by_hash(content_hash)
@@ -745,11 +702,7 @@ class TestAzureBlobArchiveStore:
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
         # Store archive
-        archive_id = store.store_archive(
-            source_name="test-source",
-            file_path="test.mbox",
-            content=content
-        )
+        archive_id = store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
         # Mock exists check
         mock_archive_blob.exists.return_value = True
@@ -779,11 +732,7 @@ class TestAzureBlobArchiveStore:
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
         # Store archive
-        archive_id = store.store_archive(
-            source_name="test-source",
-            file_path="test.mbox",
-            content=content
-        )
+        archive_id = store.store_archive(source_name="test-source", file_path="test.mbox", content=content)
 
         # Mock exists and delete
         mock_archive_blob.exists.return_value = True
@@ -918,10 +867,7 @@ class TestAzureBlobArchiveStore:
         mock_container.get_blob_client.return_value = mock_metadata_blob
 
         store = AzureBlobArchiveStore(
-            account_name="testaccount",
-            account_key="testkey==",
-            container_name="archives",
-            prefix="my/prefix"
+            account_name="testaccount", account_key="testkey==", container_name="archives", prefix="my/prefix"
         )
 
         # Prefix should be normalized with trailing slash
@@ -931,12 +877,15 @@ class TestAzureBlobArchiveStore:
         blob_name = store._get_blob_name("test-source", "file.mbox")
         assert blob_name == "my/prefix/test-source/file.mbox"
 
-    @patch.dict('os.environ', {
-        'AZURE_STORAGE_ACCOUNT': 'envaccount',
-        'AZURE_STORAGE_KEY': 'envkey==',
-        'AZURE_STORAGE_CONTAINER': 'envcontainer',
-        'AZURE_STORAGE_PREFIX': 'env/prefix'
-    })
+    @patch.dict(
+        "os.environ",
+        {
+            "AZURE_STORAGE_ACCOUNT": "envaccount",
+            "AZURE_STORAGE_KEY": "envkey==",
+            "AZURE_STORAGE_CONTAINER": "envcontainer",
+            "AZURE_STORAGE_PREFIX": "env/prefix",
+        },
+    )
     def test_environment_variable_configuration(self, mock_blob_service_client):
         """Test configuration from environment variables."""
         _, mock_service, mock_container = mock_blob_service_client

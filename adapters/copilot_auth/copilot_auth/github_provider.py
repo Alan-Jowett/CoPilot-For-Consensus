@@ -10,7 +10,6 @@ authenticate using their GitHub accounts.
 from typing import Any
 
 import httpx
-
 from copilot_config.generated.adapters.oidc_providers import DriverConfig_OidcProviders_Github
 
 from .models import User
@@ -63,9 +62,7 @@ class GitHubIdentityProvider(OIDCProvider):
         self.api_base_url = api_base_url
 
     @classmethod
-    def from_config(
-        cls, driver_config: DriverConfig_OidcProviders_Github
-    ) -> "GitHubIdentityProvider":
+    def from_config(cls, driver_config: DriverConfig_OidcProviders_Github) -> "GitHubIdentityProvider":
         """Create GitHubIdentityProvider from typed config.
 
         Args:
@@ -81,14 +78,10 @@ class GitHubIdentityProvider(OIDCProvider):
         api_base_url = driver_config.github_api_base_url
 
         if not client_id or not client_secret:
-            raise ValueError(
-                "GitHubIdentityProvider requires github_client_id and github_client_secret"
-            )
+            raise ValueError("GitHubIdentityProvider requires github_client_id and github_client_secret")
 
         if not redirect_uri:
-            raise ValueError(
-                "GitHubIdentityProvider requires github_redirect_uri (or a service-level default)"
-            )
+            raise ValueError("GitHubIdentityProvider requires github_redirect_uri (or a service-level default)")
 
         if not api_base_url:
             api_base_url = "https://api.github.com"
@@ -113,6 +106,7 @@ class GitHubIdentityProvider(OIDCProvider):
 
     def validate_id_token(self, id_token: str, nonce: str, leeway: int = 60) -> dict[str, Any]:
         """GitHub OAuth does not issue ID tokens; fail fast with guidance."""
+        del id_token, nonce, leeway
         raise AuthenticationError(
             "GitHub OAuth does not provide an id_token. "
             "Use an OIDC-capable provider or configure GitHub Actions OIDC separately."
@@ -151,6 +145,7 @@ class GitHubIdentityProvider(OIDCProvider):
         Returns:
             User object with mapped fields
         """
+        del provider_id
         # Extract user ID
         user_id = str(userinfo.get("id", ""))
         if not user_id:

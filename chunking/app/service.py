@@ -14,6 +14,13 @@ except Exception:
     DuplicateKeyError = None  # type: ignore
 
 from copilot_chunking import Thread, ThreadChunker
+from copilot_error_reporting import ErrorReporter
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
+from copilot_logging import get_logger
 from copilot_message_bus import (
     ChunkingFailedEvent,
     ChunksPreparedEvent,
@@ -23,15 +30,8 @@ from copilot_message_bus import (
     SourceCleanupProgressEvent,
     SourceDeletionRequestedEvent,
 )
-from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
-from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
-from copilot_event_retry import (
-    DocumentNotFoundError,
-    RetryConfig,
-    handle_event_with_retry,
-)
 
 logger = get_logger(__name__)
 
@@ -145,8 +145,8 @@ class ChunkingService:
                 unchunked_messages = cast(
                     list[dict[str, Any]],
                     aggregate_documents(
-                    collection="messages",
-                    pipeline=pipeline,
+                        collection="messages",
+                        pipeline=pipeline,
                     ),
                 )
 
@@ -169,6 +169,7 @@ class ChunkingService:
 
                 # Requeue by archive using StartupRequeue helper
                 from copilot_startup import StartupRequeue
+
                 requeue_helper = StartupRequeue(
                     document_store=self.document_store,
                     publisher=self.publisher,
@@ -194,9 +195,7 @@ class ChunkingService:
 
                 if self.metrics_collector:
                     self.metrics_collector.increment(
-                        "startup_requeue_documents_total",
-                        requeued,
-                        tags={"collection": "messages"}
+                        "startup_requeue_documents_total", requeued, tags={"collection": "messages"}
                     )
 
                 logger.info(f"Startup requeue: {requeued} messages without chunks requeued")
@@ -207,7 +206,7 @@ class ChunkingService:
                     self.metrics_collector.increment(
                         "startup_requeue_errors_total",
                         1,
-                        tags={"collection": "messages", "error_type": type(e).__name__}
+                        tags={"collection": "messages", "error_type": type(e).__name__},
                     )
 
         except ImportError:
@@ -237,14 +236,14 @@ class ChunkingService:
             # Generate idempotency key from message doc IDs
             # Use all message doc IDs for uniqueness (limited to reasonable length for key storage)
             message_doc_ids = json_parsed.data.get("message_doc_ids", [])
-            message_ids_str = '-'.join(str(mid) for mid in message_doc_ids)
+            message_ids_str = "-".join(str(mid) for mid in message_doc_ids)
             # Hash if too long to keep key manageable
             if len(message_ids_str) > 100:
                 message_ids_hash = hashlib.sha256(message_ids_str.encode()).hexdigest()[:16]
                 idempotency_key = f"chunking-{message_ids_hash}"
             else:
                 idempotency_key = f"chunking-{message_ids_str}"
-            
+
             # Wrap processing with retry logic
             handle_event_with_retry(
                 handler=lambda e: self.process_messages(e.get("data", {})),
@@ -297,8 +296,7 @@ class ChunkingService:
 
             # Retrieve messages from database
             messages = self.document_store.query_documents(
-                collection="messages",
-                filter_dict={"_id": {"$in": message_doc_ids}}
+                collection="messages", filter_dict={"_id": {"$in": message_doc_ids}}
             )
 
             if not messages:
@@ -315,8 +313,11 @@ class ChunkingService:
             for message in messages:
                 try:
                     if not message.get("_id"):
+                        message_id = message.get("message_id")
+                        archive_id = message.get("archive_id")
                         raise ValueError(
-                            f"_id is required on message documents for chunking (message_id: {message.get('message_id')}, archive_id: {message.get('archive_id')})"
+                            "_id is required on message documents for chunking "
+                            f"(message_id: {message_id}, archive_id: {archive_id})"
                         )
 
                     chunks = self._chunk_message(message)
@@ -324,10 +325,7 @@ class ChunkingService:
                         all_chunks.extend(chunks)
                         processed_message_doc_ids.append(message["_id"])
                 except Exception as e:
-                    logger.error(
-                        f"Error chunking message {message.get('message_id')}: {e}",
-                        exc_info=True
-                    )
+                    logger.error(f"Error chunking message {message.get('message_id')}: {e}", exc_info=True)
                     # Continue processing other messages
 
             # Store chunks in database with idempotency (skip duplicates)
@@ -352,9 +350,7 @@ class ChunkingService:
                         # Chunk already exists (idempotent retry).
                         # Do not depend on pymongo at import-time; detect duplicates by name/message.
                         if _is_duplicate_key_error(e):
-                            logger.debug(
-                                f"Chunk {chunk.get('_id', 'unknown')} already exists, skipping"
-                            )
+                            logger.debug(f"Chunk {chunk.get('_id', 'unknown')} already exists, skipping")
                             chunk_ids.append(chunk.get("_id", "unknown"))  # Still include in output
                             skipped_duplicates += 1
                             continue
@@ -376,14 +372,11 @@ class ChunkingService:
                     self.metrics_collector.increment(
                         "chunking_chunk_status_transitions_total",
                         value=new_chunks_created,
-                        tags={"embedding_generated": "false", "collection": "chunks"}
+                        tags={"embedding_generated": "false", "collection": "chunks"},
                     )
 
                 # Calculate average chunk size
-                avg_chunk_size = (
-                    sum(c["token_count"] for c in all_chunks) / len(all_chunks)
-                    if all_chunks else 0
-                )
+                avg_chunk_size = sum(c["token_count"] for c in all_chunks) / len(all_chunks) if all_chunks else 0
             else:
                 chunk_ids = []
                 avg_chunk_size = 0
@@ -400,23 +393,12 @@ class ChunkingService:
             # Record metrics
             if self.metrics_collector:
                 self.metrics_collector.increment(
-                    "chunking_messages_processed_total",
-                    len(processed_message_doc_ids),
-                    {"status": "success"}
+                    "chunking_messages_processed_total", len(processed_message_doc_ids), {"status": "success"}
                 )
-                self.metrics_collector.increment(
-                    "chunking_chunks_created_total",
-                    len(all_chunks)
-                )
-                self.metrics_collector.observe(
-                    "chunking_duration_seconds",
-                    duration
-                )
+                self.metrics_collector.increment("chunking_chunks_created_total", len(all_chunks))
+                self.metrics_collector.observe("chunking_duration_seconds", duration)
                 if avg_chunk_size > 0:
-                    self.metrics_collector.observe(
-                        "chunking_chunk_size_tokens",
-                        avg_chunk_size
-                    )
+                    self.metrics_collector.observe("chunking_chunk_size_tokens", avg_chunk_size)
                 # Push metrics to Pushgateway
                 self.metrics_collector.safe_push()
 
@@ -438,11 +420,7 @@ class ChunkingService:
 
             # Record failure metrics
             if self.metrics_collector:
-                self.metrics_collector.increment(
-                    "chunking_failures_total",
-                    1,
-                    {"error_type": type(e).__name__}
-                )
+                self.metrics_collector.increment("chunking_failures_total", 1, {"error_type": type(e).__name__})
                 # Push metrics to Pushgateway
                 self.metrics_collector.safe_push()
 
@@ -492,12 +470,7 @@ class ChunkingService:
         if date_value and isinstance(date_value, str) and date_value.strip():
             metadata["date"] = date_value
 
-        thread = Thread(
-            thread_id=thread_id,
-            message_doc_id=message_doc_id,
-            text=text,
-            metadata=metadata
-        )
+        thread = Thread(thread_id=thread_id, message_doc_id=message_doc_id, text=text, metadata=metadata)
 
         # Chunk the thread
         chunks = self.chunker.chunk(thread)
@@ -534,7 +507,7 @@ class ChunkingService:
             True if chunker has overlap configured, False otherwise
         """
         overlap = getattr(self.chunker, "overlap", None)
-        if isinstance(overlap, (int, float)):
+        if isinstance(overlap, int | float):
             return overlap > 0
         return False
 

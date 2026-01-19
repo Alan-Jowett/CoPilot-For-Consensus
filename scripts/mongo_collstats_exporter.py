@@ -101,40 +101,24 @@ def collect_metrics(client: MongoClient) -> None:
 
             # Storage size
             if "storageSize" in stats:
-                storage_size_gauge.labels(
-                    db=DB_NAME,
-                    collection=collection_name
-                ).set(stats["storageSize"])
+                storage_size_gauge.labels(db=DB_NAME, collection=collection_name).set(stats["storageSize"])
 
             # Document count
             if "count" in stats:
-                count_gauge.labels(
-                    db=DB_NAME,
-                    collection=collection_name
-                ).set(stats["count"])
+                count_gauge.labels(db=DB_NAME, collection=collection_name).set(stats["count"])
 
             # Average object size
             if "avgObjSize" in stats:
-                avg_obj_size_gauge.labels(
-                    db=DB_NAME,
-                    collection=collection_name
-                ).set(stats["avgObjSize"])
+                avg_obj_size_gauge.labels(db=DB_NAME, collection=collection_name).set(stats["avgObjSize"])
 
             # Total index size
             if "totalIndexSize" in stats:
-                total_index_size_gauge.labels(
-                    db=DB_NAME,
-                    collection=collection_name
-                ).set(stats["totalIndexSize"])
+                total_index_size_gauge.labels(db=DB_NAME, collection=collection_name).set(stats["totalIndexSize"])
 
             # Individual index sizes
             if "indexSizes" in stats:
                 for index_name, index_size in stats["indexSizes"].items():
-                    index_sizes_gauge.labels(
-                        db=DB_NAME,
-                        collection=collection_name,
-                        index=index_name
-                    ).set(index_size)
+                    index_sizes_gauge.labels(db=DB_NAME, collection=collection_name, index=index_name).set(index_size)
 
             print(
                 f"Collection '{collection_name}': "
@@ -167,7 +151,7 @@ def main():
         try:
             client = MongoClient(MONGO_URI, directConnection=True, serverSelectionTimeoutMS=5000)
             # Test the connection
-            client.admin.command('ping')
+            client.admin.command("ping")
             print("Successfully connected to MongoDB")
             break
         except pymongo_errors.PyMongoError as e:

@@ -13,8 +13,8 @@ from typing import cast
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from copilot_config.runtime_loader import get_config
-from copilot_config.generated.services.summarization import ServiceConfig_Summarization
+from app import __version__
+from app.service import SummarizationService
 from copilot_config.generated.adapters.message_bus import (
     DriverConfig_MessageBus_AzureServiceBus,
     DriverConfig_MessageBus_Rabbitmq,
@@ -24,7 +24,9 @@ from copilot_config.generated.adapters.metrics import (
     DriverConfig_Metrics_Prometheus,
     DriverConfig_Metrics_Pushgateway,
 )
-from copilot_message_bus import create_publisher, create_subscriber
+from copilot_config.generated.services.summarization import ServiceConfig_Summarization
+from copilot_config.runtime_loader import get_config
+from copilot_error_reporting import create_error_reporter
 from copilot_logging import (
     create_logger,
     create_stdout_logger,
@@ -32,8 +34,8 @@ from copilot_logging import (
     get_logger,
     set_default_logger,
 )
+from copilot_message_bus import create_publisher, create_subscriber
 from copilot_metrics import create_metrics_collector
-from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import DocumentStoreConnectionError, create_document_store
 from copilot_summarization import create_llm_backend
@@ -44,9 +46,6 @@ from fastapi import FastAPI
 bootstrap_logger = create_stdout_logger(level="INFO", name="summarization")
 set_default_logger(bootstrap_logger)
 logger = bootstrap_logger
-
-from app import __version__
-from app.service import SummarizationService
 
 # Create FastAPI app
 app = FastAPI(title="Summarization Service", version=__version__)
@@ -135,9 +134,7 @@ def main():
                 try:
                     app.add_middleware(auth_middleware)
                 except RuntimeError as exc:
-                    logger.warning(
-                        f"JWT middleware could not be added (app already started): {exc}"
-                    )
+                    logger.warning(f"JWT middleware could not be added (app already started): {exc}")
             except ImportError:
                 logger.debug("copilot_auth module not available - JWT authentication disabled")
         else:
@@ -182,6 +179,7 @@ def main():
 
         # Refresh module-level service logger to use the current default
         from app import service as summarization_service_module
+
         summarization_service_module.logger = get_logger(summarization_service_module.__name__)
 
         logger.info("Creating message bus publisher...")

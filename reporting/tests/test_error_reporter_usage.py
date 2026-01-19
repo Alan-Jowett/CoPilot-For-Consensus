@@ -142,7 +142,8 @@ def test_error_reporter_called_on_nested_exception_in_process_summary(
     failing_publisher = Mock()
     failing_publisher.publish.side_effect = lambda exchange, routing_key, event: (
         (_ for _ in ()).throw(Exception("Failed to publish delivery failed event"))
-        if routing_key == "report.delivery.failed" else None
+        if routing_key == "report.delivery.failed"
+        else None
     )
 
     service = ReportingService(
@@ -211,9 +212,7 @@ def test_error_reporter_not_called_when_no_exception(
     mock_error_reporter.report.assert_not_called()
 
 
-def test_error_reporter_not_called_when_error_reporter_is_none(
-    mock_document_store, mock_subscriber
-):
+def test_error_reporter_not_called_when_error_reporter_is_none(mock_document_store, mock_subscriber):
     """Test that code handles None error_reporter gracefully."""
     # Create a publisher that raises an exception
     failing_publisher = Mock()

@@ -8,17 +8,18 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Any, Literal
 
 
 @dataclass
 class DriverConfig_Metrics_AzureMonitor:
     """Configuration for metrics adapter using azure_monitor driver."""
+
     connection_string: str
     # Azure Monitor connection string (e.g., InstrumentationKey=... or Connection string)
     export_interval_millis: int = 60000
     # Export interval in milliseconds
-    namespace: str = 'copilot'
+    namespace: str = "copilot"
     # Namespace prefix for all metrics
     raise_on_error: bool = False
     # Whether to raise exceptions on metric errors
@@ -27,30 +28,33 @@ class DriverConfig_Metrics_AzureMonitor:
 @dataclass
 class DriverConfig_Metrics_Noop:
     """Configuration for metrics adapter using noop driver."""
+
     pass
 
 
 @dataclass
 class DriverConfig_Metrics_Prometheus:
     """Configuration for metrics adapter using prometheus driver."""
-    namespace: str = 'copilot'
+
+    namespace: str = "copilot"
     # Namespace prefix for all metrics
     raise_on_error: bool = False
     # Whether to raise exceptions on metric errors
-    registry: Optional[Dict[str, Any]] = None
+    registry: dict[str, Any] | None = None
     # Optional Prometheus registry instance
 
 
 @dataclass
 class DriverConfig_Metrics_Pushgateway:
     """Configuration for metrics adapter using pushgateway driver."""
+
     gateway: str
     # Pushgateway address (e.g., pushgateway:9091 or http://pushgateway:9091)
-    grouping_key: Optional[Dict[str, Any]] = None
+    grouping_key: dict[str, Any] | None = None
     # Optional grouping key dictionary for metric grouping
-    job: str = 'copilot'
+    job: str = "copilot"
     # Prometheus job name for this service (can be set programmatically)
-    namespace: str = 'copilot'
+    namespace: str = "copilot"
     # Metric namespace prefix
     raise_on_error: bool = False
     # Whether to raise on metric collection errors
@@ -59,10 +63,11 @@ class DriverConfig_Metrics_Pushgateway:
 @dataclass
 class AdapterConfig_Metrics:
     """Configuration for metrics adapter."""
+
     metrics_type: Literal["azure_monitor", "noop", "prometheus", "pushgateway"]
-    driver: Union[
-        DriverConfig_Metrics_AzureMonitor,
-        DriverConfig_Metrics_Noop,
-        DriverConfig_Metrics_Prometheus,
-        DriverConfig_Metrics_Pushgateway
-    ]
+    driver: (
+        DriverConfig_Metrics_AzureMonitor
+        | DriverConfig_Metrics_Noop
+        | DriverConfig_Metrics_Prometheus
+        | DriverConfig_Metrics_Pushgateway
+    )

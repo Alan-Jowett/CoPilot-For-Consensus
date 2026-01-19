@@ -6,7 +6,6 @@
 import importlib
 import logging
 import time
-
 from typing import Any
 
 from copilot_config.generated.adapters.llm_backend import (
@@ -14,7 +13,7 @@ from copilot_config.generated.adapters.llm_backend import (
     DriverConfig_LlmBackend_Openai,
 )
 
-from .models import Summary, Thread
+from .models import Citation, Summary, Thread
 from .summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
@@ -40,7 +39,7 @@ class OpenAISummarizer(Summarizer):
         model: str = "gpt-3.5-turbo",
         base_url: str | None = None,
         api_version: str | None = None,
-        deployment_name: str | None = None
+        deployment_name: str | None = None,
     ):
         """Initialize OpenAI summarizer.
 
@@ -64,8 +63,7 @@ class OpenAISummarizer(Summarizer):
             openai_module = importlib.import_module("openai")
         except ImportError as exc:
             raise ImportError(
-                "openai is required for OpenAISummarizer. "
-                "Install it with: pip install openai"
+                "openai is required for OpenAISummarizer. " "Install it with: pip install openai"
             ) from exc
 
         OpenAI: Any = getattr(openai_module, "OpenAI", None)
@@ -83,10 +81,7 @@ class OpenAISummarizer(Summarizer):
         # If a deployment_name is provided, an api_version must also be supplied
         # to avoid enabling Azure mode with an incomplete configuration.
         if deployment_name is not None and api_version is None:
-            raise ValueError(
-                "Azure OpenAI configuration requires 'api_version' when "
-                "'deployment_name' is provided."
-            )
+            raise ValueError("Azure OpenAI configuration requires 'api_version' when " "'deployment_name' is provided.")
 
         # Azure mode is enabled only when an explicit Azure api_version is set.
         # Both deployment_name and api_version are required together to configure
@@ -96,8 +91,7 @@ class OpenAISummarizer(Summarizer):
         if self.is_azure:
             if not base_url:
                 raise ValueError(
-                    "Azure OpenAI requires a base_url (azure endpoint). "
-                    "Provide the Azure OpenAI endpoint URL."
+                    "Azure OpenAI requires a base_url (azure endpoint). " "Provide the Azure OpenAI endpoint URL."
                 )
 
             logger.info(
@@ -139,7 +133,7 @@ class OpenAISummarizer(Summarizer):
                 model=driver_config.azure_openai_model,
                 base_url=driver_config.azure_openai_endpoint,
                 api_version=driver_config.azure_openai_api_version,
-                deployment_name=driver_config.azure_openai_deployment
+                deployment_name=driver_config.azure_openai_deployment,
             )
 
         return cls(
@@ -170,9 +164,7 @@ class OpenAISummarizer(Summarizer):
         """
         start_time = time.time()
 
-        logger.info("Summarizing thread %s with %s",
-                   thread.thread_id,
-                   "Azure OpenAI" if self.is_azure else "OpenAI")
+        logger.info("Summarizing thread %s with %s", thread.thread_id, "Azure OpenAI" if self.is_azure else "OpenAI")
 
         # Use the fully-constructed prompt from the service layer
         prompt = thread.prompt
@@ -181,7 +173,7 @@ class OpenAISummarizer(Summarizer):
             response = self.client.chat.completions.create(
                 model=self.effective_model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=thread.context_window_tokens
+                max_tokens=thread.context_window_tokens,
             )
 
             summary_text = response.choices[0].message.content
@@ -196,8 +188,12 @@ class OpenAISummarizer(Summarizer):
                 tokens_prompt = usage.prompt_tokens
                 tokens_completion = usage.completion_tokens
 
-            logger.info("Successfully generated summary for thread %s (prompt_tokens=%d, completion_tokens=%d)",
-                       thread.thread_id, tokens_prompt, tokens_completion)
+            logger.info(
+                "Successfully generated summary for thread %s (prompt_tokens=%d, completion_tokens=%d)",
+                thread.thread_id,
+                tokens_prompt,
+                tokens_completion,
+            )
 
         except (IndexError, AttributeError) as e:
             # API response structure unexpected (empty choices or missing attributes)
@@ -218,7 +214,7 @@ class OpenAISummarizer(Summarizer):
         # 2. Parse summary_text to extract citation markers and references
         # 3. Map extracted citations to Citation objects with message_id, chunk_id, offset
         # For now, return empty list so consumers can rely on citations field always being present
-        citations = []
+        citations: list[Citation] = []
 
         backend = "azure" if self.is_azure else "openai"
 
@@ -230,5 +226,5 @@ class OpenAISummarizer(Summarizer):
             llm_model=self.effective_model,
             tokens_prompt=tokens_prompt,
             tokens_completion=tokens_completion,
-            latency_ms=latency_ms
+            latency_ms=latency_ms,
         )

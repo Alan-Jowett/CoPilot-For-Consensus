@@ -6,11 +6,10 @@
 import logging
 import time
 
+import requests
 from copilot_config.generated.adapters.llm_backend import DriverConfig_LlmBackend_Local
 
-import requests
-
-from .models import Summary, Thread
+from .models import Citation, Summary, Thread
 from .summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
@@ -28,12 +27,7 @@ class LocalLLMSummarizer(Summarizer):
         timeout: Request timeout in seconds
     """
 
-    def __init__(
-        self,
-        model: str,
-        base_url: str,
-        timeout: int
-    ):
+    def __init__(self, model: str, base_url: str, timeout: int):
         """Initialize local LLM summarizer.
 
         Args:
@@ -117,7 +111,7 @@ class LocalLLMSummarizer(Summarizer):
                     "stream": False,  # Get complete response at once
                 },
                 headers={"Content-Type": "application/json"},
-                timeout=self.timeout
+                timeout=self.timeout,
             )
             response.raise_for_status()
 
@@ -138,11 +132,14 @@ class LocalLLMSummarizer(Summarizer):
             latency_ms = int((time.time() - start_time) * 1000)
 
             # Create citations (placeholder - would need context chunks to generate real citations)
-            citations = []
+            citations: list[Citation] = []
 
             logger.info(
                 "Successfully generated summary for thread %s (tokens: %d+%d, latency: %dms)",
-                thread.thread_id, tokens_prompt, tokens_completion, latency_ms
+                thread.thread_id,
+                tokens_prompt,
+                tokens_completion,
+                latency_ms,
             )
 
             return Summary(
@@ -153,18 +150,15 @@ class LocalLLMSummarizer(Summarizer):
                 llm_model=self.model,
                 tokens_prompt=tokens_prompt,
                 tokens_completion=tokens_completion,
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
         except requests.Timeout:
-            logger.error("Timeout calling Ollama API for thread %s (timeout=%ds)",
-                        thread.thread_id, self.timeout)
+            logger.error("Timeout calling Ollama API for thread %s (timeout=%ds)", thread.thread_id, self.timeout)
             raise
         except requests.RequestException as e:
-            logger.error("Error calling Ollama API for thread %s: %s",
-                        thread.thread_id, str(e))
+            logger.error("Error calling Ollama API for thread %s: %s", thread.thread_id, str(e))
             raise
         except (KeyError, ValueError) as e:
-            logger.error("Invalid response from Ollama API for thread %s: %s",
-                        thread.thread_id, str(e))
+            logger.error("Invalid response from Ollama API for thread %s: %s", thread.thread_id, str(e))
             raise ValueError(f"Invalid Ollama API response: {e}") from e

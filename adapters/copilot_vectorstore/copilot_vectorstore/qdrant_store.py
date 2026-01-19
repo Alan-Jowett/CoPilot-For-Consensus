@@ -21,22 +21,22 @@ def _string_to_uuid(s: str) -> str:
     This ensures consistent UUID generation for the same string ID.
     """
     # Use UUID5 with a namespace for deterministic UUIDs
-    namespace = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')  # DNS namespace
+    namespace = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")  # DNS namespace
     return str(uuid.uuid5(namespace, s))
 
 
 def _coerce_vector_struct(vector_struct: Any, fallback: list[float]) -> list[float]:
     """Coerce Qdrant vector outputs into a plain list[float].
 
-        Qdrant can return either a single unnamed vector (list[float]) or a
-        named-vector mapping (dict[str, ...]). For this adapter, we always expose
-        a single list[float] vector.
+    Qdrant can return either a single unnamed vector (list[float]) or a
+    named-vector mapping (dict[str, ...]). For this adapter, we always expose
+    a single list[float] vector.
 
-        If Qdrant returns multiple named vectors, this adapter selects a single
-        vector to expose:
-        - Prefer a vector named "default" when present.
-        - Otherwise, fall back to the first entry in iteration order and log a
-            warning to avoid silently masking unexpected formats.
+    If Qdrant returns multiple named vectors, this adapter selects a single
+    vector to expose:
+    - Prefer a vector named "default" when present.
+    - Otherwise, fall back to the first entry in iteration order and log a
+        warning to avoid silently masking unexpected formats.
     """
 
     if vector_struct is None:
@@ -127,14 +127,10 @@ class QdrantVectorStore(VectorStore):
             PointStruct = getattr(qdrant_models_module, "PointStruct")
             VectorParams = getattr(qdrant_models_module, "VectorParams")
         except ImportError as e:
-            raise ImportError(
-                "qdrant-client is not installed. Install it with: pip install qdrant-client"
-            ) from e
+            raise ImportError("qdrant-client is not installed. Install it with: pip install qdrant-client") from e
 
         if distance not in ["cosine", "euclid", "euclidean"]:
-            raise ValueError(
-                f"Invalid distance metric '{distance}'. Must be 'cosine' or 'euclidean' (alias: 'euclid')"
-            )
+            raise ValueError(f"Invalid distance metric '{distance}'. Must be 'cosine' or 'euclidean' (alias: 'euclid')")
 
         if vector_size <= 0:
             raise ValueError(f"Vector size must be positive, got {vector_size}")
@@ -162,9 +158,7 @@ class QdrantVectorStore(VectorStore):
                 timeout=30,
             )
         except Exception as e:
-            raise ConnectionError(
-                f"Failed to connect to Qdrant at {host}:{port}. Error: {e}"
-            ) from e
+            raise ConnectionError(f"Failed to connect to Qdrant at {host}:{port}. Error: {e}") from e
 
         # Lazily ensure the collection exists on first use.
         # Unit tests instantiate stores without requiring a live Qdrant server.
@@ -262,8 +256,7 @@ class QdrantVectorStore(VectorStore):
         """
         if len(vector) != self._vector_size:
             raise ValueError(
-                f"Vector dimension ({len(vector)}) doesn't match "
-                f"expected dimension ({self._vector_size})"
+                f"Vector dimension ({len(vector)}) doesn't match " f"expected dimension ({self._vector_size})"
             )
 
         self._ensure_collection_ready()
@@ -281,8 +274,7 @@ class QdrantVectorStore(VectorStore):
         )
         logger.debug(f"Upserted embedding with ID: {id}")
 
-    def add_embeddings(self, ids: list[str], vectors: list[list[float]],
-                      metadatas: list[dict[str, Any]]) -> None:
+    def add_embeddings(self, ids: list[str], vectors: list[list[float]], metadatas: list[dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
 
         Idempotent operation: if any IDs already exist, they will be updated with the new
@@ -302,10 +294,7 @@ class QdrantVectorStore(VectorStore):
         # Validate vector dimensions
         for i, vector in enumerate(vectors):
             if len(vector) != self._vector_size:
-                raise ValueError(
-                    f"Vector at index {i} has dimension {len(vector)}, "
-                    f"expected {self._vector_size}"
-                )
+                raise ValueError(f"Vector at index {i} has dimension {len(vector)}, " f"expected {self._vector_size}")
 
         # Check for duplicate IDs in the batch
         if len(set(ids)) != len(ids):
@@ -328,7 +317,7 @@ class QdrantVectorStore(VectorStore):
 
         # Batch upsert
         for i in range(0, len(points), self._upsert_batch_size):
-            batch = points[i:i + self._upsert_batch_size]
+            batch = points[i : i + self._upsert_batch_size]
             self._client.upsert(
                 collection_name=self._collection_name,
                 points=batch,
@@ -374,12 +363,14 @@ class QdrantVectorStore(VectorStore):
 
             result_vector = _coerce_vector_struct(result.vector, fallback=query_vector)
 
-            search_results.append(SearchResult(
-                id=original_id,
-                score=float(result.score),
-                vector=result_vector,
-                metadata=payload,
-            ))
+            search_results.append(
+                SearchResult(
+                    id=original_id,
+                    score=float(result.score),
+                    vector=result_vector,
+                    metadata=payload,
+                )
+            )
 
         return search_results
 

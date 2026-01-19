@@ -36,7 +36,7 @@ class JSONFormatter(logging.Formatter):
         """
         # Use record.created for accurate event timestamp
         event_time = datetime.fromtimestamp(record.created, tz=timezone.utc)
-        log_entry = {
+        log_entry: dict[str, Any] = {
             "timestamp": event_time.isoformat().replace("+00:00", "Z"),
             "level": record.levelname,
             "logger": self.logger_name,
@@ -46,15 +46,35 @@ class JSONFormatter(logging.Formatter):
         # Add extra fields from record.__dict__ if present
         # Standard LogRecord attributes to exclude
         standard_attrs = {
-            'name', 'msg', 'args', 'created', 'filename', 'funcName', 'levelname',
-            'levelno', 'lineno', 'module', 'msecs', 'message', 'pathname', 'process',
-            'processName', 'relativeCreated', 'thread', 'threadName', 'exc_info',
-            'exc_text', 'stack_info', 'getMessage', 'taskName'
+            "name",
+            "msg",
+            "args",
+            "created",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "module",
+            "msecs",
+            "message",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "getMessage",
+            "taskName",
         }
 
         extra_fields = {
-            key: value for key, value in record.__dict__.items()
-            if key not in standard_attrs and not key.startswith('_')
+            key: value
+            for key, value in record.__dict__.items()
+            if key not in standard_attrs and not key.startswith("_")
         }
 
         if extra_fields:

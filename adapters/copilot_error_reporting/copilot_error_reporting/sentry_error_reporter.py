@@ -57,6 +57,7 @@ class SentryErrorReporter(ErrorReporter):
         """
         try:
             import sentry_sdk  # type: ignore[reportMissingImports]
+
             sentry_sdk.init(
                 dsn=self.dsn,
                 environment=self.environment,
@@ -65,10 +66,7 @@ class SentryErrorReporter(ErrorReporter):
             )
             self._initialized = True
         except ImportError:
-            raise ImportError(
-                "sentry-sdk is not installed. "
-                "Install it with: pip install sentry-sdk"
-            )
+            raise ImportError("sentry-sdk is not installed. " "Install it with: pip install sentry-sdk")
 
     def report(self, error: Exception, context: dict[str, Any] | None = None) -> None:
         """Report an exception with optional context.
@@ -96,17 +94,9 @@ class SentryErrorReporter(ErrorReporter):
                 sentry_sdk.capture_exception(error)
 
         except ImportError:
-            raise ImportError(
-                "sentry-sdk is not installed. "
-                "Install it with: pip install sentry-sdk"
-            )
+            raise ImportError("sentry-sdk is not installed. " "Install it with: pip install sentry-sdk")
 
-    def capture_message(
-        self,
-        message: str,
-        level: str = "error",
-        context: dict[str, Any] | None = None
-    ) -> None:
+    def capture_message(self, message: str, level: str = "error", context: dict[str, Any] | None = None) -> None:
         """Capture a message without an exception.
 
         Args:
@@ -144,7 +134,4 @@ class SentryErrorReporter(ErrorReporter):
                 sentry_sdk.capture_message(message, level=sentry_level)
 
         except ImportError:
-            raise ImportError(
-                "sentry-sdk is not installed. "
-                "Install it with: pip install sentry-sdk"
-            )
+            raise ImportError("sentry-sdk is not installed. " "Install it with: pip install sentry-sdk")

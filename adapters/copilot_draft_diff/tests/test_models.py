@@ -17,7 +17,7 @@ class TestDraftDiff:
             version_b="02",
             format="text",
             content="Mock diff content",
-            source="mock"
+            source="mock",
         )
 
         assert diff.draft_name == "draft-ietf-quic-transport"
@@ -40,7 +40,7 @@ class TestDraftDiff:
             content="<html>Mock diff</html>",
             source="datatracker",
             url="https://datatracker.ietf.org/doc/draft-ietf-quic-transport/diff/",
-            metadata=metadata
+            metadata=metadata,
         )
 
         assert diff.url == "https://datatracker.ietf.org/doc/draft-ietf-quic-transport/diff/"
@@ -57,7 +57,7 @@ class TestDraftDiff:
             content="# Changes",
             source="mock",
             url="mock://test",
-            metadata={"test": True}
+            metadata={"test": True},
         )
 
         result = diff.to_dict()

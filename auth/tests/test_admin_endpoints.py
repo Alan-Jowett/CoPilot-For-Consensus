@@ -9,9 +9,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
-
 from copilot_metrics.noop_metrics import NoOpMetricsCollector
+from fastapi.testclient import TestClient
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -102,10 +101,13 @@ class TestListPendingAssignments:
         # Verify metrics increment happened with tags (regression test for passing dict as value).
         import main
 
-        assert main.metrics.get_counter_total(
-            "admin_list_pending_total",
-            tags={"admin": "github:admin"},
-        ) == 1.0
+        assert (
+            main.metrics.get_counter_total(
+                "admin_list_pending_total",
+                tags={"admin": "github:admin"},
+            )
+            == 1.0
+        )
 
     def test_list_pending_with_filters(self, client, mock_auth_service, admin_token):
         """Test listing with user_id and role filters."""
@@ -173,6 +175,7 @@ class TestListPendingAssignments:
 
     def test_list_pending_header_precedence_over_cookie(self, client, mock_auth_service):
         """Test that Authorization header takes precedence over cookie when both provided."""
+
         # Set validation behavior: header token is considered valid
         def validate_token_side_effect(token, audience):
             if token == "header.jwt.token":

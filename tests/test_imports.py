@@ -102,9 +102,7 @@ def discover_submodules(package_name: str) -> list[str]:
 
     try:
         for _, modname, ispkg in pkgutil.walk_packages(
-            package.__path__,
-            prefix=f"{package_name}.",
-            onerror=lambda x: None
+            package.__path__, prefix=f"{package_name}.", onerror=lambda x: None
         ):
             modules.append(modname)
     except Exception:
@@ -140,9 +138,7 @@ class TestServiceImports:
             )
         except Exception as e:
             # For other errors, fail the test with context
-            pytest.fail(
-                f"Failed to import {service_path}: {type(e).__name__}: {e}"
-            )
+            pytest.fail(f"Failed to import {service_path}: {type(e).__name__}: {e}")
 
 
 class TestAdapterImports:
@@ -169,9 +165,7 @@ class TestAdapterImports:
                 "This likely indicates a missing field or incorrect attribute access."
             )
         except Exception as e:
-            pytest.fail(
-                f"Failed to import {adapter_name}: {type(e).__name__}: {e}"
-            )
+            pytest.fail(f"Failed to import {adapter_name}: {type(e).__name__}: {e}")
 
     @pytest.mark.parametrize("adapter_name", ADAPTER_MODULES)
     def test_adapter_submodules_import(self, adapter_name: str) -> None:
@@ -196,19 +190,12 @@ class TestAdapterImports:
                 # Skip if dependencies not available
                 continue
             except AttributeError as e:
-                failures.append(
-                    f"AttributeError in {submodule}: {e}"
-                )
+                failures.append(f"AttributeError in {submodule}: {e}")
             except Exception as e:
-                failures.append(
-                    f"Error in {submodule}: {type(e).__name__}: {e}"
-                )
+                failures.append(f"Error in {submodule}: {type(e).__name__}: {e}")
 
         if failures:
-            pytest.fail(
-                f"Failed to import submodules in {adapter_name}:\n" +
-                "\n".join(failures)
-            )
+            pytest.fail(f"Failed to import submodules in {adapter_name}:\n" + "\n".join(failures))
 
 
 class TestScriptImports:
@@ -240,23 +227,17 @@ class TestScriptImports:
                 # Skip if dependencies not available
                 continue
             except AttributeError as e:
-                failures.append(
-                    f"AttributeError in {module_name}: {e}"
-                )
+                failures.append(f"AttributeError in {module_name}: {e}")
             except SystemExit:
                 # Scripts might call sys.exit() at module level
                 continue
             except Exception as e:
                 # Some scripts may have side effects, be lenient
                 if "AttributeError" in str(e):
-                    failures.append(
-                        f"Error in {module_name}: {e}"
-                    )
+                    failures.append(f"Error in {module_name}: {e}")
 
         if failures:
-            pytest.fail(
-                "Failed to import scripts:\n" + "\n".join(failures)
-            )
+            pytest.fail("Failed to import scripts:\n" + "\n".join(failures))
 
 
 def test_no_warnings_on_import() -> None:
@@ -283,17 +264,10 @@ def test_no_warnings_on_import() -> None:
 
         # Check for DeprecationWarnings or other concerning warnings
         concerning_warnings = [
-            warning for warning in w
-            if issubclass(warning.category, DeprecationWarning | FutureWarning)
+            warning for warning in w if issubclass(warning.category, DeprecationWarning | FutureWarning)
         ]
 
         if concerning_warnings:
-            warning_messages = [
-                f"{w.category.__name__}: {w.message}"
-                for w in concerning_warnings
-            ]
+            warning_messages = [f"{w.category.__name__}: {w.message}" for w in concerning_warnings]
             # Don't fail, just report
-            print(
-                "Warnings detected during imports:\n" +
-                "\n".join(warning_messages)
-            )
+            print("Warnings detected during imports:\n" + "\n".join(warning_messages))

@@ -59,10 +59,7 @@ def assert_valid_event_schema(event: dict[str, Any]) -> None:
     assert is_valid, f"Event validation failed: {'; '.join(errors)}"
 
 
-def validate_document_against_schema(
-    document: dict[str, Any],
-    collection: str
-) -> tuple[bool, list[str]]:
+def validate_document_against_schema(document: dict[str, Any], collection: str) -> tuple[bool, list[str]]:
     """Validate a document against its JSON schema.
 
     Args:

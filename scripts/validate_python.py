@@ -30,15 +30,10 @@ def run_command(cmd: list[str], description: str, check: bool = False) -> tuple[
     print(f"\n{'=' * 60}")
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
-    print('=' * 60)
+    print("=" * 60)
 
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=check
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, check=check)
 
         if result.stdout:
             print(result.stdout)
@@ -56,12 +51,7 @@ def get_repo_root() -> Path:
     """Get the repository root directory."""
     # Try git to find repo root
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        result = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True)
         return Path(result.stdout.strip())
     except subprocess.CalledProcessError:
         # Fallback to script location (scripts/ -> repo root)
@@ -84,15 +74,15 @@ def validate_mypy(repo_root: Path, target: str = None) -> int:
     else:
         # Check adapters
         targets = [
-            str(d / d.name) for d in (repo_root / "adapters").glob("copilot_*")
+            str(d / d.name)
+            for d in (repo_root / "adapters").glob("copilot_*")
             if d.is_dir() and (d / d.name / "__init__.py").exists()
         ]
 
     exit_codes = []
     for target_path in targets:
         exit_code, _ = run_command(
-            ["mypy", target_path, "--no-error-summary"],
-            f"MyPy Type Checker - {Path(target_path).name}"
+            ["mypy", target_path, "--no-error-summary"], f"MyPy Type Checker - {Path(target_path).name}"
         )
         exit_codes.append(exit_code)
 
@@ -113,15 +103,15 @@ def validate_pyright(repo_root: Path, target: str = None) -> int:
     else:
         # Check adapters
         targets = [
-            str(d / d.name) for d in (repo_root / "adapters").glob("copilot_*")
+            str(d / d.name)
+            for d in (repo_root / "adapters").glob("copilot_*")
             if d.is_dir() and (d / d.name / "__init__.py").exists()
         ]
 
     exit_codes = []
     for target_path in targets:
         exit_code, _ = run_command(
-            ["pyright", target_path, "--level", "error"],
-            f"Pyright Type Checker - {Path(target_path).name}"
+            ["pyright", target_path, "--level", "error"], f"Pyright Type Checker - {Path(target_path).name}"
         )
         exit_codes.append(exit_code)
 
@@ -135,7 +125,8 @@ def validate_pylint(repo_root: Path, target: str = None) -> int:
     else:
         # Check adapters
         targets = [
-            str(d / d.name) for d in (repo_root / "adapters").glob("copilot_*")
+            str(d / d.name)
+            for d in (repo_root / "adapters").glob("copilot_*")
             if d.is_dir() and (d / d.name / "__init__.py").exists()
         ]
 
@@ -143,12 +134,13 @@ def validate_pylint(repo_root: Path, target: str = None) -> int:
     for target_path in targets:
         exit_code, _ = run_command(
             [
-                "pylint", target_path,
+                "pylint",
+                target_path,
                 "--disable=all",
                 "--enable=E1101,E0611,E1102,E1120,E1121",
-                "--output-format=colorized"
+                "--output-format=colorized",
             ],
-            f"Pylint Attribute Checker - {Path(target_path).name}"
+            f"Pylint Attribute Checker - {Path(target_path).name}",
         )
         exit_codes.append(exit_code)
 
@@ -162,32 +154,20 @@ def run_import_tests(repo_root: Path) -> int:
         print(f"⚠️  Import test file not found: {test_file}")
         return 0
 
-    return run_command(
-        ["pytest", str(test_file), "-v", "--tb=short"],
-        "Import Smoke Tests"
-    )[0]
+    return run_command(["pytest", str(test_file), "-v", "--tb=short"], "Import Smoke Tests")[0]
 
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Run Python validation checks locally"
-    )
+    parser = argparse.ArgumentParser(description="Run Python validation checks locally")
     parser.add_argument(
         "--tool",
         choices=["ruff", "mypy", "pyright", "pylint", "import-tests", "all"],
         default="all",
-        help="Which validation tool to run (default: all)"
+        help="Which validation tool to run (default: all)",
     )
-    parser.add_argument(
-        "--fix",
-        action="store_true",
-        help="Auto-fix issues where possible (only for ruff)"
-    )
-    parser.add_argument(
-        "--target",
-        help="Specific target directory to check (relative to repo root)"
-    )
+    parser.add_argument("--fix", action="store_true", help="Auto-fix issues where possible (only for ruff)")
+    parser.add_argument("--target", help="Specific target directory to check (relative to repo root)")
 
     args = parser.parse_args()
     repo_root = get_repo_root()

@@ -25,9 +25,7 @@ from .validating_document_store import ValidatingDocumentStore
 logger = logging.getLogger(__name__)
 
 _DriverConfig: TypeAlias = (
-    DriverConfig_DocumentStore_Mongodb
-    | DriverConfig_DocumentStore_AzureCosmosdb
-    | DriverConfig_DocumentStore_Inmemory
+    DriverConfig_DocumentStore_Mongodb | DriverConfig_DocumentStore_AzureCosmosdb | DriverConfig_DocumentStore_Inmemory
 )
 
 

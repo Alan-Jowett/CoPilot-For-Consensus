@@ -11,29 +11,28 @@ This script validates that the exporter can:
 3. Handle database queries gracefully
 """
 
+import importlib.util
 import os
 import sys
 from unittest.mock import Mock
 
 # Add scripts directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 
 def test_exporter_imports():
     """Test that the exporter imports correctly."""
-    try:
-        from prometheus_client import Gauge
-        print("✓ prometheus_client imports successfully")
-    except ImportError as e:
-        print(f"✗ Failed to import prometheus_client: {e}")
+    if importlib.util.find_spec("prometheus_client") is None:
+        print("✗ Failed to import prometheus_client")
         return False
 
-    try:
-        from pymongo import MongoClient
-        print("✓ pymongo imports successfully")
-    except ImportError as e:
-        print(f"✗ Failed to import pymongo: {e}")
+    print("✓ prometheus_client imports successfully")
+
+    if importlib.util.find_spec("pymongo") is None:
+        print("✗ Failed to import pymongo")
         return False
+
+    print("✓ pymongo imports successfully")
 
     return True
 
@@ -63,11 +62,11 @@ def test_exporter_metrics():
     import mongo_collstats_exporter as exporter
 
     # Check that metrics are defined
-    assert hasattr(exporter, 'storage_size_gauge'), "storage_size_gauge metric not defined"
-    assert hasattr(exporter, 'count_gauge'), "count_gauge metric not defined"
-    assert hasattr(exporter, 'avg_obj_size_gauge'), "avg_obj_size_gauge not defined"
-    assert hasattr(exporter, 'total_index_size_gauge'), "total_index_size_gauge not defined"
-    assert hasattr(exporter, 'index_sizes_gauge'), "index_sizes_gauge not defined"
+    assert hasattr(exporter, "storage_size_gauge"), "storage_size_gauge metric not defined"
+    assert hasattr(exporter, "count_gauge"), "count_gauge metric not defined"
+    assert hasattr(exporter, "avg_obj_size_gauge"), "avg_obj_size_gauge not defined"
+    assert hasattr(exporter, "total_index_size_gauge"), "total_index_size_gauge not defined"
+    assert hasattr(exporter, "index_sizes_gauge"), "index_sizes_gauge not defined"
 
     print("✓ All metrics are defined")
     return True
@@ -88,10 +87,7 @@ def test_get_collection_stats():
         "storageSize": 40960,
         "avgObjSize": 500,
         "totalIndexSize": 8192,
-        "indexSizes": {
-            "_id_": 4096,
-            "status_1": 4096
-        }
+        "indexSizes": {"_id_": 4096, "status_1": 4096},
     }
 
     result = exporter.get_collection_stats(mock_db, "archives")
@@ -122,10 +118,7 @@ def test_collect_metrics():
             "storageSize": 40960,
             "avgObjSize": 500,
             "totalIndexSize": 8192,
-            "indexSizes": {
-                "_id_": 4096,
-                "status_1": 4096
-            }
+            "indexSizes": {"_id_": 4096, "status_1": 4096},
         }
 
     mock_db.command = mock_command
@@ -144,7 +137,7 @@ def test_target_collections():
     """Test that TARGET_COLLECTIONS is defined."""
     import mongo_collstats_exporter as exporter
 
-    assert hasattr(exporter, 'TARGET_COLLECTIONS'), "TARGET_COLLECTIONS not defined"
+    assert hasattr(exporter, "TARGET_COLLECTIONS"), "TARGET_COLLECTIONS not defined"
     assert isinstance(exporter.TARGET_COLLECTIONS, list), "TARGET_COLLECTIONS should be a list"
     assert len(exporter.TARGET_COLLECTIONS) > 0, "TARGET_COLLECTIONS should not be empty"
 

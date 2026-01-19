@@ -8,7 +8,6 @@ allowing different heuristics, rule-based systems, or ML models to be plugged in
 for identifying signs of agreement, dissent, or stagnation in threads.
 """
 
-import os
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -26,16 +25,14 @@ from copilot_config.generated.adapters.consensus_detector import (
 
 from .thread import Thread
 
-
 ConsensusDetectorDriverConfig: TypeAlias = (
-    DriverConfig_ConsensusDetector_Heuristic
-    | DriverConfig_ConsensusDetector_Mock
-    | DriverConfig_ConsensusDetector_Ml
+    DriverConfig_ConsensusDetector_Heuristic | DriverConfig_ConsensusDetector_Mock | DriverConfig_ConsensusDetector_Ml
 )
 
 
 class ConsensusLevel(Enum):
     """Enumeration of consensus levels."""
+
     STRONG_CONSENSUS = "strong_consensus"
     CONSENSUS = "consensus"
     WEAK_CONSENSUS = "weak_consensus"
@@ -55,6 +52,7 @@ class ConsensusSignal:
         explanation: Human-readable explanation of the detection
         metadata: Additional detection metadata
     """
+
     level: ConsensusLevel
     confidence: float
     signals: list[str] = field(default_factory=list)
@@ -101,34 +99,31 @@ class HeuristicConsensusDetector(ConsensusDetector):
 
     # Agreement keywords and patterns
     AGREEMENT_PATTERNS = [
-        r'\+1\b',
-        r'\bLGTM\b',
-        r'\bI agree\b',
-        r'\bagree with\b',
-        r'\bsounds good\b',
-        r'\bmakes sense\b',
-        r'\bsupport this\b',
-        r'\bapprove\b',
-        r'\bconcur\b',
+        r"\+1\b",
+        r"\bLGTM\b",
+        r"\bI agree\b",
+        r"\bagree with\b",
+        r"\bsounds good\b",
+        r"\bmakes sense\b",
+        r"\bsupport this\b",
+        r"\bapprove\b",
+        r"\bconcur\b",
     ]
 
     # Dissent keywords and patterns
     DISSENT_PATTERNS = [
-        r'\bdisagree\b',
-        r'\boppose\b',
-        r'\bconcern\b',
-        r'\bproblem with\b',
-        r'\bissue with\b',
-        r'\bnot sure\b',
-        r'\bwait\b',
-        r'\bhold on\b',
-        r'-1\b',
+        r"\bdisagree\b",
+        r"\boppose\b",
+        r"\bconcern\b",
+        r"\bproblem with\b",
+        r"\bissue with\b",
+        r"\bnot sure\b",
+        r"\bwait\b",
+        r"\bhold on\b",
+        r"-1\b",
     ]
 
-    def __init__(self,
-                 agreement_threshold: int,
-                 min_participants: int,
-                 stagnation_days: int):
+    def __init__(self, agreement_threshold: int, min_participants: int, stagnation_days: int):
         """Initialize the heuristic detector.
 
         Args:
@@ -179,16 +174,16 @@ class HeuristicConsensusDetector(ConsensusDetector):
         reply_count = thread.reply_count
         participant_count = thread.participant_count
 
-        metadata['message_count'] = message_count
-        metadata['reply_count'] = reply_count
-        metadata['participant_count'] = participant_count
+        metadata["message_count"] = message_count
+        metadata["reply_count"] = reply_count
+        metadata["participant_count"] = participant_count
 
         # Count agreement and dissent signals
         agreement_count = self._count_patterns(thread, self.AGREEMENT_PATTERNS)
         dissent_count = self._count_patterns(thread, self.DISSENT_PATTERNS)
 
-        metadata['agreement_signals'] = agreement_count
-        metadata['dissent_signals'] = dissent_count
+        metadata["agreement_signals"] = agreement_count
+        metadata["dissent_signals"] = dissent_count
 
         # Check for stagnation (no recent activity)
         if thread.last_activity_at:
@@ -200,7 +195,7 @@ class HeuristicConsensusDetector(ConsensusDetector):
                 last_activity = last_activity.astimezone(timezone.utc)
 
             days_since_activity = (datetime.now(timezone.utc) - last_activity).days
-            metadata['days_since_activity'] = days_since_activity
+            metadata["days_since_activity"] = days_since_activity
 
             if days_since_activity > self.stagnation_days:
                 signals.append(f"No activity for {days_since_activity} days")
@@ -209,7 +204,7 @@ class HeuristicConsensusDetector(ConsensusDetector):
                     confidence=0.8,
                     signals=signals,
                     explanation=f"Thread has been inactive for {days_since_activity} days",
-                    metadata=metadata
+                    metadata=metadata,
                 )
 
         # Determine consensus level based on signals
@@ -221,7 +216,7 @@ class HeuristicConsensusDetector(ConsensusDetector):
                 confidence=confidence,
                 signals=signals,
                 explanation=f"Thread shows dissent with {dissent_count} opposing view(s)",
-                metadata=metadata
+                metadata=metadata,
             )
 
         # Check for consensus based on agreement and participation
@@ -240,7 +235,7 @@ class HeuristicConsensusDetector(ConsensusDetector):
                     confidence=confidence,
                     signals=signals,
                     explanation=explanation,
-                    metadata=metadata
+                    metadata=metadata,
                 )
             else:
                 confidence = min(0.85, 0.6 + (agreement_count * 0.05))
@@ -253,7 +248,7 @@ class HeuristicConsensusDetector(ConsensusDetector):
                     confidence=confidence,
                     signals=signals,
                     explanation=explanation,
-                    metadata=metadata
+                    metadata=metadata,
                 )
 
         # Weak consensus: some agreement but below threshold
@@ -261,15 +256,14 @@ class HeuristicConsensusDetector(ConsensusDetector):
             signals.append(f"Limited agreement ({agreement_count} signal(s))")
             signals.append(f"{reply_count} reply/replies")
             explanation = (
-                f"Weak consensus with limited engagement "
-                f"({reply_count} replies, {agreement_count} agreements)"
+                f"Weak consensus with limited engagement " f"({reply_count} replies, {agreement_count} agreements)"
             )
             return ConsensusSignal(
                 level=ConsensusLevel.WEAK_CONSENSUS,
                 confidence=0.5,
                 signals=signals,
                 explanation=explanation,
-                metadata=metadata
+                metadata=metadata,
             )
 
         # No consensus
@@ -279,7 +273,7 @@ class HeuristicConsensusDetector(ConsensusDetector):
             confidence=0.7,
             signals=signals,
             explanation="No clear consensus detected in thread",
-            metadata=metadata
+            metadata=metadata,
         )
 
     def _count_patterns(self, thread: Thread, patterns: list[str]) -> int:
@@ -300,9 +294,7 @@ class MockConsensusDetector(ConsensusDetector):
     Can be configured to return specific levels and confidence scores.
     """
 
-    def __init__(self,
-                 level: ConsensusLevel,
-                 confidence: float):
+    def __init__(self, level: ConsensusLevel, confidence: float):
         """Initialize mock detector.
 
         Args:
@@ -331,6 +323,7 @@ class MockConsensusDetector(ConsensusDetector):
             Configured MockConsensusDetector
         """
         level_val = driver_config.level if driver_config.level is not None else "consensus"
+        level: ConsensusLevel
         if isinstance(level_val, ConsensusLevel):
             level = level_val
         else:
@@ -351,7 +344,7 @@ class MockConsensusDetector(ConsensusDetector):
             confidence=self.confidence,
             signals=["mock_signal"],
             explanation=f"Mock detection: {self.level.value}",
-            metadata={"mock": True, "thread_id": thread.thread_id}
+            metadata={"mock": True, "thread_id": thread.thread_id},
         )
 
 
@@ -417,6 +410,7 @@ def create_consensus_detector(
     Raises:
         ValueError: If config is missing or consensus_detector_type is not recognized.
     """
+
     def _build_heuristic(driver_config: ConsensusDetectorDriverConfig) -> ConsensusDetector:
         if not isinstance(driver_config, DriverConfig_ConsensusDetector_Heuristic):
             raise TypeError(
@@ -428,16 +422,14 @@ def create_consensus_detector(
     def _build_mock(driver_config: ConsensusDetectorDriverConfig) -> ConsensusDetector:
         if not isinstance(driver_config, DriverConfig_ConsensusDetector_Mock):
             raise TypeError(
-                "Expected DriverConfig_ConsensusDetector_Mock for 'mock' driver, "
-                f"got {type(driver_config).__name__}"
+                "Expected DriverConfig_ConsensusDetector_Mock for 'mock' driver, " f"got {type(driver_config).__name__}"
             )
         return MockConsensusDetector.from_config(driver_config)
 
     def _build_ml(driver_config: ConsensusDetectorDriverConfig) -> ConsensusDetector:
         if not isinstance(driver_config, DriverConfig_ConsensusDetector_Ml):
             raise TypeError(
-                "Expected DriverConfig_ConsensusDetector_Ml for 'ml' driver, "
-                f"got {type(driver_config).__name__}"
+                "Expected DriverConfig_ConsensusDetector_Ml for 'ml' driver, " f"got {type(driver_config).__name__}"
             )
         return MLConsensusDetector.from_config(driver_config)
 

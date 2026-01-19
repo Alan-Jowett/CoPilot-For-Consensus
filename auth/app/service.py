@@ -4,10 +4,9 @@
 """Auth service implementation."""
 
 import asyncio
-from dataclasses import asdict
-from dataclasses import replace
 import secrets
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Protocol, cast
 
@@ -71,6 +70,7 @@ def create_identity_providers(
     if github is not None:
         try:
             github = _with_default_redirect_uri(github, "github_redirect_uri")
+            assert github is not None  # Type narrowing: _with_default_redirect_uri preserves non-None
             provider = create_identity_provider(
                 "github",
                 github,
@@ -91,6 +91,7 @@ def create_identity_providers(
     if google is not None:
         try:
             google = _with_default_redirect_uri(google, "google_redirect_uri")
+            assert google is not None  # Type narrowing: _with_default_redirect_uri preserves non-None
             provider = create_identity_provider(
                 "google",
                 google,
@@ -111,6 +112,7 @@ def create_identity_providers(
     if microsoft is not None:
         try:
             microsoft = _with_default_redirect_uri(microsoft, "microsoft_redirect_uri")
+            assert microsoft is not None  # Type narrowing: _with_default_redirect_uri preserves non-None
             provider = create_identity_provider(
                 "microsoft",
                 microsoft,
@@ -130,8 +132,8 @@ def create_identity_providers(
             logger.error(f"Failed to initialize provider microsoft: {e}")
 
     # Provider discovery (best-effort)
-    for name, provider in list(providers.items()):
-        discover = getattr(provider, "discover", None)
+    for name, oidc_provider in list(providers.items()):
+        discover = getattr(oidc_provider, "discover", None)
         if callable(discover):
             try:
                 discover()
@@ -201,9 +203,7 @@ class AuthService:
             public_key = settings.jwt_public_key
 
             if private_key is None or public_key is None:
-                raise ValueError(
-                    "RS256 requires jwt_private_key and jwt_public_key to be configured"
-                )
+                raise ValueError("RS256 requires jwt_private_key and jwt_public_key to be configured")
 
             # Write keys to temp files for JWTManager
             import tempfile
@@ -247,7 +247,6 @@ class AuthService:
 
         # Ready
         logger.info(f"Auth Service initialized with {len(self.providers)} providers")
-
 
     def is_ready(self) -> bool:
         """Check if service is ready to handle requests."""
@@ -378,10 +377,6 @@ class AuthService:
                 code_verifier=code_verifier,
             )
 
-
-            # GitHub OAuth does not return id_tokens; handle via access_token + userinfo
-            id_token = token_response.get("id_token")
-
             # Get access token (required for all flows)
             access_token = token_response.get("access_token")
             if not access_token:
@@ -423,7 +418,7 @@ class AuthService:
                     "amr": ["pwd"],  # Authentication method: password (OIDC)
                     "pending_access": pending,
                     "role_status": status,
-                }
+                },
             )
 
             # Clean up session (thread-safe)
@@ -511,7 +506,8 @@ class AuthService:
 
         # Find and remove expired sessions
         expired_states = [
-            state for state, session in self._sessions.items()
+            state
+            for state, session in self._sessions.items()
             if now - session.get("created_at", 0) > self._session_ttl_seconds
         ]
 

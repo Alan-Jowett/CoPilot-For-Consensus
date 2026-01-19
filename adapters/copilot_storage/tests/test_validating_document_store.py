@@ -14,6 +14,7 @@ from copilot_storage.validating_document_store import DocumentValidationError, V
 # Check if copilot_schema_validation is available
 try:
     import copilot_schema_validation  # noqa: F401
+
     HAS_SCHEMA_VALIDATION = True
 except ImportError:
     HAS_SCHEMA_VALIDATION = False
@@ -21,7 +22,7 @@ except ImportError:
 # Skip marker for tests that require schema validation
 requires_schema_validation = pytest.mark.skipif(
     not HAS_SCHEMA_VALIDATION,
-    reason="copilot_schema_validation not installed (install with: pip install copilot-storage[validation])"
+    reason="copilot_schema_validation not installed (install with: pip install copilot-storage[validation])",
 )
 
 
@@ -54,12 +55,7 @@ class TestValidatingDocumentStore:
         base = _create_base_inmemory_store()
         provider = MockSchemaProvider()
 
-        store = ValidatingDocumentStore(
-            store=base,
-            schema_provider=provider,
-            strict=True,
-            validate_reads=False
-        )
+        store = ValidatingDocumentStore(store=base, schema_provider=provider, strict=True, validate_reads=False)
 
         assert store._store is base
         assert store._schema_provider is provider
@@ -131,11 +127,8 @@ class TestValidatingDocumentStore:
 
         schema = {
             "type": "object",
-            "properties": {
-                "archive_id": {"type": "string"},
-                "status": {"type": "string"}
-            },
-            "required": ["archive_id", "status"]
+            "properties": {"archive_id": {"type": "string"}, "status": {"type": "string"}},
+            "required": ["archive_id", "status"],
         }
 
         provider = MockSchemaProvider({"archives": schema})
@@ -155,11 +148,8 @@ class TestValidatingDocumentStore:
 
         schema = {
             "type": "object",
-            "properties": {
-                "archive_id": {"type": "string"},
-                "status": {"type": "string"}
-            },
-            "required": ["archive_id", "status"]
+            "properties": {"archive_id": {"type": "string"}, "status": {"type": "string"}},
+            "required": ["archive_id", "status"],
         }
 
         provider = MockSchemaProvider({"archives": schema})
@@ -182,11 +172,8 @@ class TestValidatingDocumentStore:
 
         schema = {
             "type": "object",
-            "properties": {
-                "archive_id": {"type": "string"},
-                "status": {"type": "string"}
-            },
-            "required": ["archive_id", "status"]
+            "properties": {"archive_id": {"type": "string"}, "status": {"type": "string"}},
+            "required": ["archive_id", "status"],
         }
 
         provider = MockSchemaProvider({"archives": schema})
@@ -264,13 +251,7 @@ class TestValidatingDocumentStore:
         base = _create_base_inmemory_store()
         base.connect()
 
-        schema = {
-            "type": "object",
-            "properties": {
-                "data": {"type": "string"}
-            },
-            "required": ["data"]
-        }
+        schema = {"type": "object", "properties": {"data": {"type": "string"}}, "required": ["data"]}
 
         provider = MockSchemaProvider({"test_collection": schema})
         store = ValidatingDocumentStore(base, provider, validate_reads=True, strict=True)
@@ -289,13 +270,7 @@ class TestValidatingDocumentStore:
         base = _create_base_inmemory_store()
         base.connect()
 
-        schema = {
-            "type": "object",
-            "properties": {
-                "data": {"type": "string"}
-            },
-            "required": ["data"]
-        }
+        schema = {"type": "object", "properties": {"data": {"type": "string"}}, "required": ["data"]}
 
         provider = MockSchemaProvider({"test_collection": schema})
         store = ValidatingDocumentStore(base, provider, validate_reads=True, strict=True)
@@ -325,12 +300,7 @@ class TestValidatingDocumentStore:
         base = _create_base_inmemory_store()
         base.connect()
 
-        schema = {
-            "type": "object",
-            "properties": {
-                "status": {"type": "string"}
-            }
-        }
+        schema = {"type": "object", "properties": {"status": {"type": "string"}}}
 
         provider = MockSchemaProvider({"test_collection": schema})
         store = ValidatingDocumentStore(base, provider, strict=True)
@@ -351,12 +321,7 @@ class TestValidatingDocumentStore:
         base = _create_base_inmemory_store()
         base.connect()
 
-        schema = {
-            "type": "object",
-            "properties": {
-                "status": {"type": "string"}
-            }
-        }
+        schema = {"type": "object", "properties": {"status": {"type": "string"}}}
 
         provider = MockSchemaProvider({"test_collection": schema})
         store = ValidatingDocumentStore(base, provider, strict=True)
@@ -520,20 +485,9 @@ class TestValidatingDocumentStore:
         base.connect()
 
         # Insert test data
-        base.insert_document('messages', {
-            '_id': 'msg1',
-            'archive_id': 'archive1',
-            'body': 'test'
-        })
-        base.insert_document('messages', {
-            '_id': 'msg2',
-            'archive_id': 'archive1',
-            'body': 'test2'
-        })
-        base.insert_document('chunks', {
-            '_id': 'chunk1',
-            'message_doc_id': 'msg1'
-        })
+        base.insert_document("messages", {"_id": "msg1", "archive_id": "archive1", "body": "test"})
+        base.insert_document("messages", {"_id": "msg2", "archive_id": "archive1", "body": "test2"})
+        base.insert_document("chunks", {"_id": "chunk1", "message_doc_id": "msg1"})
 
         provider = MockSchemaProvider()
         store = ValidatingDocumentStore(base, provider)
@@ -560,14 +514,15 @@ class TestValidatingDocumentStore:
             },
         ]
 
-        results = store.aggregate_documents('messages', pipeline)
+        results = store.aggregate_documents("messages", pipeline)
 
         # Should find msg2 which has no chunks
         assert len(results) == 1
-        assert results[0]['_id'] == 'msg2'
+        assert results[0]["_id"] == "msg2"
 
     def test_aggregate_documents_raises_error_when_not_supported(self):
         """Test that aggregate_documents raises AttributeError when underlying store doesn't support it."""
+
         # Create a mock store without aggregate_documents method
         class MockStoreWithoutAggregation:
             def connect(self):
@@ -582,4 +537,4 @@ class TestValidatingDocumentStore:
 
         # Should raise AttributeError when aggregate_documents is not supported
         with pytest.raises(AttributeError, match="does not support aggregation"):
-            store.aggregate_documents('test', [])
+            store.aggregate_documents("test", [])

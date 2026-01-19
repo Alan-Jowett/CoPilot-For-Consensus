@@ -347,7 +347,7 @@ class TestMintToken:
         token = manager.mint_token(user, audience="https://api.example.com", expires_in=3600)
 
         unverified = jwt.decode(token, options={"verify_signature": False})
-        
+
         # Check expiry is approximately 3600 seconds after issuance
         assert abs(unverified["exp"] - unverified["iat"] - 3600) < 5
 
@@ -754,7 +754,7 @@ class TestGetJWKS:
 
         assert "keys" in jwks
         assert len(jwks["keys"]) == 1
-        
+
         key = jwks["keys"][0]
         assert key["kty"] == "RSA"
         assert key["use"] == "sig"
@@ -818,7 +818,7 @@ class TestIntToBase64URL:
     def test_int_to_base64url_small_value(self):
         """Test _int_to_base64url with small value."""
         result = JWTManager._int_to_base64url(65537)
-        
+
         assert isinstance(result, str)
         assert len(result) > 0
 
@@ -827,18 +827,18 @@ class TestIntToBase64URL:
         # Typical RSA modulus size (2048 bits)
         large_value = 2**2048 - 1
         result = JWTManager._int_to_base64url(large_value)
-        
+
         assert isinstance(result, str)
         assert len(result) > 0
 
     def test_int_to_base64url_zero(self):
         """Test _int_to_base64url with zero.
-        
+
         Zero has bit_length of 0, so byte_length is 0, resulting in empty bytes.
         Base64url encoding of empty bytes produces an empty string.
         """
         result = JWTManager._int_to_base64url(0)
-        
+
         assert isinstance(result, str)
         # Zero with 0 byte_length produces empty bytes -> empty base64url string
         assert result == ""

@@ -23,11 +23,7 @@ class TestLocalFetcher:
 
             # Create fetcher and fetch
             output_dir = os.path.join(tmpdir, "output")
-            config = SourceConfig(
-                name="local-test",
-                source_type="local",
-                url=test_file
-            )
+            config = SourceConfig(name="local-test", source_type="local", url=test_file)
             fetcher = LocalFetcher(config)
             success, files, error = fetcher.fetch(output_dir)
 
@@ -59,11 +55,7 @@ class TestLocalFetcher:
 
             # Create fetcher and fetch
             output_dir = os.path.join(tmpdir, "output")
-            config = SourceConfig(
-                name="local-dir-test",
-                source_type="local",
-                url=test_dir
-            )
+            config = SourceConfig(name="local-dir-test", source_type="local", url=test_dir)
             fetcher = LocalFetcher(config)
             success, files, error = fetcher.fetch(output_dir)
 
@@ -75,11 +67,7 @@ class TestLocalFetcher:
     def test_local_fetcher_nonexistent_path(self):
         """Test fetching from non-existent path."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            config = SourceConfig(
-                name="local-test",
-                source_type="local",
-                url="/nonexistent/path/to/file"
-            )
+            config = SourceConfig(name="local-test", source_type="local", url="/nonexistent/path/to/file")
             fetcher = LocalFetcher(config)
             success, files, error = fetcher.fetch(tmpdir)
 
@@ -106,11 +94,7 @@ class TestLocalFetcher:
 
             # Fetch
             output_dir = os.path.join(tmpdir, "output")
-            config = SourceConfig(
-                name="nested-test",
-                source_type="local",
-                url=test_dir
-            )
+            config = SourceConfig(name="nested-test", source_type="local", url=test_dir)
             fetcher = LocalFetcher(config)
             success, files, error = fetcher.fetch(output_dir)
 

@@ -24,7 +24,7 @@ import json
 import re
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 
@@ -60,11 +60,7 @@ def _adapter_driver_schema_path(*, schema_dir: Path, adapter: str, driver: str) 
         raise FileNotFoundError(f"Adapter schema not found: {adapter_schema_path}")
 
     adapter_schema = _load_json(adapter_schema_path)
-    drivers = (
-        adapter_schema.get("properties", {})
-        .get("drivers", {})
-        .get("properties", {})
-    )
+    drivers = adapter_schema.get("properties", {}).get("drivers", {}).get("properties", {})
 
     driver_info = drivers.get(driver)
     if not isinstance(driver_info, dict) or "$ref" not in driver_info:
@@ -78,8 +74,10 @@ def _adapter_driver_schema_path(*, schema_dir: Path, adapter: str, driver: str) 
 
 
 def _as_mapping(config: object) -> dict[str, Any]:
-    if is_dataclass(config):
-        return asdict(config)
+    # dataclasses.is_dataclass() returns True for both dataclass *instances* and
+    # the dataclass *type*. asdict() only accepts instances.
+    if is_dataclass(config) and not isinstance(config, type):
+        return asdict(cast(Any, config))
     if isinstance(config, dict):
         return config
 
@@ -147,7 +145,9 @@ def _validate_required_one_of(
             continue
 
         if any(
-            _is_present(config_map.get(name), properties.get(name, {}) if isinstance(properties.get(name), dict) else {})
+            _is_present(
+                config_map.get(name), properties.get(name, {}) if isinstance(properties.get(name), dict) else {}
+            )
             for name in field_names
         ):
             continue
@@ -327,7 +327,7 @@ def validate_config_against_schema_dict(*, schema: dict[str, Any], config: objec
             if not isinstance(value, int) or _is_bool(value):
                 raise ValueError(f"{field_name} parameter is invalid")
         elif expected_type in ("number", "float"):
-            if not isinstance(value, (int, float)) or _is_bool(value):
+            if not isinstance(value, int | float) or _is_bool(value):
                 raise ValueError(f"{field_name} parameter is invalid")
         elif expected_type in ("bool", "boolean"):
             if not isinstance(value, bool):
@@ -357,13 +357,13 @@ def validate_config_against_schema_dict(*, schema: dict[str, Any], config: objec
             if fmt == "uri" and not _validate_uri(value):
                 raise ValueError(f"{field_name} parameter is invalid")
 
-        if isinstance(value, (int, float)):
+        if isinstance(value, int | float):
             minimum = spec.get("minimum")
-            if isinstance(minimum, (int, float)) and value < minimum:
+            if isinstance(minimum, int | float) and value < minimum:
                 raise ValueError(f"{field_name} parameter is invalid")
 
             maximum = spec.get("maximum")
-            if isinstance(maximum, (int, float)) and value > maximum:
+            if isinstance(maximum, int | float) and value > maximum:
                 raise ValueError(f"{field_name} parameter is invalid")
 
     # Custom schema extensions used by this repository.

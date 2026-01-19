@@ -3,7 +3,7 @@
 
 """Silent logger implementation for testing."""
 
-from typing import Any, cast
+from typing import Any
 
 from copilot_config.generated.adapters.logger import DriverConfig_Logger_Silent
 
@@ -42,7 +42,7 @@ class SilentLogger(Logger):
         Raises:
             TypeError: If driver_config is not a DriverConfig instance
         """
-        level = cast(str, driver_config.level)
+        level = driver_config.level
         return cls(level=level, name=driver_config.name)
 
     def _log(self, level: str, message: str, **kwargs: Any) -> None:

@@ -3,38 +3,19 @@
 
 """Chunking Service: Split long email bodies into semantically coherent chunks."""
 
-import os
-import sys
 import threading
-from pathlib import Path
 from dataclasses import replace
+from pathlib import Path
 from typing import cast
 
-# Add app directory to path
-sys.path.insert(0, os.path.dirname(__file__))
-
 import uvicorn
-from copilot_logging import (
-    create_logger,
-    create_stdout_logger,
-    create_uvicorn_log_config,
-    get_logger,
-    set_default_logger,
-)
-from copilot_metrics import create_metrics_collector
-from copilot_error_reporting import create_error_reporter
-from copilot_schema_validation import create_schema_provider
-from copilot_storage import create_document_store
-from fastapi import FastAPI
-
-# Bootstrap logger for early initialization (before config is loaded)
-logger = create_stdout_logger(level="INFO", name="chunking")
-set_default_logger(logger)
-
 from app import __version__
 from app.service import ChunkingService
 from copilot_chunking import create_chunker
-from copilot_config.runtime_loader import get_config
+from copilot_config.generated.adapters.event_retry import (
+    DriverConfig_EventRetry_Default,
+    DriverConfig_EventRetry_Noop,
+)
 from copilot_config.generated.adapters.message_bus import (
     DriverConfig_MessageBus_AzureServiceBus,
     DriverConfig_MessageBus_Rabbitmq,
@@ -44,13 +25,26 @@ from copilot_config.generated.adapters.metrics import (
     DriverConfig_Metrics_Prometheus,
     DriverConfig_Metrics_Pushgateway,
 )
-from copilot_config.generated.adapters.event_retry import (
-    DriverConfig_EventRetry_Default,
-    DriverConfig_EventRetry_Noop,
-)
 from copilot_config.generated.services.chunking import ServiceConfig_Chunking
-from copilot_message_bus import create_publisher, create_subscriber
+from copilot_config.runtime_loader import get_config
+from copilot_error_reporting import create_error_reporter
 from copilot_event_retry import RetryConfig
+from copilot_logging import (
+    create_logger,
+    create_stdout_logger,
+    create_uvicorn_log_config,
+    get_logger,
+    set_default_logger,
+)
+from copilot_message_bus import create_publisher, create_subscriber
+from copilot_metrics import create_metrics_collector
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
+from fastapi import FastAPI
+
+# Bootstrap logger for early initialization (before config is loaded)
+logger = create_stdout_logger(level="INFO", name="chunking")
+set_default_logger(logger)
 
 # Create FastAPI app
 app = FastAPI(title="Chunking Service", version=__version__)
@@ -157,6 +151,7 @@ def main():
 
         # Refresh module-level service logger to use the current default
         from app import service as chunking_service_module
+
         chunking_service_module.logger = get_logger(chunking_service_module.__name__)
 
         # Conditionally add JWT authentication middleware based on config
@@ -164,6 +159,7 @@ def main():
             logger.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
+
                 auth_service_url = config.service_settings.auth_service_url or "http://auth:8090"
                 audience = config.service_settings.service_audience or "copilot-for-consensus"
                 auth_middleware = create_jwt_middleware(
@@ -250,8 +246,10 @@ def main():
             max_delay_ms=int(retry_driver.max_delay_ms),
             ttl_seconds=int(retry_driver.ttl_seconds),
         )
-        logger.info(f"Retry configuration: max_attempts={retry_config.max_attempts}, "
-                   f"base_delay_ms={retry_config.base_delay_ms}, ttl_seconds={retry_config.ttl_seconds}")
+        logger.info(
+            f"Retry configuration: max_attempts={retry_config.max_attempts}, "
+            f"base_delay_ms={retry_config.base_delay_ms}, ttl_seconds={retry_config.ttl_seconds}"
+        )
 
         # Create chunking service
         chunking_service = ChunkingService(
@@ -283,7 +281,7 @@ def main():
 
     except Exception as e:
         logger.error(f"Failed to start chunking service: {e}")
-        sys.exit(1)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

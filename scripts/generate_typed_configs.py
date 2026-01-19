@@ -25,6 +25,28 @@ from pathlib import Path
 from typing import Any
 
 
+def _pipe_union(type_names: list[str]) -> str:
+    """Join type names as a PEP 604 pipe-union, preserving order and removing duplicates."""
+    unique: list[str] = []
+    seen: set[str] = set()
+    for type_name in type_names:
+        if type_name in seen:
+            continue
+        seen.add(type_name)
+        unique.append(type_name)
+    return " | ".join(unique)
+
+
+def _make_optional(type_annotation: str) -> str:
+    """Return a type annotation that includes None (PEP 604 style)."""
+    parts = [p.strip() for p in type_annotation.split("|")]
+    if any(p == "None" for p in parts):
+        return type_annotation
+    if type_annotation:
+        return f"{type_annotation} | None"
+    return "None"
+
+
 def resolve_schema_directory() -> Path:
     """Resolve the schema directory path."""
     script_dir = Path(__file__).resolve().parent
@@ -59,8 +81,10 @@ def schema_type_to_python_type(schema_type: str | list[Any], default_value: Any 
 
     Notes:
     - Supports a JSON Schema "type" being either a string or a list.
-    - If a list includes "null", returns Optional[T] for the non-null type.
+    - Uses PEP 604 unions (e.g., `str | None`) and builtin generics (e.g., `dict[str, Any]`).
     """
+
+    del default_value
 
     type_mapping = {
         "string": "str",
@@ -70,24 +94,21 @@ def schema_type_to_python_type(schema_type: str | list[Any], default_value: Any 
         "boolean": "bool",
         "float": "float",
         "number": "float",
-        "object": "Dict[str, Any]",
-        "array": "List[Any]",
+        "object": "dict[str, Any]",
+        "array": "list[Any]",
         "null": "None",
     }
 
     if isinstance(schema_type, list):
-        # Common case: ["string", "null"]
         non_null = [t for t in schema_type if t != "null"]
-        if len(non_null) == 1 and "null" in schema_type:
-            inner = type_mapping.get(non_null[0], "Any")
-            return f"Optional[{inner}]"
-        # Fallback for more complex unions.
         mapped = [type_mapping.get(t, "Any") for t in non_null]
+        if "null" in schema_type:
+            mapped.append("None")
         if not mapped:
             return "Any"
         if len(mapped) == 1:
             return mapped[0]
-        return f"Union[{', '.join(mapped)}]"
+        return _pipe_union(mapped)
 
     return type_mapping.get(schema_type, "Any")
 
@@ -100,10 +121,10 @@ def _type_allows_null(prop_spec: dict[str, Any]) -> bool:
 def _format_literal(value: Any) -> str:
     """Format a literal value for embedding in generated Python."""
     if isinstance(value, str):
-        return repr(value)
+        return json.dumps(value)
     if isinstance(value, bool):
         return "True" if value else "False"
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return str(value)
     return repr(value)
 
@@ -122,6 +143,9 @@ def _generate_dataclass_code(
         f"class {class_name}:",
         f'    """{doc}"""',
     ]
+
+    # Match checked-in formatting: blank line between docstring and body.
+    lines.append("")
 
     if not properties:
         lines.append("    pass")
@@ -175,7 +199,7 @@ def _generate_dataclass_code(
                     type_annotation = py_type
                 else:
                     # Truly optional field.
-                    type_annotation = py_type if _type_allows_null(prop_spec) else f"Optional[{py_type}]"
+                    type_annotation = py_type if _type_allows_null(prop_spec) else _make_optional(py_type)
 
             if default is not None:
                 lines.append(f"    {field_name}: {type_annotation} = {_format_literal(default)}")
@@ -185,8 +209,8 @@ def _generate_dataclass_code(
                 lines.append(f"    {field_name}: {type_annotation}")
 
         if description:
-            desc_safe = description.replace("\n", " ").strip()
-            lines.append(f"    # {desc_safe}")
+            for desc_line in [line.strip() for line in description.splitlines() if line.strip()]:
+                lines.append(f"    # {desc_line}")
 
     return "\n".join(lines)
 
@@ -258,8 +282,13 @@ def generate_driver_dataclass(
         if not variant_class_names:
             raise ValueError(f"Driver schema for {adapter_name}/{driver_name} oneOf produced no variants")
 
-        union_types = ", ".join(variant_class_names)
-        alias_lines = [f"{class_name}: TypeAlias = Union[{union_types}]" ]
+        alias_lines = [f"{class_name}: TypeAlias = ("]
+        for idx, variant_class_name in enumerate(variant_class_names):
+            if idx == 0:
+                alias_lines.append(f"    {variant_class_name}")
+            else:
+                alias_lines.append(f"    | {variant_class_name}")
+        alias_lines.append(")")
         alias_code = "\n".join(alias_lines)
 
         return class_name, "\n\n\n".join([*variant_codes, alias_code])
@@ -300,26 +329,37 @@ def generate_adapter_dataclass(
         f'    """Configuration for {adapter_name} adapter."""',
     ]
 
+    # Match checked-in formatting: blank line between docstring and fields.
+    lines.append("")
+
     if discriminant_enum:
-        literal_type = "Literal[" + ", ".join(f'"{v}"' for v in sorted(discriminant_enum)) + "]"
+        literal_type = "Literal[" + ", ".join(json.dumps(v) for v in sorted(discriminant_enum)) + "]"
         lines.append(f"    {discriminant_field}: {literal_type}")
 
-        driver_union_types = [driver_classes.get(driver, "Any") for driver in sorted(discriminant_enum)]
-        driver_union = ", ".join(driver_union_types)
+        raw_driver_union_types = [driver_classes.get(driver, "Any") for driver in sorted(discriminant_enum)]
+        driver_union_types: list[str] = []
+        for type_name in raw_driver_union_types:
+            if type_name not in driver_union_types:
+                driver_union_types.append(type_name)
 
-        union_line = f"    driver: Union[{driver_union}]"
-        if len(union_line) > 120:
-            lines.append("    driver: Union[")
-            for i, driver_type in enumerate(driver_union_types):
-                if i < len(driver_union_types) - 1:
-                    lines.append(f"        {driver_type},")
+        driver_union = _pipe_union(driver_union_types)
+        driver_line = f"    driver: {driver_union}"
+
+        # Match checked-in formatting: wrap only when the union would get very long.
+        # Empirically, the repo wraps `driver:` unions when there are 3+ variants and
+        # the single-line representation is roughly 120+ chars.
+        if len(driver_union_types) >= 3 and len(driver_line) >= 120:
+            lines.append("    driver: (")
+            for idx, type_name in enumerate(driver_union_types):
+                if idx == 0:
+                    lines.append(f"        {type_name}")
                 else:
-                    lines.append(f"        {driver_type}")
-            lines.append("    ]")
+                    lines.append(f"        | {type_name}")
+            lines.append("    )")
         else:
-            lines.append(union_line)
+            lines.append(driver_line)
     else:
-        lines.append("    config: Dict[str, Any]")
+        lines.append("    config: dict[str, Any]")
 
     return class_name, "\n".join(lines)
 
@@ -342,21 +382,6 @@ def generate_adapter_module(
         adapter_schema = json.load(f)
 
     discriminant_info = adapter_schema.get("properties", {}).get("discriminant", {})
-
-    imports = [
-        "# SPDX-License-Identifier: MIT",
-        "# Copyright (c) 2025 Copilot-for-Consensus contributors",
-        "",
-        f'"""Generated typed configuration for {adapter_name} adapter.',
-        "",
-        "DO NOT EDIT THIS FILE MANUALLY.",
-        "This file is auto-generated from JSON schemas by scripts/generate_typed_configs.py.",
-        '"""',
-        "",
-        "from dataclasses import dataclass",
-        "from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union",
-        "",
-    ]
 
     all_classes = []
 
@@ -404,13 +429,15 @@ def generate_adapter_module(
                 f'    """Composite configuration container for {adapter_name} adapter."""',
             ]
 
+            container_lines.append("")
+
             if driver_classes:
                 for driver_name in sorted(driver_classes.keys()):
                     field_name = to_python_field_name(driver_name)
                     driver_class_name = driver_classes[driver_name]
-                    container_lines.append(f"    {field_name}: Optional[{driver_class_name}] = None")
+                    container_lines.append(f"    {field_name}: {driver_class_name} | None = None")
             else:
-                container_lines.append("    config: Dict[str, Any]")
+                container_lines.append("    config: dict[str, Any]")
 
             all_classes.append("\n".join(container_lines))
 
@@ -418,7 +445,8 @@ def generate_adapter_module(
                 "@dataclass",
                 f"class {adapter_class_name}:",
                 f'    """Configuration for {adapter_name} adapter."""',
-                f"    {to_python_field_name(composite_field_name)}: Optional[{container_class_name}] = None",
+                "",
+                f"    {to_python_field_name(composite_field_name)}: {container_class_name} | None = None",
             ]
             all_classes.append("\n".join(adapter_lines))
         else:
@@ -426,9 +454,39 @@ def generate_adapter_module(
                 "@dataclass",
                 f"class {adapter_class_name}:",
                 f'    """Configuration for {adapter_name} adapter."""',
-                "    config: Dict[str, Any]",
+                "",
+                "    config: dict[str, Any]",
             ]
             all_classes.append("\n".join(adapter_lines))
+
+        combined = "\n".join(all_classes)
+        typing_names: list[str] = []
+        if "Any" in combined:
+            typing_names.append("Any")
+        if "Literal[" in combined:
+            typing_names.append("Literal")
+        if "TypeAlias" in combined:
+            typing_names.append("TypeAlias")
+
+        ordered = [name for name in ["Any", "Literal", "TypeAlias"] if name in typing_names]
+
+        imports = [
+            "# SPDX-License-Identifier: MIT",
+            "# Copyright (c) 2025 Copilot-for-Consensus contributors",
+            "",
+            f'"""Generated typed configuration for {adapter_name} adapter.',
+            "",
+            "DO NOT EDIT THIS FILE MANUALLY.",
+            "This file is auto-generated from JSON schemas by scripts/generate_typed_configs.py.",
+            '"""',
+            "",
+            "from dataclasses import dataclass",
+        ]
+        if ordered:
+            imports.append(f"from typing import {', '.join(ordered)}")
+
+        # Match checked-in formatting: leave two blank lines before first class.
+        imports.append("")
 
         output = "\n".join(imports) + "\n\n" + "\n\n\n".join(all_classes) + "\n"
 
@@ -474,6 +532,35 @@ def generate_adapter_module(
     )
     all_classes.append(adapter_class_code)
 
+    combined = "\n".join(all_classes)
+    typing_names: list[str] = []
+    if "Any" in combined:
+        typing_names.append("Any")
+    if "Literal[" in combined:
+        typing_names.append("Literal")
+    if "TypeAlias" in combined:
+        typing_names.append("TypeAlias")
+
+    ordered = [name for name in ["Any", "Literal", "TypeAlias"] if name in typing_names]
+
+    imports = [
+        "# SPDX-License-Identifier: MIT",
+        "# Copyright (c) 2025 Copilot-for-Consensus contributors",
+        "",
+        f'"""Generated typed configuration for {adapter_name} adapter.',
+        "",
+        "DO NOT EDIT THIS FILE MANUALLY.",
+        "This file is auto-generated from JSON schemas by scripts/generate_typed_configs.py.",
+        '"""',
+        "",
+        "from dataclasses import dataclass",
+    ]
+    if ordered:
+        imports.append(f"from typing import {', '.join(ordered)}")
+
+    # Match checked-in formatting: leave two blank lines before first class.
+    imports.append("")
+
     output = "\n".join(imports) + "\n\n" + "\n\n\n".join(all_classes) + "\n"
 
     output_path = output_dir / "adapters" / f"{adapter_name}.py"
@@ -501,6 +588,8 @@ def generate_service_settings_dataclass(
     if not service_settings:
         lines.append("    pass")
     else:
+        # Match checked-in formatting: blank line between docstring and fields.
+        lines.append("")
         sorted_settings = sorted(service_settings.items())
 
         required_no_default = []
@@ -528,18 +617,10 @@ def generate_service_settings_dataclass(
             if required and default is None:
                 type_annotation = py_type
             else:
-                type_annotation = f"Optional[{py_type}]"
+                type_annotation = _make_optional(py_type)
 
             if default is not None:
-                if isinstance(default, str):
-                    default_repr = repr(default)
-                elif isinstance(default, bool):
-                    default_repr = str(default)
-                elif isinstance(default, (int, float)):
-                    default_repr = str(default)
-                else:
-                    default_repr = repr(default)
-                lines.append(f"    {field_name}: {type_annotation} = {default_repr}")
+                lines.append(f"    {field_name}: {type_annotation} = {_format_literal(default)}")
             elif not required:
                 lines.append(f"    {field_name}: {type_annotation} = None")
             else:
@@ -563,6 +644,7 @@ def generate_service_config_dataclass(
         "@dataclass",
         f"class {class_name}:",
         f'    """Top-level configuration for {service_name} service."""',
+        "",
         f"    service_settings: {service_settings_class}",
     ]
 
@@ -583,7 +665,7 @@ def generate_service_config_dataclass(
         for field_name, adapter_class in required_fields:
             lines.append(f"    {field_name}: {adapter_class}")
         for field_name, adapter_class in optional_fields:
-            lines.append(f"    {field_name}: Optional[{adapter_class}] = None")
+            lines.append(f"    {field_name}: {adapter_class} | None = None")
 
     return class_name, "\n".join(lines)
 
@@ -628,7 +710,6 @@ def generate_service_module(
         '"""',
         "",
         "from dataclasses import dataclass",
-        "from typing import Optional",
         "",
     ]
 
@@ -726,11 +807,7 @@ def main() -> int:
         adapters_to_generate = []
         if args.all:
             adapters_dir = schema_dir / "adapters"
-            adapters_to_generate = [
-                p.stem
-                for p in adapters_dir.glob("*.json")
-                if p.stem not in ["__pycache__"]
-            ]
+            adapters_to_generate = [p.stem for p in adapters_dir.glob("*.json") if p.stem not in ["__pycache__"]]
         else:
             adapters_to_generate = [args.adapter]
 

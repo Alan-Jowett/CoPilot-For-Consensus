@@ -5,15 +5,14 @@
 
 import tempfile
 from pathlib import Path
-import pytest
 
+import pytest
 from copilot_config.generated.adapters.secret_provider import (
     AdapterConfig_SecretProvider,
     DriverConfig_SecretProvider_AzureKeyVault,
     DriverConfig_SecretProvider_Local,
 )
 from copilot_secrets import (
-    SecretProviderError,
     create_secret_provider,
 )
 
@@ -31,6 +30,7 @@ class TestFactory:
                 )
             )
             from copilot_secrets.local_provider import LocalFileSecretProvider
+
             assert isinstance(provider, LocalFileSecretProvider)
             assert provider.base_path == Path(tmpdir)
 
@@ -44,6 +44,7 @@ class TestFactory:
                 )
             )
             from copilot_secrets.local_provider import LocalFileSecretProvider
+
             assert isinstance(provider, LocalFileSecretProvider)
             assert provider.base_path == Path(tmpdir)
 
@@ -72,6 +73,7 @@ class TestFactory:
                 )
             )
             from copilot_secrets.local_provider import LocalFileSecretProvider
+
             assert isinstance(provider, LocalFileSecretProvider)
             assert provider.base_path == Path(tmpdir)
 
@@ -85,5 +87,6 @@ class TestFactory:
             )
         )
         from copilot_secrets.azurekeyvault_provider import AzureKeyVaultProvider
+
         assert isinstance(provider, AzureKeyVaultProvider)
         assert provider.vault_url == vault_url

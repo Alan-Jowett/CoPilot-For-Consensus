@@ -6,14 +6,17 @@
 
 class SecretError(Exception):
     """Base exception for secret management errors."""
+
     pass
 
 
 class SecretNotFoundError(SecretError):
     """Raised when a requested secret does not exist."""
+
     pass
 
 
 class SecretProviderError(SecretError):
     """Raised when the secret provider encounters an error."""
+
     pass

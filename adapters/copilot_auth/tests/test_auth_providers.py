@@ -15,7 +15,6 @@ from copilot_auth.github_provider import GitHubIdentityProvider
 from copilot_auth.google_provider import GoogleIdentityProvider
 from copilot_auth.microsoft_provider import MicrosoftIdentityProvider
 from copilot_auth.mock_provider import MockIdentityProvider
-
 from copilot_config.generated.adapters.oidc_providers import (
     DriverConfig_OidcProviders_Github,
     DriverConfig_OidcProviders_Google,
@@ -36,11 +35,7 @@ class TestMockIdentityProvider:
     def test_add_user(self):
         """Test adding a user to the provider."""
         provider = MockIdentityProvider()
-        user = User(
-            id="user-123",
-            email="test@example.com",
-            name="Test User"
-        )
+        user = User(id="user-123", email="test@example.com", name="Test User")
 
         provider.add_user("token-123", user)
 
@@ -50,11 +45,7 @@ class TestMockIdentityProvider:
     def test_get_user_returns_user_for_valid_token(self):
         """Test get_user returns user for valid token."""
         provider = MockIdentityProvider()
-        user = User(
-            id="user-456",
-            email="test@example.com",
-            name="Test User"
-        )
+        user = User(id="user-456", email="test@example.com", name="Test User")
         provider.add_user("valid-token", user)
 
         result = provider.get_user("valid-token")
@@ -154,7 +145,7 @@ class TestGitHubIdentityProvider:
             client_id="test-client-id",
             client_secret="test-client-secret",
             redirect_uri="https://auth.example.com/callback",
-            api_base_url="https://github.enterprise.com/api"
+            api_base_url="https://github.enterprise.com/api",
         )
 
         assert provider.api_base_url == "https://github.enterprise.com/api"
@@ -190,9 +181,7 @@ class TestDatatrackerIdentityProvider:
 
     def test_provider_initialization_with_custom_api_url(self):
         """Test provider initializes with custom API URL."""
-        provider = DatatrackerIdentityProvider(
-            api_base_url="https://test.datatracker.ietf.org/api"
-        )
+        provider = DatatrackerIdentityProvider(api_base_url="https://test.datatracker.ietf.org/api")
 
         assert provider.api_base_url == "https://test.datatracker.ietf.org/api"
 
@@ -217,7 +206,7 @@ class TestGitHubIdentityProviderExtended:
         )
 
         provider = GitHubIdentityProvider.from_config(cfg)
-        
+
         assert provider.client_id == "config-client-id"
         assert provider.client_secret == "config-secret"
         assert provider.redirect_uri == "https://config.example.com/callback"
@@ -231,9 +220,9 @@ class TestGitHubIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             api_base_url="https://api.github.com",
         )
-        
+
         provider.discover()
-        
+
         assert provider._authorization_endpoint == "https://github.com/login/oauth/authorize"
         assert provider._token_endpoint == "https://github.com/login/oauth/access_token"
         assert provider._userinfo_endpoint == "https://api.github.com/user"
@@ -248,10 +237,10 @@ class TestGitHubIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             api_base_url="https://api.github.com",
         )
-        
+
         with pytest.raises(AuthenticationError) as exc_info:
             provider.validate_id_token("fake-token", "fake-nonce")
-        
+
         assert "GitHub OAuth does not provide an id_token" in str(exc_info.value)
 
     def test_get_user_organizations_success(self):
@@ -262,16 +251,16 @@ class TestGitHubIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             api_base_url="https://api.github.com",
         )
-        
+
         mock_response = Mock()
         mock_response.json.return_value = [
             {"login": "org1", "id": 1},
             {"login": "org2", "id": 2},
         ]
-        
+
         with patch("httpx.get", return_value=mock_response) as mock_get:
             orgs = provider._get_user_organizations("test-token")
-            
+
             mock_get.assert_called_once_with(
                 "https://api.github.com/user/orgs",
                 headers={"Authorization": "Bearer test-token"},
@@ -287,11 +276,11 @@ class TestGitHubIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             api_base_url="https://api.github.com",
         )
-        
+
         with patch("httpx.get") as mock_get:
             mock_get.side_effect = httpx.HTTPError("Network error")
             orgs = provider._get_user_organizations("test-token")
-            
+
             assert orgs == []
 
     def test_map_userinfo_to_user_with_full_data(self):
@@ -302,16 +291,16 @@ class TestGitHubIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             api_base_url="https://api.github.com",
         )
-        
+
         userinfo = {
             "id": 12345,
             "login": "testuser",
             "email": "test@example.com",
             "name": "Test User",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "github")
-        
+
         assert user.id == "github:12345"
         assert user.email == "test@example.com"
         assert user.name == "Test User"
@@ -326,15 +315,15 @@ class TestGitHubIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             api_base_url="https://api.github.com",
         )
-        
+
         userinfo = {
             "id": 12345,
             "login": "testuser",
             "name": "Test User",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "github")
-        
+
         assert user.email == "testuser@users.noreply.github.com"
 
     def test_map_userinfo_to_user_missing_name(self):
@@ -345,15 +334,15 @@ class TestGitHubIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             api_base_url="https://api.github.com",
         )
-        
+
         userinfo = {
             "id": 12345,
             "login": "testuser",
             "email": "test@example.com",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "github")
-        
+
         assert user.name == "testuser"
 
     def test_map_userinfo_to_user_missing_id(self):
@@ -364,15 +353,15 @@ class TestGitHubIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             api_base_url="https://api.github.com",
         )
-        
+
         userinfo = {
             "login": "testuser",
             "email": "test@example.com",
             "name": "Test User",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "github")
-        
+
         assert user.id == "github:testuser"
 
     def test_get_user_with_organizations(self):
@@ -383,7 +372,7 @@ class TestGitHubIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             api_base_url="https://api.github.com",
         )
-        
+
         # Mock userinfo response
         userinfo_response = Mock()
         userinfo_response.json.return_value = {
@@ -392,20 +381,20 @@ class TestGitHubIdentityProviderExtended:
             "email": "test@example.com",
             "name": "Test User",
         }
-        
+
         # Mock orgs response
         orgs_response = Mock()
         orgs_response.json.return_value = [
             {"login": "org1"},
             {"login": "org2"},
         ]
-        
+
         with patch("httpx.get") as mock_get:
             # First call: userinfo, second call: orgs
             mock_get.side_effect = [userinfo_response, orgs_response]
-            
+
             user = provider.get_user("test-token")
-            
+
             assert user is not None
             assert user.id == "github:12345"
             assert "org1" in user.affiliations
@@ -422,7 +411,7 @@ class TestGoogleIdentityProviderExtended:
             client_secret="google-secret",
             redirect_uri="https://example.com/callback",
         )
-        
+
         assert provider.client_id == "google-client-id"
         assert provider.client_secret == "google-secret"
         assert provider.redirect_uri == "https://example.com/callback"
@@ -438,7 +427,7 @@ class TestGoogleIdentityProviderExtended:
         )
 
         provider = GoogleIdentityProvider.from_config(cfg)
-        
+
         assert provider.client_id == "config-client-id"
         assert provider.client_secret == "config-secret"
         assert provider.redirect_uri == "https://config.example.com/callback"
@@ -450,15 +439,15 @@ class TestGoogleIdentityProviderExtended:
             client_secret="test-secret",
             redirect_uri="https://example.com/callback",
         )
-        
+
         userinfo = {
             "sub": "google-user-123",
             "email": "test@example.com",
             "name": "Test User",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "google")
-        
+
         assert user.id == "google:google-user-123"
         assert user.email == "test@example.com"
         assert user.name == "Test User"
@@ -472,15 +461,15 @@ class TestGoogleIdentityProviderExtended:
             client_secret="test-secret",
             redirect_uri="https://example.com/callback",
         )
-        
+
         userinfo = {
             "sub": "google-user-123",
             "name": "Test User",
         }
-        
+
         with pytest.raises(ValueError) as exc_info:
             provider._map_userinfo_to_user(userinfo, "google")
-        
+
         assert "missing email" in str(exc_info.value)
 
     def test_map_userinfo_to_user_missing_name_uses_given_family(self):
@@ -490,16 +479,16 @@ class TestGoogleIdentityProviderExtended:
             client_secret="test-secret",
             redirect_uri="https://example.com/callback",
         )
-        
+
         userinfo = {
             "sub": "google-user-123",
             "email": "test@example.com",
             "given_name": "Test",
             "family_name": "User",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "google")
-        
+
         assert user.name == "Test User"
 
     def test_map_userinfo_to_user_missing_name_fallback_to_email(self):
@@ -509,14 +498,14 @@ class TestGoogleIdentityProviderExtended:
             client_secret="test-secret",
             redirect_uri="https://example.com/callback",
         )
-        
+
         userinfo = {
             "sub": "google-user-123",
             "email": "test@example.com",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "google")
-        
+
         assert user.name == "test@example.com"
 
 
@@ -531,7 +520,7 @@ class TestMicrosoftIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             tenant="common",
         )
-        
+
         assert provider.client_id == "ms-client-id"
         assert provider.client_secret == "ms-secret"
         assert provider.redirect_uri == "https://example.com/callback"
@@ -547,7 +536,7 @@ class TestMicrosoftIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             tenant="contoso.onmicrosoft.com",
         )
-        
+
         assert provider.tenant == "contoso.onmicrosoft.com"
         assert "login.microsoftonline.com/contoso.onmicrosoft.com/v2.0" in provider.discovery_url
 
@@ -561,7 +550,7 @@ class TestMicrosoftIdentityProviderExtended:
         )
 
         provider = MicrosoftIdentityProvider.from_config(cfg)
-        
+
         assert provider.client_id == "config-client-id"
         assert provider.client_secret == "config-secret"
         assert provider.redirect_uri == "https://config.example.com/callback"
@@ -575,16 +564,16 @@ class TestMicrosoftIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             tenant="test-tenant",
         )
-        
+
         userinfo = {
             "oid": "ms-user-123",
             "email": "test@example.com",
             "name": "Test User",
             "tid": "tenant-123",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "microsoft")
-        
+
         assert user.id == "microsoft:ms-user-123"
         assert user.email == "test@example.com"
         assert user.name == "Test User"
@@ -599,16 +588,16 @@ class TestMicrosoftIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             tenant="common",
         )
-        
+
         userinfo = {
             "oid": "ms-user-123",
             "email": "test@example.com",
             "name": "Test User",
             "tid": "common",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "microsoft")
-        
+
         assert user.affiliations == []
 
     def test_map_userinfo_to_user_uses_sub_when_oid_missing(self):
@@ -619,15 +608,15 @@ class TestMicrosoftIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             tenant="common",
         )
-        
+
         userinfo = {
             "sub": "ms-user-sub",
             "email": "test@example.com",
             "name": "Test User",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "microsoft")
-        
+
         assert user.id == "microsoft:ms-user-sub"
 
     def test_map_userinfo_to_user_missing_email_uses_preferred_username(self):
@@ -638,15 +627,15 @@ class TestMicrosoftIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             tenant="common",
         )
-        
+
         userinfo = {
             "oid": "ms-user-123",
             "preferred_username": "test@example.com",
             "name": "Test User",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "microsoft")
-        
+
         assert user.email == "test@example.com"
 
     def test_map_userinfo_to_user_missing_email_raises_error(self):
@@ -657,15 +646,15 @@ class TestMicrosoftIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             tenant="common",
         )
-        
+
         userinfo = {
             "oid": "ms-user-123",
             "name": "Test User",
         }
-        
+
         with pytest.raises(ValueError) as exc_info:
             provider._map_userinfo_to_user(userinfo, "microsoft")
-        
+
         assert "missing email" in str(exc_info.value)
 
     def test_map_userinfo_to_user_missing_name_uses_given_family(self):
@@ -676,16 +665,16 @@ class TestMicrosoftIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             tenant="common",
         )
-        
+
         userinfo = {
             "oid": "ms-user-123",
             "email": "test@example.com",
             "given_name": "Test",
             "family_name": "User",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "microsoft")
-        
+
         assert user.name == "Test User"
 
     def test_map_userinfo_to_user_missing_name_fallback_to_email(self):
@@ -696,12 +685,12 @@ class TestMicrosoftIdentityProviderExtended:
             redirect_uri="https://example.com/callback",
             tenant="common",
         )
-        
+
         userinfo = {
             "oid": "ms-user-123",
             "email": "test@example.com",
         }
-        
+
         user = provider._map_userinfo_to_user(userinfo, "microsoft")
-        
+
         assert user.name == "test@example.com"

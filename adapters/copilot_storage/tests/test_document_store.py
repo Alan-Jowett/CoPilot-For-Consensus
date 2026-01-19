@@ -114,7 +114,6 @@ class TestDocumentStoreFactory:
         assert isinstance(store._store, AzureCosmosDocumentStore)
 
 
-
 class TestInMemoryDocumentStore:
     """Tests for InMemoryDocumentStore."""
 
@@ -320,13 +319,10 @@ class TestInMemoryDocumentStore:
         store.connect()
 
         # Insert document with nested structures
-        doc_id = store.insert_document("users", {
-            "name": "Alice",
-            "metadata": {
-                "tags": ["python", "developer"],
-                "scores": {"skill": 85, "experience": 90}
-            }
-        })
+        doc_id = store.insert_document(
+            "users",
+            {"name": "Alice", "metadata": {"tags": ["python", "developer"], "scores": {"skill": 85, "experience": 90}}},
+        )
 
         # Get document and modify nested structures
         retrieved = store.get_document("users", doc_id)
@@ -344,24 +340,25 @@ class TestInMemoryDocumentStore:
         store = InMemoryDocumentStore()
         store.connect()
 
-        doc_id = store.insert_document("users", {
-            "name": "Dana",
-            "projects": [
-                {
-                    "title": "alpha",
-                    "contributors": [
-                        {"id": 1, "roles": ["dev", "reviewer"]},
-                        {"id": 2, "roles": ["dev"]},
-                    ],
-                },
-                {
-                    "title": "beta",
-                    "contributors": [
-                        {"id": 3, "roles": ["pm"]}
-                    ],
-                },
-            ],
-        })
+        doc_id = store.insert_document(
+            "users",
+            {
+                "name": "Dana",
+                "projects": [
+                    {
+                        "title": "alpha",
+                        "contributors": [
+                            {"id": 1, "roles": ["dev", "reviewer"]},
+                            {"id": 2, "roles": ["dev"]},
+                        ],
+                    },
+                    {
+                        "title": "beta",
+                        "contributors": [{"id": 3, "roles": ["pm"]}],
+                    },
+                ],
+            },
+        )
 
         # Mutate a deep copy returned from get_document
         retrieved = store.get_document("users", doc_id)
@@ -383,9 +380,7 @@ class TestInMemoryDocumentStore:
         store.insert_document("messages", {"message_key": "msg2", "status": "complete"})
         store.insert_document("messages", {"message_key": "msg3", "status": "pending"})
 
-        pipeline = [
-            {"$match": {"status": "pending"}}
-        ]
+        pipeline = [{"$match": {"status": "pending"}}]
 
         results = store.aggregate_documents("messages", pipeline)
 
@@ -401,9 +396,7 @@ class TestInMemoryDocumentStore:
         store.insert_document("messages", {"message_key": "msg2"})
         store.insert_document("messages", {"message_key": "msg3", "archive_id": 2})
 
-        pipeline = [
-            {"$match": {"message_key": {"$exists": True}}}
-        ]
+        pipeline = [{"$match": {"message_key": {"$exists": True}}}]
 
         results = store.aggregate_documents("messages", pipeline)
 
@@ -424,14 +417,7 @@ class TestInMemoryDocumentStore:
 
         # Lookup chunks for each message
         pipeline = [
-            {
-                "$lookup": {
-                    "from": "chunks",
-                    "localField": "message_key",
-                    "foreignField": "message_key",
-                    "as": "chunks"
-                }
-            }
+            {"$lookup": {"from": "chunks", "localField": "message_key", "foreignField": "message_key", "as": "chunks"}}
         ]
 
         results = store.aggregate_documents("messages", pipeline)
@@ -459,19 +445,8 @@ class TestInMemoryDocumentStore:
 
         # Find messages without chunks
         pipeline = [
-            {
-                "$lookup": {
-                    "from": "chunks",
-                    "localField": "message_key",
-                    "foreignField": "message_key",
-                    "as": "chunks"
-                }
-            },
-            {
-                "$match": {
-                    "chunks": {"$eq": []}
-                }
-            }
+            {"$lookup": {"from": "chunks", "localField": "message_key", "foreignField": "message_key", "as": "chunks"}},
+            {"$match": {"chunks": {"$eq": []}}},
         ]
 
         results = store.aggregate_documents("messages", pipeline)
@@ -491,10 +466,7 @@ class TestInMemoryDocumentStore:
         for i in range(10):
             store.insert_document("items", {"index": i, "type": "test"})
 
-        pipeline = [
-            {"$match": {"type": "test"}},
-            {"$limit": 3}
-        ]
+        pipeline = [{"$match": {"type": "test"}}, {"$limit": 3}]
 
         results = store.aggregate_documents("items", pipeline)
 
@@ -572,7 +544,7 @@ class TestInMemoryDocumentStore:
                     "from": "nonexistent_chunks",
                     "localField": "message_key",
                     "foreignField": "message_key",
-                    "as": "chunks"
+                    "as": "chunks",
                 }
             }
         ]
@@ -591,11 +563,7 @@ class TestMongoDocumentStore:
     def test_initialization(self):
         """Test MongoDB store initialization."""
         store = MongoDocumentStore(
-            host="testhost",
-            port=27018,
-            username="testuser",
-            password="testpass",
-            database="testdb"
+            host="testhost", port=27018, username="testuser", password="testpass", database="testdb"
         )
 
         assert store.host == "testhost"
@@ -620,6 +588,7 @@ class TestMongoDocumentStore:
 
         # Mock the pymongo import to raise ImportError
         import builtins
+
         original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):

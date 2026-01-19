@@ -60,7 +60,7 @@ class TestCreateEmbeddingProvider:
         mock_st_class.return_value = Mock()
         mock_st_module.SentenceTransformer = mock_st_class
 
-        with patch.dict('sys.modules', {'sentence_transformers': mock_st_module}):
+        with patch.dict("sys.modules", {"sentence_transformers": mock_st_module}):
             provider = create_embedding_provider(
                 AdapterConfig_EmbeddingBackend(
                     embedding_backend_type="sentencetransformers",
@@ -96,7 +96,7 @@ class TestCreateEmbeddingProvider:
         mock_st_class.return_value = Mock()
         mock_st_module.SentenceTransformer = mock_st_class
 
-        with patch.dict('sys.modules', {'sentence_transformers': mock_st_module}):
+        with patch.dict("sys.modules", {"sentence_transformers": mock_st_module}):
             provider = create_embedding_provider(
                 AdapterConfig_EmbeddingBackend(
                     embedding_backend_type="sentencetransformers",
@@ -123,7 +123,7 @@ class TestCreateEmbeddingProvider:
         mock_openai_module.OpenAI = mock_openai_class
         mock_openai_module.AzureOpenAI = Mock()
 
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict("sys.modules", {"openai": mock_openai_module}):
             provider = create_embedding_provider(
                 AdapterConfig_EmbeddingBackend(
                     embedding_backend_type="openai",
@@ -146,7 +146,7 @@ class TestCreateEmbeddingProvider:
         mock_openai_module.OpenAI = mock_openai_class
         mock_openai_module.AzureOpenAI = Mock()
 
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict("sys.modules", {"openai": mock_openai_module}):
             provider = create_embedding_provider(
                 AdapterConfig_EmbeddingBackend(
                     embedding_backend_type="openai",
@@ -164,7 +164,6 @@ class TestCreateEmbeddingProvider:
         with pytest.raises(ValueError, match="embedding_backend config is required"):
             create_embedding_provider(None)  # type: ignore[arg-type]
 
-
     def test_create_azure_provider(self):
         """Test creating Azure OpenAI provider."""
         # Mock openai module
@@ -174,7 +173,7 @@ class TestCreateEmbeddingProvider:
         mock_openai_module.OpenAI = Mock()
         mock_openai_module.AzureOpenAI = mock_azure_class
 
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict("sys.modules", {"openai": mock_openai_module}):
             provider = create_embedding_provider(
                 AdapterConfig_EmbeddingBackend(
                     embedding_backend_type="azure_openai",
@@ -195,7 +194,6 @@ class TestCreateEmbeddingProvider:
         with pytest.raises(ValueError, match="embedding_backend config is required"):
             create_embedding_provider(None)  # type: ignore[arg-type]
 
-
     def test_create_huggingface_provider(self):
         """Test creating HuggingFace provider."""
         # Mock transformers and torch modules
@@ -210,7 +208,7 @@ class TestCreateEmbeddingProvider:
         mock_transformers_module.AutoModel = mock_model_class
         mock_torch_module = Mock()
 
-        with patch.dict('sys.modules', {'transformers': mock_transformers_module, 'torch': mock_torch_module}):
+        with patch.dict("sys.modules", {"transformers": mock_transformers_module, "torch": mock_torch_module}):
             provider = create_embedding_provider(
                 AdapterConfig_EmbeddingBackend(
                     embedding_backend_type="huggingface",

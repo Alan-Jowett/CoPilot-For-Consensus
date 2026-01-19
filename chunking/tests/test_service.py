@@ -29,6 +29,7 @@ except ModuleNotFoundError:
     # shadows the repo-root tests package. Load fixtures directly from file path.
     import importlib.util as _ilu  # noqa: E402
     import types as _types  # noqa: E402
+
     _fixtures_path = _repo_root / "tests" / "fixtures" / "__init__.py"
     # Ensure a synthetic parent package exists for relative imports inside fixtures
     _pkg_name = "root_tests"
@@ -43,7 +44,7 @@ except ModuleNotFoundError:
     _spec.loader.exec_module(_fixtures)
     create_valid_message = _fixtures.create_valid_message
 
-from .test_helpers import assert_valid_document_schema, assert_valid_event_schema
+from .test_helpers import assert_valid_document_schema, assert_valid_event_schema  # noqa: E402
 
 
 @pytest.fixture
@@ -161,7 +162,7 @@ def test_chunk_message_success(chunking_service, mock_document_store):
     assert chunk["embedding_generated"] is False
     assert "metadata" in chunk
     assert chunk["metadata"]["sender"] == "user@example.com"
-    
+
     # Validate chunk against schema
     assert_valid_document_schema(chunk, "chunks")
 
@@ -602,7 +603,7 @@ def test_consume_json_parsed_event():
             "message_count": 1,
             "thread_count": 1,
             "parsing_duration_seconds": 1.5,
-        }
+        },
     }
 
     # Validate incoming event
@@ -632,7 +633,7 @@ def test_consume_json_parsed_multiple_messages():
             "message_count": 3,
             "thread_count": 1,
             "parsing_duration_seconds": 2.5,
-        }
+        },
     }
 
     # Validate incoming event
@@ -709,7 +710,7 @@ def test_handle_event_with_invalid_message_doc_ids_type():
             "message_count": 1,
             "thread_count": 1,
             "parsing_duration_seconds": 1.0,
-        }
+        },
     }
 
     # Service should raise an exception for invalid type
@@ -725,10 +726,7 @@ def test_publish_chunks_prepared_raises_on_publish_error(chunking_service, mock_
     # Verify exception is raised, not swallowed
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         chunking_service._publish_chunks_prepared(
-            message_doc_ids=["abc123def4567890"],
-            chunk_ids=["aaaa1111bbbb2222"],
-            chunk_count=1,
-            avg_chunk_size=100.0
+            message_doc_ids=["abc123def4567890"], chunk_ids=["aaaa1111bbbb2222"], chunk_count=1, avg_chunk_size=100.0
         )
 
 
@@ -740,10 +738,7 @@ def test_publish_chunking_failed_raises_on_publish_error(chunking_service, mock_
     # Verify exception is raised, not swallowed
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         chunking_service._publish_chunking_failed(
-            message_doc_ids=["abc123def4567890"],
-            error_message="Test error",
-            error_type="TestError",
-            retry_count=0
+            message_doc_ids=["abc123def4567890"], error_message="Test error", error_type="TestError", retry_count=0
         )
 
 
@@ -787,10 +782,7 @@ def test_publisher_uses_event_parameter(chunking_service, mock_publisher):
     """Test that publisher.publish is called with event parameter, not message."""
     # Trigger a chunks prepared event
     chunking_service._publish_chunks_prepared(
-        message_doc_ids=["abc123def4567890"],
-        chunk_ids=["aaaa1111bbbb2222"],
-        chunk_count=1,
-        avg_chunk_size=100.0
+        message_doc_ids=["abc123def4567890"], chunk_ids=["aaaa1111bbbb2222"], chunk_count=1, avg_chunk_size=100.0
     )
 
     # Verify publish was called with event parameter
@@ -856,19 +848,21 @@ def test_metrics_collector_uses_observe_for_histograms():
     """Test that metrics collector uses observe() method for duration and size metrics."""
     mock_store = Mock()
     mock_store.insert_document = Mock(return_value="chunk_123")
-    mock_store.query_documents = Mock(return_value=[
-        {
-            "_id": "abc123def4567890",
-            "message_id": "<test@example.com>",
-            "thread_id": "1111222233334444",
-            "archive_id": "archive-123",
-            "body_normalized": "This is a test message. " * 50,
-            "from": {"email": "user@example.com", "name": "Test User"},
-            "date": "2023-10-15T12:00:00Z",
-            "subject": "Test Subject",
-            "draft_mentions": [],
-        }
-    ])
+    mock_store.query_documents = Mock(
+        return_value=[
+            {
+                "_id": "abc123def4567890",
+                "message_id": "<test@example.com>",
+                "thread_id": "1111222233334444",
+                "archive_id": "archive-123",
+                "body_normalized": "This is a test message. " * 50,
+                "from": {"email": "user@example.com", "name": "Test User"},
+                "date": "2023-10-15T12:00:00Z",
+                "subject": "Test Subject",
+                "draft_mentions": [],
+            }
+        ]
+    )
 
     mock_publisher = Mock()
     mock_subscriber = Mock()
@@ -900,14 +894,12 @@ def test_metrics_collector_uses_observe_for_histograms():
     assert len(observe_calls) >= 1, "observe() should be called for metrics"
 
     # Check that duration metric was recorded
-    duration_calls = [call for call in observe_calls
-                     if call[0][0] == "chunking_duration_seconds"]
+    duration_calls = [call for call in observe_calls if call[0][0] == "chunking_duration_seconds"]
     assert len(duration_calls) == 1, "chunking_duration_seconds should be recorded once"
 
     # Verify histogram method was NOT called (it doesn't exist in the API)
     method_names = [call[0] for call in mock_metrics.method_calls]
-    assert 'histogram' not in method_names, \
-        "histogram() method should not be used (use observe() instead)"
+    assert "histogram" not in method_names, "histogram() method should not be used (use observe() instead)"
 
 
 def test_requeue_incomplete_messages_with_aggregation_support():
@@ -929,25 +921,14 @@ def test_requeue_incomplete_messages_with_aggregation_support():
     store.connect()
 
     # Canonical hex IDs
-    archive_id = '1111111111111111'
-    msg1_id = 'aaaaaaaaaaaaaaaa'
-    msg2_id = 'bbbbbbbbbbbbbbbb'
+    archive_id = "1111111111111111"
+    msg1_id = "aaaaaaaaaaaaaaaa"
+    msg2_id = "bbbbbbbbbbbbbbbb"
 
     # Insert test data: 2 messages, only 1 has chunks
-    store.insert_document('messages', {
-        '_id': msg1_id,
-        'archive_id': archive_id,
-        'body_normalized': 'test message 1'
-    })
-    store.insert_document('messages', {
-        '_id': msg2_id,
-        'archive_id': archive_id,
-        'body_normalized': 'test message 2'
-    })
-    store.insert_document('chunks', {
-        'message_doc_id': msg1_id,
-        '_id': 'cccccccccccccccc'
-    })
+    store.insert_document("messages", {"_id": msg1_id, "archive_id": archive_id, "body_normalized": "test message 1"})
+    store.insert_document("messages", {"_id": msg2_id, "archive_id": archive_id, "body_normalized": "test message 2"})
+    store.insert_document("chunks", {"message_doc_id": msg1_id, "_id": "cccccccccccccccc"})
 
     mock_publisher = Mock()
     mock_subscriber = Mock()
@@ -973,17 +954,17 @@ def test_requeue_incomplete_messages_with_aggregation_support():
     call_args = mock_publisher.publish.call_args
 
     # Verify the published event contains msg2 only (no msg1 which has chunks)
-    event = call_args[1]['event']
-    event_data = event['data']
-    assert event_data['archive_id'] == archive_id
-    assert msg2_id in event_data['message_doc_ids']
-    assert msg1_id not in event_data['message_doc_ids']
+    event = call_args[1]["event"]
+    event_data = event["data"]
+    assert event_data["archive_id"] == archive_id
+    assert msg2_id in event_data["message_doc_ids"]
+    assert msg1_id not in event_data["message_doc_ids"]
 
 
 def test_requeue_skips_when_aggregation_not_supported():
     """Test that startup requeue is skipped gracefully when aggregation not supported."""
     # Create a mock store without aggregate_documents method
-    mock_store = Mock(spec=['connect', 'insert_document', 'query_documents'])
+    mock_store = Mock(spec=["connect", "insert_document", "query_documents"])
 
     mock_publisher = Mock()
     mock_subscriber = Mock()
@@ -1008,10 +989,9 @@ def test_requeue_skips_when_aggregation_not_supported():
     assert mock_publisher.publish.call_count == 0
 
 
-
 def test_schema_validation_enforced_for_chunks(chunking_service):
     """Test that chunks generated by the service are schema-compliant.
-    
+
     This test verifies that schema validation is enforced in production by
     ensuring that chunk documents created by the service conform to the
     chunks.schema.json specification.

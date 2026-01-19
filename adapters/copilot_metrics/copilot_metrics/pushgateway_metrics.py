@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 # Import prometheus_client with graceful fallback
 try:
     from prometheus_client import CollectorRegistry, push_to_gateway
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -29,6 +30,7 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
     Uses a dedicated registry so we only push ingestion-specific metrics and
     avoid leaking default process metrics.
     """
+
     # Hint for runtimes that feature-detect push capability
     can_push: bool = True
 
@@ -95,10 +97,10 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
             raise
 
     @classmethod
-    def from_config(
+    def from_config(  # type: ignore[override]
         cls,
         driver_config: DriverConfig_Metrics_Pushgateway,
-    ) -> "PrometheusPushGatewayMetricsCollector":
+    ) -> PrometheusPushGatewayMetricsCollector:
         """Create a PrometheusPushGatewayMetricsCollector from configuration.
 
         Args:

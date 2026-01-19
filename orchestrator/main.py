@@ -3,38 +3,13 @@
 
 """Orchestration Service: Coordinate summarization and analysis tasks."""
 
-import os
-import sys
 import threading
 from dataclasses import replace
 from typing import cast
 
-# Add app directory to path
-sys.path.insert(0, os.path.dirname(__file__))
-
 import uvicorn
-from copilot_message_bus import create_publisher, create_subscriber
-from copilot_logging import (
-    create_logger,
-    create_stdout_logger,
-    create_uvicorn_log_config,
-    get_logger,
-    set_default_logger,
-)
-from copilot_metrics import create_metrics_collector
-from copilot_error_reporting import create_error_reporter
-from copilot_schema_validation import create_schema_provider
-from copilot_storage import DocumentStoreConnectionError, create_document_store
-from fastapi import FastAPI
-
-# Bootstrap logger for early initialization (before config is loaded)
-logger = create_stdout_logger(level="INFO", name="orchestrator")
-set_default_logger(logger)
-
 from app import __version__
 from app.service import OrchestrationService
-from copilot_config.runtime_loader import get_config
-from copilot_config.generated.services.orchestrator import ServiceConfig_Orchestrator
 from copilot_config.generated.adapters.message_bus import (
     DriverConfig_MessageBus_AzureServiceBus,
     DriverConfig_MessageBus_Rabbitmq,
@@ -44,6 +19,25 @@ from copilot_config.generated.adapters.metrics import (
     DriverConfig_Metrics_Prometheus,
     DriverConfig_Metrics_Pushgateway,
 )
+from copilot_config.generated.services.orchestrator import ServiceConfig_Orchestrator
+from copilot_config.runtime_loader import get_config
+from copilot_error_reporting import create_error_reporter
+from copilot_logging import (
+    create_logger,
+    create_stdout_logger,
+    create_uvicorn_log_config,
+    get_logger,
+    set_default_logger,
+)
+from copilot_message_bus import create_publisher, create_subscriber
+from copilot_metrics import create_metrics_collector
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import DocumentStoreConnectionError, create_document_store
+from fastapi import FastAPI
+
+# Bootstrap logger for early initialization (before config is loaded)
+logger = create_stdout_logger(level="INFO", name="orchestrator")
+set_default_logger(logger)
 
 # Create FastAPI app
 app = FastAPI(title="Orchestration Service", version=__version__)
@@ -122,12 +116,8 @@ def main():
             try:
                 from copilot_auth import create_jwt_middleware
 
-                auth_service_url = str(
-                    config.service_settings.auth_service_url or "http://auth:8090"
-                )
-                audience = str(
-                    config.service_settings.service_audience or "copilot-for-consensus"
-                )
+                auth_service_url = str(config.service_settings.auth_service_url or "http://auth:8090")
+                audience = str(config.service_settings.service_audience or "copilot-for-consensus")
                 auth_middleware = create_jwt_middleware(
                     auth_service_url=auth_service_url,
                     audience=audience,
@@ -183,6 +173,7 @@ def main():
 
         # Refresh module-level service logger to use the current default
         from app import service as orchestration_service_module
+
         orchestration_service_module.logger = get_logger(orchestration_service_module.__name__)
 
         # Create adapters
@@ -268,7 +259,7 @@ def main():
 
     except Exception as e:
         logger.error(f"Failed to start orchestration service: {e}", exc_info=True)
-        sys.exit(1)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

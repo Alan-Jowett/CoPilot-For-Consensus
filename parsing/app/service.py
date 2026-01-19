@@ -10,6 +10,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 from copilot_archive_store import ArchiveStore
+from copilot_error_reporting import ErrorReporter
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
+from copilot_logging import get_logger
 from copilot_message_bus import (
     ArchiveIngestedEvent,
     EventPublisher,
@@ -19,21 +26,13 @@ from copilot_message_bus import (
     SourceCleanupProgressEvent,
     SourceDeletionRequestedEvent,
 )
-from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
-from copilot_error_reporting import ErrorReporter
 from copilot_schema_validation import generate_message_doc_id
 from copilot_storage import DocumentStore
 from copilot_storage.validating_document_store import DocumentValidationError
-from copilot_event_retry import (
-    DocumentNotFoundError,
-    RetryConfig,
-    handle_event_with_retry,
-)
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
-from . import __version__
 
 logger = get_logger(__name__)
 
@@ -43,10 +42,9 @@ VALID_SOURCE_TYPES = ["rsync", "imap", "http", "local"]
 
 def _is_duplicate_key_error(exc: BaseException) -> bool:
     return (
-        type(exc).__name__ == "DuplicateKeyError"
-        or "duplicate key" in str(exc).lower()
-        or "e11000" in str(exc).lower()
+        type(exc).__name__ == "DuplicateKeyError" or "duplicate key" in str(exc).lower() or "e11000" in str(exc).lower()
     )
+
 
 class ParsingService:
     """Main parsing service for converting mbox archives to structured JSON."""
@@ -143,27 +141,27 @@ class ParsingService:
         archive_id = doc.get("archive_id") or doc.get("_id")
         source_name = doc.get("source")
         source_type = doc.get("source_type")
-        
+
         # Require source_name and source_type - these are essential for thread correlation
         if not source_name:
             raise ValueError(
                 f"Archive {archive_id} missing required field 'source' (ingestion bug: "
                 "source_name must be set when creating archives)"
             )
-        
+
         if not source_type:
             raise ValueError(
                 f"Archive {archive_id} missing required field 'source_type' (ingestion bug: "
                 f"source_type must be one of {VALID_SOURCE_TYPES})"
             )
-        
+
         # Validate source_type is a known enum value
         if source_type not in VALID_SOURCE_TYPES:
             raise ValueError(
                 f"Archive {archive_id} has invalid source_type '{source_type}' "
                 f"(must be one of {VALID_SOURCE_TYPES})"
             )
-        
+
         return {
             "archive_id": archive_id,
             "source_name": source_name,
@@ -228,7 +226,7 @@ class ParsingService:
             # Generate idempotency key from archive ID
             archive_id = archive_ingested.data.get("archive_id", "unknown")
             idempotency_key = f"parsing-{archive_id}"
-            
+
             # Wrap processing with retry logic
             handle_event_with_retry(
                 handler=lambda e: self.process_archive(e.get("data", {})),
@@ -277,7 +275,7 @@ class ParsingService:
                 if archive_content is None:
                     error_msg = f"Archive {archive_id} not found in ArchiveStore"
                     logger.warning(error_msg)
-                    
+
                     # Raise retryable error to trigger retry logic for race conditions
                     # This handles cases where events arrive before archives are stored
                     raise DocumentNotFoundError(error_msg)
@@ -307,7 +305,7 @@ class ParsingService:
             try:
                 # Create temp file with prefix for easier identification
                 with tempfile.NamedTemporaryFile(
-                    mode='wb', delete=False, suffix='.mbox', prefix='parsing_'
+                    mode="wb", delete=False, suffix=".mbox", prefix="parsing_"
                 ) as temp_file:
                     temp_file_path = temp_file.name
                     temp_file.write(archive_content)
@@ -463,7 +461,6 @@ class ParsingService:
                 # Push metrics to Pushgateway
                 self.metrics_collector.safe_push()
 
-
             # Report error
             if self.error_reporter:
                 self.error_reporter.report(
@@ -471,7 +468,7 @@ class ParsingService:
                     context={
                         "archive_id": archive_id,
                         "operation": "process_archive",
-                    }
+                    },
                 )
 
             # Publish ParsingFailed event
@@ -489,7 +486,7 @@ class ParsingService:
                 logger.error(
                     f"Failed to publish ParsingFailed event for {archive_id}",
                     exc_info=True,
-                    extra={"original_error": str(e), "publish_error": str(publish_error)}
+                    extra={"original_error": str(e), "publish_error": str(publish_error)},
                 )
                 if self.error_reporter:
                     self.error_reporter.report(publish_error, context={"archive_id": archive_id})
@@ -646,15 +643,14 @@ class ParsingService:
                     "status": status,
                     "message_count": message_count,
                     "updated_at": datetime.now(timezone.utc).isoformat(),
-                }
+                },
             )
             logger.info(f"Updated archive {archive_id} status to '{status}' with {message_count} messages")
 
             # Emit metric for status transition
             if self.metrics_collector:
                 self.metrics_collector.increment(
-                    "parsing_archive_status_transitions_total",
-                    tags={"status": status, "collection": "archives"}
+                    "parsing_archive_status_transitions_total", tags={"status": status, "collection": "archives"}
                 )
         except Exception as e:
             # Log but don't raise - archive status update is not critical
@@ -671,7 +667,7 @@ class ParsingService:
                         "archive_id": archive_id,
                         "status": status,
                         "message_count": message_count,
-                    }
+                    },
                 )
 
     def _publish_json_parsed_per_message(
@@ -700,17 +696,14 @@ class ParsingService:
         thread_lookup = {thread["thread_id"]: thread for thread in threads}
 
         # Track failed publications for error reporting
-        failed_publishes = []
+        failed_publishes: list[tuple[str, Exception]] = []
 
         for message in parsed_messages:
             # Validate required fields exist
             message_doc_id = message.get("_id")
             if not message_doc_id:
                 logger.error("Cannot publish event: message missing required '_id' field")
-                failed_publishes.append((
-                    "unknown",
-                    ValueError("Message missing required '_id' field")
-                ))
+                failed_publishes.append(("unknown", ValueError("Message missing required '_id' field")))
                 continue
 
             thread_id = message.get("thread_id")
@@ -739,10 +732,7 @@ class ParsingService:
                 )
                 logger.debug(f"Published JSONParsed event for message {message_doc_id}")
             except Exception as e:
-                logger.error(
-                    f"Failed to publish JSONParsed event for message {message_doc_id}: {e}",
-                    exc_info=True
-                )
+                logger.error(f"Failed to publish JSONParsed event for message {message_doc_id}: {e}", exc_info=True)
                 failed_publishes.append((message_doc_id, e))
                 if self.error_reporter:
                     self.error_reporter.report(
@@ -751,7 +741,7 @@ class ParsingService:
                             "operation": "publish_json_parsed",
                             "archive_id": archive_id,
                             "message_doc_id": message_doc_id,
-                        }
+                        },
                     )
 
         # If any publishes failed, raise an exception to fail the archive processing

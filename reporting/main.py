@@ -13,8 +13,8 @@ from typing import cast
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from copilot_config.runtime_loader import get_config
-from copilot_config.generated.services.reporting import ServiceConfig_Reporting
+from app import __version__
+from app.service import ReportingService
 from copilot_config.generated.adapters.message_bus import (
     DriverConfig_MessageBus_AzureServiceBus,
     DriverConfig_MessageBus_Rabbitmq,
@@ -29,7 +29,9 @@ from copilot_config.generated.adapters.vector_store import (
     DriverConfig_VectorStore_Faiss,
     DriverConfig_VectorStore_Qdrant,
 )
-from copilot_message_bus import create_publisher, create_subscriber
+from copilot_config.generated.services.reporting import ServiceConfig_Reporting
+from copilot_config.runtime_loader import get_config
+from copilot_error_reporting import create_error_reporter
 from copilot_logging import (
     create_logger,
     create_stdout_logger,
@@ -37,8 +39,8 @@ from copilot_logging import (
     get_logger,
     set_default_logger,
 )
+from copilot_message_bus import create_publisher, create_subscriber
 from copilot_metrics import create_metrics_collector
-from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import DocumentStoreConnectionError, create_document_store
 from fastapi import FastAPI, HTTPException, Query
@@ -47,8 +49,6 @@ from fastapi import FastAPI, HTTPException, Query
 bootstrap_logger = create_stdout_logger(level="INFO", name="reporting")
 set_default_logger(bootstrap_logger)
 
-from app import __version__
-from app.service import ReportingService
 logger = bootstrap_logger
 
 # Create FastAPI app
@@ -102,14 +102,22 @@ def get_reports(
     thread_id: str = Query(None, description="Filter by thread ID"),
     limit: int = Query(10, ge=1, le=100, description="Maximum number of results"),
     skip: int = Query(0, ge=0, description="Number of results to skip"),
-    message_start_date: str = Query(None, description="Filter by thread message dates (inclusive overlap) - start of date range (ISO 8601)"),
-    message_end_date: str = Query(None, description="Filter by thread message dates (inclusive overlap) - end of date range (ISO 8601)"),
+    message_start_date: str = Query(
+        None, description="Filter by thread message dates (inclusive overlap) - start of date range (ISO 8601)"
+    ),
+    message_end_date: str = Query(
+        None, description="Filter by thread message dates (inclusive overlap) - end of date range (ISO 8601)"
+    ),
     source: str = Query(None, description="Filter by archive source"),
     min_participants: int = Query(None, ge=0, description="Minimum number of participants"),
     max_participants: int = Query(None, ge=0, description="Maximum number of participants"),
     min_messages: int = Query(None, ge=0, description="Minimum number of messages in thread"),
     max_messages: int = Query(None, ge=0, description="Maximum number of messages in thread"),
-    sort_by: str = Query(None, regex="^(thread_start_date|generated_at)$", description="Sort by field ('thread_start_date' or 'generated_at')"),
+    sort_by: str = Query(
+        None,
+        regex="^(thread_start_date|generated_at)$",
+        description="Sort by field ('thread_start_date' or 'generated_at')",
+    ),
     sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order ('asc' or 'desc')"),
 ):
     """Get list of reports with optional filters."""
@@ -590,7 +598,9 @@ def main():
             if vector_store_type in {"qdrant", "azure_ai_search"}:
                 if vector_store_type == "qdrant":
                     qdrant_cfg = cast(DriverConfig_VectorStore_Qdrant, vector_store_config.driver)
-                    vector_store_config = replace(vector_store_config, driver=replace(qdrant_cfg, vector_size=embedding_dimension))
+                    vector_store_config = replace(
+                        vector_store_config, driver=replace(qdrant_cfg, vector_size=embedding_dimension)
+                    )
                 else:
                     azure_search_cfg = cast(DriverConfig_VectorStore_AzureAiSearch, vector_store_config.driver)
                     vector_store_config = replace(
@@ -599,7 +609,9 @@ def main():
                     )
             elif vector_store_type == "faiss":
                 faiss_cfg = cast(DriverConfig_VectorStore_Faiss, vector_store_config.driver)
-                vector_store_config = replace(vector_store_config, driver=replace(faiss_cfg, dimension=embedding_dimension))
+                vector_store_config = replace(
+                    vector_store_config, driver=replace(faiss_cfg, dimension=embedding_dimension)
+                )
 
             logger.info("Creating vector store for topic search...")
             vector_store = create_vector_store(vector_store_config)
@@ -618,7 +630,9 @@ def main():
             subscriber=subscriber,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
-            webhook_url=config.service_settings.notify_webhook_url if config.service_settings.notify_webhook_url else None,
+            webhook_url=config.service_settings.notify_webhook_url
+            if config.service_settings.notify_webhook_url
+            else None,
             notify_enabled=bool(config.service_settings.notify_enabled),
             webhook_summary_max_length=int(config.service_settings.webhook_summary_max_length or 0),
             vector_store=vector_store,

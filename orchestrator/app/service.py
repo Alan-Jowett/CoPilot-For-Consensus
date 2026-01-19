@@ -9,6 +9,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from copilot_error_reporting import ErrorReporter
+from copilot_event_retry import (
+    DocumentNotFoundError,
+    RetryConfig,
+    handle_event_with_retry,
+)
+from copilot_logging import get_logger
 from copilot_message_bus import (
     EmbeddingsGeneratedEvent,
     EventPublisher,
@@ -16,15 +23,8 @@ from copilot_message_bus import (
     OrchestrationFailedEvent,
     SummarizationRequestedEvent,
 )
-from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
-from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
-from copilot_event_retry import (
-    DocumentNotFoundError,
-    RetryConfig,
-    handle_event_with_retry,
-)
 
 logger = get_logger(__name__)
 
@@ -91,7 +91,7 @@ class OrchestrationService:
             if not system_path.exists():
                 raise FileNotFoundError(f"System prompt file not found: {self.system_prompt_path}")
 
-            with open(system_path, 'r', encoding='utf-8') as f:
+            with open(system_path, encoding="utf-8") as f:
                 self.system_prompt = f.read()
 
             if not self.system_prompt.strip():
@@ -103,7 +103,7 @@ class OrchestrationService:
             if not user_path.exists():
                 raise FileNotFoundError(f"User prompt file not found: {self.user_prompt_path}")
 
-            with open(user_path, 'r', encoding='utf-8') as f:
+            with open(user_path, encoding="utf-8") as f:
                 self.user_prompt = f.read()
 
             if not self.user_prompt.strip():
@@ -161,20 +161,14 @@ class OrchestrationService:
                     return
 
                 # Collect all thread IDs to batch-fetch chunks for all threads at once
-                thread_ids = [
-                    thread.get("thread_id")
-                    for thread in threads
-                    if thread.get("thread_id") is not None
-                ]
+                thread_ids = [thread.get("thread_id") for thread in threads if thread.get("thread_id") is not None]
 
                 if not thread_ids:
                     logger.info("No valid thread IDs found for threads without summaries")
                     return
 
                 # Batch query: fetch chunks for all relevant threads in a single call
-                logger.debug(
-                    f"Batch querying chunks for {len(thread_ids)} threads to check embedding status"
-                )
+                logger.debug(f"Batch querying chunks for {len(thread_ids)} threads to check embedding status")
                 chunks = self.document_store.query_documents(
                     collection="chunks",
                     filter_dict={"thread_id": {"$in": thread_ids}},
@@ -204,16 +198,12 @@ class OrchestrationService:
                         continue
 
                     # Check if all chunks have embeddings
-                    all_embedded = all(
-                        chunk.get("embedding_generated", False) for chunk in thread_chunks
-                    )
+                    all_embedded = all(chunk.get("embedding_generated", False) for chunk in thread_chunks)
 
                     if all_embedded:
                         ready_threads.append(thread)
                     else:
-                        logger.debug(
-                            f"Thread {thread_id} has {len(thread_chunks)} chunks but not all have embeddings"
-                        )
+                        logger.debug(f"Thread {thread_id} has {len(thread_chunks)} chunks but not all have embeddings")
 
                 if not ready_threads:
                     logger.info("No threads with complete embeddings found")
@@ -239,7 +229,7 @@ class OrchestrationService:
                     self.metrics_collector.increment(
                         "startup_requeue_errors_total",
                         1,
-                        tags={"collection": "threads", "error_type": type(e).__name__}
+                        tags={"collection": "threads", "error_type": type(e).__name__},
                     )
 
         except ImportError:
@@ -264,21 +254,21 @@ class OrchestrationService:
             # Parse event
             embeddings_event = EmbeddingsGeneratedEvent(data=event.get("data", {}))
 
-            chunk_count = len(embeddings_event.data.get('chunk_ids', []))
+            chunk_count = len(embeddings_event.data.get("chunk_ids", []))
             logger.info(f"Received EmbeddingsGenerated event with {chunk_count} chunks")
 
             # Process with retry logic for race condition handling
             # Generate idempotency key from chunk IDs
             # Use all chunk IDs for uniqueness (limited to reasonable length for key storage)
             chunk_ids = embeddings_event.data.get("chunk_ids", [])
-            chunk_ids_str = '-'.join(str(cid) for cid in chunk_ids)
+            chunk_ids_str = "-".join(str(cid) for cid in chunk_ids)
             # Hash if too long to keep key manageable
             if len(chunk_ids_str) > 100:
                 chunk_ids_hash = hashlib.sha256(chunk_ids_str.encode()).hexdigest()[:16]
                 idempotency_key = f"orchestrator-{chunk_ids_hash}"
             else:
                 idempotency_key = f"orchestrator-{chunk_ids_str}"
-            
+
             # Wrap processing with retry logic
             handle_event_with_retry(
                 handler=lambda e: self.process_embeddings(e.get("data", {})),
@@ -366,11 +356,7 @@ class OrchestrationService:
         thread_ids: set[str] = set()
 
         # Query document store for chunks by _id
-        chunks = self.document_store.query_documents(
-            "chunks",
-            {"_id": {"$in": chunk_ids}},
-            limit=len(chunk_ids)
-        )
+        chunks = self.document_store.query_documents("chunks", {"_id": {"$in": chunk_ids}}, limit=len(chunk_ids))
 
         if not chunks:
             message = f"No chunks found in database for {len(chunk_ids)} IDs"
@@ -412,29 +398,30 @@ class OrchestrationService:
 
             # Check if a summary already exists with this exact set of chunks
             if self._summary_exists(expected_summary_id):
-                logger.info(f"Summary already exists for thread {thread_id} with current chunks (summary_id={expected_summary_id[:16]}), skipping")
+                logger.info(
+                    f"Summary already exists for thread {thread_id} with current chunks "
+                    f"(summary_id={expected_summary_id[:16]}), skipping"
+                )
                 if self.metrics_collector:
                     self.metrics_collector.increment(
-                        "orchestrator_summary_skipped_total",
-                        tags={"reason": "summary_already_exists"}
+                        "orchestrator_summary_skipped_total", tags={"reason": "summary_already_exists"}
                     )
                 return
 
             # Publish SummarizationRequested event
-            self._publish_summarization_requested(
-                thread_ids=[thread_id],
-                context=context
-            )
+            self._publish_summarization_requested(thread_ids=[thread_id], context=context)
 
             if self.metrics_collector:
                 self.metrics_collector.increment(
-                    "orchestrator_summary_triggered_total",
-                    tags={"reason": "chunks_changed"}
+                    "orchestrator_summary_triggered_total", tags={"reason": "chunks_changed"}
                 )
                 # Push metrics to Pushgateway
                 self.metrics_collector.safe_push()
 
-            logger.info(f"Published SummarizationRequested for thread {thread_id} (expected summary_id={expected_summary_id[:16]})")
+            logger.info(
+                f"Published SummarizationRequested for thread {thread_id} "
+                f"(expected summary_id={expected_summary_id[:16]})"
+            )
 
         except Exception as e:
             logger.error(f"Error in _orchestrate_thread for {thread_id}: {e}", exc_info=True)
@@ -455,11 +442,7 @@ class OrchestrationService:
             Hex string of SHA256 hash (64 characters)
         """
         # Extract and sort chunk IDs (_id field) to ensure consistent ordering
-        chunk_ids = sorted(
-            str(chunk_id)
-            for chunk_id in {chunk.get("_id") for chunk in chunks}
-            if chunk_id is not None
-        )
+        chunk_ids = sorted(str(chunk_id) for chunk_id in {chunk.get("_id") for chunk in chunks} if chunk_id is not None)
 
         # Combine thread_id and canonical _ids into a single string (matches summarization service)
         id_input = f"{thread_id}:{','.join(chunk_ids)}"
@@ -485,11 +468,7 @@ class OrchestrationService:
             truncated_id = hashlib.sha256(summary_id.encode()).hexdigest()[:16]
 
             # Check if summary document exists
-            summaries = self.document_store.query_documents(
-                "summaries",
-                {"_id": truncated_id},
-                limit=1
-            )
+            summaries = self.document_store.query_documents("summaries", {"_id": truncated_id}, limit=1)
 
             return len(summaries) > 0
 
@@ -510,9 +489,7 @@ class OrchestrationService:
         try:
             # Get chunks for this thread from document store
             chunks = self.document_store.query_documents(
-                "chunks",
-                {"thread_id": thread_id, "embedding_generated": True},
-                limit=self.top_k
+                "chunks", {"thread_id": thread_id, "embedding_generated": True}, limit=self.top_k
             )
 
             if not chunks:
@@ -525,17 +502,15 @@ class OrchestrationService:
 
             if message_doc_ids:
                 messages = self.document_store.query_documents(
-                    "messages",
-                    {"_id": {"$in": message_doc_ids}},
-                    limit=len(message_doc_ids)
+                    "messages", {"_id": {"$in": message_doc_ids}}, limit=len(message_doc_ids)
                 )
 
             context = {
                 "thread_id": thread_id,
                 "chunk_count": len(chunks),
-                "chunks": chunks[:self.top_k],  # Limit to top_k
+                "chunks": chunks[: self.top_k],  # Limit to top_k
                 "messages": messages,
-                "retrieved_at": datetime.now(timezone.utc).isoformat()
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
             }
 
             logger.info(f"Retrieved {len(chunks)} chunks and {len(messages)} messages for thread {thread_id}")
@@ -555,6 +530,7 @@ class OrchestrationService:
             thread_ids: List of thread IDs
             context: Retrieved context
         """
+        del context
         try:
             event_data = {
                 "thread_ids": thread_ids,
@@ -565,17 +541,14 @@ class OrchestrationService:
             event = SummarizationRequestedEvent(data=event_data)
 
             self.publisher.publish(
-                exchange="copilot.events",
-                routing_key="summarization.requested",
-                event=event.to_dict()
+                exchange="copilot.events", routing_key="summarization.requested", event=event.to_dict()
             )
 
             logger.info(f"Published SummarizationRequested for threads: {thread_ids}")
 
             if self.metrics_collector:
                 self.metrics_collector.increment(
-                    "orchestration_events_total",
-                    tags={"event_type": "summarization_requested", "outcome": "success"}
+                    "orchestration_events_total", tags={"event_type": "summarization_requested", "outcome": "success"}
                 )
                 # Push metrics to Pushgateway
                 self.metrics_collector.safe_push()
@@ -599,28 +572,20 @@ class OrchestrationService:
                 "thread_ids": thread_ids,
                 "error_type": error_type,
                 "error_message": error_message,
-                "retry_count": 0
+                "retry_count": 0,
             }
 
             event = OrchestrationFailedEvent(data=event_data)
 
-            self.publisher.publish(
-                exchange="copilot.events",
-                routing_key="orchestration.failed",
-                event=event.to_dict()
-            )
+            self.publisher.publish(exchange="copilot.events", routing_key="orchestration.failed", event=event.to_dict())
 
             logger.info(f"Published OrchestrationFailed for threads: {thread_ids}")
 
             if self.metrics_collector:
                 self.metrics_collector.increment(
-                    "orchestration_events_total",
-                    tags={"event_type": "orchestration_failed", "outcome": "failure"}
+                    "orchestration_events_total", tags={"event_type": "orchestration_failed", "outcome": "failure"}
                 )
-                self.metrics_collector.increment(
-                    "orchestration_failures_total",
-                    tags={"error_type": error_type}
-                )
+                self.metrics_collector.increment("orchestration_failures_total", tags={"error_type": error_type})
                 # Push metrics to Pushgateway
                 self.metrics_collector.safe_push()
 
@@ -644,6 +609,5 @@ class OrchestrationService:
             "config": {
                 "top_k": self.top_k,
                 "context_window_tokens": self.context_window_tokens,
-            }
+            },
         }
-

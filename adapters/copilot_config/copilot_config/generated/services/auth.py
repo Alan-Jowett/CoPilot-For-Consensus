@@ -8,7 +8,6 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from ..adapters.document_store import AdapterConfig_DocumentStore
 from ..adapters.logger import AdapterConfig_Logger
@@ -20,31 +19,33 @@ from ..adapters.secret_provider import AdapterConfig_SecretProvider
 @dataclass
 class ServiceSettings_Auth:
     """Service-specific settings for auth."""
+
     issuer: str
-    audiences: Optional[str] = 'copilot-for-consensus'
-    auto_approve_enabled: Optional[bool] = False
-    auto_approve_roles: Optional[str] = None
-    cookie_secure: Optional[bool] = False
-    enable_dpop: Optional[bool] = False
-    first_user_auto_promotion_enabled: Optional[bool] = False
-    host: Optional[str] = '0.0.0.0'
-    jwt_algorithm: Optional[str] = 'RS256'
-    jwt_default_expiry: Optional[int] = 1800
-    jwt_key_id: Optional[str] = 'default'
-    jwt_private_key: Optional[str] = None
-    jwt_public_key: Optional[str] = None
-    jwt_secret_key: Optional[str] = None
-    max_skew_seconds: Optional[int] = 90
-    port: Optional[int] = 8090
-    require_nonce: Optional[bool] = True
-    require_pkce: Optional[bool] = True
-    role_store_collection: Optional[str] = 'user_roles'
-    role_store_schema_dir: Optional[str] = None
+    audiences: str | None = "copilot-for-consensus"
+    auto_approve_enabled: bool | None = False
+    auto_approve_roles: str | None = None
+    cookie_secure: bool | None = False
+    enable_dpop: bool | None = False
+    first_user_auto_promotion_enabled: bool | None = False
+    host: str | None = "0.0.0.0"
+    jwt_algorithm: str | None = "RS256"
+    jwt_default_expiry: int | None = 1800
+    jwt_key_id: str | None = "default"
+    jwt_private_key: str | None = None
+    jwt_public_key: str | None = None
+    jwt_secret_key: str | None = None
+    max_skew_seconds: int | None = 90
+    port: int | None = 8090
+    require_nonce: bool | None = True
+    require_pkce: bool | None = True
+    role_store_collection: str | None = "user_roles"
+    role_store_schema_dir: str | None = None
 
 
 @dataclass
 class ServiceConfig_Auth:
     """Top-level configuration for auth service."""
+
     service_settings: ServiceSettings_Auth
     document_store: AdapterConfig_DocumentStore
     logger: AdapterConfig_Logger

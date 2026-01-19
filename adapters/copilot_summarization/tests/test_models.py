@@ -11,11 +11,7 @@ class TestCitation:
 
     def test_citation_creation(self):
         """Test creating a citation."""
-        citation = Citation(
-            message_id="msg-123",
-            chunk_id="chunk-456",
-            offset=100
-        )
+        citation = Citation(message_id="msg-123", chunk_id="chunk-456", offset=100)
 
         assert citation.message_id == "msg-123"
         assert citation.chunk_id == "chunk-456"
@@ -27,10 +23,7 @@ class TestThread:
 
     def test_thread_defaults(self):
         """Test thread with default values."""
-        thread = Thread(
-            thread_id="thread-123",
-            messages=["Message 1", "Message 2"]
-        )
+        thread = Thread(thread_id="thread-123", messages=["Message 1", "Message 2"])
 
         assert thread.thread_id == "thread-123"
         assert len(thread.messages) == 2
@@ -41,11 +34,7 @@ class TestThread:
     def test_thread_custom_values(self):
         """Test thread with custom values."""
         thread = Thread(
-            thread_id="thread-456",
-            messages=["Test"],
-            top_k=5,
-            context_window_tokens=2048,
-            prompt="Custom prompt"
+            thread_id="thread-456", messages=["Test"], top_k=5, context_window_tokens=2048, prompt="Custom prompt"
         )
 
         assert thread.thread_id == "thread-456"
@@ -59,10 +48,7 @@ class TestSummary:
 
     def test_summary_defaults(self):
         """Test summary with default values."""
-        summary = Summary(
-            thread_id="thread-123",
-            summary_markdown="# Summary\n\nThis is a test."
-        )
+        summary = Summary(thread_id="thread-123", summary_markdown="# Summary\n\nThis is a test.")
 
         assert summary.thread_id == "thread-123"
         assert summary.summary_markdown == "# Summary\n\nThis is a test."
@@ -77,7 +63,7 @@ class TestSummary:
         """Test summary with citations."""
         citations = [
             Citation(message_id="msg-1", chunk_id="chunk-1", offset=0),
-            Citation(message_id="msg-2", chunk_id="chunk-2", offset=50)
+            Citation(message_id="msg-2", chunk_id="chunk-2", offset=50),
         ]
 
         summary = Summary(
@@ -88,7 +74,7 @@ class TestSummary:
             llm_model="gpt-4",
             tokens_prompt=100,
             tokens_completion=50,
-            latency_ms=1500
+            latency_ms=1500,
         )
 
         assert len(summary.citations) == 2

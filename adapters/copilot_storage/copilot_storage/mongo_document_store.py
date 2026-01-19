@@ -4,7 +4,7 @@
 """MongoDB document store implementation."""
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_Mongodb
 
@@ -57,7 +57,7 @@ class MongoDocumentStore(DocumentStore):
         username: str | None = None,
         password: str | None = None,
         database: str | None = None,
-        **kwargs
+        **kwargs,
     ):
         """Initialize MongoDB document store.
 
@@ -73,20 +73,11 @@ class MongoDocumentStore(DocumentStore):
             ValueError: If required parameters (host, port, database) are not provided
         """
         if not host:
-            raise ValueError(
-                "MongoDB host is required. "
-                "Provide the MongoDB server hostname or IP address."
-            )
+            raise ValueError("MongoDB host is required. " "Provide the MongoDB server hostname or IP address.")
         if port is None:
-            raise ValueError(
-                "MongoDB port is required. "
-                "Provide the MongoDB server port number."
-            )
+            raise ValueError("MongoDB port is required. " "Provide the MongoDB server port number.")
         if not database:
-            raise ValueError(
-                "MongoDB database is required. "
-                "Provide the database name to use."
-            )
+            raise ValueError("MongoDB database is required. " "Provide the database name to use.")
 
         self.host = host
         self.port = port
@@ -94,8 +85,10 @@ class MongoDocumentStore(DocumentStore):
         self.password = password
         self.database_name = database
         self.client_options = kwargs
-        self.client = None
-        self.database = None
+        # These are initialized in connect(); keep them loosely typed so this
+        # adapter can be type-checked without requiring full PyMongo stubs.
+        self.client: Any = None
+        self.database: Any = None
 
     def connect(self) -> None:
         """Connect to MongoDB.
@@ -129,10 +122,10 @@ class MongoDocumentStore(DocumentStore):
             connection_params.update(self.client_options)
 
             # Create client with options
-            self.client = MongoClient(**connection_params)
+            self.client = MongoClient(**cast(Any, connection_params))
 
             # Test connection
-            self.client.admin.command('ping')
+            self.client.admin.command("ping")
 
             # Get database
             self.database = self.client[self.database_name]
@@ -207,6 +200,7 @@ class MongoDocumentStore(DocumentStore):
             coll = self.database[collection]
 
             # Try to convert to ObjectId if possible
+            query: dict[str, Any]
             try:
                 query = {"_id": ObjectId(doc_id)}
             except (TypeError, ValueError, InvalidId):
@@ -229,9 +223,7 @@ class MongoDocumentStore(DocumentStore):
             logger.error(f"MongoDocumentStore: get_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to retrieve document {doc_id} from {collection}") from e
 
-    def query_documents(
-        self, collection: str, filter_dict: dict[str, Any], limit: int = 100
-    ) -> list[dict[str, Any]]:
+    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Returns sanitized documents without backend system fields or
@@ -264,8 +256,7 @@ class MongoDocumentStore(DocumentStore):
                 results.append(doc)
 
             logger.debug(
-                f"MongoDocumentStore: query on {collection} with {filter_dict} "
-                f"returned {len(results)} documents"
+                f"MongoDocumentStore: query on {collection} with {filter_dict} " f"returned {len(results)} documents"
             )
             return sanitize_documents(results, collection)
 
@@ -273,9 +264,7 @@ class MongoDocumentStore(DocumentStore):
             logger.error(f"MongoDocumentStore: query_documents failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to query documents from {collection}") from e
 
-    def update_document(
-        self, collection: str, doc_id: str, patch: dict[str, Any]
-    ) -> None:
+    def update_document(self, collection: str, doc_id: str, patch: dict[str, Any]) -> None:
         """Update a document with the provided patch.
 
         Args:
@@ -298,6 +287,7 @@ class MongoDocumentStore(DocumentStore):
             coll = self.database[collection]
 
             # Try to convert to ObjectId if possible
+            query: dict[str, Any]
             try:
                 query = {"_id": ObjectId(doc_id)}
             except (TypeError, ValueError, InvalidId):
@@ -340,6 +330,7 @@ class MongoDocumentStore(DocumentStore):
             coll = self.database[collection]
 
             # Try to convert to ObjectId if possible
+            query: dict[str, Any]
             try:
                 query = {"_id": ObjectId(doc_id)}
             except (TypeError, ValueError, InvalidId):
@@ -359,9 +350,7 @@ class MongoDocumentStore(DocumentStore):
             logger.error(f"MongoDocumentStore: delete_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to delete document {doc_id} from {collection}") from e
 
-    def aggregate_documents(
-        self, collection: str, pipeline: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def aggregate_documents(self, collection: str, pipeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
 
         Returns sanitized documents without backend system fields or
@@ -395,10 +384,7 @@ class MongoDocumentStore(DocumentStore):
                 self._convert_objectids_to_strings(doc)
                 results.append(doc)
 
-            logger.debug(
-                f"MongoDocumentStore: aggregation on {collection} "
-                f"returned {len(results)} documents"
-            )
+            logger.debug(f"MongoDocumentStore: aggregation on {collection} " f"returned {len(results)} documents")
             return sanitize_documents(results, collection, preserve_extra=True)
 
         except Exception as e:

@@ -108,12 +108,10 @@ class TestRabbitMQIntegration:
         RabbitMQ returns NO_ROUTE if no queue is bound to the exchange.
         """
         # Declare a temporary queue and bind it to receive the message
-        result = rabbitmq_publisher.channel.queue_declare(queue='', exclusive=True)
+        result = rabbitmq_publisher.channel.queue_declare(queue="", exclusive=True)
         queue_name = result.method.queue
         rabbitmq_publisher.channel.queue_bind(
-            exchange=rabbitmq_publisher.exchange,
-            queue=queue_name,
-            routing_key="test.event"
+            exchange=rabbitmq_publisher.exchange, queue=queue_name, routing_key="test.event"
         )
 
         event = {
@@ -145,9 +143,7 @@ class TestRabbitMQIntegration:
         rabbitmq_subscriber.subscribe("TestEvent", on_test_event, routing_key="test.*")
 
         # Start consuming in a background thread
-        consume_thread = threading.Thread(
-            target=rabbitmq_subscriber.start_consuming
-        )
+        consume_thread = threading.Thread(target=rabbitmq_subscriber.start_consuming)
         consume_thread.daemon = True
         consume_thread.start()
 
@@ -197,9 +193,7 @@ class TestRabbitMQIntegration:
         rabbitmq_subscriber.subscribe("TestEvent", on_test_event, routing_key="test.*")
 
         # Start consuming in a background thread
-        consume_thread = threading.Thread(
-            target=rabbitmq_subscriber.start_consuming
-        )
+        consume_thread = threading.Thread(target=rabbitmq_subscriber.start_consuming)
         consume_thread.daemon = True
         consume_thread.start()
 
@@ -248,9 +242,7 @@ class TestRabbitMQIntegration:
         rabbitmq_subscriber.subscribe("TestEvent", on_test_event, routing_key="test.specific.*")
 
         # Start consuming in a background thread
-        consume_thread = threading.Thread(
-            target=rabbitmq_subscriber.start_consuming
-        )
+        consume_thread = threading.Thread(target=rabbitmq_subscriber.start_consuming)
         consume_thread.daemon = True
         consume_thread.start()
 
@@ -315,9 +307,7 @@ class TestRabbitMQIntegration:
 
         rabbitmq_subscriber.subscribe("ComplexEvent", on_test_event, routing_key="test.*")
 
-        consume_thread = threading.Thread(
-            target=rabbitmq_subscriber.start_consuming
-        )
+        consume_thread = threading.Thread(target=rabbitmq_subscriber.start_consuming)
         consume_thread.daemon = True
         consume_thread.start()
 
@@ -396,11 +386,7 @@ class TestRabbitMQErrorHandling:
 
         # Should raise ConnectionError
         with pytest.raises(ConnectionError):
-            publisher.publish(
-                exchange=publisher.exchange,
-                routing_key="test",
-                event=event
-            )
+            publisher.publish(exchange=publisher.exchange, routing_key="test", event=event)
 
     def test_reconnect_publisher(self):
         """Test reconnecting a publisher."""
@@ -438,9 +424,7 @@ class TestRabbitMQErrorHandling:
 
         rabbitmq_subscriber.subscribe("EmptyEvent", on_test_event, routing_key="test.*")
 
-        consume_thread = threading.Thread(
-            target=rabbitmq_subscriber.start_consuming
-        )
+        consume_thread = threading.Thread(target=rabbitmq_subscriber.start_consuming)
         consume_thread.daemon = True
         consume_thread.start()
 

@@ -105,22 +105,24 @@ class ValidatingEventSubscriber(EventSubscriber):
                     return True, []
                 return False, [f"No schema found for event type '{event_type}'"]
         except Exception as exc:
-            logger.error(
-                "Failed to retrieve schema for event type '%s': %s",
-                event_type, exc
-            )
+            logger.error("Failed to retrieve schema for event type '%s': %s", event_type, exc)
             return False, [f"Schema retrieval failed: {exc}"]
 
         # Validate event against schema
         try:
-            from copilot_schema_validation import validate_json  # type: ignore[import-not-found] # pylint: disable=import-outside-toplevel
+            from copilot_schema_validation import (
+                validate_json,  # type: ignore[import-not-found] # pylint: disable=import-outside-toplevel
+            )
+
             is_valid, errors = validate_json(event, schema, schema_provider=self._schema_provider)
             return is_valid, errors
         except Exception as exc:
             logger.error("Validation failed with exception: %s", exc)
             return False, [f"Validation exception: {exc}"]
 
-    def _validating_callback_wrapper(self, event_type: str, original_callback: Callable[..., Any]) -> Callable[..., Any]:
+    def _validating_callback_wrapper(
+        self, event_type: str, original_callback: Callable[..., Any]
+    ) -> Callable[..., Any]:
         """Create a wrapper callback that validates events before invoking the original callback.
 
         Args:
@@ -130,6 +132,7 @@ class ValidatingEventSubscriber(EventSubscriber):
         Returns:
             A wrapper function that validates and then calls the original callback
         """
+
         def wrapper(event: dict[str, Any]) -> None:
             # Validate event
             is_valid, errors = self._validate_event(event)
@@ -141,8 +144,7 @@ class ValidatingEventSubscriber(EventSubscriber):
 
                 # In non-strict mode, log warning and skip callback
                 logger.warning(
-                    "Received event validation failed for '%s' but skipping in non-strict mode: %s",
-                    event_type, errors
+                    "Received event validation failed for '%s' but skipping in non-strict mode: %s", event_type, errors
                 )
                 return
 

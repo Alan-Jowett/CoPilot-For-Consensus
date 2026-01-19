@@ -3,44 +3,22 @@
 
 """Embedding Service: Generate vector embeddings for text chunks."""
 
-import os
-import sys
 import threading
 from dataclasses import replace
 from typing import cast
 
-# Add app directory to path
-sys.path.insert(0, os.path.dirname(__file__))
-
 import uvicorn
-from copilot_embedding import create_embedding_provider
-from copilot_message_bus import create_publisher, create_subscriber
-from copilot_logging import (
-    create_logger,
-    create_stdout_logger,
-    create_uvicorn_log_config,
-    get_logger,
-    set_default_logger,
-)
-from copilot_metrics import create_metrics_collector
-from copilot_error_reporting import create_error_reporter
-from copilot_schema_validation import create_schema_provider
-from copilot_storage import DocumentStoreConnectionError, create_document_store
-from copilot_vectorstore import create_vector_store
-from fastapi import FastAPI
-
-# Bootstrap logger for early initialization (before config is loaded)
-logger = create_stdout_logger(level="INFO", name="embedding")
-set_default_logger(logger)
-
 from app import __version__
 from app.service import EmbeddingService
-from copilot_config.runtime_loader import get_config
 from copilot_config.generated.adapters.embedding_backend import (
     DriverConfig_EmbeddingBackend_AzureOpenai,
     DriverConfig_EmbeddingBackend_Huggingface,
     DriverConfig_EmbeddingBackend_Openai,
     DriverConfig_EmbeddingBackend_Sentencetransformers,
+)
+from copilot_config.generated.adapters.event_retry import (
+    DriverConfig_EventRetry_Default,
+    DriverConfig_EventRetry_Noop,
 )
 from copilot_config.generated.adapters.message_bus import (
     DriverConfig_MessageBus_AzureServiceBus,
@@ -51,17 +29,33 @@ from copilot_config.generated.adapters.metrics import (
     DriverConfig_Metrics_Prometheus,
     DriverConfig_Metrics_Pushgateway,
 )
-from copilot_config.generated.adapters.event_retry import (
-    DriverConfig_EventRetry_Default,
-    DriverConfig_EventRetry_Noop,
-)
 from copilot_config.generated.adapters.vector_store import (
     DriverConfig_VectorStore_AzureAiSearch,
     DriverConfig_VectorStore_Faiss,
     DriverConfig_VectorStore_Qdrant,
 )
 from copilot_config.generated.services.embedding import ServiceConfig_Embedding
+from copilot_config.runtime_loader import get_config
+from copilot_embedding import create_embedding_provider
+from copilot_error_reporting import create_error_reporter
 from copilot_event_retry import RetryConfig
+from copilot_logging import (
+    create_logger,
+    create_stdout_logger,
+    create_uvicorn_log_config,
+    get_logger,
+    set_default_logger,
+)
+from copilot_message_bus import create_publisher, create_subscriber
+from copilot_metrics import create_metrics_collector
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
+from copilot_vectorstore import create_vector_store
+from fastapi import FastAPI
+
+# Bootstrap logger for early initialization (before config is loaded)
+logger = create_stdout_logger(level="INFO", name="embedding")
+set_default_logger(logger)
 
 # Create FastAPI app
 app = FastAPI(title="Embedding Service", version=__version__)
@@ -123,7 +117,6 @@ def start_subscriber_thread(service: EmbeddingService):
 
 def _get_embedding_model(config: ServiceConfig_Embedding) -> str:
     backend_type = config.embedding_backend.embedding_backend_type
-    backend_name = str(backend_type).lower()
 
     if backend_type == "sentencetransformers":
         driver = cast(DriverConfig_EmbeddingBackend_Sentencetransformers, config.embedding_backend.driver)
@@ -141,8 +134,7 @@ def _get_embedding_model(config: ServiceConfig_Embedding) -> str:
         return "mock"
 
     raise ValueError(
-        f"Unsupported embedding backend type '{backend_type}' "
-        f"for model resolution in _get_embedding_model"
+        f"Unsupported embedding backend type '{backend_type}' " f"for model resolution in _get_embedding_model"
     )
 
 
@@ -199,6 +191,7 @@ def main():
             logger.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
+
                 auth_service_url = config.service_settings.auth_service_url or "http://auth:8090"
                 audience = config.service_settings.service_audience or "copilot-for-consensus"
                 auth_middleware = create_jwt_middleware(
@@ -215,6 +208,7 @@ def main():
 
         # Refresh module-level service logger to use the current default
         from app import service as embedding_service_module
+
         embedding_service_module.logger = get_logger(embedding_service_module.__name__)
 
         logger.info("Creating message bus publisher...")
@@ -324,8 +318,10 @@ def main():
             max_delay_ms=int(retry_driver.max_delay_ms),
             ttl_seconds=int(retry_driver.ttl_seconds),
         )
-        logger.info(f"Retry configuration: max_attempts={event_retry_config.max_attempts}, "
-                   f"base_delay_ms={event_retry_config.base_delay_ms}, ttl_seconds={event_retry_config.ttl_seconds}")
+        logger.info(
+            f"Retry configuration: max_attempts={event_retry_config.max_attempts}, "
+            f"base_delay_ms={event_retry_config.base_delay_ms}, ttl_seconds={event_retry_config.ttl_seconds}"
+        )
 
         # Create embedding service
         embedding_service = EmbeddingService(
@@ -378,7 +374,7 @@ def main():
 
     except Exception as e:
         logger.error(f"Failed to start embedding service: {e}")
-        sys.exit(1)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

@@ -8,56 +8,59 @@ This file is auto-generated from JSON schemas by scripts/generate_typed_configs.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, TypeAlias, Union
+from typing import Literal
 
 
 @dataclass
 class DriverConfig_MessageBus_AzureServiceBus:
     """Configuration for message_bus adapter using azure_service_bus driver."""
+
     auto_complete: bool = False
     # Automatically complete messages after processing
-    connection_string: Optional[str] = None
+    connection_string: str | None = None
     # Azure Service Bus connection string (used when not using managed identity)
     max_wait_time: int = 5
     # Maximum time to wait for messages in seconds
-    queue_name: Optional[str] = None
+    queue_name: str | None = None
     # Azure Service Bus queue name (optional)
-    servicebus_fully_qualified_namespace: Optional[str] = None
+    servicebus_fully_qualified_namespace: str | None = None
     # Azure Service Bus fully qualified namespace
     servicebus_use_managed_identity: bool = False
     # Use managed identity for Service Bus access
-    subscription_name: Optional[str] = None
+    subscription_name: str | None = None
     # Azure Service Bus subscription name (optional, required if topic_name is set)
-    topic_name: Optional[str] = None
+    topic_name: str | None = None
     # Azure Service Bus topic name (optional)
 
 
 @dataclass
 class DriverConfig_MessageBus_Noop:
     """Configuration for message_bus adapter using noop driver."""
+
     pass
 
 
 @dataclass
 class DriverConfig_MessageBus_Rabbitmq:
     """Configuration for message_bus adapter using rabbitmq driver."""
+
     rabbitmq_password: str
     # RabbitMQ password
     rabbitmq_username: str
     # RabbitMQ username
     auto_ack: bool = False
     # Automatically acknowledge messages after processing
-    exchange: str = 'copilot.events'
+    exchange: str = "copilot.events"
     # RabbitMQ exchange name for publishing
-    exchange_name: str = 'copilot.events'
+    exchange_name: str = "copilot.events"
     # RabbitMQ exchange name for subscribing
-    exchange_type: str = 'topic'
+    exchange_type: str = "topic"
     # RabbitMQ exchange type
     queue_durable: bool = True
     # Whether the queue survives broker restart
-    queue_name: Optional[str] = None
+    queue_name: str | None = None
     # RabbitMQ queue name (optional for subscribers)
-    rabbitmq_host: str = 'messagebus'
+    rabbitmq_host: str = "messagebus"
     # RabbitMQ hostname
     rabbitmq_port: int = 5672
     # RabbitMQ port
@@ -66,9 +69,6 @@ class DriverConfig_MessageBus_Rabbitmq:
 @dataclass
 class AdapterConfig_MessageBus:
     """Configuration for message_bus adapter."""
+
     message_bus_type: Literal["azure_service_bus", "noop", "rabbitmq"]
-    driver: Union[
-        DriverConfig_MessageBus_AzureServiceBus,
-        DriverConfig_MessageBus_Noop,
-        DriverConfig_MessageBus_Rabbitmq
-    ]
+    driver: DriverConfig_MessageBus_AzureServiceBus | DriverConfig_MessageBus_Noop | DriverConfig_MessageBus_Rabbitmq

@@ -60,11 +60,13 @@ class FakeDocumentStore:
 
 def make_service_with_store(store):
     import tempfile
+
     from copilot_archive_store import create_archive_store
     from copilot_config.generated.adapters.archive_store import (
         AdapterConfig_ArchiveStore,
         DriverConfig_ArchiveStore_Local,
     )
+
     # Create a temp directory-based archive store to avoid /data permission issues.
     # Use TemporaryDirectory to ensure automatic cleanup.
     tmpdir = tempfile.TemporaryDirectory()
@@ -94,13 +96,15 @@ def test_store_messages_skips_duplicate_and_continues(caplog):
         {"message_id": "m2"},
         {"message_id": "m3"},
     ]
-    store = FakeDocumentStore({
-        "messages": [
-            None,  # m1 -> success
-            DuplicateKeyError("duplicate key error"),  # m2 -> skip
-            None,  # m3 -> success continues
-        ]
-    })
+    store = FakeDocumentStore(
+        {
+            "messages": [
+                None,  # m1 -> success
+                DuplicateKeyError("duplicate key error"),  # m2 -> skip
+                None,  # m3 -> success continues
+            ]
+        }
+    )
     service = make_service_with_store(store)
 
     service._store_messages(msgs)
@@ -123,12 +127,14 @@ def test_store_messages_skips_validation_and_continues(caplog):
         {"message_id": "m1"},
         {"message_id": "m2"},
     ]
-    store = FakeDocumentStore({
-        "messages": [
-            DocumentValidationError("messages", ["schema validation failed"]),  # m1 -> skip
-            None,  # m2 -> success continues
-        ]
-    })
+    store = FakeDocumentStore(
+        {
+            "messages": [
+                DocumentValidationError("messages", ["schema validation failed"]),  # m1 -> skip
+                None,  # m2 -> success continues
+            ]
+        }
+    )
     service = make_service_with_store(store)
 
     service._store_messages(msgs)
@@ -143,12 +149,11 @@ def test_store_messages_skips_validation_and_continues(caplog):
 def test_store_messages_transient_errors_are_reraised(caplog):
     caplog.set_level(logging.ERROR)
     msgs = [{"message_id": "m1"}]
+
     class TransientError(Exception):
         pass
 
-    store = FakeDocumentStore({
-        "messages": [TransientError("database temporarily unavailable")]
-    })
+    store = FakeDocumentStore({"messages": [TransientError("database temporarily unavailable")]})
     service = make_service_with_store(store)
 
     with pytest.raises(TransientError):
@@ -166,13 +171,15 @@ def test_store_threads_skips_duplicate_and_validation_and_continues(caplog):
         {"thread_id": "t2"},
         {"thread_id": "t3"},
     ]
-    store = FakeDocumentStore({
-        "threads": [
-            None,  # t1 -> success
-            DuplicateKeyError("duplicate thread"),  # t2 -> skip
-            DocumentValidationError("threads", ["bad thread schema"]),  # t3 -> skip
-        ]
-    })
+    store = FakeDocumentStore(
+        {
+            "threads": [
+                None,  # t1 -> success
+                DuplicateKeyError("duplicate thread"),  # t2 -> skip
+                DocumentValidationError("threads", ["bad thread schema"]),  # t3 -> skip
+            ]
+        }
+    )
     service = make_service_with_store(store)
 
     service._store_threads(threads)
@@ -189,12 +196,11 @@ def test_store_threads_skips_duplicate_and_validation_and_continues(caplog):
 def test_store_threads_transient_errors_are_reraised(caplog):
     caplog.set_level(logging.ERROR)
     threads = [{"thread_id": "t1"}]
+
     class TransientError(Exception):
         pass
 
-    store = FakeDocumentStore({
-        "threads": [TransientError("db down")]
-    })
+    store = FakeDocumentStore({"threads": [TransientError("db down")]})
     service = make_service_with_store(store)
 
     with pytest.raises(TransientError):
@@ -228,9 +234,11 @@ def test_store_messages_handles_none_from_field():
             "subject": "Test message 2",
         },
     ]
-    store = FakeDocumentStore({
-        "messages": [None, None]  # Both succeed
-    })
+    store = FakeDocumentStore(
+        {
+            "messages": [None, None]  # Both succeed
+        }
+    )
     service = make_service_with_store(store)
 
     # Should not raise AttributeError

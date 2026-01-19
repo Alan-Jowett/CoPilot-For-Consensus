@@ -19,6 +19,7 @@ Exit codes:
 - 0: No violations found
 - 1: Violations found
 """
+
 import argparse
 import fnmatch
 import re
@@ -152,9 +153,7 @@ def load_allowlist(allowlist_path: Path) -> dict[str, list[re.Pattern]]:
     return allowlist
 
 
-def is_allowlisted(
-    filepath: Path, line_content: str, allowlist: dict[str, list[re.Pattern]], root: Path
-) -> bool:
+def is_allowlisted(filepath: Path, line_content: str, allowlist: dict[str, list[re.Pattern]], root: Path) -> bool:
     """
     Check if a violation is allowlisted.
 
@@ -172,14 +171,12 @@ def is_allowlisted(
     except ValueError:
         rel_path = filepath
 
-    rel_path_str = str(rel_path)
-
     for file_glob, patterns in allowlist.items():
         # Check if file matches glob pattern using fnmatch for more robust matching
         # Convert both to forward slashes for consistent matching across platforms
-        normalized_rel_path = str(rel_path).replace('\\', '/')
-        normalized_glob = file_glob.replace('\\', '/')
-        
+        normalized_rel_path = str(rel_path).replace("\\", "/")
+        normalized_glob = file_glob.replace("\\", "/")
+
         if fnmatch.fnmatch(normalized_rel_path, normalized_glob):
             # If no specific patterns, entire file is allowlisted
             if not patterns:
@@ -280,7 +277,10 @@ def main() -> int:
         "--service-dirs",
         nargs="+",
         default=DEFAULT_SERVICE_DIRS,
-        help="Service directories to scan (default: auth chunking embedding ingestion orchestrator parsing reporting summarization)",
+        help=(
+            "Service directories to scan (default: auth chunking embedding ingestion orchestrator parsing reporting "
+            "summarization)"
+        ),
     )
     parser.add_argument(
         "--exclude",

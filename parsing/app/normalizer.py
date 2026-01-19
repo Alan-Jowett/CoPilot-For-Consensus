@@ -8,6 +8,7 @@ import re
 # Try to import BeautifulSoup, but provide fallback
 try:
     from bs4 import BeautifulSoup
+
     BEAUTIFULSOUP_AVAILABLE = True
 except ImportError:
     BEAUTIFULSOUP_AVAILABLE = False
@@ -82,13 +83,13 @@ class TextNormalizer:
         """
         # Simple check for common HTML tags
         html_patterns = [
-            r'<html',
-            r'<body',
-            r'<div',
-            r'<p>',
-            r'<br>',
-            r'<span',
-            r'<table',
+            r"<html",
+            r"<body",
+            r"<div",
+            r"<p>",
+            r"<br>",
+            r"<span",
+            r"<table",
         ]
 
         text_lower = text.lower()
@@ -112,16 +113,16 @@ class TextNormalizer:
             # as a last resort when BeautifulSoup is not available.
             # For production use, ensure beautifulsoup4 is installed.
             # The regex patterns here are intentionally simple and may not catch all edge cases.
-            text = re.sub(r'<style(?:\s[^>]*)?>.*?</style(?:\s[^>]*)?>', '', text, flags=re.DOTALL | re.IGNORECASE)
-            text = re.sub(r'<script(?:\s[^>]*)?>.*?</script(?:\s[^>]*)?>', '', text, flags=re.DOTALL | re.IGNORECASE)
-            text = re.sub(r'<[^>]+>', '', text)
+            text = re.sub(r"<style(?:\s[^>]*)?>.*?</style(?:\s[^>]*)?>", "", text, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(r"<script(?:\s[^>]*)?>.*?</script(?:\s[^>]*)?>", "", text, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(r"<[^>]+>", "", text)
             # Decode common HTML entities
-            text = text.replace('&nbsp;', ' ')
-            text = text.replace('&lt;', '<')
-            text = text.replace('&gt;', '>')
-            text = text.replace('&amp;', '&')
-            text = text.replace('&quot;', '"')
-            text = text.replace('&#39;', "'")
+            text = text.replace("&nbsp;", " ")
+            text = text.replace("&lt;", "<")
+            text = text.replace("&gt;", ">")
+            text = text.replace("&amp;", "&")
+            text = text.replace("&quot;", '"')
+            text = text.replace("&#39;", "'")
             return text
 
     def _remove_signature(self, text: str) -> str:
@@ -149,19 +150,19 @@ class TextNormalizer:
         Returns:
             Text with quoted lines removed
         """
-        lines = text.split('\n')
+        lines = text.split("\n")
         filtered_lines = []
 
         for line in lines:
             stripped = line.strip()
             # Skip lines that start with quote markers
-            if stripped and not stripped.startswith(('>', '|', '>>')):
+            if stripped and not stripped.startswith((">", "|", ">>")):
                 filtered_lines.append(line)
             elif not stripped:
                 # Keep blank lines
                 filtered_lines.append(line)
 
-        return '\n'.join(filtered_lines)
+        return "\n".join(filtered_lines)
 
     def _normalize_whitespace(self, text: str) -> str:
         """Normalize whitespace in text.
@@ -173,9 +174,9 @@ class TextNormalizer:
             Text with normalized whitespace
         """
         # Replace multiple spaces with single space
-        text = re.sub(r'[ \t]+', ' ', text)
+        text = re.sub(r"[ \t]+", " ", text)
 
         # Replace more than 2 consecutive newlines with 2
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
         return text

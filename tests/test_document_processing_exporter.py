@@ -11,29 +11,28 @@ This script validates that the exporter can:
 3. Handle database queries gracefully
 """
 
+import importlib.util
 import os
 import sys
 from unittest.mock import Mock
 
 # Add scripts directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 
 def test_exporter_imports():
     """Test that the exporter imports correctly."""
-    try:
-        from prometheus_client import Gauge
-        print("✓ prometheus_client imports successfully")
-    except ImportError as e:
-        print(f"✗ Failed to import prometheus_client: {e}")
+    if importlib.util.find_spec("prometheus_client") is None:
+        print("✗ Failed to import prometheus_client")
         return False
 
-    try:
-        from pymongo import MongoClient
-        print("✓ pymongo imports successfully")
-    except ImportError as e:
-        print(f"✗ Failed to import pymongo: {e}")
+    print("✓ prometheus_client imports successfully")
+
+    if importlib.util.find_spec("pymongo") is None:
+        print("✗ Failed to import pymongo")
         return False
+
+    print("✓ pymongo imports successfully")
 
     return True
 
@@ -63,11 +62,11 @@ def test_exporter_metrics():
     import document_processing_exporter as exporter
 
     # Check that metrics are defined
-    assert hasattr(exporter, 'document_status_count'), "document_status_count metric not defined"
-    assert hasattr(exporter, 'document_processing_duration_seconds'), "document_processing_duration_seconds not defined"
-    assert hasattr(exporter, 'document_age_seconds'), "document_age_seconds not defined"
-    assert hasattr(exporter, 'document_attempt_count'), "document_attempt_count not defined"
-    assert hasattr(exporter, 'chunks_embedding_status'), "chunks_embedding_status not defined"
+    assert hasattr(exporter, "document_status_count"), "document_status_count metric not defined"
+    assert hasattr(exporter, "document_processing_duration_seconds"), "document_processing_duration_seconds not defined"
+    assert hasattr(exporter, "document_age_seconds"), "document_age_seconds not defined"
+    assert hasattr(exporter, "document_attempt_count"), "document_attempt_count not defined"
+    assert hasattr(exporter, "chunks_embedding_status"), "chunks_embedding_status not defined"
 
     print("✓ All metrics are defined")
     return True

@@ -66,8 +66,10 @@ def parsing_service(mock_document_store, mock_publisher, mock_subscriber, mock_a
 class TestParsingForwardProgress:
     """Test cases for parsing service forward progress logic."""
 
-    @patch('copilot_startup.StartupRequeue')
-    def test_requeue_incomplete_archives_on_startup(self, mock_requeue_class, parsing_service, mock_document_store, mock_publisher, mock_metrics_collector):
+    @patch("copilot_startup.StartupRequeue")
+    def test_requeue_incomplete_archives_on_startup(
+        self, mock_requeue_class, parsing_service, mock_document_store, mock_publisher, mock_metrics_collector
+    ):
         """Test that incomplete archives are requeued on startup."""
         # Setup mock requeue instance
         mock_requeue_instance = Mock()
@@ -88,15 +90,15 @@ class TestParsingForwardProgress:
         mock_requeue_instance.requeue_incomplete.assert_called_once()
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
 
-        assert call_kwargs['collection'] == 'archives'
-        assert call_kwargs['query'] == {"status": {"$in": ["pending", "processing"]}}
-        assert call_kwargs['event_type'] == 'ArchiveIngested'
-        assert call_kwargs['routing_key'] == 'archive.ingested'
-        assert call_kwargs['id_field'] == 'archive_id'
-        assert call_kwargs['limit'] == 1000
-        assert callable(call_kwargs['build_event_data'])
+        assert call_kwargs["collection"] == "archives"
+        assert call_kwargs["query"] == {"status": {"$in": ["pending", "processing"]}}
+        assert call_kwargs["event_type"] == "ArchiveIngested"
+        assert call_kwargs["routing_key"] == "archive.ingested"
+        assert call_kwargs["id_field"] == "archive_id"
+        assert call_kwargs["limit"] == 1000
+        assert callable(call_kwargs["build_event_data"])
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_builds_correct_event_data(self, mock_requeue_class, parsing_service):
         """Test that event data is built correctly from archive documents."""
         # Setup mock requeue instance
@@ -109,7 +111,7 @@ class TestParsingForwardProgress:
 
         # Get the build_event_data function
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        build_event_data = call_kwargs['build_event_data']
+        build_event_data = call_kwargs["build_event_data"]
 
         # Test event data building
         test_doc = {
@@ -126,16 +128,16 @@ class TestParsingForwardProgress:
 
         event_data = build_event_data(test_doc)
 
-        assert event_data['archive_id'] == "test-archive-123"
-        assert event_data['source_name'] == "test-source"
-        assert event_data['source_type'] == "local"
-        assert event_data['source_url'] == "file:///path/to/archive.mbox"
-        assert event_data['file_size_bytes'] == 1024
-        assert event_data['file_hash_sha256'] == "abc123def456"
-        assert event_data['ingestion_started_at'] == "2024-01-01T00:00:00Z"
-        assert event_data['ingestion_completed_at'] == "2024-01-01T01:00:00Z"
+        assert event_data["archive_id"] == "test-archive-123"
+        assert event_data["source_name"] == "test-source"
+        assert event_data["source_type"] == "local"
+        assert event_data["source_url"] == "file:///path/to/archive.mbox"
+        assert event_data["file_size_bytes"] == 1024
+        assert event_data["file_hash_sha256"] == "abc123def456"
+        assert event_data["ingestion_started_at"] == "2024-01-01T00:00:00Z"
+        assert event_data["ingestion_completed_at"] == "2024-01-01T01:00:00Z"
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_handles_missing_archive_id(self, mock_requeue_class, parsing_service):
         """Test that missing archive_id falls back to _id field."""
         mock_requeue_instance = Mock()
@@ -146,7 +148,7 @@ class TestParsingForwardProgress:
 
         # Get the build_event_data function
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        build_event_data = call_kwargs['build_event_data']
+        build_event_data = call_kwargs["build_event_data"]
 
         # Test with missing archive_id
         test_doc = {
@@ -156,9 +158,9 @@ class TestParsingForwardProgress:
         }
 
         event_data = build_event_data(test_doc)
-        assert event_data['archive_id'] == "fallback-id-456"
+        assert event_data["archive_id"] == "fallback-id-456"
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_no_requeue_when_disabled(self, mock_requeue_class, parsing_service):
         """Test that requeue is skipped when disabled."""
         # Start service with requeue disabled
@@ -167,7 +169,7 @@ class TestParsingForwardProgress:
         # Verify StartupRequeue was never instantiated
         mock_requeue_class.assert_not_called()
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_continues_on_import_error(self, mock_requeue_class, parsing_service, mock_subscriber):
         """Test that service continues startup if copilot_startup is unavailable."""
         # Simulate ImportError when StartupRequeue is accessed
@@ -179,7 +181,7 @@ class TestParsingForwardProgress:
         # Verify subscription still happened
         assert mock_subscriber.subscribe.call_count == 2
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_continues_on_error(self, mock_requeue_class, parsing_service, mock_subscriber):
         """Test that service continues startup even if requeue fails."""
         # Setup mock to raise exception
@@ -193,7 +195,7 @@ class TestParsingForwardProgress:
         # Verify subscription still happened
         assert mock_subscriber.subscribe.call_count == 2
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_respects_query_status_filter(self, mock_requeue_class, parsing_service):
         """Test that only pending and processing archives are queried."""
         mock_requeue_instance = Mock()
@@ -205,9 +207,9 @@ class TestParsingForwardProgress:
         # Verify query includes both pending and processing statuses
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
         expected_query = {"status": {"$in": ["pending", "processing"]}}
-        assert call_kwargs['query'] == expected_query
+        assert call_kwargs["query"] == expected_query
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_uses_correct_event_routing(self, mock_requeue_class, parsing_service):
         """Test that requeue uses correct event type and routing key."""
         mock_requeue_instance = Mock()
@@ -218,10 +220,10 @@ class TestParsingForwardProgress:
 
         # Verify correct event type and routing
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        assert call_kwargs['event_type'] == 'ArchiveIngested'
-        assert call_kwargs['routing_key'] == 'archive.ingested'
+        assert call_kwargs["event_type"] == "ArchiveIngested"
+        assert call_kwargs["routing_key"] == "archive.ingested"
 
-    @patch('copilot_startup.StartupRequeue')
+    @patch("copilot_startup.StartupRequeue")
     def test_requeue_limit_prevents_overload(self, mock_requeue_class, parsing_service):
         """Test that requeue respects limit to prevent startup overload."""
         mock_requeue_instance = Mock()
@@ -232,4 +234,4 @@ class TestParsingForwardProgress:
 
         # Verify limit is set appropriately
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        assert call_kwargs['limit'] == 1000
+        assert call_kwargs["limit"] == 1000

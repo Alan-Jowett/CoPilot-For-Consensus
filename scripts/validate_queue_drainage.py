@@ -125,19 +125,23 @@ def check_queue_drainage(queues: list[dict]) -> bool:
         consumers = queue.get("consumers", 0)
 
         if ready > 0 or unacked > 0:
-            queues_with_messages.append({
-                "name": name,
-                "ready": ready,
-                "unacked": unacked,
-                "total": total,
-                "consumers": consumers,
-            })
+            queues_with_messages.append(
+                {
+                    "name": name,
+                    "ready": ready,
+                    "unacked": unacked,
+                    "total": total,
+                    "consumers": consumers,
+                }
+            )
 
     if queues_with_messages:
         print("⚠️  Queues have lingering messages:")
         for q in queues_with_messages:
-            print(f"   - {q['name']}: {q['ready']} ready, {q['unacked']} unacked, "
-                  f"{q['total']} total, {q['consumers']} consumers")
+            print(
+                f"   - {q['name']}: {q['ready']} ready, {q['unacked']} unacked, "
+                f"{q['total']} total, {q['consumers']} consumers"
+            )
         print("\n   This may indicate:")
         print("   - System is still processing")
         print("   - A consumer is not acknowledging messages")
@@ -168,11 +172,13 @@ def check_consumer_coverage(queues: list[dict]) -> bool:
         actual_count = queue.get("consumers", 0)
 
         if actual_count < expected_count:
-            missing_consumers.append({
-                "name": queue_name,
-                "expected": expected_count,
-                "actual": actual_count,
-            })
+            missing_consumers.append(
+                {
+                    "name": queue_name,
+                    "expected": expected_count,
+                    "actual": actual_count,
+                }
+            )
 
     if missing_consumers:
         print("⚠️  Queues missing expected consumers:")
