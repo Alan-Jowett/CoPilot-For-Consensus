@@ -135,6 +135,7 @@ def test_get_reports_endpoint(client, test_service, mock_document_store):
     assert data["reports"][0]["summary_id"] == "rpt1"
 
 
+
 @pytest.mark.integration
 def test_get_reports_with_thread_filter(client, test_service, mock_document_store):
     """Test the GET /api/reports endpoint with thread_id filter."""
