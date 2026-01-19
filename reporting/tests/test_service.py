@@ -211,12 +211,26 @@ def test_service_start_subscribes_to_events(reporting_service, mock_subscriber):
     """Test that service subscribes to summary.complete events on start."""
     reporting_service.start()
 
-    mock_subscriber.subscribe.assert_called_once()
-    call_args = mock_subscriber.subscribe.call_args
+    from unittest.mock import call
 
-    assert call_args[1]["exchange"] == "copilot.events"
-    assert call_args[1]["routing_key"] == "summary.complete"
-    assert call_args[1]["callback"] is not None
+    assert mock_subscriber.subscribe.call_count == 2
+    mock_subscriber.subscribe.assert_has_calls(
+        [
+            call(
+                event_type="SummaryComplete",
+                exchange="copilot.events",
+                routing_key="summary.complete",
+                callback=reporting_service._handle_summary_complete,
+            ),
+            call(
+                event_type="SourceDeletionRequested",
+                exchange="copilot.events",
+                routing_key="source.deletion.requested",
+                callback=reporting_service._handle_source_deletion_requested,
+            ),
+        ],
+        any_order=False,
+    )
 
 
 def test_process_summary_stores_document(
@@ -1241,7 +1255,7 @@ def test_cascade_cleanup_handler():
     # Create test service
     document_store = create_document_store(
         AdapterConfig_DocumentStore(
-            document_store_type="inmemory",
+            doc_store_type="inmemory",
             driver=DriverConfig_DocumentStore_Inmemory(),
         )
     )
@@ -1285,18 +1299,28 @@ def test_cascade_cleanup_handler():
     )
     
     # Add test data
-    document_store.insert_document("summaries", {
-        "_id": "summary-1",
-        "source": "test-source",
-        "thread_id": "thread-1",
-        "summary": "Test summary 1"
-    })
-    document_store.insert_document("summaries", {
-        "_id": "summary-2",
-        "source": "test-source",
-        "thread_id": "thread-2",
-        "summary": "Test summary 2"
-    })
+    document_store.insert_document(
+        "summaries",
+        {
+            "_id": "0123456789abcdef",
+            "source": "test-source",
+            "thread_id": "aaaaaaaaaaaaaaaa",
+            "summary_type": "thread",
+            "generated_at": "2025-01-18T00:00:00Z",
+            "content_markdown": "Test summary 1",
+        },
+    )
+    document_store.insert_document(
+        "summaries",
+        {
+            "_id": "fedcba9876543210",
+            "source": "test-source",
+            "thread_id": "bbbbbbbbbbbbbbbb",
+            "summary_type": "thread",
+            "generated_at": "2025-01-18T00:00:00Z",
+            "content_markdown": "Test summary 2",
+        },
+    )
     
     # Simulate SourceDeletionRequested event
     event = {
