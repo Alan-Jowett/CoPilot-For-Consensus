@@ -399,16 +399,8 @@ class IngestionService:
         )
 
         try:
-<<<<<<< HEAD
             # Step 0: Query all archives for this source (needed for event and cleanup)
-            archives = self.document_store.query_documents(
-                "archives",
-                {"source": source_name}
-            ) or []
-=======
-            # Step 1: Query all archives for this source
             archives = self.document_store.query_documents("archives", {"source": source_name}) or []
->>>>>>> fdbd97d2 (Python ruff fixes)
             archive_ids = self._extract_doc_ids(archives)
 
             self.logger.info(
