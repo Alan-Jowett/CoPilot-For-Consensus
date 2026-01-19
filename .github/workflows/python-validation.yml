@@ -283,6 +283,7 @@ jobs:
 
       - name: Pyright - Strict Type Checking
         id: pyright
+        continue-on-error: true
         run: |
           echo "::group::Running Pyright Type Checker"
           # Install pyright globally via npm
@@ -329,10 +330,10 @@ jobs:
           echo "::endgroup::"
 
           if [ $PYRIGHT_ERRORS -gt 0 ]; then
-            echo "::warning::Pyright found type errors in $PYRIGHT_ERRORS module(s)"
+            echo "::error::Pyright found type errors in $PYRIGHT_ERRORS module(s)"
+            # Non-zero exit makes the step visibly fail in CI logs.
+            exit 1
           fi
-
-          # Do not fail the build on Pyright yet; report in summary instead
           exit 0
 
       - name: Pyright (gating) - Typed config safety gates
@@ -537,11 +538,9 @@ jobs:
           echo "The following checks will **fail the build** if they detect errors:" >> $GITHUB_STEP_SUMMARY
           echo "- **MyPy** (static type checking)" >> $GITHUB_STEP_SUMMARY
           echo "- **Pylint** (E0602: undefined-variable, E1101: no-member, E0611: no-name-in-module)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pyright** (strict type checking)" >> $GITHUB_STEP_SUMMARY
           echo "- **Pyright gates** (typed config safety checks)" >> $GITHUB_STEP_SUMMARY
           echo "- **Import smoke tests** (critical import/runtime errors)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Informational (non-blocking) results:" >> $GITHUB_STEP_SUMMARY
-          echo "- **Pyright** (reported above; reviewed but not gating)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "These checks catch hallucinated methods, attributes, and variables in LLM-generated code." >> $GITHUB_STEP_SUMMARY
 
@@ -550,10 +549,13 @@ jobs:
         run: |
           MYPY_ERRORS="${{ steps.mypy.outputs.error_count }}"
           MYPY_OUTCOME="${{ steps.mypy.outcome }}"
+          PYRIGHT_ERRORS="${{ steps.pyright.outputs.error_count }}"
+          PYRIGHT_OUTCOME="${{ steps.pyright.outcome }}"
           PYLINT_ERRORS="${{ steps.pylint.outputs.error_count }}"
           PYRIGHT_GATE_FAILS="${{ steps.pyright_gates.outputs.fail_count }}"
 
           if [ -z "$MYPY_ERRORS" ]; then MYPY_ERRORS=0; fi
+          if [ -z "$PYRIGHT_ERRORS" ]; then PYRIGHT_ERRORS=0; fi
           if [ -z "$PYLINT_ERRORS" ]; then PYLINT_ERRORS=0; fi
           if [ -z "$PYRIGHT_GATE_FAILS" ]; then PYRIGHT_GATE_FAILS=0; fi
 
@@ -562,8 +564,13 @@ jobs:
             MYPY_ERRORS=1
           fi
 
-          if [ "$MYPY_ERRORS" != "0" ] || [ "$PYLINT_ERRORS" != "0" ] || [ "$PYRIGHT_GATE_FAILS" != "0" ]; then
-            echo "::error::Critical checks failed (mypy=$MYPY_ERRORS, pylint=$PYLINT_ERRORS, pyright_gates=$PYRIGHT_GATE_FAILS)"
+          # If the Pyright step failed before writing outputs, fail the job anyway.
+          if [ "$PYRIGHT_OUTCOME" != "success" ]; then
+            PYRIGHT_ERRORS=1
+          fi
+
+          if [ "$MYPY_ERRORS" != "0" ] || [ "$PYRIGHT_ERRORS" != "0" ] || [ "$PYLINT_ERRORS" != "0" ] || [ "$PYRIGHT_GATE_FAILS" != "0" ]; then
+            echo "::error::Critical checks failed (mypy=$MYPY_ERRORS, pyright=$PYRIGHT_ERRORS, pylint=$PYLINT_ERRORS, pyright_gates=$PYRIGHT_GATE_FAILS)"
             exit 1
           fi
 
