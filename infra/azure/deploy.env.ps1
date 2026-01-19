@@ -12,7 +12,7 @@ param(
     [string]$ParametersFile = "",
     [string]$ProjectName = "copilot",
     [string]$Environment = "dev",
-    [string]$ImageTag = "latest",
+    [string]$ImageTag = "azure",
     [switch]$ValidateOnly,
     [switch]$Help
 )
@@ -45,7 +45,7 @@ OPTIONS:
     -ParametersFile     Path to parameters file (default: parameters.<env>.json)
     -ProjectName        Project name prefix (default: copilot)
     -Environment        Environment (dev/staging/prod, default: dev)
-    -ImageTag           Container image tag (default: latest)
+    -ImageTag           Container image tag (default: azure)
     -ValidateOnly       Validate template without deploying
     -Help               Display this help message
 

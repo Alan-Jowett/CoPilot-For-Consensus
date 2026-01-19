@@ -59,7 +59,7 @@ OPTIONS:
     -p, --parameters        Path to parameters file (default: parameters.<env>.json)
     -n, --project-name      Project name prefix (default: copilot)
     -e, --environment       Environment (dev/staging/prod, default: dev)
-    -t, --image-tag         Container image tag (default: latest)
+    -t, --image-tag         Container image tag (default: azure)
     -v, --validate-only     Validate template without deploying
     -h, --help              Display this help message
 
@@ -91,7 +91,7 @@ LOCATION="westus"
 PARAMETERS_FILE=""
 PROJECT_NAME="copilot"
 ENVIRONMENT="dev"
-IMAGE_TAG="latest"
+IMAGE_TAG="azure"
 VALIDATE_ONLY=false
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
