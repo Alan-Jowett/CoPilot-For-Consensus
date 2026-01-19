@@ -58,6 +58,66 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Track refresh timer in a ref so cleanup never captures stale state.
   const refreshTimerIdRef = useRef<number | null>(null)
 
+  // Function to refresh the token silently
+  // Note: This function initiates navigation and never returns
+  const refreshToken = useCallback(() => {
+    console.log('[AuthContext] Attempting silent token refresh')
+    
+    // Save current location so we can return after refresh (including hash fragment)
+    const currentPath = window.location.pathname + window.location.search + window.location.hash
+    sessionStorage.setItem('postRefreshUrl', currentPath)
+    
+    // Redirect to refresh endpoint which will initiate OIDC prompt=none flow
+    // The OIDC provider will redirect back to /callback which will set new cookie
+    // and redirect back to the saved location
+    window.location.href = '/auth/refresh'
+  }, [])
+
+  // Clear the refresh timer
+  const clearRefreshTimer = useCallback(() => {
+    if (refreshTimerIdRef.current !== null) {
+      clearTimeout(refreshTimerIdRef.current)
+      refreshTimerIdRef.current = null
+    }
+  }, [])
+
+  // Schedule automatic token refresh before expiration
+  const scheduleTokenRefresh = useCallback((expirationTimestamp: number) => {
+    clearRefreshTimer()
+
+    const now = Math.floor(Date.now() / 1000) // Current time in seconds
+    const expiresIn = expirationTimestamp - now // Time until expiration in seconds
+    
+    // Refresh before expiration with a buffer, or halfway through for short-lived tokens
+    // For tokens >10 minutes: refresh 5 minutes before expiry
+    // For tokens <10 minutes: refresh halfway through (e.g., 3 min token refreshes at 1.5 min)
+    // For very short or expired tokens: schedule a deferred refresh to allow initial render
+    const refreshBuffer = Math.min(TOKEN_REFRESH_BUFFER_SECONDS, Math.floor(expiresIn * MIN_REFRESH_BUFFER_FRACTION))
+    const refreshIn = Math.max(0, expiresIn - refreshBuffer)
+
+    console.log(
+      `[AuthContext] Token expires in ${expiresIn}s, scheduling refresh in ${refreshIn}s`
+    )
+
+    if (refreshIn > 0) {
+      const timerId = setTimeout(() => {
+        console.log('[AuthContext] Refresh timer triggered')
+        refreshToken()
+      }, refreshIn * 1000) as number // setTimeout returns number in browser
+
+      refreshTimerIdRef.current = timerId
+    } else {
+      // Token already expired or very close to expiration; defer refresh slightly
+      // to allow the UI to render first, avoiding redirect during initial render
+      console.log('[AuthContext] Token already expired, scheduling immediate refresh')
+      const timerId = setTimeout(() => {
+        console.log('[AuthContext] Immediate refresh timer triggered')
+        refreshToken()
+      }, 100) as number // 100ms delay to let UI render
+      refreshTimerIdRef.current = timerId
+    }
+  }, [clearRefreshTimer, refreshToken])
+
   // Function to check authentication status by calling /auth/userinfo
   const checkAuth = useCallback(async () => {
     try {
@@ -93,67 +153,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setIsCheckingAuth(false)
     }
-  }, []) // Empty deps since we use state setters which are stable
-
-  // Function to refresh the token silently
-  // Note: This function initiates navigation and never returns
-  const refreshToken = () => {
-    console.log('[AuthContext] Attempting silent token refresh')
-    
-    // Save current location so we can return after refresh (including hash fragment)
-    const currentPath = window.location.pathname + window.location.search + window.location.hash
-    sessionStorage.setItem('postRefreshUrl', currentPath)
-    
-    // Redirect to refresh endpoint which will initiate OIDC prompt=none flow
-    // The OIDC provider will redirect back to /callback which will set new cookie
-    // and redirect back to the saved location
-    window.location.href = '/auth/refresh'
-  }
-
-  // Schedule automatic token refresh before expiration
-  const scheduleTokenRefresh = (expirationTimestamp: number) => {
-    clearRefreshTimer()
-
-    const now = Math.floor(Date.now() / 1000) // Current time in seconds
-    const expiresIn = expirationTimestamp - now // Time until expiration in seconds
-    
-    // Refresh before expiration with a buffer, or halfway through for short-lived tokens
-    // For tokens >10 minutes: refresh 5 minutes before expiry
-    // For tokens <10 minutes: refresh halfway through (e.g., 3 min token refreshes at 1.5 min)
-    // For very short or expired tokens: schedule a deferred refresh to allow initial render
-    const refreshBuffer = Math.min(TOKEN_REFRESH_BUFFER_SECONDS, Math.floor(expiresIn * MIN_REFRESH_BUFFER_FRACTION))
-    const refreshIn = Math.max(0, expiresIn - refreshBuffer)
-
-    console.log(
-      `[AuthContext] Token expires in ${expiresIn}s, scheduling refresh in ${refreshIn}s`
-    )
-
-    if (refreshIn > 0) {
-      const timerId = setTimeout(() => {
-        console.log('[AuthContext] Refresh timer triggered')
-        refreshToken()
-      }, refreshIn * 1000) as number // setTimeout returns number in browser
-
-      refreshTimerIdRef.current = timerId
-    } else {
-      // Token already expired or very close to expiration; defer refresh slightly
-      // to allow the UI to render first, avoiding redirect during initial render
-      console.log('[AuthContext] Token already expired, scheduling immediate refresh')
-      const timerId = setTimeout(() => {
-        console.log('[AuthContext] Immediate refresh timer triggered')
-        refreshToken()
-      }, 100) as number // 100ms delay to let UI render
-      refreshTimerIdRef.current = timerId
-    }
-  }
-
-  // Clear the refresh timer
-  const clearRefreshTimer = () => {
-    if (refreshTimerIdRef.current !== null) {
-      clearTimeout(refreshTimerIdRef.current)
-      refreshTimerIdRef.current = null
-    }
-  }
+  }, [scheduleTokenRefresh, clearRefreshTimer])
 
   // Check authentication on mount
   useEffect(() => {
