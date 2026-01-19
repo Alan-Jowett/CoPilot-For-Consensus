@@ -31,6 +31,10 @@ export const setUnauthorizedCallback = (callback: () => void) => {
 
 export const getUnauthorizedCallback = () => globalOnUnauthorized
 
+// Token refresh configuration constants
+const TOKEN_REFRESH_BUFFER_SECONDS = 300 // Refresh 5 minutes before expiration
+const MIN_REFRESH_BUFFER_FRACTION = 0.5 // Or halfway for short-lived tokens
+
 /**
  * Check if the user has admin role from user info
  */
@@ -110,8 +114,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const now = Math.floor(Date.now() / 1000) // Current time in seconds
     const expiresIn = expirationTimestamp - now // Time until expiration in seconds
     
-    // Refresh 5 minutes (300 seconds) before expiration, or halfway to expiration if less than 10 minutes remain
-    const refreshBuffer = Math.min(300, Math.floor(expiresIn / 2))
+    // Refresh before expiration with a buffer, or halfway through for short-lived tokens
+    const refreshBuffer = Math.min(TOKEN_REFRESH_BUFFER_SECONDS, Math.floor(expiresIn * MIN_REFRESH_BUFFER_FRACTION))
     const refreshIn = Math.max(0, expiresIn - refreshBuffer)
 
     console.log(
@@ -122,7 +126,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const timerId = setTimeout(() => {
         console.log('[AuthContext] Refresh timer triggered')
         refreshToken()
-      }, refreshIn * 1000) as unknown as number // Cast to number for browser setTimeout
+      }, refreshIn * 1000) as number // setTimeout returns number in browser
 
       setRefreshTimerId(timerId)
     } else {

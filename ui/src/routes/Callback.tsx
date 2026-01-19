@@ -5,6 +5,9 @@ import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import styles from './Callback.module.css'
 
+// Delay before redirecting to login after failed silent refresh (milliseconds)
+const FAILED_REFRESH_REDIRECT_DELAY_MS = 2000
+
 export function Callback() {
   const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -61,7 +64,7 @@ export function Callback() {
         setError('Your session has expired. Please log in again.')
         setTimeout(() => {
           window.location.href = `${import.meta.env.BASE_URL}login`
-        }, 2000)
+        }, FAILED_REFRESH_REDIRECT_DELAY_MS)
         return
       }
       

@@ -376,6 +376,13 @@ async def refresh(
         raise HTTPException(status_code=401, detail="No token found to refresh")
 
     try:
+        # Validate token structure before decoding
+        if not token or not isinstance(token, str) or token.count('.') != 2:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid token format"
+            )
+
         # Decode token WITHOUT signature verification to extract claims for provider inference
         # SECURITY NOTE: This is safe because:
         # 1. We only use the decoded data to infer the provider (non-security-critical)
