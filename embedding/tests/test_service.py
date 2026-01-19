@@ -121,11 +121,27 @@ def test_service_start(embedding_service, mock_subscriber):
     """Test that the service subscribes to events on start."""
     embedding_service.start()
 
-    # Verify subscription was called
-    mock_subscriber.subscribe.assert_called_once()
-    call_args = mock_subscriber.subscribe.call_args
-    assert call_args[1]["exchange"] == "copilot.events"
-    assert call_args[1]["routing_key"] == "chunks.prepared"
+    # Verify subscription was called for both ChunksPrepared and SourceDeletionRequested
+    from unittest.mock import call
+
+    assert mock_subscriber.subscribe.call_count == 2
+    mock_subscriber.subscribe.assert_has_calls(
+        [
+            call(
+                event_type="ChunksPrepared",
+                exchange="copilot.events",
+                routing_key="chunks.prepared",
+                callback=embedding_service._handle_chunks_prepared,
+            ),
+            call(
+                event_type="SourceDeletionRequested",
+                exchange="copilot.events",
+                routing_key="source.deletion.requested",
+                callback=embedding_service._handle_source_deletion_requested,
+            ),
+        ],
+        any_order=False,
+    )
 
 
 def test_process_chunks_success(embedding_service, mock_document_store, mock_vector_store, mock_embedding_provider, mock_publisher):
@@ -830,13 +846,13 @@ def test_cascade_cleanup_handler():
         AdapterConfig_DocumentStore,
         DriverConfig_DocumentStore_Inmemory,
     )
-    from copilot_config.generated.adapters.vectorstore import (
+    from copilot_config.generated.adapters.vector_store import (
         AdapterConfig_VectorStore,
         DriverConfig_VectorStore_Inmemory,
     )
-    from copilot_config.generated.adapters.embedding import (
-        AdapterConfig_Embedding,
-        DriverConfig_Embedding_Mock,
+    from copilot_config.generated.adapters.embedding_backend import (
+        AdapterConfig_EmbeddingBackend,
+        DriverConfig_EmbeddingBackend_Mock,
     )
     from copilot_storage import create_document_store
     from copilot_vectorstore import create_vector_store
@@ -846,22 +862,22 @@ def test_cascade_cleanup_handler():
     # Create test service
     document_store = create_document_store(
         AdapterConfig_DocumentStore(
-            document_store_type="inmemory",
+            doc_store_type="inmemory",
             driver=DriverConfig_DocumentStore_Inmemory(),
         )
     )
     
     vector_store = create_vector_store(
         AdapterConfig_VectorStore(
-            vectorstore_type="inmemory",
-            driver=DriverConfig_VectorStore_Inmemory(dimension=384),
+            vector_store_type="inmemory",
+            driver=DriverConfig_VectorStore_Inmemory(),
         )
     )
     
     embedding_provider = create_embedding_provider(
-        AdapterConfig_Embedding(
-            embedding_type="mock",
-            driver=DriverConfig_Embedding_Mock(dimension=384),
+        AdapterConfig_EmbeddingBackend(
+            embedding_backend_type="mock",
+            driver=DriverConfig_EmbeddingBackend_Mock(dimension=384),
         )
     )
     
@@ -905,21 +921,39 @@ def test_cascade_cleanup_handler():
         metrics_collector=Mock(),
     )
     
-    # Add test data - chunks and embeddings
-    document_store.insert_document("chunks", {
-        "_id": "chunk-1",
-        "source": "test-source",
-        "text": "Test chunk 1"
-    })
-    document_store.insert_document("chunks", {
-        "_id": "chunk-2",
-        "source": "test-source",
-        "text": "Test chunk 2"
-    })
+    # Add test data - schema-compliant chunks + matching embeddings
+    chunk_1_id = "0123456789abcdef"
+    chunk_2_id = "fedcba9876543210"
+
+    chunk_1 = create_valid_chunk(
+        message_doc_id="1111111111111111",
+        message_id="<msg-1@example.com>",
+        thread_id="2222222222222222",
+        archive_id="archive-1",
+        chunk_index=0,
+        text="Test chunk 1",
+        token_count=10,
+        **{"_id": chunk_1_id},
+    )
+    chunk_1["source"] = "test-source"
+    document_store.insert_document("chunks", chunk_1)
+
+    chunk_2 = create_valid_chunk(
+        message_doc_id="3333333333333333",
+        message_id="<msg-2@example.com>",
+        thread_id="4444444444444444",
+        archive_id="archive-1",
+        chunk_index=1,
+        text="Test chunk 2",
+        token_count=10,
+        **{"_id": chunk_2_id},
+    )
+    chunk_2["source"] = "test-source"
+    document_store.insert_document("chunks", chunk_2)
     
     # Add embeddings to vector store
-    vector_store.add_embedding("chunk-1", [0.1] * 384, {"source": "test-source"})
-    vector_store.add_embedding("chunk-2", [0.2] * 384, {"source": "test-source"})
+    vector_store.add_embedding(chunk_1_id, [0.1] * 384, {"source": "test-source"})
+    vector_store.add_embedding(chunk_2_id, [0.2] * 384, {"source": "test-source"})
     
     # Verify embeddings exist
     assert vector_store.count() == 2
