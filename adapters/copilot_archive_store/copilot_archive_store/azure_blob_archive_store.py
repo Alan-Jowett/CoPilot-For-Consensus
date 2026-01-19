@@ -436,7 +436,13 @@ class AzureBlobArchiveStore(ArchiveStore):
         try:
             metadata = self._metadata.get(archive_id)
             if not metadata:
-                return None
+                # Metadata is cached in-memory and can become stale in long-lived
+                # services (e.g., Azure Container Apps) where ingestion updates the
+                # metadata index after this instance started. Reload on miss.
+                self._load_metadata()
+                metadata = self._metadata.get(archive_id)
+                if not metadata:
+                    return None
 
             blob_name = metadata["blob_name"]
             blob_client = self.container_client.get_blob_client(blob_name)
@@ -470,6 +476,12 @@ class AzureBlobArchiveStore(ArchiveStore):
         Raises:
             ArchiveStoreError: If query operation fails
         """
+        archive_id = self._hash_index.get(content_hash)
+        if archive_id is not None:
+            return archive_id
+
+        # Reload metadata once to avoid stale cache issues in long-lived services.
+        self._load_metadata()
         return self._hash_index.get(content_hash)
 
     def archive_exists(self, archive_id: str) -> bool:
@@ -487,7 +499,11 @@ class AzureBlobArchiveStore(ArchiveStore):
         try:
             metadata = self._metadata.get(archive_id)
             if not metadata:
-                return False
+                # Reload once in case metadata was updated by another instance.
+                self._load_metadata()
+                metadata = self._metadata.get(archive_id)
+                if not metadata:
+                    return False
 
             blob_name = metadata["blob_name"]
             blob_client = self.container_client.get_blob_client(blob_name)
