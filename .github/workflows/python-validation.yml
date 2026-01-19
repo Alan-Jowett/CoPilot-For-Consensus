@@ -231,6 +231,7 @@ jobs:
 
       - name: MyPy - Static Type Checking
         id: mypy
+        continue-on-error: true
         run: |
           echo "::group::Running MyPy Type Checker"
           MYPY_ERRORS=0
@@ -275,9 +276,9 @@ jobs:
 
           if [ $MYPY_ERRORS -gt 0 ]; then
             echo "::error::MyPy found type errors in $MYPY_ERRORS module(s)"
+            # Non-zero exit makes the step visibly fail in CI logs.
+            exit 1
           fi
-
-          # Do not fail here; fail at the end so other checks still run.
           exit 0
 
       - name: Pyright - Strict Type Checking
@@ -548,12 +549,18 @@ jobs:
         if: always()
         run: |
           MYPY_ERRORS="${{ steps.mypy.outputs.error_count }}"
+          MYPY_OUTCOME="${{ steps.mypy.outcome }}"
           PYLINT_ERRORS="${{ steps.pylint.outputs.error_count }}"
           PYRIGHT_GATE_FAILS="${{ steps.pyright_gates.outputs.fail_count }}"
 
           if [ -z "$MYPY_ERRORS" ]; then MYPY_ERRORS=0; fi
           if [ -z "$PYLINT_ERRORS" ]; then PYLINT_ERRORS=0; fi
           if [ -z "$PYRIGHT_GATE_FAILS" ]; then PYRIGHT_GATE_FAILS=0; fi
+
+          # If the MyPy step failed before writing outputs, fail the job anyway.
+          if [ "$MYPY_OUTCOME" != "success" ]; then
+            MYPY_ERRORS=1
+          fi
 
           if [ "$MYPY_ERRORS" != "0" ] || [ "$PYLINT_ERRORS" != "0" ] || [ "$PYRIGHT_GATE_FAILS" != "0" ]; then
             echo "::error::Critical checks failed (mypy=$MYPY_ERRORS, pylint=$PYLINT_ERRORS, pyright_gates=$PYRIGHT_GATE_FAILS)"
