@@ -195,7 +195,7 @@ class KeyVaultJWTSigner(JWTSigner):
         )
 
         # Cache for public key
-        self._public_key_cache = None
+        self._public_key_cache: dict[str, Any] | None = None
 
         # Initialize Azure clients
         self._initialize_clients()
@@ -353,7 +353,7 @@ class KeyVaultJWTSigner(JWTSigner):
             return False
 
         # Network errors and service unavailable are transient
-        if isinstance(error, (ServiceRequestError, ConnectionError, TimeoutError)):
+        if isinstance(error, ServiceRequestError | ConnectionError | TimeoutError):
             return True
 
         # HTTP 5xx errors are typically transient
@@ -400,28 +400,36 @@ class KeyVaultJWTSigner(JWTSigner):
             key = self.key_client.get_key(self.key_name, version=self.key_version)
             key_material: Any = key.key
 
+            key_type_obj = getattr(key, "key_type", None)
+            if key_type_obj is None:
+                raise KeyVaultSignerError("Key type not available from Key Vault response")
+            key_type = key_type_obj.value if hasattr(key_type_obj, "value") else str(key_type_obj)
+
             # Convert to JWK format
             jwk = {
-                "kty": key.key_type.value if hasattr(key.key_type, 'value') else str(key.key_type),
+                "kty": key_type,
                 "use": "sig",
                 "kid": self.key_id,
                 "alg": self.algorithm,
             }
 
             # Add key-specific parameters
-            if key.key_type.value == "RSA":
+            if key_type == "RSA":
                 # Azure's JsonWebKey is dynamically shaped; pylint can't see n/e.
                 # pylint: disable=no-member
                 jwk["n"] = self._bytes_to_base64url(key_material.n)
                 jwk["e"] = self._bytes_to_base64url(key_material.e)
                 # pylint: enable=no-member
-            elif key.key_type.value == "EC":
+            elif key_type == "EC":
                 # Azure's JsonWebKey is dynamically shaped; pylint can't see crv/x/y.
                 # pylint: disable=no-member
+                crv_obj = getattr(key_material, "crv", None)
+                if crv_obj is None:
+                    raise KeyVaultSignerError("EC key is missing curve information")
                 jwk["crv"] = (
-                    key_material.crv.value
-                    if hasattr(key_material.crv, "value")
-                    else str(key_material.crv)
+                    crv_obj.value
+                    if hasattr(crv_obj, "value")
+                    else str(crv_obj)
                 )
                 jwk["x"] = self._bytes_to_base64url(key_material.x)
                 jwk["y"] = self._bytes_to_base64url(key_material.y)
@@ -457,25 +465,36 @@ class KeyVaultJWTSigner(JWTSigner):
             key = self.key_client.get_key(self.key_name, version=self.key_version)
             key_material: Any = key.key
 
+            key_type_obj = getattr(key, "key_type", None)
+            if key_type_obj is None:
+                raise KeyVaultSignerError("Key type not available from Key Vault response")
+            key_type = key_type_obj.value if hasattr(key_type_obj, "value") else str(key_type_obj)
+
             # Convert to PEM format using cryptography library
-            if key.key_type.value == "RSA":
+            if key_type == "RSA":
                 # Reconstruct RSA public key
                 # pylint: disable=no-member
-                public_key = rsa.RSAPublicNumbers(
+                rsa_public_key = rsa.RSAPublicNumbers(
                     e=int.from_bytes(key_material.e, byteorder='big'),
                     n=int.from_bytes(key_material.n, byteorder='big')
                 ).public_key()
                 # pylint: enable=no-member
-            elif key.key_type.value == "EC":
+                pem = rsa_public_key.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                )
+                return pem.decode("utf-8")
+
+            if key_type == "EC":
                 # Reconstruct EC public key
                 # Map curve name
                 # pylint: disable=no-member
-                curve_name = (
-                    key_material.crv.value
-                    if hasattr(key_material.crv, "value")
-                    else str(key_material.crv)
-                )
+                crv_obj = getattr(key_material, "crv", None)
+                if crv_obj is None:
+                    raise KeyVaultSignerError("EC key is missing curve information")
+                curve_name = crv_obj.value if hasattr(crv_obj, "value") else str(crv_obj)
                 # pylint: enable=no-member
+                curve: ec.EllipticCurve
                 if curve_name == "P-256":
                     curve = ec.SECP256R1()
                 elif curve_name == "P-384":
@@ -486,22 +505,19 @@ class KeyVaultJWTSigner(JWTSigner):
                     raise KeyVaultSignerError(f"Unsupported EC curve: {curve_name}")
 
                 # pylint: disable=no-member
-                public_key = ec.EllipticCurvePublicNumbers(
+                ec_public_key = ec.EllipticCurvePublicNumbers(
                     x=int.from_bytes(key_material.x, byteorder='big'),
                     y=int.from_bytes(key_material.y, byteorder='big'),
                     curve=curve
                 ).public_key()
                 # pylint: enable=no-member
-            else:
-                raise KeyVaultSignerError(f"Unsupported key type: {key.key_type}")
+                pem = ec_public_key.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                )
+                return pem.decode("utf-8")
 
-            # Export to PEM format
-            pem = public_key.public_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo
-            )
-
-            return pem.decode('utf-8')
+            raise KeyVaultSignerError(f"Unsupported key type: {key_type}")
 
         except Exception as e:
             raise KeyVaultSignerError(f"Failed to get public key PEM: {e}") from e

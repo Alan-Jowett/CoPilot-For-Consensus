@@ -21,8 +21,29 @@ import argparse
 import json
 import os
 import sys
+import textwrap
 from pathlib import Path
 from typing import Any
+
+_MAX_LINE_LENGTH = 120
+
+
+def _wrap_comment_lines(description: str, *, indent: str = "    # ") -> list[str]:
+    """Wrap description text into comment lines within the configured line length."""
+    available_width = max(1, _MAX_LINE_LENGTH - len(indent))
+    lines: list[str] = []
+    for raw_line in description.splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        for wrapped in textwrap.wrap(
+            stripped,
+            width=available_width,
+            break_long_words=False,
+            break_on_hyphens=False,
+        ):
+            lines.append(f"{indent}{wrapped}")
+    return lines
 
 
 def _pipe_union(type_names: list[str]) -> str:
@@ -209,8 +230,7 @@ def _generate_dataclass_code(
                 lines.append(f"    {field_name}: {type_annotation}")
 
         if description:
-            for desc_line in [line.strip() for line in description.splitlines() if line.strip()]:
-                lines.append(f"    # {desc_line}")
+            lines.extend(_wrap_comment_lines(description))
 
     return "\n".join(lines)
 
@@ -492,7 +512,7 @@ def generate_adapter_module(
 
         output_path = output_dir / "adapters" / f"{adapter_name}.py"
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(output)
 
         print(f"Generated: {output_path}")
@@ -565,7 +585,7 @@ def generate_adapter_module(
 
     output_path = output_dir / "adapters" / f"{adapter_name}.py"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(output)
 
     print(f"Generated: {output_path}")
@@ -743,7 +763,7 @@ def generate_service_module(
 
     output_path = output_dir / "services" / f"{service_name}.py"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(output)
 
     print(f"Generated: {output_path}")

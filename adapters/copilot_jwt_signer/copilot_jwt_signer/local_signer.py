@@ -12,8 +12,8 @@ from typing import Any
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, padding
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey, EllipticCurvePublicKey
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 
 from .exceptions import JWTSignerError
 from .signer import JWTSigner
@@ -62,6 +62,9 @@ class LocalJWTSigner(JWTSigner):
         """
         super().__init__(algorithm, key_id)
 
+        self.private_key: RSAPrivateKey | EllipticCurvePrivateKey | bytes
+        self.public_key: RSAPublicKey | EllipticCurvePublicKey | bytes
+
         if algorithm.startswith("RS") or algorithm.startswith("ES"):
             # Asymmetric algorithms require either key files or PEM content.
             if private_key is not None or public_key is not None:
@@ -82,8 +85,9 @@ class LocalJWTSigner(JWTSigner):
             if not secret_key:
                 raise JWTSignerError(f"{algorithm} requires secret_key")
 
-            self.private_key = secret_key
-            self.public_key = secret_key
+            secret_bytes = secret_key.encode("utf-8")
+            self.private_key = secret_bytes
+            self.public_key = secret_bytes
 
         else:
             raise JWTSignerError(
@@ -104,7 +108,7 @@ class LocalJWTSigner(JWTSigner):
         try:
             # Load private key
             with open(private_key_path, "rb") as f:
-                self.private_key = serialization.load_pem_private_key(
+                private_key_obj = serialization.load_pem_private_key(
                     f.read(),
                     password=None,
                     backend=default_backend()
@@ -112,18 +116,26 @@ class LocalJWTSigner(JWTSigner):
 
             # Load public key
             with open(public_key_path, "rb") as f:
-                self.public_key = serialization.load_pem_public_key(
+                public_key_obj = serialization.load_pem_public_key(
                     f.read(),
                     backend=default_backend()
                 )
 
             # Validate key type matches algorithm
             if self.algorithm.startswith("RS"):
-                if not isinstance(self.private_key, RSAPrivateKey):
+                if not isinstance(private_key_obj, RSAPrivateKey):
                     raise JWTSignerError(f"Private key must be RSA for {self.algorithm}")
+                if not isinstance(public_key_obj, RSAPublicKey):
+                    raise JWTSignerError(f"Public key must be RSA for {self.algorithm}")
+                self.private_key = private_key_obj
+                self.public_key = public_key_obj
             elif self.algorithm.startswith("ES"):
-                if not isinstance(self.private_key, EllipticCurvePrivateKey):
+                if not isinstance(private_key_obj, EllipticCurvePrivateKey):
                     raise JWTSignerError(f"Private key must be EC for {self.algorithm}")
+                if not isinstance(public_key_obj, EllipticCurvePublicKey):
+                    raise JWTSignerError(f"Public key must be EC for {self.algorithm}")
+                self.private_key = private_key_obj
+                self.public_key = public_key_obj
 
         except FileNotFoundError as e:
             raise JWTSignerError(f"Key file not found: {e}") from e
@@ -144,22 +156,30 @@ class LocalJWTSigner(JWTSigner):
             private_bytes = private_key.encode("utf-8") if isinstance(private_key, str) else private_key
             public_bytes = public_key.encode("utf-8") if isinstance(public_key, str) else public_key
 
-            self.private_key = serialization.load_pem_private_key(
+            private_key_obj = serialization.load_pem_private_key(
                 private_bytes,
                 password=None,
                 backend=default_backend(),
             )
-            self.public_key = serialization.load_pem_public_key(
+            public_key_obj = serialization.load_pem_public_key(
                 public_bytes,
                 backend=default_backend(),
             )
 
             if self.algorithm.startswith("RS"):
-                if not isinstance(self.private_key, RSAPrivateKey):
+                if not isinstance(private_key_obj, RSAPrivateKey):
                     raise JWTSignerError(f"Private key must be RSA for {self.algorithm}")
+                if not isinstance(public_key_obj, RSAPublicKey):
+                    raise JWTSignerError(f"Public key must be RSA for {self.algorithm}")
+                self.private_key = private_key_obj
+                self.public_key = public_key_obj
             elif self.algorithm.startswith("ES"):
-                if not isinstance(self.private_key, EllipticCurvePrivateKey):
+                if not isinstance(private_key_obj, EllipticCurvePrivateKey):
                     raise JWTSignerError(f"Private key must be EC for {self.algorithm}")
+                if not isinstance(public_key_obj, EllipticCurvePublicKey):
+                    raise JWTSignerError(f"Public key must be EC for {self.algorithm}")
+                self.private_key = private_key_obj
+                self.public_key = public_key_obj
 
         except Exception as e:
             raise JWTSignerError(f"Failed to load keys: {e}") from e
@@ -201,6 +221,7 @@ class LocalJWTSigner(JWTSigner):
             RSA signature bytes
         """
         # Select hash algorithm based on variant
+        hash_algo: hashes.HashAlgorithm
         if self.algorithm == "RS256":
             hash_algo = hashes.SHA256()
         elif self.algorithm == "RS384":
@@ -209,6 +230,9 @@ class LocalJWTSigner(JWTSigner):
             hash_algo = hashes.SHA512()
         else:
             raise JWTSignerError(f"Unsupported RSA algorithm: {self.algorithm}")
+
+        if not isinstance(self.private_key, RSAPrivateKey):
+            raise JWTSignerError(f"Private key must be RSA for {self.algorithm}")
 
         return self.private_key.sign(
             message,
@@ -226,6 +250,7 @@ class LocalJWTSigner(JWTSigner):
             EC signature bytes
         """
         # Select hash algorithm based on variant
+        hash_algo: hashes.HashAlgorithm
         if self.algorithm == "ES256":
             hash_algo = hashes.SHA256()
         elif self.algorithm == "ES384":
@@ -234,6 +259,9 @@ class LocalJWTSigner(JWTSigner):
             hash_algo = hashes.SHA512()
         else:
             raise JWTSignerError(f"Unsupported EC algorithm: {self.algorithm}")
+
+        if not isinstance(self.private_key, EllipticCurvePrivateKey):
+            raise JWTSignerError(f"Private key must be EC for {self.algorithm}")
 
         return self.private_key.sign(
             message,
@@ -259,8 +287,11 @@ class LocalJWTSigner(JWTSigner):
         else:
             raise JWTSignerError(f"Unsupported HMAC algorithm: {self.algorithm}")
 
+        if not isinstance(self.private_key, bytes | bytearray):
+            raise JWTSignerError(f"Private key must be bytes for {self.algorithm}")
+
         return hmac.new(
-            self.private_key.encode("utf-8"),
+            bytes(self.private_key),
             message,
             hash_func
         ).digest()
@@ -365,6 +396,8 @@ class LocalJWTSigner(JWTSigner):
             return None
 
         try:
+            if not isinstance(self.public_key, RSAPublicKey | EllipticCurvePublicKey):
+                raise JWTSignerError("Public key is not an asymmetric public key")
             pem = self.public_key.public_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PublicFormat.SubjectPublicKeyInfo

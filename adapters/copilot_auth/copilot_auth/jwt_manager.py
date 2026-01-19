@@ -218,39 +218,42 @@ class JWTManager:
 
     def _mint_token_with_signer(self, headers: dict[str, Any], claims: dict[str, Any]) -> str:
         """Mint a JWT token using the signer adapter.
-        
+
         Args:
             headers: JWT header dictionary
             claims: JWT claims dictionary
-            
+
         Returns:
             Signed JWT token string
-            
+
         Note:
             Uses json.dumps with compact separators (separators=(',', ':')) and
             base64url encoding to follow the JWT compact serialization defined in
             RFC 7519. This ensures interoperability with standard JWT libraries
             for token verification.
-            
+
             Claims should contain only JSON-serializable primitive types (strings,
-            numbers, booleans, lists, dicts, None). For timestamps, use integer 
+            numbers, booleans, lists, dicts, None). For timestamps, use integer
             Unix timestamps (seconds since epoch) as per JWT standard. The current
             implementation uses standard claim types (int, str, list) which are
             fully compatible with PyJWT and other JWT libraries.
         """
         # Encode header and payload as base64url
-        header_b64 = self._base64url_encode(json.dumps(headers, separators=(',', ':')).encode('utf-8'))
-        payload_b64 = self._base64url_encode(json.dumps(claims, separators=(',', ':')).encode('utf-8'))
-        
+        header_b64 = self._base64url_encode(json.dumps(headers, separators=(',', ':')).encode())
+        payload_b64 = self._base64url_encode(json.dumps(claims, separators=(',', ':')).encode())
+
         # Create signing input (header.payload)
-        signing_input = f"{header_b64}.{payload_b64}".encode('utf-8')
-        
+        signing_input = f"{header_b64}.{payload_b64}".encode()
+
+        if self.signer is None:
+            raise ValueError("Signer not configured")
+
         # Sign using the signer
         signature = self.signer.sign(signing_input)
-        
+
         # Encode signature as base64url
         signature_b64 = self._base64url_encode(signature)
-        
+
         # Assemble final JWT (header.payload.signature)
         return f"{header_b64}.{payload_b64}.{signature_b64}"
 
@@ -281,11 +284,13 @@ class JWTManager:
         if self.use_signer:
             # New mode: get public key from signer for validation
             # For signer mode, we still use PyJWT for validation but get the public key from signer
+            if self.signer is None:
+                raise jwt.InvalidTokenError("Signer not configured")
             public_key_pem = self.signer.get_public_key_pem()
             if public_key_pem:
                 # Load public key for validation
                 public_key = serialization.load_pem_public_key(
-                    public_key_pem.encode('utf-8'),
+                    public_key_pem.encode(),
                     backend=default_backend()
                 )
             else:
@@ -294,7 +299,7 @@ class JWTManager:
                 raise jwt.InvalidTokenError(
                     "Cannot validate tokens signed with symmetric algorithms in signer mode"
                 )
-            
+
             return jwt.decode(  # type: ignore[no-any-return]
                 token,
                 public_key,  # type: ignore[arg-type]
@@ -325,6 +330,8 @@ class JWTManager:
         """
         if self.use_signer:
             # New mode: get JWKS from signer
+            if self.signer is None:
+                return {"keys": []}
             jwk = self.signer.get_public_key_jwk()
             if jwk:
                 return {"keys": [jwk]}
@@ -357,15 +364,17 @@ class JWTManager:
 
     def get_public_key_pem(self) -> str | None:
         """Get public key in PEM format for external services.
-        
+
         Returns public key as PEM-encoded string for RS256/EC, or None for HS256
         (HMAC secrets should not be published).
-        
+
         Returns:
             Public key in PEM format, or None if not available
         """
         if self.use_signer:
             # New mode: get PEM from signer
+            if self.signer is None:
+                return None
             return self.signer.get_public_key_pem()
 
         # Legacy mode: export from stored public key

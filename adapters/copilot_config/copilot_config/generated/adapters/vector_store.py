@@ -22,7 +22,8 @@ class DriverConfig_VectorStore_AzureAiSearch:
     index_name: str = "embeddings"
     # Azure AI Search index name for embeddings
     managed_identity_client_id: str | None = None
-    # Client ID for user-assigned managed identity (optional; if omitted, DefaultAzureCredential will use system-assigned identity or default chain)
+    # Client ID for user-assigned managed identity (optional; if omitted, DefaultAzureCredential will use
+    # system-assigned identity or default chain)
     use_managed_identity: bool = False
     # Use managed identity instead of API key
     vector_size: int = 384
