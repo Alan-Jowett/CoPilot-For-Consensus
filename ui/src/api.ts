@@ -480,6 +480,9 @@ function normalizePendingRoleAssignment(input: unknown): PendingRoleAssignment |
             ? [record.role]
             : []
 
+  // If an assignment has no requested roles, it's not actionable and should not be shown.
+  if (requestedRoles.length === 0) return null
+
   const requestedAt =
     typeof record.requested_at === 'string'
       ? record.requested_at

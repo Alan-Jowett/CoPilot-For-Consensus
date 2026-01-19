@@ -76,7 +76,7 @@ export function PendingAssignments() {
     setSuccessMessage(null)
     try {
       if (!Array.isArray(assignment.requested_roles) || assignment.requested_roles.length === 0) {
-        throw new Error('No requested roles found for this assignment (expected roles in API response)')
+        throw new Error('Cannot approve this assignment: no roles were specified. Please contact an administrator.')
       }
       await assignUserRoles(assignment.user_id, assignment.requested_roles)
       setSuccessMessage(`Approved role assignment for ${assignment.user_id}`)
@@ -148,7 +148,7 @@ export function PendingAssignments() {
       setProcessingIds((prev) => new Set(prev).add(assignment.user_id))
       try {
         if (!Array.isArray(assignment.requested_roles) || assignment.requested_roles.length === 0) {
-          throw new Error('No requested roles found for this assignment (expected roles in API response)')
+          throw new Error('Cannot approve this assignment: no roles were specified. Please contact an administrator.')
         }
         await assignUserRoles(assignment.user_id, assignment.requested_roles)
         successCount++
