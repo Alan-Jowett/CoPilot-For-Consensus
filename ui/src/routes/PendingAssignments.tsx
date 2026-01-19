@@ -75,6 +75,9 @@ export function PendingAssignments() {
     setError(null)
     setSuccessMessage(null)
     try {
+      if (!Array.isArray(assignment.requested_roles) || assignment.requested_roles.length === 0) {
+        throw new Error('No requested roles found for this assignment (expected roles in API response)')
+      }
       await assignUserRoles(assignment.user_id, assignment.requested_roles)
       setSuccessMessage(`Approved role assignment for ${assignment.user_id}`)
       // Reload assignments
@@ -144,6 +147,9 @@ export function PendingAssignments() {
     for (const assignment of selectedAssignments) {
       setProcessingIds((prev) => new Set(prev).add(assignment.user_id))
       try {
+        if (!Array.isArray(assignment.requested_roles) || assignment.requested_roles.length === 0) {
+          throw new Error('No requested roles found for this assignment (expected roles in API response)')
+        }
         await assignUserRoles(assignment.user_id, assignment.requested_roles)
         successCount++
       } catch (e: unknown) {
