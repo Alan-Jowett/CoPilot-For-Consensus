@@ -110,11 +110,27 @@ def test_service_start(chunking_service, mock_subscriber):
     """Test that the service subscribes to events on start."""
     chunking_service.start()
 
-    # Verify subscription was called
-    mock_subscriber.subscribe.assert_called_once()
-    call_args = mock_subscriber.subscribe.call_args
-    assert call_args[1]["exchange"] == "copilot.events"
-    assert call_args[1]["routing_key"] == "json.parsed"
+    # Verify subscription was called for both JSONParsed and SourceDeletionRequested
+    from unittest.mock import call
+
+    assert mock_subscriber.subscribe.call_count == 2
+    mock_subscriber.subscribe.assert_has_calls(
+        [
+            call(
+                event_type="JSONParsed",
+                exchange="copilot.events",
+                routing_key="json.parsed",
+                callback=chunking_service._handle_json_parsed,
+            ),
+            call(
+                event_type="SourceDeletionRequested",
+                exchange="copilot.events",
+                routing_key="source.deletion.requested",
+                callback=chunking_service._handle_source_deletion_requested,
+            ),
+        ],
+        any_order=False,
+    )
 
 
 def test_chunk_message_success(chunking_service, mock_document_store):
@@ -1027,16 +1043,16 @@ def test_cascade_cleanup_handler():
     )
     from copilot_storage import create_document_store
     from copilot_chunking import create_chunker
-    from copilot_config.generated.adapters.chunking import (
-        AdapterConfig_Chunking,
-        DriverConfig_Chunking_Semantic,
+    from copilot_config.generated.adapters.chunker import (
+        AdapterConfig_Chunker,
+        DriverConfig_Chunker_Semantic,
     )
     from unittest.mock import Mock
     
     # Create test service
     document_store = create_document_store(
         AdapterConfig_DocumentStore(
-            document_store_type="inmemory",
+            doc_store_type="inmemory",
             driver=DriverConfig_DocumentStore_Inmemory(),
         )
     )
@@ -1072,9 +1088,9 @@ def test_cascade_cleanup_handler():
             pass
     
     chunker = create_chunker(
-        AdapterConfig_Chunking(
-            chunking_type="semantic",
-            driver=DriverConfig_Chunking_Semantic(chunk_size=512, chunk_overlap=50),
+        AdapterConfig_Chunker(
+            chunking_strategy="semantic",
+            driver=DriverConfig_Chunker_Semantic(target_chunk_size=512, split_on_speaker=False),
         )
     )
     
@@ -1088,16 +1104,37 @@ def test_cascade_cleanup_handler():
     )
     
     # Add test data
-    document_store.insert_document("chunks", {
-        "_id": "chunk-1",
-        "source": "test-source",
-        "text": "Test chunk 1"
-    })
-    document_store.insert_document("chunks", {
-        "_id": "chunk-2",
-        "source": "test-source",
-        "text": "Test chunk 2"
-    })
+    # Insert schema-compliant chunk documents (ValidatingDocumentStore is strict by default)
+    document_store.insert_document(
+        "chunks",
+        {
+            "_id": "0123456789abcdef",
+            "message_doc_id": "1111111111111111",
+            "message_id": "<msg-1@example.com>",
+            "thread_id": "2222222222222222",
+            "archive_id": "archive-1",
+            "chunk_index": 0,
+            "text": "Test chunk 1",
+            "created_at": "2025-01-18T00:00:00Z",
+            "embedding_generated": False,
+            "source": "test-source",
+        },
+    )
+    document_store.insert_document(
+        "chunks",
+        {
+            "_id": "fedcba9876543210",
+            "message_doc_id": "3333333333333333",
+            "message_id": "<msg-2@example.com>",
+            "thread_id": "4444444444444444",
+            "archive_id": "archive-1",
+            "chunk_index": 1,
+            "text": "Test chunk 2",
+            "created_at": "2025-01-18T00:00:00Z",
+            "embedding_generated": False,
+            "source": "test-source",
+        },
+    )
     
     # Simulate SourceDeletionRequested event
     event = {

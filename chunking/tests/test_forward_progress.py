@@ -231,7 +231,7 @@ class TestChunkingForwardProgress:
         chunking_service.start(enable_startup_requeue=True)
 
         # Verify subscription still happened
-        mock_subscriber.subscribe.assert_called_once()
+        assert mock_subscriber.subscribe.call_count == 2
 
     @patch('copilot_startup.StartupRequeue')
     def test_requeue_continues_on_aggregation_error(self, mock_requeue_class, chunking_service, mock_subscriber, mock_document_store, mock_metrics_collector):
@@ -246,7 +246,7 @@ class TestChunkingForwardProgress:
         chunking_service.start(enable_startup_requeue=True)
 
         # Verify subscription still happened
-        mock_subscriber.subscribe.assert_called_once()
+        assert mock_subscriber.subscribe.call_count == 2
 
         # Verify error metrics were collected
         mock_metrics_collector.increment.assert_called_once()
