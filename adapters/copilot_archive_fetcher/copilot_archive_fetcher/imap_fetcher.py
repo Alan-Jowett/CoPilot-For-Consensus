@@ -6,6 +6,7 @@
 import logging
 import mailbox as mbox_module
 import os
+from typing import cast
 
 from .base import ArchiveFetcher
 from .models import SourceConfig
@@ -46,7 +47,7 @@ class IMAPFetcher(ArchiveFetcher):
             Tuple of (success, list_of_file_paths, error_message)
         """
         try:
-            import imapclient
+            import imapclient  # pyright: ignore[reportMissingImports]
 
             os.makedirs(output_dir, exist_ok=True)
 
@@ -89,8 +90,12 @@ class IMAPFetcher(ArchiveFetcher):
                 try:
                     msg_data = client.fetch([msg_id], ["RFC822"])
                     if msg_id in msg_data:
-                        msg_bytes = msg_data[msg_id][b"RFC822"]
-                        mbox.add(msg_bytes)
+                        raw = msg_data[msg_id].get(b"RFC822")
+                        if isinstance(raw, (bytes, bytearray)):
+                            msg_bytes = cast(bytes, raw)
+                            mbox.add(msg_bytes)
+                        else:
+                            failed_msg_ids.append(msg_id)
                     else:
                         failed_msg_ids.append(msg_id)
                 except Exception as e:
