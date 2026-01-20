@@ -16,7 +16,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Iterable
 
-from .mining import MiningResult, TemplateStats
+from .mining import MiningResult
 
 
 _LEVEL_RE = re.compile(r"\blevel=(?P<level>[A-Za-z]+)\b")

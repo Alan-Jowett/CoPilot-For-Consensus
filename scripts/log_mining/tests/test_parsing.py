@@ -6,8 +6,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from scripts.log_mining.mining import (
     MiningConfig,
     _iter_azure_console_records_from_obj,

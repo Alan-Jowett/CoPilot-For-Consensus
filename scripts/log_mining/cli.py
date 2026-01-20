@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 from .mining import (
@@ -134,7 +133,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Input format. 'docker' expects `service | payload`. "
             "'azure-console' expects an Azure export JSON array/lines with Log_s. "
             "'azure-law' expects an Azure Log Analytics query JSON payload with tables/rows. "
-            "'plain' treats each line as a log message." 
+            "'plain' treats each line as a log message."
         ),
     )
 
