@@ -384,16 +384,14 @@ class TestAzureServiceBusSubscriberStartConsuming:
         class _Renewer:
             def __init__(self):
                 self.register_calls = []
-                self.unregister_calls = []
+                self.closed = False
                 created["renewer"] = self
 
             def register(self, receiver, msg, max_lock_renewal_duration):
                 self.register_calls.append((receiver, msg, max_lock_renewal_duration))
 
-            def unregister(self, msg):
-                self.unregister_calls.append(msg)
-
             def close(self):
+                self.closed = True
                 return None
 
         monkeypatch.setattr(module, "ServiceBusReceiveMode", _ReceiveMode)
@@ -421,7 +419,7 @@ class TestAzureServiceBusSubscriberStartConsuming:
 
         receiver.receive_messages.assert_any_call(max_message_count=1, max_wait_time=0)
         assert created["renewer"].register_calls == [(receiver, msg, 123)]
-        assert created["renewer"].unregister_calls == [msg]
+        assert created["renewer"].closed is True
 
     def test_auto_complete_uses_batch_and_no_renewer(self, monkeypatch):
         from copilot_message_bus import azureservicebussubscriber as module
