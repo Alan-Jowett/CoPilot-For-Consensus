@@ -959,6 +959,19 @@ def test_requeue_incomplete_messages_with_aggregation_support():
     assert event_data["archive_id"] == archive_id
     assert msg2_id in event_data["message_doc_ids"]
     assert msg1_id not in event_data["message_doc_ids"]
+    
+    # Verify JSONParsed schema compliance (all required fields present)
+    assert "thread_count" in event_data
+    assert "thread_ids" in event_data
+    assert "parsing_duration_seconds" in event_data
+    assert event_data["thread_count"] == 0
+    assert event_data["thread_ids"] == []
+    assert event_data["parsing_duration_seconds"] == 0.0
+    
+    # Verify event envelope fields
+    assert "event_id" in event
+    assert "version" in event
+    assert event["version"] == "1.0.0"
 
 
 def test_requeue_skips_when_aggregation_not_supported():

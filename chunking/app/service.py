@@ -186,6 +186,12 @@ class ChunkingService:
                                 "archive_id": archive_id,
                                 "message_doc_ids": msg_doc_ids,
                                 "message_count": len(msg_doc_ids),
+                                # Required fields for JSONParsed schema compliance
+                                # For startup requeue, we use default values since we're just
+                                # triggering re-chunking of existing messages
+                                "thread_count": 0,
+                                "thread_ids": [],
+                                "parsing_duration_seconds": 0.0,
                             },
                         )
                         requeued += len(msg_doc_ids)
