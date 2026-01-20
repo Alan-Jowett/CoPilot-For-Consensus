@@ -43,7 +43,8 @@ class TestSchemaRegistry:
         base_dir = _get_schema_base_dir()
         assert base_dir.exists()
         assert base_dir.is_dir()
-        assert base_dir.name == "schemas"
+        assert base_dir.name == "v1"
+        assert base_dir.parent.name == "schemas"
 
     def test_get_schema_path_success(self):
         """Test successfully getting a schema path."""
