@@ -89,8 +89,15 @@ publisher = RabbitMQPublisher.from_config(config)
 ### Identifying Heartbeat Timeouts
 
 1. **Check RabbitMQ logs**:
+   
+   **Linux/macOS:**
    ```bash
    docker logs messagebus 2>&1 | grep "missed heartbeats"
+   ```
+   
+   **Windows (PowerShell):**
+   ```powershell
+   docker logs messagebus 2>&1 | Select-String "missed heartbeats"
    ```
 
 2. **Check which connections are timing out**:
@@ -99,8 +106,15 @@ publisher = RabbitMQPublisher.from_config(config)
    ```
 
 3. **Monitor connection state**:
+   
+   **Linux/macOS:**
    ```bash
    docker exec messagebus rabbitmqctl list_connections state | sort | uniq -c
+   ```
+   
+   **Windows (PowerShell):**
+   ```powershell
+   docker exec messagebus rabbitmqctl list_connections state | Group-Object | Select-Object Count, Name
    ```
 
 ### Debugging High Load Scenarios
@@ -149,15 +163,31 @@ If heartbeat timeouts occur during high load:
 To verify the fix is working:
 
 1. **Check connection parameters**:
+   
+   **Linux/macOS:**
    ```bash
    docker exec messagebus rabbitmqctl list_connections timeout | grep -v "^timeout"
    ```
+   
+   **Windows (PowerShell):**
+   ```powershell
+   docker exec messagebus rabbitmqctl list_connections timeout | Select-String -Pattern "^timeout" -NotMatch
+   ```
+   
    Should show 300 (seconds) for services using the updated clients.
 
 2. **Run load tests**:
+   
+   **Linux/macOS:**
    ```bash
    # Ingest test data and monitor for connection drops
    docker logs messagebus -f | grep -i "connection\|heartbeat"
+   ```
+   
+   **Windows (PowerShell):**
+   ```powershell
+   # Ingest test data and monitor for connection drops
+   docker logs messagebus -f | Select-String -Pattern "connection|heartbeat" -CaseSensitive:$false
    ```
 
 3. **Monitor Grafana dashboards**:

@@ -74,8 +74,14 @@ Expected output: `300` (seconds) for each connection
 
 During normal operation and load tests:
 
+**Linux/macOS:**
 ```bash
 docker logs messagebus -f | grep -i "missed heartbeat"
+```
+
+**Windows (PowerShell):**
+```powershell
+docker logs messagebus -f | Select-String -Pattern "missed heartbeat" -CaseSensitive:$false
 ```
 
 Expected result: No heartbeat timeout errors
@@ -99,8 +105,11 @@ curl -f -X POST http://localhost:8080/ingestion/api/sources \
 
 curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger
 
-# Monitor for timeouts
+# Monitor for timeouts (Linux/macOS)
 docker logs messagebus -f | grep -E "connection|heartbeat"
+
+# Monitor for timeouts (Windows PowerShell)
+# docker logs messagebus -f | Select-String -Pattern "connection|heartbeat" -CaseSensitive:$false
 ```
 
 Expected result: No connection drops during ingestion
