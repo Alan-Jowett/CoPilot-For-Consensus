@@ -107,7 +107,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
         subscription_name = driver_config.subscription_name
         auto_complete = driver_config.auto_complete
         max_wait_time = driver_config.max_wait_time
-        max_auto_lock_renewal_duration = getattr(driver_config, "max_auto_lock_renewal_duration", 3600)
+        max_auto_lock_renewal_duration = driver_config.max_auto_lock_renewal_duration
 
         # Note: the shared DriverConfig schema is used by both publisher and subscriber.
         # Some subscriber-specific invariants are enforced here to keep behavior stable

@@ -423,3 +423,47 @@ class TestAzureServiceBusSubscriberStartConsuming:
         assert created["renewer"].register_calls == [(receiver, msg, 123)]
         assert created["renewer"].unregister_calls == [msg]
 
+    def test_auto_complete_uses_batch_and_no_renewer(self, monkeypatch):
+        from copilot_message_bus import azureservicebussubscriber as module
+
+        subscriber = AzureServiceBusSubscriber(
+            connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
+            queue_name="test-queue",
+            auto_complete=True,
+            max_wait_time=0,
+        )
+
+        class _ReceiveMode:
+            PEEK_LOCK = object()
+            RECEIVE_AND_DELETE = object()
+
+        created = {"renewer_inits": 0}
+
+        class _Renewer:
+            def __init__(self):
+                created["renewer_inits"] += 1
+
+        monkeypatch.setattr(module, "ServiceBusReceiveMode", _ReceiveMode)
+        monkeypatch.setattr(module, "AutoLockRenewer", _Renewer)
+
+        receiver = Mock()
+        receiver.__enter__ = Mock(return_value=receiver)
+        receiver.__exit__ = Mock(return_value=False)
+
+        msg = Mock()
+        msg.body = [b'{"event_type":"TestEvent","event_id":"1"}']
+
+        def _callback(_event):
+            subscriber.stop_consuming()
+
+        subscriber.client = Mock()
+        subscriber.client.get_queue_receiver = Mock(return_value=receiver)
+        subscriber.subscribe("TestEvent", _callback)
+
+        receiver.receive_messages = Mock(side_effect=[[msg], []])
+
+        subscriber.start_consuming()
+
+        receiver.receive_messages.assert_any_call(max_message_count=10, max_wait_time=0)
+        assert created["renewer_inits"] == 0
+
