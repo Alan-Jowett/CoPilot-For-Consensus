@@ -5,7 +5,6 @@
 
 import unittest.mock as mock
 
-import pytest
 from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_Rabbitmq
 from copilot_message_bus.rabbitmq_publisher import RabbitMQPublisher
 from copilot_message_bus.rabbitmq_subscriber import RabbitMQSubscriber
