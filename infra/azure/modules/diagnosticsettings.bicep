@@ -3,8 +3,8 @@
 
 metadata description = 'Module to configure diagnostic settings for Azure Container Apps to archive logs to Storage'
 
-@description('Container App resource ID to configure diagnostic settings for')
-param containerAppId string
+@description('Container App name')
+param containerAppName string
 
 @description('Diagnostic settings name')
 param diagnosticSettingsName string = 'archive-to-storage'
@@ -21,44 +21,35 @@ param enableSystemLogs bool = true
 @description('Enable AppEnvSpringAppConsoleLogs archiving')
 param enableSpringAppLogs bool = false
 
+// Reference existing Container App
+resource containerApp 'Microsoft.App/containerApps@2024-03-01' existing = {
+  name: containerAppName
+}
+
 // Diagnostic settings for Container App
-resource diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+resource diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01' = {
   name: diagnosticSettingsName
-  scope: resourceGroup().resources[last(split(containerAppId, '/'))]
+  scope: containerApp
   properties: {
     storageAccountId: storageAccountId
-    logs: concat(
-      enableConsoleLogs ? [
-        {
-          category: 'ContainerAppConsoleLogs'
-          enabled: true
-          retentionPolicy: {
-            enabled: false
-            days: 0
-          }
+    logs: [
+      {
+        category: 'ContainerAppConsoleLogs'
+        enabled: enableConsoleLogs
+        retentionPolicy: {
+          enabled: false
+          days: 0
         }
-      ] : [],
-      enableSystemLogs ? [
-        {
-          category: 'ContainerAppSystemLogs'
-          enabled: true
-          retentionPolicy: {
-            enabled: false
-            days: 0
-          }
+      }
+      {
+        category: 'ContainerAppSystemLogs'
+        enabled: enableSystemLogs
+        retentionPolicy: {
+          enabled: false
+          days: 0
         }
-      ] : [],
-      enableSpringAppLogs ? [
-        {
-          category: 'AppEnvSpringAppConsoleLogs'
-          enabled: true
-          retentionPolicy: {
-            enabled: false
-            days: 0
-          }
-        }
-      ] : []
-    )
+      }
+    ]
   }
 }
 

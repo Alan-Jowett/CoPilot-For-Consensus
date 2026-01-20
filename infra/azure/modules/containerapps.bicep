@@ -72,6 +72,12 @@ param storageAccountName string = ''
 @description('Storage Account blob endpoint URL')
 param storageBlobEndpoint string = ''
 
+@description('Storage Account resource ID for diagnostic log archiving')
+param storageAccountId string = ''
+
+@description('Enable Blob storage archiving for ACA console logs')
+param enableBlobLogArchiving bool = true
+
 @description('Container Apps subnet ID')
 param subnetId string
 
@@ -1909,6 +1915,117 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
     }
   }
   dependsOn: [reportingApp, authApp, ingestionApp, uiApp]
+}
+
+// Diagnostic Settings - Archive Container App logs to Blob Storage
+module authDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'authDiagnosticsDeployment'
+  params: {
+    containerAppName: authApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+}
+
+module reportingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'reportingDiagnosticsDeployment'
+  params: {
+    containerAppName: reportingApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+}
+
+module ingestionDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'ingestionDiagnosticsDeployment'
+  params: {
+    containerAppName: ingestionApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+}
+
+module parsingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'parsingDiagnosticsDeployment'
+  params: {
+    containerAppName: parsingApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+}
+
+module chunkingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'chunkingDiagnosticsDeployment'
+  params: {
+    containerAppName: chunkingApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+}
+
+module embeddingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'embeddingDiagnosticsDeployment'
+  params: {
+    containerAppName: embeddingApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+}
+
+module orchestratorDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'orchestratorDiagnosticsDeployment'
+  params: {
+    containerAppName: orchestratorApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+}
+
+module summarizationDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'summarizationDiagnosticsDeployment'
+  params: {
+    containerAppName: summarizationApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+}
+
+module uiDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'uiDiagnosticsDeployment'
+  params: {
+    containerAppName: uiApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+}
+
+module gatewayDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'gatewayDiagnosticsDeployment'
+  params: {
+    containerAppName: gatewayApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+}
+
+module qdrantDiagnostics 'diagnosticsettings.bicep' = if (vectorStoreBackend == 'qdrant' && enableBlobLogArchiving && storageAccountId != '') {
+  name: 'qdrantDiagnosticsDeployment'
+  params: {
+    containerAppName: qdrantApp!.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
 }
 
 // Outputs

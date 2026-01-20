@@ -45,21 +45,17 @@ param enableBlobLogArchiving bool = true
 
 ### Deployment
 
-1. Set `enableBlobLogArchiving: true` in parameter files (dev/staging/prod)
+1. Set `enableBlobLogArchiving: true` in parameter files (dev/staging/prod) - already done by default
 2. Deploy infrastructure with `az deployment group create`
-3. For each Container App, add diagnostic settings module call:
+3. Diagnostic settings are **automatically deployed** for all Container Apps
 
-```bicep
-module appDiagnostics 'modules/diagnosticsettings.bicep' = if (enableBlobLogArchiving) {
-  name: 'appDiagnosticsDeployment'
-  params: {
-    containerAppId: app.id
-    storageAccountId: storageModule.outputs.accountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-}
-```
+The `diagnosticsettings.bicep` module is invoked for each Container App in `containerapps.bicep`:
+- auth, reporting, ingestion, parsing, chunking, embedding
+- orchestrator, summarization, ui, gateway, qdrant (if enabled)
+
+Each Container App's console logs (`ContainerAppConsoleLogs`) and system logs (`ContainerAppSystemLogs`) are archived to the `logs-raw` blob container.
+
+**No manual configuration required** - logs begin archiving automatically upon deployment.
 
 ## Accessing Logs
 

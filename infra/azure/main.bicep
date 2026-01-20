@@ -665,6 +665,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     cosmosAuthPartitionKeyPath: cosmosModule.outputs.authPartitionKeyPath
     storageAccountName: storageModule!.outputs.accountName
     storageBlobEndpoint: storageModule!.outputs.blobEndpoint
+    storageAccountId: storageModule!.outputs.accountId
+    enableBlobLogArchiving: enableBlobLogArchiving
     subnetId: vnetModule!.outputs.containerAppsSubnetId
     keyVaultName: keyVaultName
     // Application Insights disabled for cost savings - Log Analytics workspace removed

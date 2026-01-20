@@ -25,7 +25,7 @@ import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
