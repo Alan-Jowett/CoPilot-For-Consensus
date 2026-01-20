@@ -24,6 +24,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_secrets \
     copilot_startup
 
+# Install required vectorstore backends for Azure deployment (Qdrant + Azure AI Search)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e /app/adapters/copilot_vectorstore[qdrant,azure]
+
 # Copy schema files for validation
 COPY docs/schemas /app/docs/schemas
 

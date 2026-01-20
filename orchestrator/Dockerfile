@@ -26,6 +26,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_secrets \
     copilot_startup
 
+# Install all vectorstore backends (Qdrant, Azure AI Search, FAISS, InMemory)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e /app/adapters/copilot_vectorstore[all]
+
 # Copy schema files for validation
 COPY docs/schemas /app/docs/schemas
 
