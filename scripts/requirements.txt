@@ -7,3 +7,6 @@ prometheus_client>=0.20.0
 pymongo>=4.8.0
 # Requirements for scripts/qdrant_exporter.py
 requests>=2.32.4
+
+# Requirements for scripts/log_mining (template mining)
+drain3>=0.9.11
