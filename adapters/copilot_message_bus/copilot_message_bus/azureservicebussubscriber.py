@@ -226,6 +226,8 @@ class AzureServiceBusSubscriber(EventSubscriber):
         logger.info("Started consuming events")
 
         try:
+            renewer: Any | None = None
+
             # Choose receive mode based on auto_complete setting
             receive_mode = (
                 ServiceBusReceiveMode.RECEIVE_AND_DELETE if self.auto_complete else ServiceBusReceiveMode.PEEK_LOCK
@@ -245,7 +247,6 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 )
 
             with receiver:
-                renewer: Any | None = None
                 if (
                     not self.auto_complete
                     and AutoLockRenewer is not None
@@ -288,6 +289,9 @@ class AzureServiceBusSubscriber(EventSubscriber):
                                         logger.error(f"Error abandoning message: {abandon_error}")
                             finally:
                                 if renewer is not None:
+                                    # Explicitly unregister to stop lock renewal promptly
+                                    # after this message has been processed. Some SDK versions
+                                    # may not expose unregister(), so guard the call.
                                     unregister = getattr(renewer, "unregister", None)
                                     if callable(unregister):
                                         try:
@@ -308,7 +312,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
             raise
         finally:
             try:
-                if "renewer" in locals() and renewer is not None:
+                if renewer is not None:
                     renewer.close()
             except Exception as e:
                 logger.debug(f"Error closing auto-lock renewer: {e}")

@@ -384,10 +384,14 @@ class TestAzureServiceBusSubscriberStartConsuming:
         class _Renewer:
             def __init__(self):
                 self.register_calls = []
+                self.unregister_calls = []
                 created["renewer"] = self
 
             def register(self, receiver, msg, max_lock_renewal_duration):
                 self.register_calls.append((receiver, msg, max_lock_renewal_duration))
+
+            def unregister(self, msg):
+                self.unregister_calls.append(msg)
 
             def close(self):
                 return None
@@ -417,4 +421,5 @@ class TestAzureServiceBusSubscriberStartConsuming:
 
         receiver.receive_messages.assert_any_call(max_message_count=1, max_wait_time=0)
         assert created["renewer"].register_calls == [(receiver, msg, 123)]
+        assert created["renewer"].unregister_calls == [msg]
 
