@@ -72,6 +72,12 @@ param storageAccountName string = ''
 @description('Storage Account blob endpoint URL')
 param storageBlobEndpoint string = ''
 
+@description('Storage Account resource ID for diagnostic log archiving')
+param storageAccountId string = ''
+
+@description('Enable Blob storage archiving for ACA console logs')
+param enableBlobLogArchiving bool = true
+
 @description('Container Apps subnet ID')
 param subnetId string
 
@@ -89,12 +95,6 @@ param entraTenantId string = ''
 
 @description('OAuth redirect URI for auth service')
 param oauthRedirectUri string = ''
-
-@description('Log Analytics workspace resource ID')
-param logAnalyticsWorkspaceId string
-
-@description('Log Analytics workspace customerId (GUID)')
-param logAnalyticsCustomerId string
 
 param tags object = {}
 
@@ -144,13 +144,6 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
         workloadProfileType: 'Consumption'
       }
     ]
-    appLogsConfiguration: {
-      destination: 'log-analytics'
-      logAnalyticsConfiguration: {
-        customerId: logAnalyticsCustomerId
-        sharedKey: listKeys(logAnalyticsWorkspaceId, '2021-12-01-preview').primarySharedKey
-      }
-    }
   }
 }
 
@@ -1922,6 +1915,150 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
     }
   }
   dependsOn: [reportingApp, authApp, ingestionApp, uiApp]
+}
+
+// Diagnostic Settings - Archive Container App logs to Blob Storage
+module authDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'authDiagnosticsDeployment'
+  params: {
+    containerAppName: authApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    authApp
+  ]
+}
+
+module reportingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'reportingDiagnosticsDeployment'
+  params: {
+    containerAppName: reportingApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    reportingApp
+  ]
+}
+
+module ingestionDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'ingestionDiagnosticsDeployment'
+  params: {
+    containerAppName: ingestionApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    ingestionApp
+  ]
+}
+
+module parsingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'parsingDiagnosticsDeployment'
+  params: {
+    containerAppName: parsingApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    parsingApp
+  ]
+}
+
+module chunkingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'chunkingDiagnosticsDeployment'
+  params: {
+    containerAppName: chunkingApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    chunkingApp
+  ]
+}
+
+module embeddingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'embeddingDiagnosticsDeployment'
+  params: {
+    containerAppName: embeddingApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    embeddingApp
+  ]
+}
+
+module orchestratorDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'orchestratorDiagnosticsDeployment'
+  params: {
+    containerAppName: orchestratorApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    orchestratorApp
+  ]
+}
+
+module summarizationDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'summarizationDiagnosticsDeployment'
+  params: {
+    containerAppName: summarizationApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    summarizationApp
+  ]
+}
+
+module uiDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'uiDiagnosticsDeployment'
+  params: {
+    containerAppName: uiApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    uiApp
+  ]
+}
+
+module gatewayDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'gatewayDiagnosticsDeployment'
+  params: {
+    containerAppName: gatewayApp.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    gatewayApp
+  ]
+}
+
+module qdrantDiagnostics 'diagnosticsettings.bicep' = if (vectorStoreBackend == 'qdrant' && enableBlobLogArchiving && storageAccountId != '') {
+  name: 'qdrantDiagnosticsDeployment'
+  params: {
+    containerAppName: qdrantApp!.name
+    storageAccountId: storageAccountId
+    enableConsoleLogs: true
+    enableSystemLogs: true
+  }
+  dependsOn: [
+    qdrantApp
+  ]
 }
 
 // Outputs

@@ -62,6 +62,9 @@
     "deployEntraApp": {
       "value": false
     },
+    "enableBlobLogArchiving": {
+      "value": true
+    },
     "tags": {
       "value": {
         "environment": "staging",

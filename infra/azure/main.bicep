@@ -125,6 +125,9 @@ param enablePrivateAccess bool = false
 @description('Enable Azure RBAC authorization for Key Vault with per-secret access control. STRONGLY RECOMMENDED for production to enforce least-privilege principles.')
 param enableRbacAuthorization bool = true
 
+@description('Enable Blob storage archiving for ACA console logs (NDJSON format)')
+param enableBlobLogArchiving bool = true
+
 param tags object = {
   environment: environment
   project: 'copilot-for-consensus'
@@ -304,7 +307,7 @@ module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
     sku: environment == 'prod' ? 'Standard_GRS' : 'Standard_LRS'
     accessTier: 'Hot'
     enableHierarchicalNamespace: false
-    containerNames: ['archives']
+    containerNames: concat(['archives'], enableBlobLogArchiving ? ['logs-raw'] : [])
     // SECURITY: Only grant blob access to services that actually need it
     // ingestion: stores raw email archives, parsing: reads archives for processing
     contributorPrincipalIds: [
@@ -353,42 +356,9 @@ module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps && vect
   }
 }
 
-// Module: Application Insights (monitoring for Container Apps)
-module appInsightsModule 'modules/appinsights.bicep' = if (deployContainerApps) {
-  name: 'appInsightsDeployment'
-  params: {
-    location: location
-    projectName: projectName
-    environment: environment
-    tags: tags
-  }
-}
-
-// Module: Azure Portal Dashboard (OpenTelemetry metrics visualization)
-module dashboardModule 'modules/dashboard.bicep' = if (deployContainerApps) {
-  name: 'dashboardDeployment'
-  params: {
-    location: location
-    projectName: projectName
-    environment: environment
-    logAnalyticsWorkspaceResourceId: appInsightsModule!.outputs.workspaceId
-    tags: tags
-  }
-}
-
 // Store Application Insights secrets securely in Key Vault
-// These must NOT be passed as plaintext environment variables to Container Apps
-// Secret names use hyphens (KV requirement); secret_provider maps to schema names
-resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
-  name: '${keyVaultName}/azure-monitor-instrumentation-key'
-  properties: {
-    value: appInsightsModule!.outputs.instrumentationKey
-    contentType: 'text/plain'
-  }
-  dependsOn: [
-    keyVaultModule
-  ]
-}
+// NOTE: Application Insights and Log Analytics have been removed for cost savings
+// Monitoring is now done via Prometheus/Grafana
 
 // Store Azure OpenAI API key in Env Key Vault for services using env secret_provider
 // NOTE: Core infrastructure also stores this in Core Key Vault. Env services currently use env Key Vault
@@ -432,16 +402,16 @@ module jwtKeysModule 'modules/jwtkeys.bicep' = if (deployContainerApps) {
   ]
 }
 
-resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
-  name: '${keyVaultName}/azure-monitor-connection-string'
-  properties: {
-    value: appInsightsModule!.outputs.connectionString
-    contentType: 'text/plain'
-  }
-  dependsOn: [
-    keyVaultModule
-  ]
-}
+// resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
+//   name: '${keyVaultName}/azure-monitor-connection-string'
+//   properties: {
+//     value: appInsightsModule!.outputs.connectionString
+//     contentType: 'text/plain'
+//   }
+//   dependsOn: [
+//     keyVaultModule
+//   ]
+// }
 
 // Store Grafana admin credentials in Key Vault
 // These are used when Grafana is deployed as a Container App for monitoring dashboards
@@ -513,8 +483,6 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
   dependsOn: [
     keyVaultModule
     jwtKeysModule  // Ensure JWT secrets exist before assigning access
-    appInsightsInstrKeySecret
-    appInsightsConnectionStringSecret
     envOpenaiApiKeySecret
     coreKvRbacModule  // Ensure Core KV access is granted before RBAC module runs
   ]
@@ -644,7 +612,7 @@ module aiSearchPrivateEndpointModule 'modules/privateendpoint.bicep' = if (deplo
 var effectiveRedirectUris = length(oauthRedirectUris) > 0 ? oauthRedirectUris : []
 
 // Module: Container Apps (VNet and 10 microservices)
-// IMPORTANT: This module uses non-null assertions (!) for outputs from vnetModule, appInsightsModule,
+// IMPORTANT: This module uses non-null assertions (!) for outputs from vnetModule
 // and Key Vault secrets. These assertions are safe ONLY because this module has the same
 // conditional guard (if (deployContainerApps)) as those resources. Changing this condition independently
 // will cause deployment failures. Keep all Container Apps-related conditionals synchronized.
@@ -673,14 +641,15 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     cosmosAuthPartitionKeyPath: cosmosModule.outputs.authPartitionKeyPath
     storageAccountName: storageModule!.outputs.accountName
     storageBlobEndpoint: storageModule!.outputs.blobEndpoint
+    storageAccountId: storageModule!.outputs.accountId
+    enableBlobLogArchiving: enableBlobLogArchiving
     subnetId: vnetModule!.outputs.containerAppsSubnetId
     keyVaultName: keyVaultName
-    appInsightsKeySecretUri: appInsightsInstrKeySecret!.properties.secretUriWithVersion
-    appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
+    // Application Insights disabled for cost savings - Log Analytics workspace removed
+    appInsightsKeySecretUri: '' // Was: appInsightsInstrKeySecret!.properties.secretUriWithVersion
+    appInsightsConnectionStringSecretUri: '' // Was: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
     entraTenantId: entraTenantId
     oauthRedirectUri: length(effectiveRedirectUris) > 0 ? effectiveRedirectUris[0] : ''
-    logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
-    logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
     tags: tags
   }
   dependsOn: [
@@ -734,6 +703,7 @@ output storageAccountName string = deployContainerApps ? storageModule!.outputs.
 output storageAccountId string = deployContainerApps ? storageModule!.outputs.accountId : ''
 output storageBlobEndpoint string = deployContainerApps ? storageModule!.outputs.blobEndpoint : ''
 output storageContainerNames array = deployContainerApps ? storageModule!.outputs.containerNames : []
+output enableBlobLogArchiving bool = enableBlobLogArchiving
 // Azure OpenAI outputs - references to Core RG resources
 output coreKeyVaultResourceId string = coreKeyVaultResourceId
 output coreKeyVaultName string = coreKeyVaultName
@@ -749,11 +719,12 @@ output aiSearchServiceId string = (deployContainerApps && vectorStoreBackend == 
 // Qdrant outputs
 output qdrantAppName string = (deployContainerApps && vectorStoreBackend == 'qdrant') ? containerAppsModule!.outputs.qdrantAppName : ''
 output qdrantInternalEndpoint string = (deployContainerApps && vectorStoreBackend == 'qdrant') ? containerAppsModule!.outputs.qdrantInternalEndpoint : ''
-output appInsightsId string = deployContainerApps ? appInsightsModule!.outputs.appInsightsId : ''
-// Dashboard outputs
-output dashboardId string = deployContainerApps ? dashboardModule!.outputs.dashboardId : ''
-output dashboardName string = deployContainerApps ? dashboardModule!.outputs.dashboardName : ''
-output dashboardUrl string = deployContainerApps ? dashboardModule!.outputs.dashboardUrl : ''
+// Application Insights outputs disabled - Log Analytics workspace removed for cost savings
+// output appInsightsId string = deployContainerApps ? appInsightsModule!.outputs.appInsightsId : ''
+// Dashboard outputs disabled - depends on Log Analytics workspace
+// output dashboardId string = deployContainerApps ? dashboardModule!.outputs.dashboardId : ''
+// output dashboardName string = deployContainerApps ? dashboardModule!.outputs.dashboardName : ''
+// output dashboardUrl string = deployContainerApps ? dashboardModule!.outputs.dashboardUrl : ''
 output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.outputs.containerAppsEnvId : ''
 output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
 output githubOAuthRedirectUri string = deployContainerApps ? containerAppsModule!.outputs.githubOAuthRedirectUri : ''
