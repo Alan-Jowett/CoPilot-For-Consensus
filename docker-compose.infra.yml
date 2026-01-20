@@ -99,7 +99,7 @@ services:
       - grafana_admin_password
     entrypoint: ["/bin/sh", "-c"]
     environment:
-      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:8080/grafana/}
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://localhost/grafana/}
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
 
       # SSO Rollback: Disable JWT-based authentication for Grafana
