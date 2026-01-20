@@ -29,7 +29,7 @@ class RateLimitError(Exception):
         message: Error message from the API
     """
 
-    def __init__(self, message: str, retry_after: int | None = None, status_code: int = 429):
+    def __init__(self, message: str, retry_after: float | None = None, status_code: int = 429):
         """Initialize rate limit error.
 
         Args:
@@ -186,7 +186,7 @@ class OpenAISummarizer(Summarizer):
         """
         return self.deployment_name if self.is_azure else self.model
 
-    def _is_rate_limit_error(self, exception: Exception) -> tuple[bool, int | None]:
+    def _is_rate_limit_error(self, exception: Exception) -> tuple[bool, float | None]:
         """Check if an exception is a rate limit error and extract retry-after if available.
 
         Args:
@@ -212,12 +212,20 @@ class OpenAISummarizer(Summarizer):
                         try:
                             retry_after = int(retry_after_ms) / 1000
                         except (ValueError, TypeError):
-                            pass
+                            logger.debug(
+                                "Failed to parse 'retry-after-ms' header value %r as milliseconds; "
+                                "falling back to default backoff.",
+                                retry_after_ms,
+                            )
                     elif retry_after_sec:
                         try:
                             retry_after = int(retry_after_sec)
                         except (ValueError, TypeError):
-                            pass
+                            logger.debug(
+                                "Failed to parse 'retry-after' header value %r as seconds; "
+                                "falling back to default backoff.",
+                                retry_after_sec,
+                            )
             return True, retry_after
 
         # Check for generic API error with status code 429
@@ -238,7 +246,7 @@ class OpenAISummarizer(Summarizer):
 
         return False, None
 
-    def _calculate_backoff_with_jitter(self, attempt: int, retry_after: int | None = None) -> float:
+    def _calculate_backoff_with_jitter(self, attempt: int, retry_after: float | None = None) -> float:
         """Calculate backoff delay with exponential backoff and full jitter.
 
         Args:
@@ -367,11 +375,11 @@ class OpenAISummarizer(Summarizer):
                     backoff_delay = self._calculate_backoff_with_jitter(retry_count, retry_after)
 
                     logger.warning(
-                        "Rate limit error for thread %s (attempt %d/%d): %s. "
+                        "Rate limit error for thread %s (retry %d/%d): %s. "
                         "Retrying after %.2f seconds (suggested retry_after: %s)",
                         thread.thread_id,
                         retry_count,
-                        self.max_retries + 1,
+                        self.max_retries,
                         str(e),
                         backoff_delay,
                         retry_after,

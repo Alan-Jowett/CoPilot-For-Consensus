@@ -23,7 +23,7 @@ from copilot_message_bus import (
 )
 from copilot_metrics import MetricsCollector
 from copilot_storage import DocumentStore
-from copilot_summarization import Citation, Summarizer, Thread
+from copilot_summarization import Citation, RateLimitError, Summarizer, Thread
 from copilot_vectorstore import VectorStore
 
 logger = get_logger(__name__)
@@ -378,7 +378,6 @@ class SummarizationService:
                 retry_count += 1
                 
                 # Check if this is a rate limit error for specific handling
-                from copilot_summarization import RateLimitError
                 is_rate_limit_error = isinstance(e, RateLimitError)
                 
                 if is_rate_limit_error:
@@ -394,6 +393,8 @@ class SummarizationService:
                             "summarization_rate_limit_errors_total",
                             tags={"backend": self.llm_backend, "model": self.llm_model},
                         )
+                        # Push metrics to Pushgateway for timely visibility
+                        self.metrics_collector.safe_push()
                 else:
                     logger.error(
                         f"Error summarizing thread {thread_id} "

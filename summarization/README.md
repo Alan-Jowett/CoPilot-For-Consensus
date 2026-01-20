@@ -100,7 +100,7 @@ AZURE_OPENAI_DEPLOYMENT=gpt-35-turbo
 - Retries with exponential backoff and jitter (avoids thundering herd)
 - Respects `retry-after` and `retry-after-ms` headers from Azure
 - Tracks rate limit errors in metrics (`summarization_rate_limit_errors_total`)
-- Default retry configuration: 3 attempts with 5-second base backoff
+- Default retry configuration: 3 retry attempts after the initial call (4 total API calls) with a 5-second base backoff
 - Maximum backoff delay capped at 120 seconds
 
 If rate limiting persists:
