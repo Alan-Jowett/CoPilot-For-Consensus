@@ -626,6 +626,10 @@ class SummarizationService:
         ordered_chunks = []
         missing_chunk_ids = []
         for sc in selected_chunks:
+            # Validate that sc is a dict before accessing it
+            if not isinstance(sc, dict):
+                continue
+            
             chunk_id = sc.get("chunk_id")
             if chunk_id in chunk_map:
                 chunk = chunk_map[chunk_id]
