@@ -71,6 +71,7 @@ def health():
         "version": __version__,
         "summaries_generated": stats.get("summaries_generated", 0),
         "summarization_failures": stats.get("summarization_failures", 0),
+        "rate_limit_errors": stats.get("rate_limit_errors", 0),
         "last_processing_time_seconds": stats.get("last_processing_time_seconds", 0),
     }
 
