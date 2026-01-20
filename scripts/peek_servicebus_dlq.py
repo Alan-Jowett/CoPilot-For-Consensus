@@ -30,13 +30,13 @@ from azure.servicebus import ServiceBusClient, ServiceBusSubQueue
 
 try:
     from azure.identity import AzureCliCredential, DefaultAzureCredential
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     DefaultAzureCredential = None  # type: ignore
     AzureCliCredential = None  # type: ignore
 
 try:
     from azure.servicebus import TransportType
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     TransportType = None  # type: ignore
 
 
@@ -175,10 +175,14 @@ def main() -> int:
                 if body.lstrip().startswith("{"):
                     try:
                         parsed = json.loads(body)
+                    except json.JSONDecodeError:
+                        # Best-effort JSON parsing: if the body is not valid JSON, just
+                        # ignore the error and continue printing the raw body preview.
+                        parsed = None
+
+                    if isinstance(parsed, dict):
                         event_type = parsed.get("event_type")
                         event_id = parsed.get("event_id")
-                    except Exception:
-                        pass
 
                 print(f"\n[{i}] sequence_number={seq} message_id={mid} subject={subj} correlation_id={corr}")
                 if enq:
