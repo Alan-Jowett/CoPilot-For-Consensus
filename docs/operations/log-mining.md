@@ -26,6 +26,24 @@ python -m pip install -r scripts/requirements.txt
 python -m scripts.log_mining --input logs.txt --format docker --group-by service --output logs_mined.json --output-markdown logs_mined_errors_warnings.md --focus-levels ERROR,WARNING
 ```
 
+### 1a) Stream from Docker Compose (last 24h)
+
+This reads from stdin (omit `--input`). Use `--no-color` to avoid ANSI escape codes.
+
+```powershell
+docker compose logs --since 24h --no-color |
+  python -m scripts.log_mining --format docker --group-by service --output mined_24h.json --output-markdown mined_24h_errors_warnings.md
+```
+
+### 1b) Stream + follow (live tail)
+
+This will keep running until you stop it (Ctrl+C).
+
+```powershell
+docker compose logs -f --since 24h --no-color |
+  python -m scripts.log_mining --format docker --group-by service --output mined_stream.json --output-markdown mined_stream_errors_warnings.md
+```
+
 ### 2) Re-render Markdown from an existing JSON report (no re-mining)
 
 ```powershell
