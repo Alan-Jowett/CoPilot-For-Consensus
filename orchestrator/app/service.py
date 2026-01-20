@@ -27,6 +27,7 @@ from copilot_metrics import MetricsCollector
 from copilot_storage import DocumentStore
 from copilot_vectorstore import VectorStore
 
+from .context_selector import ContextSource
 from .context_factory import create_context_selector, create_context_source
 from .context_sources import ThreadChunksSource
 
@@ -91,6 +92,8 @@ class OrchestrationService:
         # Create context selector and source based on strategy
         self.chunk_selection_strategy = chunk_selection_strategy
         self.context_selector = create_context_selector(chunk_selection_strategy)
+
+        self.context_source: ContextSource
 
         if vector_store is None:
             # Allow orchestrator to run in a degraded mode (document-store-only)
