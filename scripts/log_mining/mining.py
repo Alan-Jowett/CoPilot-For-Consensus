@@ -9,14 +9,13 @@ This module is intentionally streaming-friendly (large input files).
 from __future__ import annotations
 
 import json
-import os
 import random
 import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterator
 
 
 def _utc_now_iso() -> str:
@@ -404,7 +403,7 @@ def iter_records(
             with input_path.open("r", encoding="utf-8", errors="replace") as f:
                 head = f.read(4096)
             head_obj = _safe_json_loads(head)
-        except Exception:
+        except (OSError, UnicodeError):
             head_obj = None
 
         if isinstance(head_obj, dict) and ("tables" in head_obj or "Tables" in head_obj):
