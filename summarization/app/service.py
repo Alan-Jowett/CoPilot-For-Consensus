@@ -227,6 +227,8 @@ class SummarizationService:
 
         top_k = event_data.get("top_k", self.top_k)
         prompt_template = event_data.get("prompt_template", self.prompt_template)
+        selected_chunks = event_data.get("selected_chunks", [])
+        context_selection = event_data.get("context_selection", {})
 
         for thread_id in thread_ids:
             self._process_thread(
@@ -234,6 +236,8 @@ class SummarizationService:
                 top_k=top_k,
                 context_window_tokens=self.context_window_tokens,
                 prompt_template=prompt_template,
+                selected_chunks=selected_chunks,
+                context_selection=context_selection,
             )
 
     def _process_thread(
@@ -242,6 +246,8 @@ class SummarizationService:
         top_k: int,
         context_window_tokens: int,
         prompt_template: str,
+        selected_chunks: list[dict[str, Any]] | None = None,
+        context_selection: dict[str, Any] | None = None,
     ):
         """Process a single thread for summarization.
 
@@ -252,9 +258,11 @@ class SummarizationService:
 
         Args:
             thread_id: Thread identifier
-            top_k: Number of chunks to retrieve
+            top_k: Number of chunks to retrieve (used if selected_chunks not provided)
             context_window_tokens: Token budget for context
             prompt_template: Prompt template with placeholders to substitute
+            selected_chunks: Pre-selected chunks from orchestrator (optional)
+            context_selection: Selection metadata from orchestrator (optional)
         """
         start_time = time.time()
         retry_count = 0
@@ -263,8 +271,21 @@ class SummarizationService:
             try:
                 logger.info(f"Processing thread {thread_id} (attempt {retry_count + 1})")
 
-                # Retrieve context
-                context = self._retrieve_context(thread_id, top_k)
+                # Retrieve context using pre-selected chunks if provided
+                if selected_chunks:
+                    logger.info(
+                        f"Using {len(selected_chunks)} pre-selected chunks from orchestrator "
+                        f"(strategy: {context_selection.get('selector_type', 'unknown')})"
+                    )
+                    context = self._retrieve_context_from_selected_chunks(
+                        thread_id=thread_id, selected_chunks=selected_chunks
+                    )
+                else:
+                    logger.warning(
+                        f"No pre-selected chunks provided for thread {thread_id}, "
+                        f"falling back to document store query"
+                    )
+                    context = self._retrieve_context(thread_id, top_k)
 
                 if not context or not context.get("messages"):
                     logger.warning(f"No context retrieved for thread {thread_id}")
@@ -551,6 +572,72 @@ class SummarizationService:
 
         logger.debug(f"Substituted prompt template for thread {thread_id}")
         return substituted
+
+    def _retrieve_context_from_selected_chunks(
+        self, thread_id: str, selected_chunks: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Retrieve context using pre-selected chunks from orchestrator.
+
+        This method uses the chunks already selected by the orchestrator's
+        context selector, ensuring the same chunks are used for idempotency
+        decisions and summarization.
+
+        Args:
+            thread_id: Thread identifier
+            selected_chunks: Pre-selected chunks with chunk_id, source, score, rank
+
+        Returns:
+            Dictionary with 'messages' and 'chunks' keys
+        """
+        if not selected_chunks:
+            logger.warning(f"Empty selected_chunks list for thread {thread_id}")
+            return {"messages": [], "chunks": []}
+
+        # Extract chunk IDs from selected chunks
+        chunk_ids = [sc.get("chunk_id") for sc in selected_chunks if sc.get("chunk_id")]
+
+        if not chunk_ids:
+            logger.warning(f"No valid chunk_ids in selected_chunks for thread {thread_id}")
+            return {"messages": [], "chunks": []}
+
+        # Retrieve full chunk documents from document store
+        chunks = self.document_store.query_documents(
+            collection="chunks", filter_dict={"_id": {"$in": chunk_ids}}, limit=len(chunk_ids)
+        )
+
+        if not chunks:
+            logger.warning(f"No chunks found for selected chunk_ids in thread {thread_id}")
+            return {"messages": [], "chunks": []}
+
+        # Preserve the order from selected_chunks
+        chunk_map = {str(chunk.get("_id")): chunk for chunk in chunks}
+        ordered_chunks = []
+        for sc in selected_chunks:
+            chunk_id = sc.get("chunk_id")
+            if chunk_id in chunk_map:
+                chunk = chunk_map[chunk_id]
+                # Add selection metadata to chunk
+                chunk["selection_score"] = sc.get("score", 0.0)
+                chunk["selection_rank"] = sc.get("rank", 0)
+                chunk["selection_source"] = sc.get("source", "unknown")
+                ordered_chunks.append(chunk)
+
+        # Extract message texts for context
+        message_texts = []
+        for chunk in ordered_chunks:
+            text = chunk.get("text", "")
+            if text:
+                message_texts.append(text)
+
+        logger.info(
+            f"Retrieved {len(ordered_chunks)} pre-selected chunks "
+            f"({len(message_texts)} with text) for thread {thread_id}"
+        )
+
+        return {
+            "messages": message_texts,
+            "chunks": ordered_chunks,
+        }
 
     def _retrieve_context(self, thread_id: str, top_k: int) -> dict[str, Any]:
         """Retrieve context for a thread from vector and document stores.
