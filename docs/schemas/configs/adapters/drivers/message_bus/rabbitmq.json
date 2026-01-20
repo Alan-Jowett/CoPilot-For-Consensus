@@ -62,6 +62,20 @@
             "type": "bool",
             "default": false,
             "description": "Automatically acknowledge messages after processing"
+        },
+        "heartbeat": {
+            "type": "int",
+            "source": "env",
+            "env_var": "RABBITMQ_HEARTBEAT",
+            "default": 300,
+            "description": "Heartbeat interval in seconds (default: 300). Higher values reduce network overhead and prevent disconnects during CPU-intensive tasks. Setting to 0 disables heartbeats entirely, which can lead to undetected connection failures and is strongly discouraged in production."
+        },
+        "blocked_connection_timeout": {
+            "type": "int",
+            "source": "env",
+            "env_var": "RABBITMQ_BLOCKED_CONNECTION_TIMEOUT",
+            "default": 600,
+            "description": "Timeout in seconds for blocked connections due to TCP backpressure (default: 600). Should be at least 2x the heartbeat interval."
         }
     },
     "required": ["rabbitmq_host", "rabbitmq_port", "rabbitmq_username", "rabbitmq_password"]

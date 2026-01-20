@@ -619,6 +619,47 @@ Event models provide:
 
 ## RabbitMQ Configuration for Production
 
+### Heartbeat Configuration
+
+RabbitMQ uses heartbeat frames to detect broken TCP connections. The default heartbeat interval has been increased from 60s to 300s (5 minutes) to provide better tolerance for CPU-intensive workloads.
+
+#### Configuration Parameters
+
+Both `RabbitMQPublisher` and `RabbitMQSubscriber` support:
+
+- **`heartbeat`** (default: 300 seconds) - Interval between heartbeat frames
+  - Higher values reduce network overhead and prevent disconnects during CPU-intensive tasks
+  - Set to 0 to disable (not recommended)
+  
+- **`blocked_connection_timeout`** (default: 600 seconds) - Timeout for connections blocked by TCP backpressure
+  - Should be at least 2x the heartbeat interval
+
+#### Environment Variables
+
+Override defaults using:
+
+```bash
+export RABBITMQ_HEARTBEAT=450               # 7.5 minutes
+export RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=900  # 15 minutes
+```
+
+#### Programmatic Configuration
+
+```python
+from copilot_message_bus.rabbitmq_publisher import RabbitMQPublisher
+
+publisher = RabbitMQPublisher(
+    host="messagebus",
+    port=5672,
+    username="guest",
+    password="guest",
+    heartbeat=300,  # 5 minutes
+    blocked_connection_timeout=600,  # 10 minutes
+)
+```
+
+For troubleshooting heartbeat timeouts, see [docs/troubleshooting/rabbitmq-heartbeat-timeouts.md](../../docs/troubleshooting/rabbitmq-heartbeat-timeouts.md).
+
 ### Docker Compose Setup
 
 The repository includes a pre-configured `infra/rabbitmq/definitions.json` file that declares all queues, exchanges, and bindings needed for the Copilot-for-Consensus pipeline. This ensures queues exist before any service starts publishing.
