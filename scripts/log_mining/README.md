@@ -31,6 +31,18 @@ python -m scripts.log_mining --input logs.txt --format docker --group-by service
 docker compose logs --no-color | python -m scripts.log_mining --format docker --output logs_mined.json
 ```
 
+### Pipe from docker compose (last 24h)
+
+```powershell
+docker compose logs --since 24h --no-color | python -m scripts.log_mining --format docker --group-by service --output logs_mined_24h.json --output-markdown logs_mined_24h_errors_warnings.md
+```
+
+### Pipe from docker compose (follow / live)
+
+```powershell
+docker compose logs -f --since 24h --no-color | python -m scripts.log_mining --format docker --group-by service --output logs_mined_stream.json --output-markdown logs_mined_stream_errors_warnings.md
+```
+
 ### Azure Container Apps console export
 
 If you exported `ContainerAppConsoleLogs_CL` to JSON (array of objects) with a `Log_s` column:
