@@ -83,12 +83,12 @@ def health():
     global subscriber_thread
 
     stats = reporting_service.get_stats() if reporting_service is not None else {}
-    
+
     # Check if subscriber thread is alive
     subscriber_alive = subscriber_thread is not None and subscriber_thread.is_alive()
-    
+
     # Service is only healthy if subscriber thread is running
-    status = "healthy" if subscriber_alive else "unhealthy"
+    status = "unhealthy" if (subscriber_thread is not None and not subscriber_alive) else "healthy"
 
     return {
         "status": status,
