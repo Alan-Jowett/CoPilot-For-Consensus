@@ -49,6 +49,14 @@ resource diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01' =
           days: 0
         }
       }
+      {
+        category: 'AppEnvSpringAppConsoleLogs'
+        enabled: enableSpringAppLogs
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
+      }
     ]
   }
 }

@@ -356,31 +356,9 @@ module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps && vect
   }
 }
 
-// Module: Azure Portal Dashboard (OpenTelemetry metrics visualization)
-// NOTE: Dashboard module disabled - requires Log Analytics workspace which has been removed for cost savings
-// module dashboardModule 'modules/dashboard.bicep' = if (deployContainerApps) {
-//   name: 'dashboardDeployment'
-//   params: {
-//     location: location
-//     projectName: projectName
-//     environment: environment
-//     logAnalyticsWorkspaceResourceId: appInsightsModule!.outputs.workspaceId
-//     tags: tags
-//   }
-// }
-
 // Store Application Insights secrets securely in Key Vault
-// NOTE: Application Insights disabled for cost savings - Log Analytics workspace removed
-// resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
-//   name: '${keyVaultName}/azure-monitor-instrumentation-key'
-//   properties: {
-//     value: appInsightsModule!.outputs.instrumentationKey
-//     contentType: 'text/plain'
-//   }
-//   dependsOn: [
-//     keyVaultModule
-//   ]
-// }
+// NOTE: Application Insights and Log Analytics have been removed for cost savings
+// Monitoring is now done via Prometheus/Grafana
 
 // Store Azure OpenAI API key in Env Key Vault for services using env secret_provider
 // NOTE: Core infrastructure also stores this in Core Key Vault. Env services currently use env Key Vault
@@ -505,8 +483,6 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
   dependsOn: [
     keyVaultModule
     jwtKeysModule  // Ensure JWT secrets exist before assigning access
-    // appInsightsInstrKeySecret  // Disabled - Log Analytics removed for cost savings
-    // appInsightsConnectionStringSecret  // Disabled - Log Analytics removed for cost savings
     envOpenaiApiKeySecret
     coreKvRbacModule  // Ensure Core KV access is granted before RBAC module runs
   ]

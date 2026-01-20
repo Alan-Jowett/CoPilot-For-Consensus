@@ -8,18 +8,8 @@ import csv
 import json
 import tempfile
 from pathlib import Path
-from unittest import mock
 
 import pytest
-
-
-def test_convert_ndjson_to_csv_basic():
-    """Test basic NDJSON to CSV conversion."""
-    # This import would require the script to be importable
-    # For now, this is a placeholder test structure
-    # In a real implementation, the converter logic would be refactored
-    # into testable functions separate from the CLI interface
-    pass
 
 
 def test_parse_ndjson_with_valid_json():

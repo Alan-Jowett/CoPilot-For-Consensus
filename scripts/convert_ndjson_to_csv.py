@@ -103,7 +103,7 @@ def list_new_blobs(
     blobs = []
 
     for blob in container_client.list_blobs():
-        if blob.last_modified and blob.last_modified >= since:
+        if blob.last_modified and blob.last_modified.astimezone(timezone.utc) >= since:
             blobs.append(blob.name)
 
     return blobs
@@ -219,6 +219,7 @@ def main() -> int:
 
     # Process each blob
     total_records = 0
+    failed_blobs = []
     for blob_name in blobs:
         print(f"Processing {blob_name}...")
 
@@ -228,9 +229,10 @@ def main() -> int:
             blob_client = container_client.get_blob_client(blob_name)
             ndjson_content = blob_client.download_blob().readall().decode("utf-8")
 
-            # Generate output CSV filename
-            # Example: logs-raw/2025-01-20-12-00.json -> 2025-01-20-12-00.csv
-            csv_filename = Path(blob_name).stem + ".csv"
+            # Generate output CSV filename derived from full blob path to avoid collisions
+            # Example: 2025/01/20/app1/logs.json -> 2025_01_20_app1_logs.csv
+            blob_path = Path(blob_name)
+            csv_filename = "_".join(blob_path.with_suffix("").parts) + ".csv"
             output_path = output_dir / csv_filename
 
             # Convert
@@ -240,9 +242,14 @@ def main() -> int:
 
         except Exception as e:
             print(f"Error processing {blob_name}: {e}", file=sys.stderr)
+            failed_blobs.append(blob_name)
             continue
 
     print(f"\nConversion complete: {total_records} total records")
+    if failed_blobs:
+        print(f"Failed to process {len(failed_blobs)} blob(s):", file=sys.stderr)
+        for blob in failed_blobs:
+            print(f"  - {blob}", file=sys.stderr)
     return 0
 
 

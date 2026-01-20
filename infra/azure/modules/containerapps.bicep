@@ -1926,6 +1926,9 @@ module authDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving &
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    authApp
+  ]
 }
 
 module reportingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
@@ -1936,6 +1939,9 @@ module reportingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiv
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    reportingApp
+  ]
 }
 
 module ingestionDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
@@ -1946,6 +1952,9 @@ module ingestionDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiv
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    ingestionApp
+  ]
 }
 
 module parsingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
@@ -1956,6 +1965,9 @@ module parsingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchivin
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    parsingApp
+  ]
 }
 
 module chunkingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
@@ -1966,6 +1978,9 @@ module chunkingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchivi
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    chunkingApp
+  ]
 }
 
 module embeddingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
@@ -1976,6 +1991,9 @@ module embeddingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiv
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    embeddingApp
+  ]
 }
 
 module orchestratorDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
@@ -1986,6 +2004,9 @@ module orchestratorDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArc
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    orchestratorApp
+  ]
 }
 
 module summarizationDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
@@ -1996,6 +2017,9 @@ module summarizationDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogAr
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    summarizationApp
+  ]
 }
 
 module uiDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
@@ -2006,6 +2030,9 @@ module uiDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && 
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    uiApp
+  ]
 }
 
 module gatewayDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
@@ -2016,6 +2043,9 @@ module gatewayDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchivin
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    gatewayApp
+  ]
 }
 
 module qdrantDiagnostics 'diagnosticsettings.bicep' = if (vectorStoreBackend == 'qdrant' && enableBlobLogArchiving && storageAccountId != '') {
@@ -2026,6 +2056,9 @@ module qdrantDiagnostics 'diagnosticsettings.bicep' = if (vectorStoreBackend == 
     enableConsoleLogs: true
     enableSystemLogs: true
   }
+  dependsOn: [
+    qdrantApp
+  ]
 }
 
 // Outputs

@@ -9,7 +9,7 @@ This document describes how to archive Azure Container Apps console logs to Blob
 
 **Goal:** Archive container console logs (stdout/stderr) to Azure Blob Storage without the expensive Log Analytics workspace.
 
-**Cost Savings:** Blob Storage (~$0.02/GB) vs Log Analytics (~$2.30/GB) = >99% cost reduction for log storage.
+**Cost Savings:** Blob Storage (~$0.02/GB) vs Log Analytics (~$2.30/GB ingestion + retention) = >99% cost reduction for log storage.
 
 **Architecture:** Use Azure Diagnostic Settings to automatically archive `ContainerAppConsoleLogs` and `ContainerAppSystemLogs` to Blob Storage in NDJSON format. No Log Analytics workspace is deployed.
 
@@ -24,6 +24,30 @@ This document describes how to archive Azure Container Apps console logs to Blob
 - OpenTelemetry with alternative backends
 - Prometheus metrics (already configured)
 - Grafana dashboards with Prometheus data source
+
+## Migration from Existing Deployments
+
+**⚠️ IMPORTANT: This is a breaking change for existing deployments with Log Analytics.**
+
+If you have an existing deployment with Log Analytics workspace:
+
+1. **Historical Data Loss:** The Log Analytics workspace and all historical data will be deleted during the upgrade. This is permanent and irreversible.
+
+2. **Export Historical Data (Recommended):** Before upgrading, export any historical logs you need to retain:
+   ```bash
+   # Export logs from Log Analytics
+   az monitor log-analytics query --workspace <workspace-id> \
+     --analytics-query "ContainerAppConsoleLogs_CL | where TimeGenerated > ago(30d)" \
+     --output json > historical-logs.json
+   ```
+
+3. **No Rollback Path:** Once the Log Analytics workspace is deleted, there is no automatic way to restore it or the historical data. This is a one-way migration.
+
+4. **Dashboard Access:** Any Azure Portal dashboards or KQL queries that depend on Log Analytics will no longer function.
+
+5. **Alerts and Monitors:** Any alerts configured in Log Analytics will be deleted and need to be reconfigured using alternative monitoring (Prometheus/Grafana).
+
+**Migration Recommendation:** Test this change in a development environment first before deploying to production.
 
 ## Infrastructure
 
@@ -137,9 +161,11 @@ resource blobLifecyclePolicy 'Microsoft.Storage/storageAccounts/managementPolici
 
 ## Cost Impact
 
-**Before:** 10GB/day @ $2.30/GB = ~$690/month (Log Analytics)
+**Before:** 10GB/day @ $2.30/GB = ~$690/month (Log Analytics ingestion + retention)
 **After:** 10GB/day @ $0.02/GB = ~$6/month (Blob Storage)
 **Savings:** ~$684/month (>99% reduction)
+
+**Note:** The $690/month estimate includes both Log Analytics ingestion costs ($2.30/GB) and basic retention (30 days). Actual costs may vary based on retention period and pricing tier. Extended retention periods incur additional charges (~$0.12/GB/month beyond 30 days).
 
 ## References
 
