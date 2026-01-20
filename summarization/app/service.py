@@ -285,12 +285,14 @@ class SummarizationService:
                 else:
                     # DEPRECATED: Fallback to document store query for backward compatibility
                     # This path should be removed once all orchestrators pass selected_chunks
-                    # TODO: Add deprecation warning metrics (increment orchestrator.legacy_chunk_selection
-                    # counter) and set removal timeline (target: next major version)
+                    # TODO: Set removal timeline (target: next major version)
                     logger.warning(
                         f"No pre-selected chunks provided for thread {thread_id}, "
                         f"falling back to document store query (deprecated)"
                     )
+                    # Track usage of legacy path for deprecation planning
+                    if self.metrics_collector:
+                        self.metrics_collector.increment("summarization_legacy_chunk_selection_total")
                     context = self._retrieve_context(thread_id, top_k)
 
                 if not context or not context.get("messages"):
@@ -622,6 +624,7 @@ class SummarizationService:
         # Preserve the order from selected_chunks
         chunk_map = {str(chunk.get("_id")): chunk for chunk in chunks}
         ordered_chunks = []
+        missing_chunk_ids = []
         for sc in selected_chunks:
             chunk_id = sc.get("chunk_id")
             if chunk_id in chunk_map:
@@ -631,6 +634,17 @@ class SummarizationService:
                 chunk["selection_rank"] = sc.get("rank", 0)
                 chunk["selection_source"] = sc.get("source", "unknown")
                 ordered_chunks.append(chunk)
+            else:
+                missing_chunk_ids.append(chunk_id)
+
+        # Log warning if any selected chunks were not found
+        if missing_chunk_ids:
+            logger.warning(
+                f"Data inconsistency for thread {thread_id}: {len(missing_chunk_ids)} selected chunks "
+                f"not found in document store (selected={len(selected_chunks)}, "
+                f"retrieved={len(ordered_chunks)}). Missing chunk_ids: {missing_chunk_ids[:5]}"
+                + (f" (and {len(missing_chunk_ids) - 5} more)" if len(missing_chunk_ids) > 5 else "")
+            )
 
         # Extract message texts for context
         message_texts = []

@@ -28,8 +28,8 @@ def create_context_selector(selector_type: str = "top_k_relevance") -> ContextSe
     Raises:
         ValueError: If selector_type is not recognized
 
-    Note:
-        Additional selector types are planned for future releases:
+    Future Plans:
+        Additional selector types planned for future implementation:
         - "hybrid_relevance_then_cohesion": Combine relevance and cohesion
         - "mmr": Maximal Marginal Relevance for diversity
     """

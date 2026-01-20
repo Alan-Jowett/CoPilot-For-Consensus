@@ -229,10 +229,14 @@ def main():
 
         # Create vector store
         logger.info("Creating vector store...")
-        from copilot_vectorstore import create_vector_store
+        try:
+            from copilot_vectorstore import create_vector_store
 
-        vector_store = create_vector_store(config.vector_store)
-        logger.info("Vector store created successfully")
+            vector_store = create_vector_store(config.vector_store)
+            logger.info("Vector store created successfully")
+        except Exception as e:
+            logger.error(f"Failed to create vector store: {e}")
+            raise
 
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")

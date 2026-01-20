@@ -76,8 +76,9 @@ class TopKRelevanceSelector(ContextSelector):
         # Select top-k with optional token budget
         selected = []
         total_tokens = 0
+        actual_rank = 0  # Track actual position in final selection
 
-        for rank, chunk in enumerate(sorted_candidates[:top_k]):
+        for chunk in sorted_candidates[:top_k]:
             chunk_id = chunk.get("_id")
             if not chunk_id:
                 logger.warning(f"Candidate chunk missing _id, skipping: {chunk}")
@@ -91,19 +92,19 @@ class TopKRelevanceSelector(ContextSelector):
                 # Check if adding this chunk would exceed budget
                 if total_tokens + chunk_tokens > context_window_tokens:
                     logger.debug(
-                        f"Token budget exceeded at rank {rank} "
+                        f"Token budget exceeded at rank {actual_rank} "
                         f"({total_tokens + chunk_tokens} > {context_window_tokens}), stopping selection"
                     )
                     break
 
                 total_tokens += chunk_tokens
 
-            # Create selected chunk
+            # Create selected chunk with actual rank (0-indexed position in final selection)
             selected_chunk = SelectedChunk(
                 chunk_id=str(chunk_id),
                 source=chunk.get("source_type", "thread_chunks"),
                 score=chunk.get("similarity_score", 0.0),
-                rank=rank,
+                rank=actual_rank,
                 metadata={
                     "message_id": chunk.get("message_id", ""),
                     "message_doc_id": chunk.get("message_doc_id", ""),
@@ -112,6 +113,7 @@ class TopKRelevanceSelector(ContextSelector):
                 },
             )
             selected.append(selected_chunk)
+            actual_rank += 1  # Increment only when chunk is actually added
 
         logger.info(
             f"Selected {len(selected)}/{len(candidates)} chunks for thread {thread_id} "
@@ -177,6 +179,7 @@ class TopKCohesiveSelector(ContextSelector):
     """
 
     VERSION = "1.0.0"
+    _warning_logged = False  # Class variable to track if warning has been logged
 
     def __init__(self, token_estimator: callable[[str], int] | None = None):
         """Initialize top-k cohesive selector.
@@ -208,9 +211,12 @@ class TopKCohesiveSelector(ContextSelector):
             ContextSelection with ordered chunks
         """
         # TODO: Implement cohesion-based selection (clustering, MMR, densest-subgraph)
-        logger.warning(
-            f"TopKCohesiveSelector not fully implemented yet, falling back to relevance-based selection"
-        )
+        # Log warning only once per class to avoid log noise
+        if not TopKCohesiveSelector._warning_logged:
+            logger.warning(
+                "TopKCohesiveSelector not fully implemented yet, falling back to relevance-based selection"
+            )
+            TopKCohesiveSelector._warning_logged = True
 
         # For now, use same logic as TopKRelevanceSelector
         selector = TopKRelevanceSelector(token_estimator=self.token_estimator)

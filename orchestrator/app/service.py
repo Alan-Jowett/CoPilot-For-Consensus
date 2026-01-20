@@ -32,7 +32,11 @@ from .context_factory import create_context_selector, create_context_source
 logger = get_logger(__name__)
 
 # Candidate pool multiplier for context selection
-# Retrieve N times more candidates than top_k to allow for better selection
+# Retrieve N times more candidates than top_k to allow for better selection.
+# Value of 2 provides a good balance: large enough to give selector filtering flexibility
+# (e.g., can apply token budget constraints, diversity filters) while keeping performance
+# reasonable (2x candidates means ~2x vector store query time).
+# This can be increased for higher quality selection at the cost of performance.
 CANDIDATE_POOL_MULTIPLIER = 2
 
 
@@ -513,6 +517,9 @@ class OrchestrationService:
         try:
             # Get candidate chunks from context source
             # Retrieve more candidates than top_k to allow for better selection
+            # NOTE: Currently no query_vector is provided, so chunks are retrieved from
+            # document store with neutral scores. To enable true relevance-based selection,
+            # compute a query vector (e.g., mean of thread embeddings) and pass it here.
             candidates = self.context_source.get_candidates(
                 thread_id=thread_id, query={"top_k": self.top_k * CANDIDATE_POOL_MULTIPLIER}
             )
@@ -548,7 +555,25 @@ class OrchestrationService:
 
             # Preserve selection order
             chunk_map = {str(chunk.get("_id")): chunk for chunk in chunks}
-            ordered_chunks = [chunk_map[sc.chunk_id] for sc in selection.selected_chunks if sc.chunk_id in chunk_map]
+            ordered_chunks = [
+                chunk_map[sc.chunk_id]
+                for sc in selection.selected_chunks
+                if sc.chunk_id in chunk_map
+            ]
+
+            # Warn if any selected chunks could not be resolved from the document store
+            if len(ordered_chunks) != len(selection.selected_chunks):
+                missing_chunk_ids = [
+                    sc.chunk_id
+                    for sc in selection.selected_chunks
+                    if sc.chunk_id not in chunk_map
+                ]
+                logger.warning(
+                    f"Data inconsistency for thread {thread_id}: Mismatch between selected chunks "
+                    f"and retrieved chunks (selected={len(selection.selected_chunks)}, "
+                    f"retrieved={len(ordered_chunks)}). Missing chunk_ids: {missing_chunk_ids[:5]}"
+                    + (f" (and {len(missing_chunk_ids) - 5} more)" if len(missing_chunk_ids) > 5 else "")
+                )
 
             # Get message metadata
             message_doc_ids = list(

@@ -119,7 +119,7 @@
             "source": "env",
             "env_var": "ORCHESTRATOR_CHUNK_SELECTION_STRATEGY",
             "default": "top_k_relevance",
-            "description": "Strategy for selecting chunks: top_k_relevance, top_k_cohesive, hybrid_relevance_then_cohesion, mmr"
+            "description": "Strategy for selecting chunks: top_k_relevance, top_k_cohesive (planned: hybrid_relevance_then_cohesion, mmr)"
         }
     },
     "adapters": {

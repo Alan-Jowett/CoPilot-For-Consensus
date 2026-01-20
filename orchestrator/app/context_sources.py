@@ -13,9 +13,12 @@ from .context_selector import ContextSource
 
 logger = get_logger(__name__)
 
-# Default similarity score when vector store is unavailable or no query vector provided
-# 0.5 represents a neutral score, indicating no information about relevance
-NEUTRAL_SIMILARITY_SCORE = 0.5
+# Default similarity score when vector store is unavailable or no query vector provided.
+# This represents "unknown relevance" rather than "moderate relevance". The value 0.5
+# is used as a neutral placeholder score that doesn't bias selection toward or away
+# from these chunks (since all will have the same score, tie-breaking by chunk_id applies).
+# In practice, when this fallback is used, chunks are effectively sorted alphabetically.
+DEFAULT_FALLBACK_SIMILARITY_SCORE = 0.5
 
 
 class ThreadChunksSource(ContextSource):
@@ -44,12 +47,21 @@ class ThreadChunksSource(ContextSource):
         Args:
             thread_id: Thread identifier
             query: Query parameters:
-                - query_vector: Optional query embedding vector
+                - query_vector: Optional query embedding vector for similarity search
                 - top_k: Number of candidates to retrieve (default: 50)
                 - min_score: Optional minimum similarity score
 
         Returns:
             List of chunk documents with metadata including similarity scores
+
+        Note:
+            Currently, query_vector is not provided by the orchestrator, so this method
+            falls back to document store retrieval with a neutral score. This means chunks
+            are effectively sorted alphabetically (via deterministic tie-breaking) rather
+            than by relevance. To enable true "top-k relevance" selection:
+            1. Compute a query vector (e.g., mean of thread embeddings) in orchestrator
+            2. Pass it in the query parameter when calling get_candidates
+            3. Or retrieve pre-computed similarity scores from chunk metadata in document store
         """
         top_k = query.get("top_k", 50)
         query_vector = query.get("query_vector")
@@ -64,9 +76,9 @@ class ThreadChunksSource(ContextSource):
                 limit=top_k,
             )
 
-            # Assign neutral score since we're not using vector similarity
+            # Assign fallback score since we're not using vector similarity
             for chunk in chunks:
-                chunk["similarity_score"] = NEUTRAL_SIMILARITY_SCORE
+                chunk["similarity_score"] = DEFAULT_FALLBACK_SIMILARITY_SCORE
 
             return chunks
 
@@ -117,9 +129,9 @@ class ThreadChunksSource(ContextSource):
                 limit=top_k,
             )
 
-            # Assign neutral score
+            # Assign fallback score
             for chunk in chunks:
-                chunk["similarity_score"] = NEUTRAL_SIMILARITY_SCORE
+                chunk["similarity_score"] = DEFAULT_FALLBACK_SIMILARITY_SCORE
 
             return chunks
 
