@@ -39,6 +39,14 @@ def mock_document_store():
 
 
 @pytest.fixture
+def mock_vector_store():
+    """Create a mock vector store."""
+    store = Mock()
+    store.query = Mock(return_value=[])
+    return store
+
+
+@pytest.fixture
 def mock_publisher():
     """Create a mock event publisher."""
     publisher = Mock()
@@ -55,29 +63,33 @@ def mock_subscriber():
 
 
 @pytest.fixture
-def orchestration_service(mock_document_store, mock_publisher, mock_subscriber, prompt_files):
+def orchestration_service(mock_document_store, mock_vector_store, mock_publisher, mock_subscriber, prompt_files):
     """Create an orchestration service instance."""
     system_prompt_path, user_prompt_path = prompt_files
     return OrchestrationService(
         document_store=mock_document_store,
+        vector_store=mock_vector_store,
         publisher=mock_publisher,
         subscriber=mock_subscriber,
         top_k=12,
         context_window_tokens=3000,
         system_prompt_path=system_prompt_path,
         user_prompt_path=user_prompt_path,
+        chunk_selection_strategy="top_k_relevance",
     )
 
 
 def test_service_initialization(orchestration_service):
     """Test that the service initializes correctly."""
     assert orchestration_service.document_store is not None
+    assert orchestration_service.vector_store is not None
     assert orchestration_service.publisher is not None
     assert orchestration_service.subscriber is not None
     assert orchestration_service.events_processed == 0
     assert orchestration_service.threads_orchestrated == 0
     assert orchestration_service.top_k == 12
     assert orchestration_service.context_window_tokens == 3000
+    assert orchestration_service.chunk_selection_strategy == "top_k_relevance"
 
 
 def test_service_start(orchestration_service, mock_subscriber):
