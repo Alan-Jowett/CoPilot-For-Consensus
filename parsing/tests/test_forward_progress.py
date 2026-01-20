@@ -235,3 +235,71 @@ class TestParsingForwardProgress:
         # Verify limit is set appropriately
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
         assert call_kwargs["limit"] == 1000
+
+    @patch("copilot_startup.StartupRequeue")
+    def test_requeue_handles_legacy_archives_without_source_type(self, mock_requeue_class, parsing_service):
+        """Test that legacy archives missing source_type are handled with default value."""
+        mock_requeue_instance = Mock()
+        mock_requeue_instance.requeue_incomplete = Mock(return_value=1)
+        mock_requeue_class.return_value = mock_requeue_instance
+
+        parsing_service.start(enable_startup_requeue=True)
+
+        # Get the build_event_data function
+        call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
+        build_event_data = call_kwargs["build_event_data"]
+
+        # Test with legacy document missing source_type
+        legacy_doc = {
+            "archive_id": "legacy-archive-001",
+            "source": "legacy-source",
+            # source_type is missing (legacy document)
+            "source_url": "file:///legacy/archive.mbox",
+            "file_size_bytes": 2048,
+            "file_hash": "legacy123",
+            "created_at": "2023-01-01T00:00:00Z",
+            "ingestion_date": "2023-01-01T01:00:00Z",
+        }
+
+        # Should not raise - should default to 'local'
+        event_data = build_event_data(legacy_doc)
+
+        assert event_data["archive_id"] == "legacy-archive-001"
+        assert event_data["source_name"] == "legacy-source"
+        assert event_data["source_type"] == "local"  # Defaults to 'local' for legacy docs
+        assert event_data["source_url"] == "file:///legacy/archive.mbox"
+        assert event_data["file_size_bytes"] == 2048
+
+    @patch("copilot_startup.StartupRequeue")
+    def test_requeue_handles_mixed_valid_and_legacy_archives(self, mock_requeue_class, parsing_service):
+        """Test that requeue handles a mix of valid and legacy archive documents."""
+        mock_requeue_instance = Mock()
+        mock_requeue_instance.requeue_incomplete = Mock(return_value=2)
+        mock_requeue_class.return_value = mock_requeue_instance
+
+        parsing_service.start(enable_startup_requeue=True)
+
+        # Get the build_event_data function
+        call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
+        build_event_data = call_kwargs["build_event_data"]
+
+        # Test with valid document
+        valid_doc = {
+            "archive_id": "valid-archive-001",
+            "source": "modern-source",
+            "source_type": "rsync",
+        }
+
+        # Test with legacy document
+        legacy_doc = {
+            "archive_id": "legacy-archive-002",
+            "source": "legacy-source",
+            # source_type is missing
+        }
+
+        # Both should work
+        valid_data = build_event_data(valid_doc)
+        assert valid_data["source_type"] == "rsync"
+
+        legacy_data = build_event_data(legacy_doc)
+        assert legacy_data["source_type"] == "local"
