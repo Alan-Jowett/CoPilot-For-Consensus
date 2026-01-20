@@ -129,6 +129,8 @@ class ParsingService:
         when reconstructing ArchiveIngested events from stored archive
         documents, for example during startup requeue.
 
+        For legacy archives missing source_type, defaults to 'local' with a warning.
+
         Args:
             doc: Archive document from database
 
@@ -142,17 +144,19 @@ class ParsingService:
         source_name = doc.get("source")
         source_type = doc.get("source_type")
 
-        # Require source_name and source_type - these are essential for thread correlation
+        # Require source_name - this is essential for thread correlation
         if not source_name:
             raise ValueError(
                 f"Archive {archive_id} missing required field 'source' (ingestion bug: "
                 "source_name must be set when creating archives)"
             )
 
+        # Handle legacy archives missing source_type by defaulting to 'local'
         if not source_type:
-            raise ValueError(
-                f"Archive {archive_id} missing required field 'source_type' (ingestion bug: "
-                f"source_type must be one of {VALID_SOURCE_TYPES})"
+            source_type = "local"
+            logger.warning(
+                f"Archive {archive_id} missing 'source_type' field (legacy document). "
+                f"Defaulting to 'local'. Consider backfilling with correct source_type."
             )
 
         # Validate source_type is a known enum value
