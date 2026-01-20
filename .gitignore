@@ -33,3 +33,6 @@ infra/azure/parameters.test.json
 !**/secrets/*.example
 !**/secrets/README.md
 **/*.xml
+
+# Local logs / log mining artifacts
+logs/**
