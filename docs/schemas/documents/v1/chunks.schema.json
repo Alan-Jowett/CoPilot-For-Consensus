@@ -1,7 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/documents/chunks.schema.json",
-  "version": "v1",
   "title": "chunks collection",
   "type": "object",
   "properties": {
@@ -31,75 +30,41 @@
       "maxLength": 16,
       "description": "Reference to threads._id (canonical thread identifier we generate)"
     },
-    "chunk_index": {
-      "type": "integer",
-      "minimum": 0
-    },
-    "text": {
+    "archive_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Reference to archives._id (canonical archive identifier we generate)"
     },
-    "token_count": {
-      "type": "integer",
-      "minimum": 0
-    },
+    "chunk_index": { "type": "integer", "minimum": 0 },
+    "text": { "type": "string", "minLength": 1 },
+    "token_count": { "type": "integer", "minimum": 0 },
     "start_offset": {
       "anyOf": [
-        {
-          "type": "integer",
-          "minimum": 0
-        },
-        {
-          "type": "null"
-        }
+        { "type": "integer", "minimum": 0 },
+        { "type": "null" }
       ]
     },
     "end_offset": {
       "anyOf": [
-        {
-          "type": "integer",
-          "minimum": 0
-        },
-        {
-          "type": "null"
-        }
+        { "type": "integer", "minimum": 0 },
+        { "type": "null" }
       ]
     },
-    "overlap_with_previous": {
-      "type": "boolean"
-    },
+    "overlap_with_previous": { "type": "boolean" },
     "metadata": {
       "type": "object",
       "properties": {
-        "sender": {
-          "type": "string"
-        },
-        "date": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "subject": {
-          "type": "string"
-        }
+        "sender": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "subject": { "type": "string" }
       },
       "additionalProperties": true
     },
-    "created_at": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "embedding_generated": {
-      "type": "boolean"
-    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "embedding_generated": { "type": "boolean" },
     "status": {
       "type": "string",
-      "enum": [
-        "pending",
-        "processing",
-        "completed",
-        "failed",
-        "failed_max_retries"
-      ],
+      "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
       "description": "Processing status for retry and workflow tracking"
     },
     "attemptCount": {
@@ -109,25 +74,23 @@
     },
     "lastAttemptTime": {
       "anyOf": [
-        {
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
       ],
       "description": "Timestamp of the last embedding generation attempt"
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of last status or field update for observability and forward progress tracking"
+    },
+    "workerId": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ],
+      "description": "Optional identifier of the worker/service instance processing this document for debugging and observability"
     }
   },
-  "required": [
-    "_id",
-    "message_doc_id",
-    "message_id",
-    "thread_id",
-    "chunk_index",
-    "text",
-    "created_at",
-    "embedding_generated"
-  ]
+  "required": ["_id", "message_doc_id", "message_id", "thread_id", "chunk_index", "text", "created_at", "embedding_generated"]
 }

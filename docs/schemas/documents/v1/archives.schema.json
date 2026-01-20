@@ -1,7 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/documents/archives.schema.json",
-  "version": "v1",
   "title": "archives collection",
   "type": "object",
   "properties": {
@@ -24,26 +23,11 @@
       "minimum": 0,
       "description": "Size of the original mbox file in bytes"
     },
-    "source": {
-      "type": "string",
-      "minLength": 1
-    },
-    "source_url": {
-      "type": "string",
-      "minLength": 1
-    },
-    "format": {
-      "type": "string",
-      "minLength": 1
-    },
-    "ingestion_date": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "message_count": {
-      "type": "integer",
-      "minimum": 0
-    },
+    "source": { "type": "string", "minLength": 1 },
+    "source_url": { "type": "string", "minLength": 1 },
+    "format": { "type": "string", "minLength": 1 },
+    "ingestion_date": { "type": "string", "format": "date-time" },
+    "message_count": { "type": "integer", "minimum": 0 },
     "file_path": {
       "type": "string",
       "minLength": 1,
@@ -51,13 +35,7 @@
     },
     "status": {
       "type": "string",
-      "enum": [
-        "pending",
-        "processing",
-        "completed",
-        "failed",
-        "failed_max_retries"
-      ],
+      "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
       "description": "Processing status for retry and workflow tracking"
     },
     "attemptCount": {
@@ -67,13 +45,8 @@
     },
     "lastAttemptTime": {
       "anyOf": [
-        {
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
       ],
       "description": "Timestamp of the last processing attempt"
     },
@@ -84,23 +57,11 @@
     },
     "workerId": {
       "anyOf": [
-        {
-          "type": "string",
-          "minLength": 1
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
       ],
       "description": "Optional identifier of the worker/service instance processing this document for debugging and observability"
     }
   },
-  "required": [
-    "_id",
-    "file_hash",
-    "file_size_bytes",
-    "source",
-    "ingestion_date",
-    "status"
-  ]
+  "required": ["_id", "file_hash", "file_size_bytes", "source", "ingestion_date", "status"]
 }
