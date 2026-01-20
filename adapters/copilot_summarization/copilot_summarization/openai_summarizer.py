@@ -160,6 +160,8 @@ class OpenAISummarizer(Summarizer):
         """
 
         if isinstance(driver_config, DriverConfig_LlmBackend_AzureOpenaiGpt):
+            # TODO: Add max_retries and base_backoff_seconds to config schema
+            # for runtime configuration of rate limit retry behavior
             return cls(
                 api_key=driver_config.azure_openai_api_key,
                 model=driver_config.azure_openai_model,
@@ -168,6 +170,8 @@ class OpenAISummarizer(Summarizer):
                 deployment_name=driver_config.azure_openai_deployment,
             )
 
+        # TODO: Add max_retries and base_backoff_seconds to config schema
+        # for runtime configuration of rate limit retry behavior
         return cls(
             api_key=driver_config.openai_api_key,
             model=driver_config.openai_model,
@@ -222,7 +226,14 @@ class OpenAISummarizer(Summarizer):
 
         # Check error message for rate limit indicators
         error_msg = str(exception).lower()
-        if "429" in error_msg or "rate limit" in error_msg or "ratelimitreached" in error_msg.replace("_", "").replace(" ", ""):
+        # Check for common rate limit patterns:
+        # - Status code "429"
+        # - "rate limit" phrase
+        # - "RateLimitReached" (Azure error code, case-insensitive with underscores/spaces removed)
+        if "429" in error_msg or "rate limit" in error_msg:
+            return True, None
+        # Check for RateLimitReached without spaces/underscores
+        if "ratelimitreached" in error_msg.replace("_", "").replace(" ", ""):
             return True, None
 
         return False, None
@@ -237,11 +248,16 @@ class OpenAISummarizer(Summarizer):
         Returns:
             Delay in seconds (float)
         """
+        # Jitter multiplier for retry-after to avoid thundering herd
+        # Azure may return the same retry-after to many clients simultaneously
+        RETRY_AFTER_JITTER_FACTOR = 1.5
+
         if retry_after is not None and retry_after > 0:
             # Respect the API's suggested retry-after, but add some jitter to avoid thundering herd
             # Use retry_after as the maximum and apply jitter
             base_delay = retry_after
-            max_delay = min(retry_after * 1.5, 120)  # Cap at 2 minutes
+            # Apply jitter factor, capped at 2 minutes to prevent excessive delays
+            max_delay = min(retry_after * RETRY_AFTER_JITTER_FACTOR, 120)
         else:
             # Exponential backoff: base * 2^(attempt-1)
             base_delay = self.base_backoff_seconds * (2 ** (attempt - 1))

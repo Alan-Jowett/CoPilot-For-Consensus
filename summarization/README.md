@@ -201,7 +201,7 @@ Prometheus metrics exposed at `/metrics`:
 - `summarization_rate_limit_errors_total` (labeled by backend/model) — tracks Azure OpenAI 429 errors
 - `summarization_tokens_total` (prompt vs completion)
 
-Structured logs (JSON) include thread_id, backend, model, tokens, citations, latency, and rate_limit_error flag.
+Structured logs (JSON) include thread_id, backend, model, tokens, citations, and latency.
 
 ## Dependencies
 
