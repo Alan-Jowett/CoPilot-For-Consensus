@@ -5,13 +5,22 @@
 
 import json
 import logging
+import random
 import re
+import time
 from collections.abc import Callable
 from typing import Any
 
 from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_Rabbitmq
 
 from .base import EventSubscriber
+
+try:
+    import pika
+except ImportError:
+    pika = None
+
+pika_exceptions: Any = getattr(pika, "exceptions", None)
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +45,9 @@ class RabbitMQSubscriber(EventSubscriber):
         auto_ack: bool = False,
         heartbeat: int = 300,
         blocked_connection_timeout: int = 600,
+        max_reconnect_attempts: int = 10,
+        reconnect_delay: float = 2.0,
+        max_reconnect_delay: float = 60.0,
     ):
         """Initialize RabbitMQ subscriber.
 
@@ -55,6 +67,9 @@ class RabbitMQSubscriber(EventSubscriber):
             blocked_connection_timeout: Timeout in seconds for blocked connections due to
                                        TCP backpressure (default: 600). Should be at least
                                        2x the heartbeat interval.
+            max_reconnect_attempts: Maximum number of reconnection attempts per cycle
+            reconnect_delay: Base delay between reconnection attempts in seconds
+            max_reconnect_delay: Maximum delay between reconnection attempts (default: 60.0)
 
         Raises:
             ValueError: For invalid initialization parameters
@@ -70,11 +85,21 @@ class RabbitMQSubscriber(EventSubscriber):
         self.auto_ack = auto_ack
         self.heartbeat = heartbeat
         self.blocked_connection_timeout = blocked_connection_timeout
+        self.max_reconnect_attempts = max_reconnect_attempts
+        self.reconnect_delay = reconnect_delay
+        self.max_reconnect_delay = max_reconnect_delay
 
         self.connection: Any = None  # pika.BlockingConnection after connect()
         self.channel: Any = None  # pika.channel.Channel after connect()
         self.callbacks: dict[str, Callable[[dict[str, Any]], None]] = {}
         self._consuming = False
+        self._subscriptions: list[tuple[str, str, str | None]] = []  # (event_type, routing_key, exchange)
+        self._last_reconnect_time = 0.0
+        self._reconnect_count = 0
+        self._shutdown_requested = False
+        self._consumer_tag: str | None = None
+        self._consume_channel_id: int | None = None
+        self._is_exclusive_queue = False  # Track if queue is exclusive (for reconnection)
 
     @classmethod
     def from_config(cls, driver_config: DriverConfig_MessageBus_Rabbitmq) -> "RabbitMQSubscriber":
@@ -134,7 +159,8 @@ class RabbitMQSubscriber(EventSubscriber):
             ImportError: If pika library is not installed
             Exception: If connection or setup fails
         """
-        import pika
+        if pika is None:
+            raise ImportError("pika library is not installed")
 
         credentials = pika.PlainCredentials(self.username, self.password)
         parameters = pika.ConnectionParameters(
@@ -164,6 +190,7 @@ class RabbitMQSubscriber(EventSubscriber):
             # Let RabbitMQ generate a unique queue name (temporary queue)
             result = self.channel.queue_declare(queue="", exclusive=True)
             self.queue_name = result.method.queue
+            self._is_exclusive_queue = True  # Track that this is an exclusive queue
 
         logger.info(
             f"Connected to RabbitMQ: {self.host}:{self.port}, "
@@ -179,6 +206,130 @@ class RabbitMQSubscriber(EventSubscriber):
         except Exception as e:
             logger.warning(f"Error during disconnect: {e}")
 
+    def _is_connected(self) -> bool:
+        """Check if connection and channel are open.
+
+        Returns:
+            True if both connection and channel are open, False otherwise
+        """
+        try:
+            # NOTE: some unit tests mock only the channel; allow connection to be None
+            # as long as the channel is open.
+            return (
+                self.channel is not None
+                and self.channel.is_open
+                and (self.connection is None or not self.connection.is_closed)
+            )
+        except Exception:
+            return False
+
+    def _reconnect(self) -> bool:
+        """Attempt to reconnect to RabbitMQ with circuit breaker logic.
+
+        Implements exponential backoff with jitter to prevent reconnection storms.
+        Resets reconnect count after successful reconnection.
+        Re-establishes all subscriptions after successful reconnection.
+        Enforces a cooldown period (max_reconnect_delay) after exhausting max_reconnect_attempts.
+
+        Returns:
+            True if reconnection succeeded, False otherwise
+        """
+        current_time = time.time()
+
+        # Circuit breaker with exponential backoff: prevent rapid reconnection attempts
+        time_since_last_reconnect = current_time - self._last_reconnect_time
+        # Exponential backoff with jitter and reasonable cap
+        backoff_delay = min(self.reconnect_delay * (2 ** self._reconnect_count), self.max_reconnect_delay)
+        # Add jitter (±20%) to prevent thundering herd
+        jitter = backoff_delay * 0.2 * (random.random() * 2 - 1)
+        backoff_with_jitter = max(0.0, backoff_delay + jitter)
+
+        if time_since_last_reconnect < backoff_with_jitter:
+            remaining = max(0.0, backoff_with_jitter - time_since_last_reconnect)
+            logger.debug(f"Reconnection throttled, {remaining:.1f}s remaining (backoff {backoff_with_jitter:.1f}s)")
+            return False
+
+        # Check reconnection limit
+        if self._reconnect_count >= self.max_reconnect_attempts:
+            logger.error(f"Maximum reconnection attempts ({self.max_reconnect_attempts}) exceeded in this cycle")
+            # Reset count to allow future reconnection attempts, but enforce an explicit
+            # cooldown period by moving the last reconnect time forward by the maximum
+            # reconnect delay. This ensures a full cooldown before new attempts begin.
+            self._reconnect_count = 0
+            self._last_reconnect_time = current_time + self.max_reconnect_delay
+            return False
+
+        # Record attempt time only when we are actually going to attempt reconnect.
+        self._last_reconnect_time = current_time
+
+        # Close existing connections gracefully
+        try:
+            if self.channel and self.channel.is_open:
+                self.channel.close()
+        except Exception as e:
+            logger.debug(f"Error closing channel during reconnect: {e}")
+
+        try:
+            if self.connection and not self.connection.is_closed:
+                self.connection.close()
+        except Exception as e:
+            logger.debug(f"Error closing connection during reconnect: {e}")
+
+        # Reset state
+        self.channel = None
+        self.connection = None
+
+        # Attempt reconnection
+        self._reconnect_count += 1
+        logger.info(f"Attempting reconnection {self._reconnect_count}/{self.max_reconnect_attempts}...")
+
+        try:
+            self.connect()
+            logger.info("Reconnection successful")
+
+            # Re-establish all subscriptions
+            if self._subscriptions:
+                channel = self.channel
+                if channel is None:
+                    raise RuntimeError("Reconnect succeeded but channel is not available")
+
+                # Check if we need to handle exclusive queues
+                # Exclusive queues are deleted when the connection drops, so we need to create a new one
+                queue_name = self.queue_name
+                
+                if self._is_exclusive_queue:
+                    try:
+                        declare_result = channel.queue_declare(queue="", exclusive=True, auto_delete=True)
+                        queue_name = declare_result.method.queue
+                        self.queue_name = queue_name
+                        logger.info(
+                            f"Declared new exclusive queue '{queue_name}' after reconnection"
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to declare auto-generated exclusive queue during reconnection: {e}")
+                        raise
+                elif not queue_name:
+                    raise RuntimeError("Queue name is not set; cannot re-establish subscriptions")
+
+                logger.info(f"Re-establishing {len(self._subscriptions)} subscription(s)...")
+                for event_type, routing_key, exchange in self._subscriptions:
+                    try:
+                        channel.queue_bind(
+                            exchange=exchange or self.exchange_name,
+                            queue=queue_name,
+                            routing_key=routing_key,
+                        )
+                        logger.info(f"Re-subscribed to {event_type} with routing key: {routing_key}")
+                    except Exception as e:
+                        logger.error(f"Failed to re-subscribe to {event_type}: {e}")
+                        raise
+
+            self._reconnect_count = 0  # Reset count on success
+            return True
+        except Exception as e:
+            logger.error(f"Reconnection attempt {self._reconnect_count} failed: {e}")
+            return False
+
     def subscribe(
         self,
         event_type: str,
@@ -192,9 +343,12 @@ class RabbitMQSubscriber(EventSubscriber):
             event_type: Type of event to subscribe to
             callback: Function to call when an event is received
             routing_key: Routing key pattern (defaults to event_type in snake_case)
+            exchange: Exchange to subscribe to (defaults to self.exchange_name)
         """
         if not self.channel:
             raise RuntimeError("Not connected. Call connect() first.")
+
+        channel = self.channel
 
         # Register callback
         self.callbacks[event_type] = callback
@@ -207,57 +361,129 @@ class RabbitMQSubscriber(EventSubscriber):
         # Choose exchange (allow override for compatibility/testing)
         target_exchange = exchange or self.exchange_name
 
+        # Store subscription for reconnection
+        subscription = (event_type, routing_key, target_exchange)
+        if subscription not in self._subscriptions:
+            self._subscriptions.append(subscription)
+
         # Bind queue to exchange with routing key
-        self.channel.queue_bind(exchange=target_exchange, queue=self.queue_name, routing_key=routing_key)
+        channel.queue_bind(exchange=target_exchange, queue=self.queue_name, routing_key=routing_key)
 
         logger.info(
             f"Subscribed to {event_type} events on exchange {target_exchange} " f"with routing key: {routing_key}"
         )
 
     def start_consuming(self) -> None:
-        """Start consuming events from the queue.
+        """Start consuming events from the queue with automatic reconnection.
+
+        This method will automatically reconnect and resume consuming if the
+        connection or channel is closed by the broker (e.g., due to ack timeout).
+        The reconnection loop can be stopped by calling stop_consuming() or via KeyboardInterrupt.
 
         Raises:
-            RuntimeError: If not connected to RabbitMQ
-            AssertionError: Re-raised for non-transport-related assertions
-            Exception: Re-raised for unexpected errors
+            RuntimeError: If not connected to RabbitMQ initially
         """
         if not self.channel:
             raise RuntimeError("Not connected. Call connect() first.")
 
-        self.channel.basic_consume(queue=self.queue_name, on_message_callback=self._on_message, auto_ack=self.auto_ack)
+        self._shutdown_requested = False
 
-        self._consuming = True
-        logger.info("Started consuming events")
+        while not self._shutdown_requested:
+            if not self._is_connected():
+                logger.warning("Not connected, attempting to reconnect...")
+                if not self._reconnect():
+                    # Avoid a tight spin-loop; backoff is enforced by _reconnect().
+                    time.sleep(0.1)
+                    continue
 
-        try:
-            self.channel.start_consuming()
-        except KeyboardInterrupt:
-            self.stop_consuming()
-        except AssertionError as e:
-            # Handle pika internal transport state errors gracefully
-            # These are typically race conditions during shutdown/cleanup
-            error_str = str(e)
-            if "_AsyncTransportBase" in error_str or "_STATE_COMPLETED" in error_str:
-                logger.warning(
-                    f"Pika transport state assertion: {e}. " "This is a known pika issue during connection cleanup."
+            channel = self.channel
+            if channel is None:
+                # Defensive: _is_connected() can be relaxed for tests/mocks.
+                logger.warning("Channel unavailable after connection check; retrying")
+                time.sleep(0.1)
+                continue
+
+            # Ensure we only register a consumer once per channel instance.
+            channel_id = id(channel)
+            if self._consume_channel_id != channel_id:
+                self._consume_channel_id = channel_id
+                self._consumer_tag = None
+
+            if self._consumer_tag is None:
+                self._consumer_tag = channel.basic_consume(
+                    queue=self.queue_name,
+                    on_message_callback=self._on_message,
+                    auto_ack=self.auto_ack,
                 )
-                # Don't re-raise - this is a benign shutdown race condition
-            else:
-                # Other assertion errors should be re-raised
-                logger.error(f"Unexpected assertion error in start_consuming: {e}")
-                raise
-        finally:
-            # Ensure consuming flag is reset when start_consuming exits
-            # This handles cases where exceptions occur that aren't caught above
-            self._consuming = False
+
+            self._consuming = True
+            logger.info("Started consuming events")
+
+            try:
+                channel.start_consuming()
+                # start_consuming normally only returns after stop_consuming() is called.
+                if self._shutdown_requested:
+                    break
+                logger.warning("RabbitMQ consumption stopped unexpectedly; will attempt to reconnect")
+                # Force reconnect path on next loop.
+                self.channel = None
+                self.connection = None
+            except KeyboardInterrupt:
+                logger.info("Received keyboard interrupt, stopping consumer")
+                self.stop_consuming()
+                break
+            except AssertionError as e:
+                # Handle pika internal transport state errors gracefully.
+                # NOTE: pika has a typo in the error message - "_initate" instead of "_initiate".
+                error_str = str(e)
+                if "_AsyncTransportBase" in error_str or "_STATE_COMPLETED" in error_str:
+                    logger.warning(
+                        f"Pika transport state assertion: {e}. "
+                        "This is a known pika issue during cleanup; will reconnect."
+                    )
+                    # Treat this as a recoverable transport error: reset state so the outer loop reconnects
+                    self.channel = None
+                    self.connection = None
+                    self._consumer_tag = None
+                    # Continue to the next iteration which will attempt reconnection
+                else:
+                    logger.error(f"Unexpected assertion error: {e}")
+                    raise
+            except Exception as e:
+                # Connection/channel errors - log and reconnect.
+                if pika_exceptions is None:
+                    logger.warning(f"Error during consuming (pika exceptions unavailable): {e}; will reconnect")
+                elif isinstance(
+                    e,
+                    (
+                        pika_exceptions.ChannelClosedByBroker,
+                        pika_exceptions.ChannelWrongStateError,
+                        pika_exceptions.ConnectionClosedByBroker,
+                        pika_exceptions.AMQPConnectionError,
+                        pika_exceptions.StreamLostError,
+                    ),
+                ):
+                    logger.warning(f"Connection/channel error during consuming: {e}; will reconnect")
+                else:
+                    logger.error(f"Unexpected error during consuming: {e}; will reconnect")
+
+                # Force reconnect path on next loop.
+                self.channel = None
+                self.connection = None
+                self._consumer_tag = None
+                self._consume_channel_id = None
+            finally:
+                self._consuming = False
 
     def stop_consuming(self) -> None:
         """Stop consuming events gracefully.
 
+        Sets the shutdown flag to exit the reconnection loop and stops
+        the current consuming operation if active.
         Handles potential exceptions during stop to prevent
         shutdown race conditions.
         """
+        self._shutdown_requested = True
         if self.channel and self._consuming:
             try:
                 self.channel.stop_consuming()
@@ -296,7 +522,7 @@ class RabbitMQSubscriber(EventSubscriber):
             if not event_type:
                 logger.warning("Received event without event_type field")
                 if not self.auto_ack:
-                    channel.basic_ack(delivery_tag=method.delivery_tag)
+                    self._safe_ack(channel, method.delivery_tag)
                 return
 
             # Find and call registered callback
@@ -310,27 +536,85 @@ class RabbitMQSubscriber(EventSubscriber):
                     logger.error(f"Error in callback for {event_type}: {e}")
                     # Don't ack if callback fails (for retry)
                     if not self.auto_ack:
-                        channel.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                        self._safe_nack(channel, method.delivery_tag, requeue=True)
                     return
             else:
                 logger.debug(f"No callback registered for {event_type}")
 
             # Acknowledge message if not auto-ack
             if not self.auto_ack:
-                channel.basic_ack(delivery_tag=method.delivery_tag)
+                self._safe_ack(channel, method.delivery_tag)
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode event JSON: {e}")
             # Ack malformed messages so they don't block the queue
             if not self.auto_ack:
-                channel.basic_ack(delivery_tag=method.delivery_tag)
+                self._safe_ack(channel, method.delivery_tag)
         except Exception as e:
             logger.error(f"Error processing message: {e}")
             if not self.auto_ack:
-                channel.basic_nack(
-                    delivery_tag=method.delivery_tag,
+                self._safe_nack(
+                    channel,
+                    method.delivery_tag,
                     requeue=False,  # Don't requeue unexpected errors
                 )
+
+    def _safe_ack(self, channel: Any, delivery_tag: int) -> None:
+        """Safely acknowledge a message, catching channel closure errors.
+
+        Args:
+            channel: Channel object
+            delivery_tag: Delivery tag to acknowledge
+        """
+        try:
+            channel.basic_ack(delivery_tag=delivery_tag)
+        except Exception as e:
+            # If channel is closed, log but don't propagate - the reconnection loop will handle it
+            if pika_exceptions and isinstance(
+                e,
+                (
+                    pika_exceptions.ChannelClosedByBroker,
+                    pika_exceptions.ChannelWrongStateError,
+                    pika_exceptions.ConnectionClosedByBroker,
+                    pika_exceptions.StreamLostError,
+                ),
+            ):
+                logger.warning(f"Channel closed during ack (delivery_tag={delivery_tag}): {e}")
+            elif pika_exceptions is None:
+                logger.warning(
+                    f"Error during ack (delivery_tag={delivery_tag}) but pika exceptions unavailable: {e}"
+                )
+            else:
+                logger.error(f"Unexpected error during ack (delivery_tag={delivery_tag}): {e}")
+
+    def _safe_nack(self, channel: Any, delivery_tag: int, requeue: bool = True) -> None:
+        """Safely negative-acknowledge a message, catching channel closure errors.
+
+        Args:
+            channel: Channel object
+            delivery_tag: Delivery tag to negative-acknowledge
+            requeue: Whether to requeue the message
+        """
+        try:
+            channel.basic_nack(delivery_tag=delivery_tag, requeue=requeue)
+        except Exception as e:
+            # If channel is closed, log but don't propagate - the reconnection loop will handle it
+            if pika_exceptions and isinstance(
+                e,
+                (
+                    pika_exceptions.ChannelClosedByBroker,
+                    pika_exceptions.ChannelWrongStateError,
+                    pika_exceptions.ConnectionClosedByBroker,
+                    pika_exceptions.StreamLostError,
+                ),
+            ):
+                logger.warning(f"Channel closed during nack (delivery_tag={delivery_tag}): {e}")
+            elif pika_exceptions is None:
+                logger.warning(
+                    f"Error during nack (delivery_tag={delivery_tag}) but pika exceptions unavailable: {e}"
+                )
+            else:
+                logger.error(f"Unexpected error during nack (delivery_tag={delivery_tag}): {e}")
 
     def _event_type_to_routing_key(self, event_type: str) -> str:
         """Convert event type to routing key.

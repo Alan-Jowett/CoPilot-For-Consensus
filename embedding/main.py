@@ -62,17 +62,25 @@ app = FastAPI(title="Embedding Service", version=__version__)
 
 # Global service instance (consistent with other services in the codebase)
 embedding_service: EmbeddingService | None = None
+subscriber_thread: threading.Thread | None = None
 
 
 @app.get("/health")
 def health():
     """Health check endpoint."""
     global embedding_service
+    global subscriber_thread
 
     stats = embedding_service.get_stats() if embedding_service is not None else {}
 
+    # Check if subscriber thread is alive
+    subscriber_alive = subscriber_thread is not None and subscriber_thread.is_alive()
+
+    # Service is only healthy if subscriber thread is running
+    status = "unhealthy" if (subscriber_thread is not None and not subscriber_alive) else "healthy"
+
     return {
-        "status": "healthy",
+        "status": status,
         "service": "embedding",
         "version": __version__,
         "backend": stats.get("embedding_backend", "unknown"),
@@ -80,6 +88,7 @@ def health():
         "dimension": stats.get("embedding_dimension", 0),
         "embeddings_generated_total": stats.get("embeddings_generated_total", 0),
         "uptime_seconds": stats.get("uptime_seconds", 0),
+        "subscriber_thread_alive": subscriber_alive,
     }
 
 
@@ -142,6 +151,7 @@ def main():
     """Main entry point for the embedding service."""
     global embedding_service
     global logger
+    global subscriber_thread
 
     logger.info(f"Starting Embedding Service (version {__version__})")
 

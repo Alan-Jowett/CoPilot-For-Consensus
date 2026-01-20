@@ -63,6 +63,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # Global service instance
 reporting_service = None
+subscriber_thread: threading.Thread | None = None
 
 
 def load_service_config() -> ServiceConfig_Reporting:
@@ -79,17 +80,25 @@ def root():
 def health():
     """Health check endpoint."""
     global reporting_service
+    global subscriber_thread
 
     stats = reporting_service.get_stats() if reporting_service is not None else {}
 
+    # Check if subscriber thread is alive
+    subscriber_alive = subscriber_thread is not None and subscriber_thread.is_alive()
+
+    # Service is only healthy if subscriber thread is running
+    status = "unhealthy" if (subscriber_thread is not None and not subscriber_alive) else "healthy"
+
     return {
-        "status": "healthy",
+        "status": status,
         "service": "reporting",
         "version": __version__,
         "reports_stored": stats.get("reports_stored", 0),
         "notifications_sent": stats.get("notifications_sent", 0),
         "notifications_failed": stats.get("notifications_failed", 0),
         "last_processing_time_seconds": stats.get("last_processing_time_seconds", 0),
+        "subscriber_thread_alive": subscriber_alive,
     }
 
 
@@ -465,6 +474,7 @@ def main():
     """Main entry point for the reporting service."""
     global reporting_service
     global logger
+    global subscriber_thread
 
     logger.info(f"Starting Reporting Service (version {__version__})")
 

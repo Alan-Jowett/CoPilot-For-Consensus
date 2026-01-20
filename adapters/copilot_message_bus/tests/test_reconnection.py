@@ -362,3 +362,222 @@ class TestRabbitMQReconnection:
             # Verify publish was attempted twice and reconnect occurred once
             assert mock_channel.basic_publish.call_count == 2
             assert mock_reconnect.call_count == 1
+
+
+@pytest.mark.skipif(not PIKA_AVAILABLE, reason="pika not installed")
+class TestRabbitMQSubscriberReconnection:
+    """Tests for RabbitMQ subscriber automatic reconnection."""
+
+    def test_subscriber_is_connected_checks_state(self):
+        """Test _is_connected properly checks connection and channel state."""
+        from copilot_message_bus.rabbitmq_subscriber import RabbitMQSubscriber
+
+        subscriber = RabbitMQSubscriber(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+        )
+
+        # No connection
+        assert subscriber._is_connected() is False
+
+        # Connection but no channel
+        subscriber.connection = MagicMock()
+        subscriber.connection.is_closed = False
+        assert subscriber._is_connected() is False
+
+        # Connection and channel but channel closed
+        subscriber.channel = MagicMock()
+        subscriber.channel.is_open = False
+        assert subscriber._is_connected() is False
+
+        # Both open
+        subscriber.channel.is_open = True
+        assert subscriber._is_connected() is True
+
+        # Connection closed
+        subscriber.connection.is_closed = True
+        assert subscriber._is_connected() is False
+
+    def test_subscriber_reconnect_success(self):
+        """Test successful subscriber reconnection."""
+        from copilot_message_bus.rabbitmq_subscriber import RabbitMQSubscriber
+
+        subscriber = RabbitMQSubscriber(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+            reconnect_delay=0.0,
+        )
+
+        # Mock successful reconnection
+        with patch.object(subscriber, "connect") as mock_connect:
+            result = subscriber._reconnect()
+
+            assert result is True
+            assert mock_connect.call_count == 1
+            assert subscriber._reconnect_count == 0  # Reset on success
+
+    def test_subscriber_reconnect_reestablishes_subscriptions(self):
+        """Test that reconnection re-establishes subscriptions."""
+        from copilot_message_bus.rabbitmq_subscriber import RabbitMQSubscriber
+
+        subscriber = RabbitMQSubscriber(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+            reconnect_delay=0.0,
+        )
+
+        # Simulate existing subscriptions
+        subscriber._subscriptions = [
+            ("EventType1", "event.type1", "test.exchange"),
+            ("EventType2", "event.type2", "test.exchange"),
+        ]
+
+        # Mock successful connection
+        mock_channel = MagicMock()
+        subscriber.queue_name = "test-queue"
+
+        def mock_connect():
+            subscriber.channel = mock_channel
+
+        with patch.object(subscriber, "connect", side_effect=mock_connect):
+            result = subscriber._reconnect()
+
+            assert result is True
+            # Verify queue_bind was called for each subscription
+            assert mock_channel.queue_bind.call_count == 2
+
+    def test_subscriber_reconnect_with_backoff(self):
+        """Test subscriber circuit breaker respects time delay and exponential backoff."""
+        from copilot_message_bus.rabbitmq_subscriber import RabbitMQSubscriber
+
+        subscriber = RabbitMQSubscriber(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+            reconnect_delay=2.0,
+        )
+
+        with patch("copilot_message_bus.rabbitmq_subscriber.time.time") as mock_time:
+            with patch.object(subscriber, "connect", side_effect=Exception("Connection failed")):
+                # Start at t=10
+                mock_time.return_value = 10.0
+
+                # First reconnect attempt at t=10
+                result1 = subscriber._reconnect()
+                assert result1 is False
+                assert subscriber.connect.call_count == 1
+                assert subscriber._reconnect_count == 1
+
+                # Immediate second attempt at t=10 should be throttled
+                result2 = subscriber._reconnect()
+                assert result2 is False
+                assert subscriber.connect.call_count == 1  # Still only one call
+                
+                # Advance time by 5 seconds (past first backoff delay of ~4s with jitter)
+                mock_time.return_value = 15.0
+                result3 = subscriber._reconnect()
+                assert result3 is False
+                assert subscriber.connect.call_count == 2  # Second attempt now allowed
+                assert subscriber._reconnect_count == 2
+                
+                # Advance time by 10 seconds (past second backoff delay of ~8s with jitter)
+                mock_time.return_value = 25.0
+                result4 = subscriber._reconnect()
+                assert result4 is False
+                assert subscriber.connect.call_count == 3  # Third attempt now allowed
+                assert subscriber._reconnect_count == 3
+
+    def test_subscriber_safe_ack_handles_channel_closure(self):
+        """Test _safe_ack catches channel closure exceptions."""
+        from copilot_message_bus.rabbitmq_subscriber import RabbitMQSubscriber
+
+        subscriber = RabbitMQSubscriber(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+        )
+
+        mock_channel = MagicMock()
+        mock_channel.basic_ack.side_effect = pika.exceptions.ChannelClosedByBroker(
+            reply_code=406, reply_text="PRECONDITION_FAILED"
+        )
+
+        # Should not raise exception
+        subscriber._safe_ack(mock_channel, 123)
+        assert mock_channel.basic_ack.call_count == 1
+
+    def test_subscriber_safe_nack_handles_channel_closure(self):
+        """Test _safe_nack catches channel closure exceptions."""
+        from copilot_message_bus.rabbitmq_subscriber import RabbitMQSubscriber
+
+        subscriber = RabbitMQSubscriber(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+        )
+
+        mock_channel = MagicMock()
+        mock_channel.basic_nack.side_effect = pika.exceptions.ChannelWrongStateError()
+
+        # Should not raise exception
+        subscriber._safe_nack(mock_channel, 123, requeue=True)
+        assert mock_channel.basic_nack.call_count == 1
+
+    def test_subscriber_tracks_subscriptions(self):
+        """Test that subscribe() tracks subscriptions for reconnection."""
+        from copilot_message_bus.rabbitmq_subscriber import RabbitMQSubscriber
+
+        subscriber = RabbitMQSubscriber(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+        )
+
+        # Mock connection
+        mock_channel = MagicMock()
+        subscriber.channel = mock_channel
+        subscriber.queue_name = "test-queue"
+
+        # Subscribe to multiple events
+        subscriber.subscribe("EventType1", lambda e: None, routing_key="event.type1")
+        subscriber.subscribe("EventType2", lambda e: None, routing_key="event.type2")
+
+        # Verify subscriptions were tracked
+        assert len(subscriber._subscriptions) == 2
+        assert ("EventType1", "event.type1", "copilot.events") in subscriber._subscriptions
+        assert ("EventType2", "event.type2", "copilot.events") in subscriber._subscriptions
+
+    def test_subscriber_reconnect_limit_enforced(self):
+        """Test maximum reconnection attempts are enforced."""
+        from copilot_message_bus.rabbitmq_subscriber import RabbitMQSubscriber
+
+        subscriber = RabbitMQSubscriber(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+            max_reconnect_attempts=2,
+            reconnect_delay=0.0,
+        )
+
+        # Mock failed connection
+        with patch.object(subscriber, "connect", side_effect=Exception("Connection failed")):
+            # Exhaust reconnection attempts
+            subscriber._reconnect()
+            subscriber._reconnect()
+
+            # Third attempt should fail due to limit
+            result = subscriber._reconnect()
+            assert result is False
+            # Count should be reset to allow future attempts
+            assert subscriber._reconnect_count == 0

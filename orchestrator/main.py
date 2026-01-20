@@ -44,17 +44,25 @@ app = FastAPI(title="Orchestration Service", version=__version__)
 
 # Global service instance
 orchestration_service = None
+subscriber_thread: threading.Thread | None = None
 
 
 @app.get("/health")
 def health():
     """Health check endpoint."""
     global orchestration_service
+    global subscriber_thread
 
     stats = orchestration_service.get_stats() if orchestration_service is not None else {}
 
+    # Check if subscriber thread is alive
+    subscriber_alive = subscriber_thread is not None and subscriber_thread.is_alive()
+
+    # Service is only healthy if subscriber thread is running
+    status = "unhealthy" if (subscriber_thread is not None and not subscriber_alive) else "healthy"
+
     return {
-        "status": "healthy",
+        "status": status,
         "service": "orchestration",
         "version": __version__,
         "events_processed_total": stats.get("events_processed", 0),
@@ -62,6 +70,7 @@ def health():
         "failures_total": stats.get("failures_count", 0),
         "last_processing_time_seconds": stats.get("last_processing_time_seconds", 0),
         "config": stats.get("config", {}),
+        "subscriber_thread_alive": subscriber_alive,
     }
 
 
@@ -102,6 +111,7 @@ def main():
     global orchestration_service
 
     global logger
+    global subscriber_thread
 
     logger.info(f"Starting Orchestration Service (version {__version__})")
 

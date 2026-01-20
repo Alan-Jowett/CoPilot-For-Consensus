@@ -52,6 +52,7 @@ app = FastAPI(title="Summarization Service", version=__version__)
 
 # Global service instance
 summarization_service = None
+subscriber_thread: threading.Thread | None = None
 
 
 def load_service_config() -> ServiceConfig_Summarization:
@@ -62,17 +63,25 @@ def load_service_config() -> ServiceConfig_Summarization:
 def health():
     """Health check endpoint."""
     global summarization_service
+    global subscriber_thread
 
     stats = summarization_service.get_stats() if summarization_service is not None else {}
 
+    # Check if subscriber thread is alive
+    subscriber_alive = subscriber_thread is not None and subscriber_thread.is_alive()
+
+    # Service is only healthy if subscriber thread is running
+    status = "unhealthy" if (subscriber_thread is not None and not subscriber_alive) else "healthy"
+
     return {
-        "status": "healthy",
+        "status": status,
         "service": "summarization",
         "version": __version__,
         "summaries_generated": stats.get("summaries_generated", 0),
         "summarization_failures": stats.get("summarization_failures", 0),
         "rate_limit_errors": stats.get("rate_limit_errors", 0),
         "last_processing_time_seconds": stats.get("last_processing_time_seconds", 0),
+        "subscriber_thread_alive": subscriber_alive,
     }
 
 
@@ -112,6 +121,7 @@ def main():
     """Main entry point for the summarization service."""
     global summarization_service
     global logger
+    global subscriber_thread
 
     logger.info(f"Starting Summarization Service (version {__version__})")
 
