@@ -62,14 +62,8 @@
     "deployEntraApp": {
       "value": false
     },
-    "enableAzureFilesLogging": {
-      "value": true
-    },
     "enableBlobLogArchiving": {
       "value": true
-    },
-    "enableLogConverterJob": {
-      "value": false
     },
     "tags": {
       "value": {
