@@ -170,9 +170,9 @@ az apim update \
 ### Access Logs
 
 Configure diagnostic settings to send logs to:
-- Log Analytics workspace
-- Storage account
+- Storage account (recommended)
 - Event Hub
+- Log Analytics workspace (optional/legacy)
 
 ## Custom Domain
 

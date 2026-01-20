@@ -318,7 +318,7 @@ az keyvault secret list --vault-name <vault-name> --query "[].name"
 
 4. **Monitor Key Vault access logs**
    - Enable diagnostic settings on Key Vault
-   - Send logs to Log Analytics workspace
+  - Send logs to a Storage account (Blob) or Event Hub (Log Analytics optional)
    - Set up alerts for authentication failures
 
 ## References

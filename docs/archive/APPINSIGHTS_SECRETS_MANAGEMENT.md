@@ -116,14 +116,13 @@ The Key Vault access policy grants each service's managed identity `get` permiss
 
 5. **Separation of Concerns**: Credentials are managed separately from application configuration
 
-## Log Analytics Shared Key
+## Legacy: Log Analytics Shared Key
 
-The **Log Analytics workspace shared key** is a special case:
+The **Log Analytics workspace shared key** was previously used when deploying Container Apps environments configured to send platform logs to Log Analytics.
 
-- **Why it's different**: Container Apps environment configuration requires the actual shared key value at deployment time (before any resources are running)
-- **Where it's used**: In the `appLogsConfiguration` of the Container Apps environment to enable log aggregation
-- **How it's handled**: Retrieved via `listKeys()` directly from the Log Analytics workspace during deployment
-- **Security note**: This is a platform requirement; the shared key is only used internally by Azure Container Apps and is not exposed to application code
+**Current default:** This repo's Azure templates no longer deploy or depend on Log Analytics (cost savings). Container Apps logs are archived to Blob Storage via Diagnostic Settings instead.
+
+The snippet below is retained for historical context only.
 
 ```bicep
 appLogsConfiguration: {
@@ -205,8 +204,11 @@ az deployment group create --resource-group test-rg --template-file main.bicep -
 # Check Container App environment variables (secrets should show Key Vault reference, not actual value)
 az containerapp show --name copilot-auth-dev --resource-group test-rg --query "properties.template.containers[0].env"
 
-# Verify logs are flowing to Log Analytics
-az monitor log-analytics query --workspace-id <workspace-id> --analytics-query "AppTraces | limit 10"
+# Verify logs are available
+# - Default (no Log Analytics): Container Apps logs are archived to Blob Storage via Diagnostic Settings
+#   See: docs/operations/blob-logging.md
+# - Optional (if you enabled Application Insights in your environment): query recent traces
+az monitor app-insights query --app <app-insights-name> --resource-group <rg> --analytics-query "traces | take 10"
 ```
 
 ### Troubleshooting
