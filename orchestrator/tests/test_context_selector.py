@@ -349,11 +349,19 @@ class TestThreadChunksSource:
         mock_vector_store.query.assert_not_called()
         
         # Verify document store was queried
-        mock_doc_store.query_documents.assert_called_once_with(
-            collection="chunks",
-            filter_dict={"thread_id": "thread1", "embedding_generated": True},
-            limit=5
+        mock_doc_store.query_documents.assert_called_once()
+        args, kwargs = mock_doc_store.query_documents.call_args
+
+        # Support both positional and keyword calling styles
+        collection = kwargs.get("collection") if "collection" in kwargs else (args[0] if len(args) > 0 else None)
+        filter_dict = (
+            kwargs.get("filter_dict") if "filter_dict" in kwargs else (args[1] if len(args) > 1 else None)
         )
+        limit = kwargs.get("limit")
+
+        assert collection == "chunks"
+        assert filter_dict == {"thread_id": "thread1", "embedding_generated": True}
+        assert limit == 5
         
         # Verify fallback scores assigned
         assert len(candidates) == 2

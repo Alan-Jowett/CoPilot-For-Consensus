@@ -173,7 +173,7 @@ def test_retrieve_context(orchestration_service, mock_document_store):
     ]
 
     # Mock query_documents to return different results based on collection
-    def mock_query(collection, query, **kwargs):
+    def mock_query(collection, filter_dict=None, **kwargs):
         if collection == "chunks":
             return chunks
         elif collection == "messages":

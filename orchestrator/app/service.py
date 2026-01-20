@@ -28,6 +28,7 @@ from copilot_storage import DocumentStore
 from copilot_vectorstore import VectorStore
 
 from .context_factory import create_context_selector, create_context_source
+from .context_sources import ThreadChunksSource
 
 logger = get_logger(__name__)
 
@@ -46,7 +47,8 @@ class OrchestrationService:
     def __init__(
         self,
         document_store: DocumentStore,
-        vector_store: VectorStore,
+        vector_store: VectorStore | None = None,
+        *,
         publisher: EventPublisher,
         subscriber: EventSubscriber,
         top_k: int = 12,
@@ -89,9 +91,15 @@ class OrchestrationService:
         # Create context selector and source based on strategy
         self.chunk_selection_strategy = chunk_selection_strategy
         self.context_selector = create_context_selector(chunk_selection_strategy)
-        self.context_source = create_context_source(
-            "thread_chunks", document_store=document_store, vector_store=vector_store
-        )
+
+        if vector_store is None:
+            # Allow orchestrator to run in a degraded mode (document-store-only)
+            # for unit tests and environments where vector store is not wired.
+            self.context_source = ThreadChunksSource(document_store=document_store, vector_store=None)
+        else:
+            self.context_source = create_context_source(
+                "thread_chunks", document_store=document_store, vector_store=vector_store
+            )
 
         logger.info(f"Initialized context selector: {self.context_selector.get_selector_type()}")
 
@@ -550,11 +558,24 @@ class OrchestrationService:
             # Retrieve full chunk documents for selected chunks
             selected_chunk_ids = [sc.chunk_id for sc in selection.selected_chunks]
             chunks = self.document_store.query_documents(
-                "chunks", {"_id": {"$in": selected_chunk_ids}}, limit=len(selected_chunk_ids)
+                "chunks",
+                {
+                    "$or": [
+                        {"_id": {"$in": selected_chunk_ids}},
+                        {"chunk_id": {"$in": selected_chunk_ids}},
+                    ]
+                },
+                limit=len(selected_chunk_ids),
             )
 
-            # Preserve selection order
-            chunk_map = {str(chunk.get("_id")): chunk for chunk in chunks}
+            # Preserve selection order (tolerate stores that sanitize away _id)
+            chunk_map: dict[str, dict[str, Any]] = {}
+            for chunk in chunks:
+                chunk_identifier = chunk.get("_id") or chunk.get("chunk_id")
+                if chunk_identifier is None:
+                    continue
+                chunk_map[str(chunk_identifier)] = chunk
+
             ordered_chunks = [
                 chunk_map[sc.chunk_id]
                 for sc in selection.selected_chunks

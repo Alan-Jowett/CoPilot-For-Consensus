@@ -27,7 +27,7 @@ class ThreadChunksSource(ContextSource):
     Uses vector similarity to find the most relevant chunks for the thread.
     """
 
-    def __init__(self, document_store: DocumentStore, vector_store: VectorStore):
+    def __init__(self, document_store: DocumentStore, vector_store: VectorStore | None):
         """Initialize thread chunks source.
 
         Args:
@@ -83,42 +83,88 @@ class ThreadChunksSource(ContextSource):
             return chunks
 
         # Query vector store for similar chunks
+        if self.vector_store is None:
+            logger.warning(
+                f"Vector store unavailable, falling back to document store for thread {thread_id}"
+            )
+            chunks = self.document_store.query_documents(
+                collection="chunks",
+                filter_dict={"thread_id": thread_id, "embedding_generated": True},
+                limit=top_k,
+            )
+
+            for chunk in chunks:
+                chunk["similarity_score"] = DEFAULT_FALLBACK_SIMILARITY_SCORE
+
+            return chunks
+
         try:
             results = self.vector_store.query(query_vector=query_vector, top_k=top_k)
 
-            # Filter by thread_id and min_score
-            filtered_results = []
+            # Normalize results into (chunk_id, score, metadata)
+            normalized: list[tuple[str, float, dict[str, Any]]] = []
             for result in results:
-                # Check if chunk belongs to this thread
-                chunk_metadata = result.metadata
-                if chunk_metadata.get("thread_id") != thread_id:
+                if isinstance(result, dict):
+                    result_chunk_id = result.get("chunk_id") or result.get("_id") or result.get("id")
+                    result_score = result.get("similarity_score")
+                    if result_score is None:
+                        result_score = result.get("score")
+                    result_metadata = result.get("metadata") or {}
+                else:
+                    result_chunk_id = getattr(result, "id", None)
+                    result_score = getattr(result, "score", None)
+                    result_metadata = getattr(result, "metadata", None) or {}
+
+                if result_chunk_id is None:
+                    continue
+                if result_score is None:
                     continue
 
-                # Check minimum score threshold
-                if result.score < min_score:
-                    continue
+                normalized.append((str(result_chunk_id), float(result_score), result_metadata))
 
-                filtered_results.append(result)
+            # Filter by min_score (thread filtering happens after doc fetch if metadata missing)
+            normalized = [(cid, score, meta) for (cid, score, meta) in normalized if score >= min_score]
 
-            # Retrieve full chunk documents from document store
-            chunk_ids = [result.id for result in filtered_results]
-            if not chunk_ids:
-                logger.debug(f"No chunks found for thread {thread_id} after filtering")
+            if not normalized:
+                logger.debug(f"No chunks found for thread {thread_id} after score filtering")
                 return []
 
+            chunk_ids = [cid for (cid, _score, _meta) in normalized]
+
             chunks = self.document_store.query_documents(
-                collection="chunks", filter_dict={"_id": {"$in": chunk_ids}}, limit=len(chunk_ids)
+                collection="chunks",
+                filter_dict={"$or": [{"_id": {"$in": chunk_ids}}, {"chunk_id": {"$in": chunk_ids}}]},
+                limit=len(chunk_ids),
             )
 
-            # Create chunk_id -> score mapping
-            score_map = {result.id: result.score for result in filtered_results}
-
-            # Add similarity scores to chunks
+            # Build mappings for chunks and scores
+            score_map = {cid: score for (cid, score, _meta) in normalized}
+            chunk_map: dict[str, dict[str, Any]] = {}
             for chunk in chunks:
-                chunk_id = chunk.get("_id")
-                chunk["similarity_score"] = score_map.get(chunk_id, 0.0)
+                chunk_identifier = chunk.get("_id") or chunk.get("chunk_id")
+                if chunk_identifier is None:
+                    continue
+                chunk_map[str(chunk_identifier)] = chunk
 
-            return chunks
+            # Preserve vector-store order and apply thread_id filtering
+            ordered_chunks: list[dict[str, Any]] = []
+            for cid, _score, meta in normalized:
+                chunk = chunk_map.get(cid)
+                if chunk is None:
+                    continue
+
+                # Filter by thread_id if possible
+                meta_thread_id = meta.get("thread_id") if isinstance(meta, dict) else None
+                chunk_thread_id = chunk.get("thread_id")
+                if meta_thread_id is not None and meta_thread_id != thread_id:
+                    continue
+                if chunk_thread_id is not None and chunk_thread_id != thread_id:
+                    continue
+
+                chunk["similarity_score"] = score_map.get(cid, 0.0)
+                ordered_chunks.append(chunk)
+
+            return ordered_chunks
 
         except Exception as e:
             logger.error(f"Error querying vector store for thread {thread_id}: {e}", exc_info=True)

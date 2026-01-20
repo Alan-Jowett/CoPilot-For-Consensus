@@ -1445,6 +1445,11 @@ def test_retrieve_context_from_selected_chunks_success(summarization_service):
         {"chunk_id": "chunk2", "source": "thread_chunks", "score": 0.8, "rank": 1},
     ]
 
+    # The mock_document_store fixture uses a side_effect; disable it for this test
+    # so return_value controls the response.
+    summarization_service.document_store.query_documents.side_effect = None
+    summarization_service.document_store.query_documents.reset_mock()
+
     # Mock document store to return chunks
     summarization_service.document_store.query_documents.return_value = [
         {"_id": "chunk1", "text": "text1", "thread_id": "thread1"},
@@ -1483,6 +1488,11 @@ def test_retrieve_context_from_selected_chunks_preserves_order(summarization_ser
         {"chunk_id": "chunk2", "source": "thread_chunks", "score": 0.9, "rank": 0},
         {"chunk_id": "chunk1", "source": "thread_chunks", "score": 0.8, "rank": 1},
     ]
+
+    # The mock_document_store fixture uses a side_effect; disable it for this test
+    # so return_value controls the response.
+    summarization_service.document_store.query_documents.side_effect = None
+    summarization_service.document_store.query_documents.reset_mock()
 
     # Return chunks in different order than selected
     summarization_service.document_store.query_documents.return_value = [
@@ -1538,6 +1548,11 @@ def test_retrieve_context_from_selected_chunks_missing_in_store(summarization_se
         {"chunk_id": "chunk3", "source": "thread_chunks", "score": 0.7, "rank": 2},
     ]
 
+    # The mock_document_store fixture uses a side_effect; disable it for this test
+    # so return_value controls the response.
+    summarization_service.document_store.query_documents.side_effect = None
+    summarization_service.document_store.query_documents.reset_mock()
+
     # Only return 2 of 3 chunks (chunk3 missing)
     summarization_service.document_store.query_documents.return_value = [
         {"_id": "chunk1", "text": "text1"},
@@ -1568,6 +1583,11 @@ def test_retrieve_context_from_selected_chunks_validates_dict_type(summarization
         "invalid",  # Invalid - not a dict
         {"chunk_id": "chunk2", "source": "thread_chunks", "score": 0.8, "rank": 1},
     ]
+
+    # The mock_document_store fixture uses a side_effect; disable it for this test
+    # so return_value controls the response.
+    summarization_service.document_store.query_documents.side_effect = None
+    summarization_service.document_store.query_documents.reset_mock()
 
     summarization_service.document_store.query_documents.return_value = [
         {"_id": "chunk1", "text": "text1"},

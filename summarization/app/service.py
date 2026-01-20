@@ -619,7 +619,9 @@ class SummarizationService:
 
         # Retrieve full chunk documents from document store
         chunks = self.document_store.query_documents(
-            collection="chunks", filter_dict={"_id": {"$in": chunk_ids}}, limit=len(chunk_ids)
+            collection="chunks",
+            filter_dict={"_id": {"$in": chunk_ids}},
+            limit=len(chunk_ids),
         )
 
         if not chunks:
@@ -627,7 +629,19 @@ class SummarizationService:
             return {"messages": [], "chunks": []}
 
         # Preserve the order from selected_chunks
-        chunk_map = {str(chunk.get("_id")): chunk for chunk in chunks}
+        chunk_map: dict[str, dict[str, Any]] = {}
+        for chunk in chunks:
+            primary_id = chunk.get("_id") or chunk.get("chunk_id")
+            if not primary_id:
+                continue
+
+            # Ensure callers/tests can rely on _id being present.
+            if "_id" not in chunk and chunk.get("chunk_id"):
+                chunk["_id"] = chunk.get("chunk_id")
+
+            chunk_map[str(primary_id)] = chunk
+            if chunk.get("chunk_id"):
+                chunk_map[str(chunk.get("chunk_id"))] = chunk
         ordered_chunks = []
         missing_chunk_ids = []
         for sc in selected_chunks:
@@ -636,15 +650,19 @@ class SummarizationService:
                 continue
             
             chunk_id = sc.get("chunk_id")
-            if chunk_id in chunk_map:
-                chunk = chunk_map[chunk_id]
+            if not chunk_id:
+                continue
+
+            chunk_key = str(chunk_id)
+            if chunk_key in chunk_map:
+                chunk = chunk_map[chunk_key]
                 # Add selection metadata to chunk
                 chunk["selection_score"] = sc.get("score", 0.0)
                 chunk["selection_rank"] = sc.get("rank", 0)
                 chunk["selection_source"] = sc.get("source", "unknown")
                 ordered_chunks.append(chunk)
             else:
-                missing_chunk_ids.append(chunk_id)
+                missing_chunk_ids.append(chunk_key)
 
         # Log warning if any selected chunks were not found
         if missing_chunk_ids:

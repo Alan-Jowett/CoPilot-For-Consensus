@@ -68,9 +68,14 @@ class TopKRelevanceSelector(ContextSelector):
                 total_tokens=0,
             )
 
-        # Sort by score (descending), then by chunk_id (ascending) for determinism
+        # Sort by score (descending), then by chunk id (ascending) for determinism.
+        # Some document stores sanitize away backend _id and expose schema chunk_id.
         sorted_candidates = sorted(
-            candidates, key=lambda c: (-c.get("similarity_score", 0.0), c.get("_id", ""))
+            candidates,
+            key=lambda c: (
+                -c.get("similarity_score", 0.0),
+                str(c.get("_id") or c.get("chunk_id") or ""),
+            ),
         )
 
         # Select top-k with optional token budget
@@ -79,9 +84,9 @@ class TopKRelevanceSelector(ContextSelector):
         actual_rank = 0  # Track actual position in final selection
 
         for chunk in sorted_candidates[:top_k]:
-            chunk_id = chunk.get("_id")
+            chunk_id = chunk.get("_id") or chunk.get("chunk_id")
             if not chunk_id:
-                logger.warning(f"Candidate chunk missing _id, skipping: {chunk}")
+                logger.warning(f"Candidate chunk missing chunk identifier, skipping: {chunk}")
                 continue
 
             # Estimate token count if budget is specified
@@ -161,7 +166,13 @@ class TopKRelevanceSelector(ContextSelector):
         if not text:
             return 0
 
+        # For normal prose, word-count is a decent heuristic.
+        # For whitespace-free text (e.g., long base64-like strings or tests that
+        # use "a" * 100), fall back to a character-based approximation.
         word_count = len(text.split())
+        if word_count <= 1 and not any(ch.isspace() for ch in text):
+            return int(len(text) * TOKEN_ESTIMATION_MULTIPLIER)
+
         return int(word_count * TOKEN_ESTIMATION_MULTIPLIER)
 
 
