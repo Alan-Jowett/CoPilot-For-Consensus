@@ -161,6 +161,8 @@ class StartupRequeue:
         try:
             event = {
                 "event_type": event_type,
+                "event_id": str(uuid.uuid4()),
+                "version": "1.0.0",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "data": event_data,
             }

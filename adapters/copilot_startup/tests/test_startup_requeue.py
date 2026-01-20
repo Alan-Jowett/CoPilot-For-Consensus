@@ -325,6 +325,14 @@ class TestPublishEvent:
         assert event["data"] == {"thread_ids": ["t1"], "archive_id": "a1"}
         # Timestamp should be ISO 8601 with offset (consistent with requeue_incomplete)
         datetime.fromisoformat(event["timestamp"])
+        # Verify required envelope fields are present
+        assert "event_id" in event
+        assert event["version"] == "1.0.0"
+        # Validate event_id is a valid UUID
+        try:
+            uuid.UUID(event["event_id"])
+        except ValueError:
+            pytest.fail(f"event_id is not a valid UUID: {event['event_id']}")
 
     def test_publish_event_propagates_errors(self):
         mock_publisher = Mock()
