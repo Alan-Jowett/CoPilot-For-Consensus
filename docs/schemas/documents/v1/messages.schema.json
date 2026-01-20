@@ -1,7 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/documents/messages.schema.json",
-  "version": "v1",
   "title": "messages collection",
   "type": "object",
   "properties": {
@@ -33,33 +32,21 @@
     },
     "in_reply_to": {
       "anyOf": [
-        {
-          "type": "string",
-          "minLength": 1
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
       ],
       "description": "RFC 5322 In-Reply-To header: the Message-ID of the message this one replies to (external identifier)."
     },
     "references": {
       "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
+      "items": { "type": "string", "minLength": 1 },
       "minItems": 0,
       "description": "RFC 5322 References header: ordered list of ancestor Message-IDs forming the reply chain (external identifiers)."
     },
     "subject": {
       "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string" },
+        { "type": "null" }
       ]
     },
     "from": {
@@ -67,22 +54,13 @@
         {
           "type": "object",
           "properties": {
-            "name": {
-              "type": "string"
-            },
-            "email": {
-              "type": "string",
-              "format": "email"
-            }
+            "name": { "type": "string" },
+            "email": { "type": "string", "format": "email" }
           },
-          "required": [
-            "email"
-          ],
+          "required": ["email"],
           "additionalProperties": false
         },
-        {
-          "type": "null"
-        }
+        { "type": "null" }
       ]
     },
     "to": {
@@ -90,17 +68,10 @@
       "items": {
         "type": "object",
         "properties": {
-          "name": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          }
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" }
         },
-        "required": [
-          "email"
-        ],
+        "required": ["email"],
         "additionalProperties": false
       },
       "minItems": 0
@@ -110,98 +81,49 @@
       "items": {
         "type": "object",
         "properties": {
-          "name": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          }
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" }
         },
-        "required": [
-          "email"
-        ],
+        "required": ["email"],
         "additionalProperties": false
       },
       "minItems": 0
     },
     "date": {
       "anyOf": [
-        {
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
       ]
     },
-    "body_raw": {
-      "type": "string"
-    },
-    "body_normalized": {
-      "type": "string",
-      "minLength": 1
-    },
-    "body_html": {
-      "type": "string"
-    },
-    "headers": {
-      "type": "object"
-    },
+    "body_raw": { "type": "string" },
+    "body_normalized": { "type": "string", "minLength": 1 },
+    "body_html": { "type": "string" },
+    "headers": { "type": "object" },
     "attachments": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "filename": {
-            "type": "string",
-            "minLength": 1
-          },
-          "content_type": {
-            "type": "string",
-            "minLength": 1
-          },
-          "size_bytes": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "hash_sha256": {
-            "type": "string",
-            "minLength": 1
-          }
+          "filename": { "type": "string", "minLength": 1 },
+          "content_type": { "type": "string", "minLength": 1 },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "hash_sha256": { "type": "string", "minLength": 1 }
         },
-        "required": [
-          "filename",
-          "content_type",
-          "size_bytes"
-        ],
+        "required": ["filename", "content_type", "size_bytes"],
         "additionalProperties": false
       },
       "minItems": 0
     },
     "draft_mentions": {
       "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
+      "items": { "type": "string", "minLength": 1 },
       "minItems": 0,
       "uniqueItems": true
     },
-    "created_at": {
-      "type": "string",
-      "format": "date-time"
-    },
+    "created_at": { "type": "string", "format": "date-time" },
     "status": {
       "type": "string",
-      "enum": [
-        "pending",
-        "processing",
-        "completed",
-        "failed",
-        "failed_max_retries"
-      ],
+      "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
       "description": "Processing status for retry and workflow tracking"
     },
     "attemptCount": {
@@ -211,23 +133,23 @@
     },
     "lastAttemptTime": {
       "anyOf": [
-        {
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
       ],
       "description": "Timestamp of the last processing attempt"
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of last status or field update for observability and forward progress tracking"
+    },
+    "workerId": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ],
+      "description": "Optional identifier of the worker/service instance processing this document for debugging and observability"
     }
   },
-  "required": [
-    "_id",
-    "message_id",
-    "archive_id",
-    "thread_id",
-    "body_normalized",
-    "created_at"
-  ]
+  "required": ["_id", "message_id", "archive_id", "thread_id", "body_normalized", "created_at"]
 }

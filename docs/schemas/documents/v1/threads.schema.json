@@ -1,7 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/documents/threads.schema.json",
-  "version": "v1",
   "title": "threads collection",
   "type": "object",
   "properties": {
@@ -12,6 +11,13 @@
       "pattern": "^[A-Fa-f0-9]{16}$",
       "description": "Deterministic thread identifier (e.g., root message or normalized subject lineage)"
     },
+    "thread_id": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
+      "description": "Thread identifier (alias of _id for clients and downstream services)"
+    },
     "archive_id": {
       "type": "string",
       "minLength": 16,
@@ -19,109 +25,57 @@
       "pattern": "^[A-Fa-f0-9]{16}$",
       "description": "16-hex-character prefix of the SHA256 hash of the mbox file this thread came from"
     },
-    "subject": {
-      "type": "string"
-    },
+    "subject": { "type": "string" },
     "participants": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "name": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          }
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" }
         },
-        "required": [
-          "email"
-        ],
+        "required": ["email"],
         "additionalProperties": false
       },
       "minItems": 0
     },
-    "message_count": {
-      "type": "integer",
-      "minimum": 0
-    },
+    "message_count": { "type": "integer", "minimum": 0 },
     "first_message_date": {
       "anyOf": [
-        {
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
       ]
     },
     "last_message_date": {
       "anyOf": [
-        {
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
       ]
     },
     "draft_mentions": {
       "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
+      "items": { "type": "string", "minLength": 1 },
       "minItems": 0,
       "uniqueItems": true
     },
-    "has_consensus": {
-      "type": "boolean"
-    },
+    "has_consensus": { "type": "boolean" },
     "consensus_type": {
       "anyOf": [
-        {
-          "type": "string",
-          "enum": [
-            "agreement",
-            "dissent",
-            "mixed"
-          ]
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "enum": ["agreement", "dissent", "mixed"] },
+        { "type": "null" }
       ]
     },
     "summary_id": {
       "anyOf": [
-        {
-          "type": "string",
-          "minLength": 16,
-          "maxLength": 16,
-          "pattern": "^[A-Fa-f0-9]{16}$"
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "minLength": 16, "maxLength": 16, "pattern": "^[A-Fa-f0-9]{16}$" },
+        { "type": "null" }
       ],
       "description": "Reference to summaries._id"
     },
-    "created_at": {
-      "type": "string",
-      "format": "date-time"
-    },
+    "created_at": { "type": "string", "format": "date-time" },
     "status": {
       "type": "string",
-      "enum": [
-        "pending",
-        "processing",
-        "completed",
-        "failed",
-        "failed_max_retries"
-      ],
+      "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
       "description": "Processing status for retry and workflow tracking"
     },
     "attemptCount": {
@@ -131,21 +85,23 @@
     },
     "lastAttemptTime": {
       "anyOf": [
-        {
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "type": "null"
-        }
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
       ],
       "description": "Timestamp of the last summarization attempt"
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of last status or field update for observability and forward progress tracking"
+    },
+    "workerId": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ],
+      "description": "Optional identifier of the worker/service instance processing this document for debugging and observability"
     }
   },
-  "required": [
-    "_id",
-    "archive_id",
-    "has_consensus",
-    "created_at"
-  ]
+  "required": ["_id", "archive_id", "has_consensus", "created_at"]
 }

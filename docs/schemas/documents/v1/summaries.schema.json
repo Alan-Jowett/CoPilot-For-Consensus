@@ -1,7 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/documents/summaries.schema.json",
-  "version": "v1",
   "title": "summaries collection",
   "type": "object",
   "properties": {
@@ -18,25 +17,10 @@
       "maxLength": 16,
       "pattern": "^[A-Fa-f0-9]{16}$"
     },
-    "summary_type": {
-      "type": "string",
-      "enum": [
-        "thread",
-        "weekly",
-        "consensus",
-        "draft-focused"
-      ]
-    },
-    "title": {
-      "type": "string"
-    },
-    "content_markdown": {
-      "type": "string",
-      "minLength": 1
-    },
-    "content_html": {
-      "type": "string"
-    },
+    "summary_type": { "type": "string", "enum": ["thread", "weekly", "consensus", "draft-focused"] },
+    "title": { "type": "string" },
+    "content_markdown": { "type": "string", "minLength": 1 },
+    "content_html": { "type": "string" },
     "citations": {
       "type": "array",
       "items": {
@@ -49,42 +33,18 @@
             "pattern": "^[A-Fa-f0-9]{16}$",
             "description": "SHA256 hash chunk identifier"
           },
-          "message_id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "quote": {
-            "type": "string"
-          },
-          "relevance_score": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          }
+          "message_id": { "type": "string", "minLength": 1 },
+          "quote": { "type": "string" },
+          "relevance_score": { "type": "number", "minimum": 0, "maximum": 1 }
         },
-        "required": [
-          "chunk_id",
-          "message_id"
-        ],
+        "required": ["chunk_id", "message_id"],
         "additionalProperties": false
       },
       "minItems": 0
     },
-    "generated_by": {
-      "type": "string"
-    },
-    "generated_at": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "metadata": {
-      "type": "object"
-    }
+    "generated_by": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "metadata": { "type": "object" }
   },
-  "required": [
-    "_id",
-    "summary_type",
-    "generated_at",
-    "content_markdown"
-  ]
+  "required": ["_id", "summary_type", "generated_at", "content_markdown"]
 }
