@@ -325,8 +325,9 @@ class TestPublishEvent:
         assert event["data"] == {"thread_ids": ["t1"], "archive_id": "a1"}
         # Timestamp should be ISO 8601 with offset (consistent with requeue_incomplete)
         datetime.fromisoformat(event["timestamp"])
-        # Verify required envelope fields are present
+        # Verify envelope fields are present
         assert "event_id" in event
+        assert "version" in event
         assert event["version"] == "1.0.0"
         # Validate event_id is a valid UUID
         try:
