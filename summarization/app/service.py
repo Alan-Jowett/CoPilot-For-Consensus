@@ -48,7 +48,7 @@ class SummarizationService:
         llm_backend: str = "local",
         llm_model: str = "mistral",
         context_window_tokens: int = 4096,
-        prompt_template: str = "",
+        prompt_template: str = "Please summarize the following email thread discussion:\n\n{email_chunks}",
         event_retry_config: RetryConfig | None = None,
     ):
         """Initialize summarization service.
@@ -68,7 +68,7 @@ class SummarizationService:
             llm_backend: LLM backend name (default: local)
             llm_model: LLM model name (default: mistral)
             context_window_tokens: LLM context window size (default: 4096)
-            prompt_template: Prompt template for summarization (default: empty)
+            prompt_template: Prompt template for summarization (default: basic template with email_chunks placeholder)
             event_retry_config: Retry configuration for event race condition handling (optional)
         """
         self.document_store = document_store
@@ -139,9 +139,6 @@ class SummarizationService:
                 build_event_data=lambda doc: {
                     "thread_ids": [doc.get("thread_id")],
                     "top_k": self.top_k,
-                    "llm_backend": self.llm_backend,
-                    "llm_model": self.llm_model,
-                    "context_window_tokens": self.context_window_tokens,
                     "prompt_template": self.prompt_template,
                 },
                 limit=500,
