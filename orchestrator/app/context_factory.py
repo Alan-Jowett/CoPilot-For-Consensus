@@ -20,15 +20,18 @@ def create_context_selector(selector_type: str = "top_k_relevance") -> ContextSe
     Args:
         selector_type: Type of selector to create:
             - "top_k_relevance": Select by vector similarity (default)
-            - "top_k_cohesive": Select cohesive/interrelated chunks
-            - "hybrid_relevance_then_cohesion": (future)
-            - "mmr": Maximal Marginal Relevance (future)
+            - "top_k_cohesive": Select cohesive/interrelated chunks (partial implementation)
 
     Returns:
         ContextSelector instance
 
     Raises:
         ValueError: If selector_type is not recognized
+
+    Note:
+        Additional selector types are planned for future releases:
+        - "hybrid_relevance_then_cohesion": Combine relevance and cohesion
+        - "mmr": Maximal Marginal Relevance for diversity
     """
     selector_type = selector_type.lower()
 

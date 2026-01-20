@@ -207,10 +207,7 @@ class TopKCohesiveSelector(ContextSelector):
         Returns:
             ContextSelection with ordered chunks
         """
-        # TODO: Implement cohesion-based selection strategy
-        # Future implementation will use clustering or graph-based approaches to select
-        # chunks that form a cohesive subset (e.g., densest-subgraph, MMR, or cluster centers).
-        # For now, fall back to relevance-based selection.
+        # TODO: Implement cohesion-based selection (clustering, MMR, densest-subgraph)
         logger.warning(
             f"TopKCohesiveSelector not fully implemented yet, falling back to relevance-based selection"
         )

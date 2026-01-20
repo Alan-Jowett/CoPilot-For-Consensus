@@ -285,7 +285,8 @@ class SummarizationService:
                 else:
                     # DEPRECATED: Fallback to document store query for backward compatibility
                     # This path should be removed once all orchestrators pass selected_chunks
-                    # TODO: Add deprecation warning metrics and set removal timeline
+                    # TODO: Add deprecation warning metrics (increment orchestrator.legacy_chunk_selection
+                    # counter) and set removal timeline (target: next major version)
                     logger.warning(
                         f"No pre-selected chunks provided for thread {thread_id}, "
                         f"falling back to document store query (deprecated)"
