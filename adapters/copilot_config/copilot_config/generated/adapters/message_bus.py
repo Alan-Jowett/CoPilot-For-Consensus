@@ -50,12 +50,18 @@ class DriverConfig_MessageBus_Rabbitmq:
     # RabbitMQ username
     auto_ack: bool = False
     # Automatically acknowledge messages after processing
+    blocked_connection_timeout: int = 600
+    # Timeout in seconds for blocked connections due to TCP backpressure (default: 600). Should be at least 2x the
+    # heartbeat interval.
     exchange: str = "copilot.events"
     # RabbitMQ exchange name for publishing
     exchange_name: str = "copilot.events"
     # RabbitMQ exchange name for subscribing
     exchange_type: str = "topic"
     # RabbitMQ exchange type
+    heartbeat: int = 300
+    # Heartbeat interval in seconds (default: 300). Higher values reduce network overhead and prevent disconnects during
+    # CPU-intensive tasks. Set to 0 to disable (not recommended).
     queue_durable: bool = True
     # Whether the queue survives broker restart
     queue_name: str | None = None

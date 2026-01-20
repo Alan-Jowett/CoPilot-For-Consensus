@@ -36,6 +36,8 @@ class RabbitMQPublisher(EventPublisher):
         enable_publisher_confirms: bool = True,
         max_reconnect_attempts: int = 3,
         reconnect_delay: float = 2.0,
+        heartbeat: int = 300,
+        blocked_connection_timeout: int = 600,
     ):
         """Initialize RabbitMQ publisher.
 
@@ -49,6 +51,12 @@ class RabbitMQPublisher(EventPublisher):
             enable_publisher_confirms: Enable publisher confirms for guaranteed delivery
             max_reconnect_attempts: Maximum number of reconnection attempts
             reconnect_delay: Delay between reconnection attempts in seconds
+            heartbeat: Heartbeat interval in seconds (default: 300). Higher values reduce
+                       network overhead and prevent disconnects during CPU-intensive tasks.
+                       Set to 0 to disable heartbeats (not recommended).
+            blocked_connection_timeout: Timeout in seconds for blocked connections due to
+                                       TCP backpressure (default: 600). Should be at least
+                                       2x the heartbeat interval.
 
         Raises:
             ValueError: For invalid initialization parameters
@@ -62,6 +70,8 @@ class RabbitMQPublisher(EventPublisher):
         self.enable_publisher_confirms = enable_publisher_confirms
         self.max_reconnect_attempts = max_reconnect_attempts
         self.reconnect_delay = reconnect_delay
+        self.heartbeat = heartbeat
+        self.blocked_connection_timeout = blocked_connection_timeout
         self.connection: Any = None  # pika.BlockingConnection after connect()
         self.channel: Any = None  # pika.channel.Channel after connect()
         self._declared_queues: set[str] = set()
@@ -80,6 +90,8 @@ class RabbitMQPublisher(EventPublisher):
                           - rabbitmq_password: RabbitMQ password
                           - exchange: Exchange name (optional)
                           - exchange_type: Exchange type (optional)
+                          - heartbeat: Heartbeat interval (optional)
+                          - blocked_connection_timeout: Blocked connection timeout (optional)
 
         Returns:
             RabbitMQPublisher instance
@@ -94,6 +106,8 @@ class RabbitMQPublisher(EventPublisher):
         password = driver_config.rabbitmq_password
         exchange = driver_config.exchange
         exchange_type = driver_config.exchange_type
+        heartbeat = driver_config.heartbeat
+        blocked_connection_timeout = driver_config.blocked_connection_timeout
 
         return cls(
             host=host,
@@ -102,6 +116,8 @@ class RabbitMQPublisher(EventPublisher):
             password=password,
             exchange=exchange,
             exchange_type=exchange_type,
+            heartbeat=heartbeat,
+            blocked_connection_timeout=blocked_connection_timeout,
         )
 
     def connect(self) -> None:
@@ -121,6 +137,8 @@ class RabbitMQPublisher(EventPublisher):
             credentials=credentials,
             connection_attempts=3,
             retry_delay=2,
+            heartbeat=self.heartbeat,
+            blocked_connection_timeout=self.blocked_connection_timeout,
         )
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()

@@ -34,6 +34,8 @@ class RabbitMQSubscriber(EventSubscriber):
         queue_name: str | None = None,
         queue_durable: bool = True,
         auto_ack: bool = False,
+        heartbeat: int = 300,
+        blocked_connection_timeout: int = 600,
     ):
         """Initialize RabbitMQ subscriber.
 
@@ -47,6 +49,12 @@ class RabbitMQSubscriber(EventSubscriber):
             queue_name: Name of the queue (generated if None)
             queue_durable: Whether the queue survives broker restart
             auto_ack: Whether to automatically acknowledge messages
+            heartbeat: Heartbeat interval in seconds (default: 300). Higher values reduce
+                       network overhead and prevent disconnects during CPU-intensive tasks.
+                       Set to 0 to disable heartbeats (not recommended).
+            blocked_connection_timeout: Timeout in seconds for blocked connections due to
+                                       TCP backpressure (default: 600). Should be at least
+                                       2x the heartbeat interval.
 
         Raises:
             ValueError: For invalid initialization parameters
@@ -60,6 +68,8 @@ class RabbitMQSubscriber(EventSubscriber):
         self.queue_name = queue_name
         self.queue_durable = queue_durable
         self.auto_ack = auto_ack
+        self.heartbeat = heartbeat
+        self.blocked_connection_timeout = blocked_connection_timeout
 
         self.connection: Any = None  # pika.BlockingConnection after connect()
         self.channel: Any = None  # pika.channel.Channel after connect()
@@ -81,6 +91,8 @@ class RabbitMQSubscriber(EventSubscriber):
                           - queue_name: Queue name (optional)
                           - queue_durable: Queue durable flag (optional)
                           - auto_ack: Auto-ack messages (optional)
+                          - heartbeat: Heartbeat interval (optional)
+                          - blocked_connection_timeout: Blocked connection timeout (optional)
 
         Returns:
             RabbitMQSubscriber instance
@@ -98,6 +110,8 @@ class RabbitMQSubscriber(EventSubscriber):
         queue_name = driver_config.queue_name
         queue_durable = driver_config.queue_durable
         auto_ack = driver_config.auto_ack
+        heartbeat = driver_config.heartbeat
+        blocked_connection_timeout = driver_config.blocked_connection_timeout
 
         return cls(
             host=host,
@@ -109,6 +123,8 @@ class RabbitMQSubscriber(EventSubscriber):
             queue_name=queue_name,
             queue_durable=queue_durable,
             auto_ack=auto_ack,
+            heartbeat=heartbeat,
+            blocked_connection_timeout=blocked_connection_timeout,
         )
 
     def connect(self) -> None:
@@ -121,7 +137,13 @@ class RabbitMQSubscriber(EventSubscriber):
         import pika
 
         credentials = pika.PlainCredentials(self.username, self.password)
-        parameters = pika.ConnectionParameters(host=self.host, port=self.port, credentials=credentials)
+        parameters = pika.ConnectionParameters(
+            host=self.host,
+            port=self.port,
+            credentials=credentials,
+            heartbeat=self.heartbeat,
+            blocked_connection_timeout=self.blocked_connection_timeout,
+        )
 
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
