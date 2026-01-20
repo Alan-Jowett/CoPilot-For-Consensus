@@ -111,18 +111,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--md-include-keywords",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
         help=(
-            "Also include templates that match error-like keywords (for logs without level=...). "
-            "Enabled by default."
+            "Include templates that match error-like keywords (for logs without level=...). "
+            "Enabled by default. Use --no-md-include-keywords to disable."
         ),
-    )
-
-    parser.add_argument(
-        "--md-no-keywords",
-        action="store_true",
-        help="Disable keyword-based inclusion for Markdown focus view (levels only).",
     )
 
     parser.add_argument(
@@ -212,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     focus_levels = [p.strip() for p in str(args.focus_levels).split(",") if p.strip()]
-    include_keywords = bool(args.md_include_keywords) and (not bool(args.md_no_keywords))
+    include_keywords = bool(args.md_include_keywords)
 
     if args.input_is_report:
         if args.input is None:
