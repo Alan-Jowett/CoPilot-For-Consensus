@@ -95,6 +95,20 @@ AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_DEPLOYMENT=gpt-35-turbo
 ```
 
+**Note on Azure Rate Limiting:** Azure OpenAI has token rate limits per deployment/SKU. The summarization service includes automatic rate limit handling:
+- Detects 429 (RateLimitReached) errors from Azure OpenAI
+- Retries with exponential backoff and jitter (avoids thundering herd)
+- Respects `retry-after` and `retry-after-ms` headers from Azure
+- Tracks rate limit errors in metrics (`summarization_rate_limit_errors_total`)
+- Default retry configuration: 3 attempts with 5-second base backoff
+- Maximum backoff delay capped at 120 seconds
+
+If rate limiting persists:
+- Increase Azure OpenAI quota/SKU tier
+- Reduce `TOP_K` to lower token usage per request
+- Reduce summarization concurrency at the orchestrator level
+- Monitor the `rate_limit_errors` metric in service stats
+
 **OpenAI API:**
 ```bash
 LLM_BACKEND=openai
@@ -171,6 +185,8 @@ def handle_summarization_requested(event):
 ## Error Handling
 
 - Retries with exponential backoff for transient failures
+- Rate limit errors (429) detected and retried with jitter
+- Respects Azure OpenAI `retry-after` headers to avoid hammering the API
 - Dead-letter queue for irrecoverable events
 - Timeouts and circuit breakers around vector store and LLM calls
 - Input validation on routing keys and payload schemas
@@ -182,9 +198,10 @@ Prometheus metrics exposed at `/metrics`:
 - `summarization_latency_seconds` (histogram: end-to-end per thread)
 - `summarization_llm_calls_total` (labeled by backend/model)
 - `summarization_failures_total` (labeled by error_type)
+- `summarization_rate_limit_errors_total` (labeled by backend/model) — tracks Azure OpenAI 429 errors
 - `summarization_tokens_total` (prompt vs completion)
 
-Structured logs (JSON) include thread_id, backend, model, tokens, citations, and latency.
+Structured logs (JSON) include thread_id, backend, model, tokens, citations, latency, and rate_limit_error flag.
 
 ## Dependencies
 

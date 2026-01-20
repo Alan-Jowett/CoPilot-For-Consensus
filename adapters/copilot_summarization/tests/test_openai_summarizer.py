@@ -74,9 +74,13 @@ class TestOpenAISummarizer:
         """Test OpenAI summarizer handles rate limit errors with retry."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-        # Mock rate limit error on first attempt
-        rate_limit_error = Exception("Rate limit exceeded")
-        rate_limit_error.__class__.__name__ = "RateLimitError"
+        # Create a mock RateLimitError class
+        class MockRateLimitError(Exception):
+            """Mock rate limit error."""
+            pass
+
+        MockRateLimitError.__name__ = "RateLimitError"
+        rate_limit_error = MockRateLimitError("Rate limit exceeded")
 
         # Mock successful response on second attempt
         mock_response = Mock()
@@ -105,9 +109,13 @@ class TestOpenAISummarizer:
 
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-        # Mock rate limit error on all attempts
-        rate_limit_error = Exception("Rate limit exceeded")
-        rate_limit_error.__class__.__name__ = "RateLimitError"
+        # Create a mock RateLimitError class
+        class MockRateLimitError(Exception):
+            """Mock rate limit error."""
+            pass
+
+        MockRateLimitError.__name__ = "RateLimitError"
+        rate_limit_error = MockRateLimitError("Rate limit exceeded")
 
         mock_client.chat.completions.create = Mock(side_effect=rate_limit_error)
 
@@ -129,12 +137,16 @@ class TestOpenAISummarizer:
         """Test OpenAI summarizer respects retry-after header."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-        # Mock rate limit error with retry-after header
-        rate_limit_error = Exception("Rate limit exceeded")
-        rate_limit_error.__class__.__name__ = "RateLimitError"
-        mock_response_obj = Mock()
-        mock_response_obj.headers = {"retry-after": "2"}
-        rate_limit_error.response = mock_response_obj
+        # Create a mock RateLimitError class with response headers
+        class MockRateLimitError(Exception):
+            """Mock rate limit error with retry-after header."""
+            def __init__(self, message):
+                super().__init__(message)
+                self.response = Mock()
+                self.response.headers = {"retry-after": "2"}
+
+        MockRateLimitError.__name__ = "RateLimitError"
+        rate_limit_error = MockRateLimitError("Rate limit exceeded")
 
         # Mock successful response on second attempt
         mock_success = Mock()
