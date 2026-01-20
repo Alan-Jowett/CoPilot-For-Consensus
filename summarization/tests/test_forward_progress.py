@@ -392,7 +392,7 @@ class TestSummarizationForwardProgress:
         summarization_service,
     ):
         """Test that requeue event data validates against SummarizationRequested schema."""
-        from test_helpers import assert_valid_event_schema
+        from .test_helpers import assert_valid_event_schema
 
         mock_requeue_instance = Mock()
         mock_requeue_instance.requeue_incomplete = Mock(return_value=1)
