@@ -108,6 +108,10 @@ docker compose ps
 docker compose down -v
 ```
 
+### Log clustering / anomaly sampling
+
+If you have a large `docker compose logs` capture (or Azure log exports) and want a compact, anomaly-focused summary, see [docs/operations/log-mining.md](docs/operations/log-mining.md).
+
 ## Detailed Setup Guides
 
 For in-depth setup (GPU support, vendor-specific LLM backends, advanced configuration), see:
