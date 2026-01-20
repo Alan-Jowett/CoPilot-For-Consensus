@@ -3,6 +3,7 @@
 
 """Unit tests for forward progress (startup requeue) logic in parsing service."""
 
+import logging
 from unittest.mock import Mock, patch
 
 import pytest
@@ -237,7 +238,7 @@ class TestParsingForwardProgress:
         assert call_kwargs["limit"] == 1000
 
     @patch("copilot_startup.StartupRequeue")
-    def test_requeue_handles_legacy_archives_without_source_type(self, mock_requeue_class, parsing_service):
+    def test_requeue_handles_legacy_archives_without_source_type(self, mock_requeue_class, parsing_service, caplog):
         """Test that legacy archives missing source_type are handled with default value."""
         mock_requeue_instance = Mock()
         mock_requeue_instance.requeue_incomplete = Mock(return_value=1)
@@ -262,16 +263,21 @@ class TestParsingForwardProgress:
         }
 
         # Should not raise - should default to 'local'
-        event_data = build_event_data(legacy_doc)
+        with caplog.at_level(logging.WARNING):
+            event_data = build_event_data(legacy_doc)
 
         assert event_data["archive_id"] == "legacy-archive-001"
         assert event_data["source_name"] == "legacy-source"
         assert event_data["source_type"] == "local"  # Defaults to 'local' for legacy docs
         assert event_data["source_url"] == "file:///legacy/archive.mbox"
         assert event_data["file_size_bytes"] == 2048
+        
+        # Verify warning is logged for legacy document
+        assert "Archive legacy-archive-001 missing 'source_type' field (legacy document)" in caplog.text
+        assert "Defaulting to 'local'" in caplog.text
 
     @patch("copilot_startup.StartupRequeue")
-    def test_requeue_handles_mixed_valid_and_legacy_archives(self, mock_requeue_class, parsing_service):
+    def test_requeue_handles_mixed_valid_and_legacy_archives(self, mock_requeue_class, parsing_service, caplog):
         """Test that requeue handles a mix of valid and legacy archive documents."""
         mock_requeue_instance = Mock()
         mock_requeue_instance.requeue_incomplete = Mock(return_value=2)
@@ -297,9 +303,17 @@ class TestParsingForwardProgress:
             # source_type is missing
         }
 
-        # Both should work
-        valid_data = build_event_data(valid_doc)
+        # Valid document should work without warning
+        with caplog.at_level(logging.WARNING):
+            caplog.clear()
+            valid_data = build_event_data(valid_doc)
         assert valid_data["source_type"] == "rsync"
+        assert "missing 'source_type' field" not in caplog.text
 
-        legacy_data = build_event_data(legacy_doc)
+        # Legacy document should work with warning
+        with caplog.at_level(logging.WARNING):
+            caplog.clear()
+            legacy_data = build_event_data(legacy_doc)
         assert legacy_data["source_type"] == "local"
+        assert "Archive legacy-archive-002 missing 'source_type' field (legacy document)" in caplog.text
+        assert "Defaulting to 'local'" in caplog.text
