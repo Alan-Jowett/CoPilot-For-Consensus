@@ -13,8 +13,9 @@ from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBu
 
 try:
     from azure.identity import DefaultAzureCredential
-    from azure.servicebus import ServiceBusClient, ServiceBusReceiveMode
+    from azure.servicebus import AutoLockRenewer, ServiceBusClient, ServiceBusReceiveMode
 except ImportError:
+    AutoLockRenewer = None  # type: ignore
     ServiceBusClient = None  # type: ignore
     ServiceBusReceiveMode = None  # type: ignore
     DefaultAzureCredential = None  # type: ignore
@@ -41,6 +42,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
         use_managed_identity: bool = False,
         auto_complete: bool = False,
         max_wait_time: int = 5,
+        max_auto_lock_renewal_duration: int = 3600,
     ):
         """Initialize Azure Service Bus subscriber.
 
@@ -54,6 +56,8 @@ class AzureServiceBusSubscriber(EventSubscriber):
             use_managed_identity: Use Azure managed identity for authentication
             auto_complete: Whether to automatically complete messages (default: False for manual ack)
             max_wait_time: Maximum time to wait for messages in seconds (default: 5)
+            max_auto_lock_renewal_duration: Maximum time (seconds) to auto-renew peek-lock messages
+                while processing (default: 3600). Set to 0 to disable.
 
         Raises:
             ValueError: If required parameters are missing (enforced by schema validation)
@@ -66,6 +70,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self.use_managed_identity = use_managed_identity
         self.auto_complete = auto_complete
         self.max_wait_time = max_wait_time
+        self.max_auto_lock_renewal_duration = max_auto_lock_renewal_duration
 
         self.client: Any = None  # ServiceBusClient after connect()
         self._credential: Any = None  # DefaultAzureCredential if using managed identity
@@ -102,6 +107,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
         subscription_name = driver_config.subscription_name
         auto_complete = driver_config.auto_complete
         max_wait_time = driver_config.max_wait_time
+        max_auto_lock_renewal_duration = driver_config.max_auto_lock_renewal_duration
 
         # Note: the shared DriverConfig schema is used by both publisher and subscriber.
         # Some subscriber-specific invariants are enforced here to keep behavior stable
@@ -120,6 +126,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
             use_managed_identity=use_managed_identity,
             auto_complete=auto_complete,
             max_wait_time=max_wait_time,
+            max_auto_lock_renewal_duration=max_auto_lock_renewal_duration,
         )
 
     def connect(self) -> None:
@@ -219,6 +226,8 @@ class AzureServiceBusSubscriber(EventSubscriber):
         logger.info("Started consuming events")
 
         try:
+            renewer: Any | None = None
+
             # Choose receive mode based on auto_complete setting
             receive_mode = (
                 ServiceBusReceiveMode.RECEIVE_AND_DELETE if self.auto_complete else ServiceBusReceiveMode.PEEK_LOCK
@@ -238,16 +247,36 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 )
 
             with receiver:
+                if (
+                    not self.auto_complete
+                    and AutoLockRenewer is not None
+                    and self.max_auto_lock_renewal_duration > 0
+                ):
+                    renewer = AutoLockRenewer()
+
                 # Continuously receive and process messages
                 while self._consuming.is_set():
                     try:
                         # Receive messages with timeout
+                        # In peek-lock mode, avoid locking a batch that might expire
+                        # before it can be processed.
+                        max_message_count = 10 if self.auto_complete else 1
                         messages = receiver.receive_messages(
-                            max_message_count=10,
+                            max_message_count=max_message_count,
                             max_wait_time=self.max_wait_time,
                         )
 
                         for msg in messages:
+                            if renewer is not None:
+                                try:
+                                    renewer.register(
+                                        receiver,
+                                        msg,
+                                        max_lock_renewal_duration=self.max_auto_lock_renewal_duration,
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"Failed to register auto-lock renewer: {e}")
+
                             try:
                                 self._process_message(msg, receiver)
                             except Exception as e:
@@ -271,6 +300,11 @@ class AzureServiceBusSubscriber(EventSubscriber):
             logger.error(f"Error in start_consuming: {e}")
             raise
         finally:
+            try:
+                if renewer is not None:
+                    renewer.close()
+            except Exception as e:
+                logger.debug(f"Error closing auto-lock renewer: {e}")
             self._consuming.clear()
             logger.info("Stopped consuming events")
 

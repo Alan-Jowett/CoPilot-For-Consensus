@@ -77,6 +77,11 @@
             "type": "int",
             "default": 5,
             "description": "Maximum time to wait for messages in seconds"
+        },
+        "max_auto_lock_renewal_duration": {
+            "type": "int",
+            "default": 3600,
+            "description": "Maximum time (seconds) to auto-renew a peek-lock message while it is being processed. Increase for long-running handlers. Set to 0 to disable auto-renewal."
         }
     }
 }
