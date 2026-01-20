@@ -249,8 +249,10 @@ class RabbitMQSubscriber(EventSubscriber):
         # Check reconnection limit
         if self._reconnect_count >= self.max_reconnect_attempts:
             logger.error(f"Maximum reconnection attempts ({self.max_reconnect_attempts}) exceeded in this cycle")
-            # Reset count to allow future reconnection attempts
+            # Reset count to allow future reconnection attempts, but add a cooldown period
+            # by updating the last reconnect time so the next attempt will be throttled
             self._reconnect_count = 0
+            self._last_reconnect_time = current_time
             return False
 
         # Record attempt time only when we are actually going to attempt reconnect.
@@ -287,12 +289,31 @@ class RabbitMQSubscriber(EventSubscriber):
                 if channel is None:
                     raise RuntimeError("Reconnect succeeded but channel is not available")
 
+                # Check if we need to handle auto-generated exclusive queues
+                # These queues are deleted when the connection drops, so we need to create a new one
+                queue_name = self.queue_name
+                is_auto_generated = bool(queue_name and re.match(r"^amq\.gen-", queue_name))
+                
+                if is_auto_generated:
+                    try:
+                        declare_result = channel.queue_declare(queue="", exclusive=True, auto_delete=True)
+                        queue_name = declare_result.method.queue
+                        self.queue_name = queue_name
+                        logger.info(
+                            f"Declared new exclusive auto-generated queue '{queue_name}' after reconnection"
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to declare auto-generated exclusive queue during reconnection: {e}")
+                        raise
+                elif not queue_name:
+                    raise RuntimeError("Queue name is not set; cannot re-establish subscriptions")
+
                 logger.info(f"Re-establishing {len(self._subscriptions)} subscription(s)...")
                 for event_type, routing_key, exchange in self._subscriptions:
                     try:
                         channel.queue_bind(
                             exchange=exchange or self.exchange_name,
-                            queue=self.queue_name,
+                            queue=queue_name,
                             routing_key=routing_key,
                         )
                         logger.info(f"Re-subscribed to {event_type} with routing key: {routing_key}")
@@ -414,12 +435,17 @@ class RabbitMQSubscriber(EventSubscriber):
                 error_str = str(e)
                 if "_AsyncTransportBase" in error_str or "_STATE_COMPLETED" in error_str:
                     logger.warning(
-                        f"Pika transport state assertion: {e}. This is a known pika issue during cleanup."
+                        f"Pika transport state assertion: {e}. "
+                        "This is a known pika issue during cleanup; will reconnect."
                     )
-                    # Exit the loop so a supervising service can restart the subscriber thread.
-                    return
-                logger.error(f"Unexpected assertion error: {e}")
-                raise
+                    # Treat this as a recoverable transport error: reset state so the outer loop reconnects
+                    self.channel = None
+                    self.connection = None
+                    self._consumer_tag = None
+                    # Continue to the next iteration which will attempt reconnection
+                else:
+                    logger.error(f"Unexpected assertion error: {e}")
+                    raise
             except Exception as e:
                 # Connection/channel errors - log and reconnect.
                 if pika_exceptions is None:
