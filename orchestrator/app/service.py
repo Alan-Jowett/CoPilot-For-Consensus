@@ -31,6 +31,10 @@ from .context_factory import create_context_selector, create_context_source
 
 logger = get_logger(__name__)
 
+# Candidate pool multiplier for context selection
+# Retrieve N times more candidates than top_k to allow for better selection
+CANDIDATE_POOL_MULTIPLIER = 2
+
 
 class OrchestrationService:
     """Main orchestration service for coordinating summarization workflows."""
@@ -508,8 +512,9 @@ class OrchestrationService:
         """
         try:
             # Get candidate chunks from context source
+            # Retrieve more candidates than top_k to allow for better selection
             candidates = self.context_source.get_candidates(
-                thread_id=thread_id, query={"top_k": self.top_k * 2}  # Get more candidates for selection
+                thread_id=thread_id, query={"top_k": self.top_k * CANDIDATE_POOL_MULTIPLIER}
             )
 
             if not candidates:
@@ -582,11 +587,6 @@ class OrchestrationService:
             }
 
             logger.info(f"Retrieved {len(ordered_chunks)} chunks and {len(messages)} messages for thread {thread_id}")
-
-            return context
-            }
-
-            logger.info(f"Retrieved {len(chunks)} chunks and {len(messages)} messages for thread {thread_id}")
 
             return context
 

@@ -261,6 +261,13 @@ class SummarizationService:
             top_k: Number of chunks to retrieve (used if selected_chunks not provided)
             context_window_tokens: Token budget for context
             prompt_template: Prompt template with placeholders to substitute
+            selected_chunks: Pre-selected chunks from orchestrator (optional).
+                Each chunk dict should have: chunk_id, source, score, rank, metadata.
+            context_selection: Selection metadata from orchestrator (optional).
+                Should include: selector_type, selector_version, selection_params, etc.
+        """
+            context_window_tokens: Token budget for context
+            prompt_template: Prompt template with placeholders to substitute
             selected_chunks: Pre-selected chunks from orchestrator (optional)
             context_selection: Selection metadata from orchestrator (optional)
         """
@@ -593,8 +600,12 @@ class SummarizationService:
             logger.warning(f"Empty selected_chunks list for thread {thread_id}")
             return {"messages": [], "chunks": []}
 
-        # Extract chunk IDs from selected chunks
-        chunk_ids = [sc.get("chunk_id") for sc in selected_chunks if sc.get("chunk_id")]
+        # Extract chunk IDs from selected chunks with validation
+        chunk_ids = [
+            sc.get("chunk_id")
+            for sc in selected_chunks
+            if isinstance(sc, dict) and sc.get("chunk_id")
+        ]
 
         if not chunk_ids:
             logger.warning(f"No valid chunk_ids in selected_chunks for thread {thread_id}")
