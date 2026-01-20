@@ -325,6 +325,14 @@ class TestPublishEvent:
         assert event["data"] == {"thread_ids": ["t1"], "archive_id": "a1"}
         # Timestamp should be ISO 8601 with offset (consistent with requeue_incomplete)
         datetime.fromisoformat(event["timestamp"])
+        # Verify required envelope fields are present
+        assert "event_id" in event
+        assert event["version"] == "1.0.0"
+        # Validate event_id is a valid UUID
+        try:
+            uuid.UUID(event["event_id"])
+        except ValueError:
+            pytest.fail(f"event_id is not a valid UUID: {event['event_id']}")
 
     def test_publish_event_propagates_errors(self):
         mock_publisher = Mock()
@@ -337,3 +345,33 @@ class TestPublishEvent:
                 routing_key="summarization.requested",
                 event_data={},
             )
+
+    def test_publish_event_envelope_schema_compliance(self):
+        """Test that publish_event creates events with all required envelope fields."""
+        mock_publisher = Mock()
+        requeue = StartupRequeue(document_store=Mock(), publisher=mock_publisher)
+
+        requeue.publish_event(
+            event_type="TestEvent",
+            routing_key="test.event",
+            event_data={"test_field": "test_value"},
+        )
+
+        # Extract the event that was published
+        event = mock_publisher.publish.call_args.kwargs["event"]
+
+        # Verify all required envelope fields are present
+        required_fields = {"event_type", "event_id", "timestamp", "version", "data"}
+        assert set(event.keys()) == required_fields, (
+            f"Event envelope should have exactly these fields: {required_fields}, "
+            f"but got: {set(event.keys())}"
+        )
+
+        # Verify field types and formats
+        assert isinstance(event["event_type"], str) and event["event_type"] == "TestEvent"
+        assert isinstance(event["event_id"], str)
+        uuid.UUID(event["event_id"])  # Raises ValueError if not a valid UUID
+        assert isinstance(event["timestamp"], str)
+        datetime.fromisoformat(event["timestamp"])  # Raises ValueError if not valid ISO-8601
+        assert isinstance(event["version"], str) and event["version"] == "1.0.0"
+        assert isinstance(event["data"], dict) and event["data"] == {"test_field": "test_value"}
