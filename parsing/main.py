@@ -50,23 +50,32 @@ app = FastAPI(title="Parsing Service", version=__version__)
 
 # Global service instance
 parsing_service = None
+subscriber_thread: threading.Thread | None = None
 
 
 @app.get("/health")
 def health():
     """Health check endpoint."""
     global parsing_service
+    global subscriber_thread
 
     stats = parsing_service.get_stats() if parsing_service is not None else {}
+    
+    # Check if subscriber thread is alive
+    subscriber_alive = subscriber_thread is not None and subscriber_thread.is_alive()
+    
+    # Service is only healthy if subscriber thread is running
+    status = "healthy" if subscriber_alive else "unhealthy"
 
     return {
-        "status": "healthy",
+        "status": status,
         "service": "parsing",
         "version": __version__,
         "messages_parsed_total": stats.get("messages_parsed", 0),
         "threads_created_total": stats.get("threads_created", 0),
         "archives_processed_total": stats.get("archives_processed", 0),
         "last_processing_time_seconds": stats.get("last_processing_time_seconds", 0),
+        "subscriber_thread_alive": subscriber_alive,
     }
 
 
@@ -125,6 +134,7 @@ def main():
     """Main entry point for the parsing service."""
     global parsing_service
     global logger
+    global subscriber_thread
 
     logger.info(f"Starting Parsing Service (version {__version__})")
 
