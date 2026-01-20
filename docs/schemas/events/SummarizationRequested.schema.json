@@ -18,14 +18,43 @@
               "uniqueItems": true
             },
             "top_k": { "type": "integer", "minimum": 1 },
-            "prompt_template": { "type": "string", "minLength": 1 }
+            "prompt_template": { "type": "string", "minLength": 1 },
+            "selected_chunks": {
+              "type": "array",
+              "description": "Ordered list of selected chunk IDs for summarization context",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "chunk_id": { "type": "string" },
+                  "source": { "type": "string" },
+                  "score": { "type": "number" },
+                  "rank": { "type": "integer", "minimum": 0 },
+                  "metadata": { "type": "object" }
+                },
+                "required": ["chunk_id", "source", "score", "rank"],
+                "additionalProperties": false
+              }
+            },
+            "context_selection": {
+              "type": "object",
+              "description": "Metadata about how chunks were selected",
+              "properties": {
+                "selector_type": { "type": "string" },
+                "selector_version": { "type": "string" },
+                "selection_params": { "type": "object" },
+                "total_candidates": { "type": "integer", "minimum": 0 },
+                "total_tokens": { "type": "integer", "minimum": 0 }
+              },
+              "required": ["selector_type", "selector_version"],
+              "additionalProperties": false
+            }
           },
           "required": [
             "thread_ids",
             "top_k",
             "prompt_template"
           ],
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
       "required": ["event_type", "event_id", "timestamp", "version", "data"],

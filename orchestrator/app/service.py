@@ -25,6 +25,9 @@ from copilot_message_bus import (
 )
 from copilot_metrics import MetricsCollector
 from copilot_storage import DocumentStore
+from copilot_vectorstore import VectorStore
+
+from .context_factory import create_context_selector, create_context_source
 
 logger = get_logger(__name__)
 
@@ -35,12 +38,14 @@ class OrchestrationService:
     def __init__(
         self,
         document_store: DocumentStore,
+        vector_store: VectorStore,
         publisher: EventPublisher,
         subscriber: EventSubscriber,
         top_k: int = 12,
         context_window_tokens: int = 3000,
         system_prompt_path: str = "/app/prompts/system.txt",
         user_prompt_path: str = "/app/prompts/user.txt",
+        chunk_selection_strategy: str = "top_k_relevance",
         metrics_collector: MetricsCollector | None = None,
         error_reporter: ErrorReporter | None = None,
         retry_config: RetryConfig | None = None,
@@ -49,17 +54,20 @@ class OrchestrationService:
 
         Args:
             document_store: Document store for retrieving chunk metadata
+            vector_store: Vector store for similarity search
             publisher: Event publisher for publishing events
             subscriber: Event subscriber for consuming events
             top_k: Number of top chunks to retrieve per thread
             context_window_tokens: Token budget for prompt context
             system_prompt_path: Path to system prompt file
             user_prompt_path: Path to user prompt template file
+            chunk_selection_strategy: Strategy for selecting chunks (default: top_k_relevance)
             metrics_collector: Metrics collector (optional)
             error_reporter: Error reporter (optional)
             retry_config: Retry configuration for race condition handling (optional)
         """
         self.document_store = document_store
+        self.vector_store = vector_store
         self.publisher = publisher
         self.subscriber = subscriber
         self.top_k = top_k
@@ -69,6 +77,15 @@ class OrchestrationService:
         self.system_prompt_path = system_prompt_path
         self.user_prompt_path = user_prompt_path
         self.retry_config = retry_config or RetryConfig()
+
+        # Create context selector and source based on strategy
+        self.chunk_selection_strategy = chunk_selection_strategy
+        self.context_selector = create_context_selector(chunk_selection_strategy)
+        self.context_source = create_context_source(
+            "thread_chunks", document_store=document_store, vector_store=vector_store
+        )
+
+        logger.info(f"Initialized context selector: {self.context_selector.get_selector_type()}")
 
         # Load prompts from files
         self._load_prompts()
@@ -478,26 +495,60 @@ class OrchestrationService:
             return False
 
     def _retrieve_context(self, thread_id: str) -> dict[str, Any]:
-        """Retrieve top-k chunks and metadata for a thread.
+        """Retrieve top-k chunks and metadata for a thread using context selector.
+
+        Uses the configured context selector to deterministically select the most
+        relevant chunks for summarization.
 
         Args:
             thread_id: Thread ID
 
         Returns:
-            Context dictionary with chunks and metadata
+            Context dictionary with selected chunks and selection metadata
         """
         try:
-            # Get chunks for this thread from document store
-            chunks = self.document_store.query_documents(
-                "chunks", {"thread_id": thread_id, "embedding_generated": True}, limit=self.top_k
+            # Get candidate chunks from context source
+            candidates = self.context_source.get_candidates(
+                thread_id=thread_id, query={"top_k": self.top_k * 2}  # Get more candidates for selection
             )
 
-            if not chunks:
-                logger.warning(f"No chunks found for thread {thread_id}")
+            if not candidates:
+                logger.warning(f"No candidate chunks found for thread {thread_id}")
                 return {}
 
+            # Select top-k chunks using context selector
+            selection = self.context_selector.select(
+                thread_id=thread_id,
+                candidates=candidates,
+                top_k=self.top_k,
+                context_window_tokens=self.context_window_tokens,
+            )
+
+            if not selection.selected_chunks:
+                logger.warning(f"No chunks selected for thread {thread_id}")
+                return {}
+
+            # Log selection metadata
+            logger.info(
+                f"Selected {len(selection.selected_chunks)} chunks for thread {thread_id} "
+                f"using {selection.selector_type} v{selection.selector_version} "
+                f"(candidates={selection.total_candidates}, tokens={selection.total_tokens})"
+            )
+
+            # Retrieve full chunk documents for selected chunks
+            selected_chunk_ids = [sc.chunk_id for sc in selection.selected_chunks]
+            chunks = self.document_store.query_documents(
+                "chunks", {"_id": {"$in": selected_chunk_ids}}, limit=len(selected_chunk_ids)
+            )
+
+            # Preserve selection order
+            chunk_map = {str(chunk.get("_id")): chunk for chunk in chunks}
+            ordered_chunks = [chunk_map[sc.chunk_id] for sc in selection.selected_chunks if sc.chunk_id in chunk_map]
+
             # Get message metadata
-            message_doc_ids = list(set(chunk.get("message_doc_id") for chunk in chunks if chunk.get("message_doc_id")))
+            message_doc_ids = list(
+                set(chunk.get("message_doc_id") for chunk in ordered_chunks if chunk.get("message_doc_id"))
+            )
             messages = []
 
             if message_doc_ids:
@@ -507,10 +558,32 @@ class OrchestrationService:
 
             context = {
                 "thread_id": thread_id,
-                "chunk_count": len(chunks),
-                "chunks": chunks[: self.top_k],  # Limit to top_k
+                "chunk_count": len(ordered_chunks),
+                "chunks": ordered_chunks,
                 "messages": messages,
                 "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                "selected_chunks": [
+                    {
+                        "chunk_id": sc.chunk_id,
+                        "source": sc.source,
+                        "score": sc.score,
+                        "rank": sc.rank,
+                        "metadata": sc.metadata,
+                    }
+                    for sc in selection.selected_chunks
+                ],
+                "context_selection": {
+                    "selector_type": selection.selector_type,
+                    "selector_version": selection.selector_version,
+                    "selection_params": selection.selection_params,
+                    "total_candidates": selection.total_candidates,
+                    "total_tokens": selection.total_tokens,
+                },
+            }
+
+            logger.info(f"Retrieved {len(ordered_chunks)} chunks and {len(messages)} messages for thread {thread_id}")
+
+            return context
             }
 
             logger.info(f"Retrieved {len(chunks)} chunks and {len(messages)} messages for thread {thread_id}")
@@ -524,18 +597,19 @@ class OrchestrationService:
             raise
 
     def _publish_summarization_requested(self, thread_ids: list[str], context: dict[str, Any]):
-        """Publish SummarizationRequested event.
+        """Publish SummarizationRequested event with selected chunks.
 
         Args:
             thread_ids: List of thread IDs
-            context: Retrieved context
+            context: Retrieved context with selected_chunks and context_selection metadata
         """
-        del context
         try:
             event_data = {
                 "thread_ids": thread_ids,
                 "top_k": self.top_k,
                 "prompt_template": f"{self.system_prompt.rstrip()}\n\n{self.user_prompt.lstrip()}",
+                "selected_chunks": context.get("selected_chunks", []),
+                "context_selection": context.get("context_selection", {}),
             }
 
             event = SummarizationRequestedEvent(data=event_data)
@@ -544,7 +618,10 @@ class OrchestrationService:
                 exchange="copilot.events", routing_key="summarization.requested", event=event.to_dict()
             )
 
-            logger.info(f"Published SummarizationRequested for threads: {thread_ids}")
+            logger.info(
+                f"Published SummarizationRequested for threads: {thread_ids} "
+                f"with {len(event_data.get('selected_chunks', []))} selected chunks"
+            )
 
             if self.metrics_collector:
                 self.metrics_collector.increment(
@@ -609,5 +686,8 @@ class OrchestrationService:
             "config": {
                 "top_k": self.top_k,
                 "context_window_tokens": self.context_window_tokens,
+                "chunk_selection_strategy": self.chunk_selection_strategy,
+                "selector_type": self.context_selector.get_selector_type(),
+                "selector_version": self.context_selector.get_version(),
             },
         }

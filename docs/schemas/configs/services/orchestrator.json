@@ -113,6 +113,13 @@
             "env_var": "ORCHESTRATOR_USER_PROMPT_PATH",
             "default": "/app/prompts/user.txt",
             "description": "Path to user prompt file"
+        },
+        "chunk_selection_strategy": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_CHUNK_SELECTION_STRATEGY",
+            "default": "top_k_relevance",
+            "description": "Strategy for selecting chunks: top_k_relevance, top_k_cohesive, hybrid_relevance_then_cohesion, mmr"
         }
     },
     "adapters": {
