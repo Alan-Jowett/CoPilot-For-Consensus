@@ -54,7 +54,7 @@
             "top_k",
             "prompt_template"
           ],
-          "additionalProperties": true
+          "additionalProperties": false
         }
       },
       "required": ["event_type", "event_id", "timestamp", "version", "data"],

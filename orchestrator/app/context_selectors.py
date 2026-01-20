@@ -3,7 +3,6 @@
 
 """Context selector implementations for orchestrator."""
 
-import hashlib
 from typing import Any
 
 from copilot_logging import get_logger
@@ -212,11 +211,15 @@ class TopKCohesiveSelector(ContextSelector):
         selector = TopKRelevanceSelector(token_estimator=self.token_estimator)
         result = selector.select(thread_id, candidates, top_k, context_window_tokens)
 
-        # Override selector type to indicate this was cohesive selection (even if placeholder)
-        result.selector_type = self.get_selector_type()
-        result.selector_version = self.get_version()
-
-        return result
+        # Create a new ContextSelection with correct selector type instead of mutating
+        return ContextSelection(
+            selected_chunks=result.selected_chunks,
+            selector_type=self.get_selector_type(),
+            selector_version=self.get_version(),
+            selection_params=result.selection_params,
+            total_candidates=result.total_candidates,
+            total_tokens=result.total_tokens,
+        )
 
     def get_selector_type(self) -> str:
         """Return the selector type identifier.
