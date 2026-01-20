@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Blob Storage Logging for Azure Container Apps
 
 This document describes how to archive Azure Container Apps console logs to Blob Storage without using Log Analytics.
