@@ -36,7 +36,7 @@ param(
     [string]$Timespan = "P1D",
 
     [Parameter(Mandatory = $false)]
-    [string]$OutDir = "logs/azure/copilot-law-dev-y6f2c/rca",
+    [string]$OutDir,
 
     [Parameter(Mandatory = $false)]
     [int]$SampleSize = 100
@@ -44,13 +44,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Require-Command([string]$Name) {
+function Test-CommandAvailable([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
         throw "Required command not found: $Name"
     }
 }
 
-Require-Command "az"
+if (-not $PSBoundParameters.ContainsKey('OutDir')) {
+    $OutDir = "logs/azure/$WorkspaceName/rca"
+}
+
+$TopSize = 50
+$ErrorMessageTruncationLength = 200
+
+Test-CommandAvailable "az"
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
@@ -88,14 +95,16 @@ function Invoke-LawQuery {
     $kqlOneLine = ($kqlOneLine -replace "\s+", " ").Trim()
 
     # Keep output compact by using KQL summarize/take.
+    # Capture both stdout and stderr so failures don't silently emit empty/malformed JSON.
     $queryOutput = az monitor log-analytics query `
         --workspace $workspaceId `
         --analytics-query $kqlOneLine `
         --timespan $Timespan `
-        -o json
+        -o json 2>&1
 
     if ($LASTEXITCODE -ne 0) {
-        throw "Azure CLI log-analytics query '$Name' failed with exit code $LASTEXITCODE."
+        $errorMessage = "Azure CLI log-analytics query '$Name' failed with exit code $LASTEXITCODE.`nAzure CLI output:`n$queryOutput"
+        throw $errorMessage
     }
 
     $queryOutput | Out-File -Encoding utf8 $outPath
@@ -104,11 +113,11 @@ function Invoke-LawQuery {
 }
 
 # 1) Table inventory (helps adapt RCA queries if tables differ)
-$tableInventoryKql = @'
+$tableInventoryKql = @"
 search *
-| summarize count() by $table
-| top 50 by count_ desc
-'@
+| summarize count() by `$table
+| top $TopSize by count_ desc
+"@
 
 # 2) Validation failures (schema enforcement)
 $validationCountKql = @"
@@ -125,7 +134,7 @@ ContainerAppConsoleLogs_CL
 | extend msg=tostring(l.message)
 | where msg has 'Validation failed for event type'
 | summarize cnt=count() by ContainerAppName_s
-| top 50 by cnt desc
+| top $TopSize by cnt desc
 "@
 
 $validationSampleKql = @"
@@ -153,7 +162,7 @@ ContainerAppConsoleLogs_CL
 | extend msg=tostring(l.message)
 | where msg has 'missing required field' and msg has 'source_type'
 | summarize cnt=count() by ContainerAppName_s
-| top 50 by cnt desc
+| top $TopSize by cnt desc
 "@
 
 $missingSourceTypeSampleKql = @"
@@ -177,7 +186,7 @@ $rabbitHeartbeatByAppKql = @"
 ContainerAppConsoleLogs_CL
 | where Log_s has 'missed heartbeats from client'
 | summarize cnt=count() by ContainerAppName_s
-| top 50 by cnt desc
+| top $TopSize by cnt desc
 "@
 
 $rabbitHeartbeatSampleKql = @"
@@ -203,7 +212,7 @@ ContainerAppConsoleLogs_CL
 | extend msg=tostring(l.message)
 | where msg has 'Startup requeue' and (msg has 'failed' or msg has 'Failed')
 | summarize cnt=count() by ContainerAppName_s
-| top 50 by cnt desc
+| top $TopSize by cnt desc
 "@
 
 $startupRequeueSampleKql = @"
@@ -233,7 +242,7 @@ ContainerAppConsoleLogs_CL
 | where isnotempty(level)
 | where level == 'ERROR' and (msg has 'Error code: 429' or msg has 'RateLimitReached')
 | summarize cnt=count() by ContainerAppName_s
-| top 50 by cnt desc
+| top $TopSize by cnt desc
 "@
 
 $aoaiRateLimitSampleKql = @"
@@ -264,7 +273,7 @@ ContainerAppConsoleLogs_CL
 | where isnotempty(level)
 | where msg has 'not found in ArchiveStore'
 | summarize cnt=count() by ContainerAppName_s
-| top 50 by cnt desc
+| top $TopSize by cnt desc
 "@
 
 $archiveNotFoundSampleKql = @"
@@ -295,7 +304,7 @@ ContainerAppConsoleLogs_CL
 | where isnotempty(level)
 | where level == 'ERROR' and msg has 'Retry exhausted'
 | summarize cnt=count() by ContainerAppName_s
-| top 50 by cnt desc
+| top $TopSize by cnt desc
 "@
 
 $retryExhaustedSampleKql = @"
@@ -324,7 +333,7 @@ ContainerAppConsoleLogs_CL
 | extend msg=tostring(l.message)
 | where msg has 'JWKS fetch attempt' and msg has 'Connection refused'
 | summarize cnt=count() by ContainerAppName_s
-| top 50 by cnt desc
+| top $TopSize by cnt desc
 "@
 
 $jwksConnectionRefusedSampleKql = @"
@@ -344,40 +353,46 @@ ContainerAppConsoleLogs_CL
 | extend level=tostring(l.level), msg=tostring(l.message)
 | where isnotempty(level)
 | where level == 'ERROR'
-| extend msg200=substring(msg, 0, 200)
+| extend msg200=substring(msg, 0, $ErrorMessageTruncationLength)
 | summarize cnt=count() by ContainerAppName_s, msg200
-| top 50 by cnt desc
+| top $TopSize by cnt desc
 "@
 
 Write-Host "Running Log Analytics exports (timespan=$Timespan)..." -ForegroundColor Cyan
 
+$exportQueries = @(
+    @{ Name = 'tables'; Kql = $tableInventoryKql; Key = 'table_inventory' },
+    @{ Name = 'validation_errors_count'; Kql = $validationCountKql; Key = 'validation_count' },
+    @{ Name = 'validation_errors_by_app'; Kql = $validationByAppKql; Key = 'validation_by_app' },
+    @{ Name = 'validation_errors_sample'; Kql = $validationSampleKql; Key = 'validation_sample' },
+    @{ Name = 'missing_source_type_count'; Kql = $missingSourceTypeCountKql; Key = 'missing_source_type_count' },
+    @{ Name = 'missing_source_type_by_app'; Kql = $missingSourceTypeByAppKql; Key = 'missing_source_type_by_app' },
+    @{ Name = 'missing_source_type_sample'; Kql = $missingSourceTypeSampleKql; Key = 'missing_source_type_sample' },
+    @{ Name = 'rabbitmq_heartbeat_count'; Kql = $rabbitHeartbeatCountKql; Key = 'rabbitmq_heartbeat_count' },
+    @{ Name = 'rabbitmq_heartbeat_by_app'; Kql = $rabbitHeartbeatByAppKql; Key = 'rabbitmq_heartbeat_by_app' },
+    @{ Name = 'rabbitmq_heartbeat_sample'; Kql = $rabbitHeartbeatSampleKql; Key = 'rabbitmq_heartbeat_sample' },
+    @{ Name = 'startup_requeue_count'; Kql = $startupRequeueCountKql; Key = 'startup_requeue_count' },
+    @{ Name = 'startup_requeue_by_app'; Kql = $startupRequeueByAppKql; Key = 'startup_requeue_by_app' },
+    @{ Name = 'startup_requeue_sample'; Kql = $startupRequeueSampleKql; Key = 'startup_requeue_sample' },
+    @{ Name = 'aoai_rate_limit_count'; Kql = $aoaiRateLimitCountKql; Key = 'aoai_rate_limit_count' },
+    @{ Name = 'aoai_rate_limit_by_app'; Kql = $aoaiRateLimitByAppKql; Key = 'aoai_rate_limit_by_app' },
+    @{ Name = 'aoai_rate_limit_sample'; Kql = $aoaiRateLimitSampleKql; Key = 'aoai_rate_limit_sample' },
+    @{ Name = 'archive_not_found_count'; Kql = $archiveNotFoundCountKql; Key = 'archive_not_found_count' },
+    @{ Name = 'archive_not_found_by_app'; Kql = $archiveNotFoundByAppKql; Key = 'archive_not_found_by_app' },
+    @{ Name = 'archive_not_found_sample'; Kql = $archiveNotFoundSampleKql; Key = 'archive_not_found_sample' },
+    @{ Name = 'retry_exhausted_count'; Kql = $retryExhaustedCountKql; Key = 'retry_exhausted_count' },
+    @{ Name = 'retry_exhausted_by_app'; Kql = $retryExhaustedByAppKql; Key = 'retry_exhausted_by_app' },
+    @{ Name = 'retry_exhausted_sample'; Kql = $retryExhaustedSampleKql; Key = 'retry_exhausted_sample' },
+    @{ Name = 'jwks_connection_refused_count'; Kql = $jwksConnectionRefusedCountKql; Key = 'jwks_connection_refused_count' },
+    @{ Name = 'jwks_connection_refused_by_app'; Kql = $jwksConnectionRefusedByAppKql; Key = 'jwks_connection_refused_by_app' },
+    @{ Name = 'jwks_connection_refused_sample'; Kql = $jwksConnectionRefusedSampleKql; Key = 'jwks_connection_refused_sample' },
+    @{ Name = 'top_error_messages'; Kql = $topErrorMessagesKql; Key = 'top_error_messages' }
+)
+
 $exports = @{}
-$exports.table_inventory = Invoke-LawQuery -Name 'tables' -Kql $tableInventoryKql
-$exports.validation_count = Invoke-LawQuery -Name 'validation_errors_count' -Kql $validationCountKql
-$exports.validation_by_app = Invoke-LawQuery -Name 'validation_errors_by_app' -Kql $validationByAppKql
-$exports.validation_sample = Invoke-LawQuery -Name 'validation_errors_sample' -Kql $validationSampleKql
-$exports.missing_source_type_count = Invoke-LawQuery -Name 'missing_source_type_count' -Kql $missingSourceTypeCountKql
-$exports.missing_source_type_by_app = Invoke-LawQuery -Name 'missing_source_type_by_app' -Kql $missingSourceTypeByAppKql
-$exports.missing_source_type_sample = Invoke-LawQuery -Name 'missing_source_type_sample' -Kql $missingSourceTypeSampleKql
-$exports.rabbitmq_heartbeat_count = Invoke-LawQuery -Name 'rabbitmq_heartbeat_count' -Kql $rabbitHeartbeatCountKql
-$exports.rabbitmq_heartbeat_by_app = Invoke-LawQuery -Name 'rabbitmq_heartbeat_by_app' -Kql $rabbitHeartbeatByAppKql
-$exports.rabbitmq_heartbeat_sample = Invoke-LawQuery -Name 'rabbitmq_heartbeat_sample' -Kql $rabbitHeartbeatSampleKql
-$exports.startup_requeue_count = Invoke-LawQuery -Name 'startup_requeue_count' -Kql $startupRequeueCountKql
-$exports.startup_requeue_by_app = Invoke-LawQuery -Name 'startup_requeue_by_app' -Kql $startupRequeueByAppKql
-$exports.startup_requeue_sample = Invoke-LawQuery -Name 'startup_requeue_sample' -Kql $startupRequeueSampleKql
-$exports.aoai_rate_limit_count = Invoke-LawQuery -Name 'aoai_rate_limit_count' -Kql $aoaiRateLimitCountKql
-$exports.aoai_rate_limit_by_app = Invoke-LawQuery -Name 'aoai_rate_limit_by_app' -Kql $aoaiRateLimitByAppKql
-$exports.aoai_rate_limit_sample = Invoke-LawQuery -Name 'aoai_rate_limit_sample' -Kql $aoaiRateLimitSampleKql
-$exports.archive_not_found_count = Invoke-LawQuery -Name 'archive_not_found_count' -Kql $archiveNotFoundCountKql
-$exports.archive_not_found_by_app = Invoke-LawQuery -Name 'archive_not_found_by_app' -Kql $archiveNotFoundByAppKql
-$exports.archive_not_found_sample = Invoke-LawQuery -Name 'archive_not_found_sample' -Kql $archiveNotFoundSampleKql
-$exports.retry_exhausted_count = Invoke-LawQuery -Name 'retry_exhausted_count' -Kql $retryExhaustedCountKql
-$exports.retry_exhausted_by_app = Invoke-LawQuery -Name 'retry_exhausted_by_app' -Kql $retryExhaustedByAppKql
-$exports.retry_exhausted_sample = Invoke-LawQuery -Name 'retry_exhausted_sample' -Kql $retryExhaustedSampleKql
-$exports.jwks_connection_refused_count = Invoke-LawQuery -Name 'jwks_connection_refused_count' -Kql $jwksConnectionRefusedCountKql
-$exports.jwks_connection_refused_by_app = Invoke-LawQuery -Name 'jwks_connection_refused_by_app' -Kql $jwksConnectionRefusedByAppKql
-$exports.jwks_connection_refused_sample = Invoke-LawQuery -Name 'jwks_connection_refused_sample' -Kql $jwksConnectionRefusedSampleKql
-$exports.top_error_messages = Invoke-LawQuery -Name 'top_error_messages' -Kql $topErrorMessagesKql
+foreach ($q in $exportQueries) {
+    $exports[$q.Key] = Invoke-LawQuery -Name $q.Name -Kql $q.Kql
+}
 
 $manifestPath = Join-Path $OutDir 'manifest.json'
 $exports | ConvertTo-Json -Depth 3 | Out-File -Encoding utf8 $manifestPath
