@@ -91,6 +91,7 @@ class SummarizationService:
         # Stats
         self.summaries_generated = 0
         self.summarization_failures = 0
+        self.rate_limit_errors = 0
         self.last_processing_time = 0.0
 
     def start(self, enable_startup_requeue: bool = True):
@@ -375,10 +376,30 @@ class SummarizationService:
 
             except Exception as e:
                 retry_count += 1
-                logger.error(
-                    f"Error summarizing thread {thread_id} " f"(attempt {retry_count}/{self.retry_max_attempts}): {e}",
-                    exc_info=True,
-                )
+                
+                # Check if this is a rate limit error for specific handling
+                from copilot_summarization import RateLimitError
+                is_rate_limit_error = isinstance(e, RateLimitError)
+                
+                if is_rate_limit_error:
+                    logger.warning(
+                        f"Rate limit error for thread {thread_id} "
+                        f"(attempt {retry_count}/{self.retry_max_attempts}): {e}",
+                        exc_info=False,
+                    )
+                    # Track rate limit errors separately
+                    self.rate_limit_errors += 1
+                    if self.metrics_collector:
+                        self.metrics_collector.increment(
+                            "summarization_rate_limit_errors_total",
+                            tags={"backend": self.llm_backend, "model": self.llm_model},
+                        )
+                else:
+                    logger.error(
+                        f"Error summarizing thread {thread_id} "
+                        f"(attempt {retry_count}/{self.retry_max_attempts}): {e}",
+                        exc_info=True,
+                    )
 
                 if retry_count < self.retry_max_attempts:
                     # Exponential backoff with maximum cap
@@ -756,5 +777,6 @@ class SummarizationService:
         return {
             "summaries_generated": self.summaries_generated,
             "summarization_failures": self.summarization_failures,
+            "rate_limit_errors": self.rate_limit_errors,
             "last_processing_time_seconds": self.last_processing_time,
         }
