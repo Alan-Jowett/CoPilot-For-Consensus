@@ -1418,7 +1418,7 @@ class TestArchiveEventDataValidation:
         assert "test-archive-456" in str(exc_info.value)
 
     def test_build_event_data_missing_source_type(self):
-        """Test ValueError raised when source_type field is missing."""
+        """Test that missing source_type defaults to 'local' for legacy archives."""
         document_store = create_validating_document_store()
         publisher = create_noop_publisher()
         subscriber = create_noop_subscriber()
@@ -1437,12 +1437,12 @@ class TestArchiveEventDataValidation:
             "source": "test-source",
         }
 
-        with pytest.raises(ValueError) as exc_info:
-            service._build_archive_ingested_event_data(test_doc)
-
-        assert "missing required field 'source_type'" in str(exc_info.value)
-        assert "test-archive-789" in str(exc_info.value)
-        assert "must be one of" in str(exc_info.value)
+        # Should default to 'local' instead of raising ValueError
+        event_data = service._build_archive_ingested_event_data(test_doc)
+        
+        assert event_data["archive_id"] == "test-archive-789"
+        assert event_data["source_name"] == "test-source"
+        assert event_data["source_type"] == "local"
 
     def test_build_event_data_invalid_source_type(self):
         """Test ValueError raised when source_type contains invalid enum value."""
