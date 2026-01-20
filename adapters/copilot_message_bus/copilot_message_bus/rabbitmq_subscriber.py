@@ -283,10 +283,14 @@ class RabbitMQSubscriber(EventSubscriber):
 
             # Re-establish all subscriptions
             if self._subscriptions:
+                channel = self.channel
+                if channel is None:
+                    raise RuntimeError("Reconnect succeeded but channel is not available")
+
                 logger.info(f"Re-establishing {len(self._subscriptions)} subscription(s)...")
                 for event_type, routing_key, exchange in self._subscriptions:
                     try:
-                        self.channel.queue_bind(
+                        channel.queue_bind(
                             exchange=exchange or self.exchange_name,
                             queue=self.queue_name,
                             routing_key=routing_key,
@@ -320,6 +324,8 @@ class RabbitMQSubscriber(EventSubscriber):
         if not self.channel:
             raise RuntimeError("Not connected. Call connect() first.")
 
+        channel = self.channel
+
         # Register callback
         self.callbacks[event_type] = callback
 
@@ -337,7 +343,7 @@ class RabbitMQSubscriber(EventSubscriber):
             self._subscriptions.append(subscription)
 
         # Bind queue to exchange with routing key
-        self.channel.queue_bind(exchange=target_exchange, queue=self.queue_name, routing_key=routing_key)
+        channel.queue_bind(exchange=target_exchange, queue=self.queue_name, routing_key=routing_key)
 
         logger.info(
             f"Subscribed to {event_type} events on exchange {target_exchange} " f"with routing key: {routing_key}"
@@ -366,14 +372,21 @@ class RabbitMQSubscriber(EventSubscriber):
                     time.sleep(0.1)
                     continue
 
+            channel = self.channel
+            if channel is None:
+                # Defensive: _is_connected() can be relaxed for tests/mocks.
+                logger.warning("Channel unavailable after connection check; retrying")
+                time.sleep(0.1)
+                continue
+
             # Ensure we only register a consumer once per channel instance.
-            channel_id = id(self.channel)
+            channel_id = id(channel)
             if self._consume_channel_id != channel_id:
                 self._consume_channel_id = channel_id
                 self._consumer_tag = None
 
             if self._consumer_tag is None:
-                self._consumer_tag = self.channel.basic_consume(
+                self._consumer_tag = channel.basic_consume(
                     queue=self.queue_name,
                     on_message_callback=self._on_message,
                     auto_ack=self.auto_ack,
@@ -383,7 +396,7 @@ class RabbitMQSubscriber(EventSubscriber):
             logger.info("Started consuming events")
 
             try:
-                self.channel.start_consuming()
+                channel.start_consuming()
                 # start_consuming normally only returns after stop_consuming() is called.
                 if self._shutdown_requested:
                     break
