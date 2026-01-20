@@ -25,6 +25,12 @@ param enableHierarchicalNamespace bool = false
 @description('Blob container names to create')
 param containerNames array = ['archives']
 
+@description('Azure Files share names to create')
+param fileShareNames array = []
+
+@description('File share quota in GB (default 100GB per share)')
+param fileShareQuotaGb int = 100
+
 @description('Managed identity principal IDs that need Storage Blob Data Contributor access')
 param contributorPrincipalIds array = []
 
@@ -101,6 +107,28 @@ resource containers 'Microsoft.Storage/storageAccounts/blobServices/containers@2
   }
 }]
 
+// File Service
+resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-01-01' = if (length(fileShareNames) > 0) {
+  parent: storageAccount
+  name: 'default'
+  properties: {
+    shareDeleteRetentionPolicy: {
+      enabled: true
+      days: 7
+    }
+  }
+}
+
+// Create file shares
+resource fileShares 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = [for shareName in fileShareNames: {
+  parent: fileService
+  name: shareName
+  properties: {
+    shareQuota: fileShareQuotaGb
+    enabledProtocols: 'SMB'
+  }
+}]
+
 // RBAC: Assign Storage Blob Data Contributor role to managed identities
 // Role definition ID for Storage Blob Data Contributor: ba92f5b4-2d11-453d-a403-e96b0029c9fe
 var storageBlobDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
@@ -129,3 +157,9 @@ output primaryEndpoints object = storageAccount.properties.primaryEndpoints
 
 @description('Container names created')
 output containerNames array = containerNames
+
+@description('File share names created')
+output fileShareNames array = fileShareNames
+
+@description('Storage Account primary key (for Azure Files volume mounts)')
+output accountKey string = listKeys(storageAccount.id, '2023-01-01').keys[0].value

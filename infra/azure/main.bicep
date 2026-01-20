@@ -125,6 +125,15 @@ param enablePrivateAccess bool = false
 @description('Enable Azure RBAC authorization for Key Vault with per-secret access control. STRONGLY RECOMMENDED for production to enforce least-privilege principles.')
 param enableRbacAuthorization bool = true
 
+@description('Enable Azure Files storage for application logs (CSV format)')
+param enableAzureFilesLogging bool = true
+
+@description('Enable Blob storage archiving for ACA platform logs (NDJSON format)')
+param enableBlobLogArchiving bool = true
+
+@description('Enable optional converter job to transform NDJSON logs to CSV')
+param enableLogConverterJob bool = false
+
 param tags object = {
   environment: environment
   project: 'copilot-for-consensus'
@@ -304,7 +313,9 @@ module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
     sku: environment == 'prod' ? 'Standard_GRS' : 'Standard_LRS'
     accessTier: 'Hot'
     enableHierarchicalNamespace: false
-    containerNames: ['archives']
+    containerNames: concat(['archives'], enableBlobLogArchiving ? ['logs-raw'] : [])
+    fileShareNames: enableAzureFilesLogging ? ['logs-csv'] : []
+    fileShareQuotaGb: 100
     // SECURITY: Only grant blob access to services that actually need it
     // ingestion: stores raw email archives, parsing: reads archives for processing
     contributorPrincipalIds: [
@@ -734,6 +745,9 @@ output storageAccountName string = deployContainerApps ? storageModule!.outputs.
 output storageAccountId string = deployContainerApps ? storageModule!.outputs.accountId : ''
 output storageBlobEndpoint string = deployContainerApps ? storageModule!.outputs.blobEndpoint : ''
 output storageContainerNames array = deployContainerApps ? storageModule!.outputs.containerNames : []
+output storageFileShareNames array = deployContainerApps ? storageModule!.outputs.fileShareNames : []
+output enableAzureFilesLogging bool = enableAzureFilesLogging
+output enableBlobLogArchiving bool = enableBlobLogArchiving
 // Azure OpenAI outputs - references to Core RG resources
 output coreKeyVaultResourceId string = coreKeyVaultResourceId
 output coreKeyVaultName string = coreKeyVaultName
