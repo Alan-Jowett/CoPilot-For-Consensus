@@ -12,7 +12,7 @@ import json
 import random
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
@@ -88,12 +88,16 @@ class ParsedRecord:
 _DOCKER_PREFIX_RE = re.compile(r"^(?P<service>[^|]+?)\s*\|\s*(?P<payload>.*)$")
 
 
+# ISO 8601 timestamp pattern. Allows both 'T' and ' ' separators for compatibility.
+# Optional 'Z' suffix and fractional seconds for flexibility across log formats.
 _ISO_TS_RE = re.compile(
     r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b"
 )
 _GUID_RE = re.compile(
     r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b"
 )
+# IP regex intentionally over-matches (e.g. 999.999.999.999) for log normalization safety.
+# For template mining, over-matching is safer than under-matching.
 _IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _HEX_RE = re.compile(r"\b0x[0-9a-fA-F]+\b")
 _INT_RE = re.compile(r"\b\d+\b")
@@ -305,13 +309,15 @@ def _iter_azure_law_records_from_obj(
                 # Best-effort: skip malformed rows
                 continue
 
-            row_dict = dict(zip(column_names, row, strict=False))
+            row_dict = dict(zip(column_names, row, strict=True))
             yield from _iter_azure_console_records_from_obj(row_dict, config)
 
 
 def _load_json_file_best_effort(path: Path) -> Any:
-    # Best-effort load for azure console exports. If the file is huge, this can be memory heavy.
-    return json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    # Best-effort load for azure console exports.
+    # Use json.load on a file object to avoid an extra full-file string copy in memory.
+    with path.open("r", encoding="utf-8", errors="replace") as f:
+        return json.load(f)
 
 
 def iter_records(
@@ -407,15 +413,15 @@ def iter_records(
             head_obj = None
 
         if isinstance(head_obj, dict) and ("tables" in head_obj or "Tables" in head_obj):
-            config = MiningConfig(**{**config.__dict__, "input_format": "azure-law"})
+            new_config = replace(config, input_format="azure-law")
         else:
-            config = MiningConfig(**{**config.__dict__, "input_format": "azure-console"})
+            new_config = replace(config, input_format="azure-console")
 
-        yield from iter_records(sys_stdin=False, input_path=input_path, config=config)
+        yield from iter_records(sys_stdin=False, input_path=input_path, config=new_config)
     else:
         # Assume docker compose logs
-        config = MiningConfig(**{**config.__dict__, "input_format": "docker"})
-        yield from iter_records(sys_stdin=False, input_path=input_path, config=config)
+        new_config = replace(config, input_format="docker")
+        yield from iter_records(sys_stdin=False, input_path=input_path, config=new_config)
 
 
 def _reservoir_add(samples: list[str], sample: str, k: int, seen: int) -> None:
@@ -434,7 +440,7 @@ def mine_logs(*, sys_stdin: bool, input_path: Path | None, config: MiningConfig)
     try:
         from drain3.template_miner import TemplateMiner
         from drain3.template_miner_config import TemplateMinerConfig
-    except Exception as e:  # pragma: no cover
+    except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
         raise RuntimeError(
             "Missing dependency 'drain3'. Install via: pip install -r scripts/requirements.txt"
         ) from e

@@ -6,6 +6,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.log_mining.cli import main
 from scripts.log_mining.mining import MiningMeta, MiningResult
 
@@ -27,7 +29,7 @@ def _minimal_result(*, input_path: str = "stdin") -> MiningResult:
     return MiningResult(meta=meta, templates=[], anomalies={})
 
 
-def test_cli_main_mines_and_writes_json(monkeypatch, tmp_path: Path) -> None:
+def test_cli_main_mines_and_writes_json(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     in_path = tmp_path / "in.txt"
     in_path.write_text("hello\n", encoding="utf-8")
 
@@ -49,7 +51,7 @@ def test_cli_main_mines_and_writes_json(monkeypatch, tmp_path: Path) -> None:
     assert out_json.exists()
 
 
-def test_cli_main_input_is_report_renders_markdown(monkeypatch, tmp_path: Path) -> None:
+def test_cli_main_input_is_report_renders_markdown(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     report_json = tmp_path / "report.json"
     report_json.write_text(json.dumps({"meta": {}, "templates": [], "anomalies": {}}), encoding="utf-8")
 
