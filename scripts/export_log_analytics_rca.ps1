@@ -94,6 +94,10 @@ function Invoke-LawQuery {
         --timespan $Timespan `
         -o json | Out-File -Encoding utf8 $outPath
 
+    if ($LASTEXITCODE -ne 0) {
+        throw "Azure CLI log-analytics query '$Name' failed with exit code $LASTEXITCODE."
+    }
+
     return $outPath
 }
 
@@ -304,6 +308,14 @@ ContainerAppConsoleLogs_CL
 "@
 
 # 9) Auth JWKS issues (often shows up during cold starts / dependency ordering)
+$jwksConnectionRefusedCountKql = @"
+ContainerAppConsoleLogs_CL
+| extend l=parse_json(Log_s)
+| extend msg=tostring(l.message)
+| where msg has 'JWKS fetch attempt' and msg has 'Connection refused'
+| summarize cnt=count()
+"@
+
 $jwksConnectionRefusedByAppKql = @"
 ContainerAppConsoleLogs_CL
 | extend l=parse_json(Log_s)
@@ -311,6 +323,16 @@ ContainerAppConsoleLogs_CL
 | where msg has 'JWKS fetch attempt' and msg has 'Connection refused'
 | summarize cnt=count() by ContainerAppName_s
 | top 50 by cnt desc
+"@
+
+$jwksConnectionRefusedSampleKql = @"
+ContainerAppConsoleLogs_CL
+| extend l=parse_json(Log_s)
+| extend level=tostring(l.level), logger=tostring(l.logger), msg=tostring(l.message)
+| where msg has 'JWKS fetch attempt' and msg has 'Connection refused'
+| project TimeGenerated, ContainerAppName_s, level, logger, msg
+| order by TimeGenerated desc
+| take $SampleSize
 "@
 
 # 10) Quick leaderboard of ERROR messages (truncated) to find Azure-specific failures not covered above
@@ -350,7 +372,9 @@ $exports.archive_not_found_sample = Invoke-LawQuery -Name 'archive_not_found_sam
 $exports.retry_exhausted_count = Invoke-LawQuery -Name 'retry_exhausted_count' -Kql $retryExhaustedCountKql
 $exports.retry_exhausted_by_app = Invoke-LawQuery -Name 'retry_exhausted_by_app' -Kql $retryExhaustedByAppKql
 $exports.retry_exhausted_sample = Invoke-LawQuery -Name 'retry_exhausted_sample' -Kql $retryExhaustedSampleKql
+$exports.jwks_connection_refused_count = Invoke-LawQuery -Name 'jwks_connection_refused_count' -Kql $jwksConnectionRefusedCountKql
 $exports.jwks_connection_refused_by_app = Invoke-LawQuery -Name 'jwks_connection_refused_by_app' -Kql $jwksConnectionRefusedByAppKql
+$exports.jwks_connection_refused_sample = Invoke-LawQuery -Name 'jwks_connection_refused_sample' -Kql $jwksConnectionRefusedSampleKql
 $exports.top_error_messages = Invoke-LawQuery -Name 'top_error_messages' -Kql $topErrorMessagesKql
 
 $manifestPath = Join-Path $OutDir 'manifest.json'
