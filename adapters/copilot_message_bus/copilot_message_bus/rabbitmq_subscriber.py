@@ -47,6 +47,7 @@ class RabbitMQSubscriber(EventSubscriber):
         blocked_connection_timeout: int = 600,
         max_reconnect_attempts: int = 10,
         reconnect_delay: float = 2.0,
+        max_reconnect_delay: float = 60.0,
     ):
         """Initialize RabbitMQ subscriber.
 
@@ -68,6 +69,7 @@ class RabbitMQSubscriber(EventSubscriber):
                                        2x the heartbeat interval.
             max_reconnect_attempts: Maximum number of reconnection attempts per cycle
             reconnect_delay: Base delay between reconnection attempts in seconds
+            max_reconnect_delay: Maximum delay between reconnection attempts (default: 60.0)
 
         Raises:
             ValueError: For invalid initialization parameters
@@ -85,6 +87,7 @@ class RabbitMQSubscriber(EventSubscriber):
         self.blocked_connection_timeout = blocked_connection_timeout
         self.max_reconnect_attempts = max_reconnect_attempts
         self.reconnect_delay = reconnect_delay
+        self.max_reconnect_delay = max_reconnect_delay
 
         self.connection: Any = None  # pika.BlockingConnection after connect()
         self.channel: Any = None  # pika.channel.Channel after connect()
@@ -93,6 +96,7 @@ class RabbitMQSubscriber(EventSubscriber):
         self._subscriptions: list[tuple[str, str, str | None]] = []  # (event_type, routing_key, exchange)
         self._last_reconnect_time = 0.0
         self._reconnect_count = 0
+        self._shutdown_requested = False
 
     @classmethod
     def from_config(cls, driver_config: DriverConfig_MessageBus_Rabbitmq) -> "RabbitMQSubscriber":
@@ -229,7 +233,7 @@ class RabbitMQSubscriber(EventSubscriber):
         # Circuit breaker with exponential backoff: prevent rapid reconnection attempts
         time_since_last_reconnect = current_time - self._last_reconnect_time
         # Exponential backoff with jitter and reasonable cap
-        backoff_delay = min(self.reconnect_delay * (2 ** self._reconnect_count), 60.0)
+        backoff_delay = min(self.reconnect_delay * (2 ** self._reconnect_count), self.max_reconnect_delay)
         # Add jitter (±20%) to prevent thundering herd
         jitter = backoff_delay * 0.2 * (random.random() * 2 - 1)
         backoff_with_jitter = max(0.0, backoff_delay + jitter)
@@ -338,6 +342,7 @@ class RabbitMQSubscriber(EventSubscriber):
 
         This method will automatically reconnect and resume consuming if the
         connection or channel is closed by the broker (e.g., due to ack timeout).
+        The reconnection loop can be stopped by calling stop_consuming() or via KeyboardInterrupt.
 
         Raises:
             RuntimeError: If not connected to RabbitMQ initially
@@ -345,7 +350,9 @@ class RabbitMQSubscriber(EventSubscriber):
         if not self.channel:
             raise RuntimeError("Not connected. Call connect() first.")
 
-        while True:
+        self._shutdown_requested = False
+
+        while not self._shutdown_requested:
             try:
                 if not self._is_connected():
                     logger.warning("Not connected, attempting to reconnect...")
@@ -398,17 +405,22 @@ class RabbitMQSubscriber(EventSubscriber):
 
             except KeyboardInterrupt:
                 logger.info("Exiting consumer loop due to keyboard interrupt")
+                self._shutdown_requested = True
                 break
             except Exception as e:
                 logger.error(f"Error in consumer loop: {e}, will attempt to reconnect...")
-                time.sleep(self.reconnect_delay)
+                if not self._shutdown_requested:
+                    time.sleep(self.reconnect_delay)
 
     def stop_consuming(self) -> None:
         """Stop consuming events gracefully.
 
+        Sets the shutdown flag to exit the reconnection loop and stops
+        the current consuming operation if active.
         Handles potential exceptions during stop to prevent
         shutdown race conditions.
         """
+        self._shutdown_requested = True
         if self.channel and self._consuming:
             try:
                 self.channel.stop_consuming()
