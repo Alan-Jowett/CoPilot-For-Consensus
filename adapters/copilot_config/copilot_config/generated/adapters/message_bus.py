@@ -20,7 +20,8 @@ class DriverConfig_MessageBus_AzureServiceBus:
     connection_string: str | None = None
     # Azure Service Bus connection string (used when not using managed identity)
     max_auto_lock_renewal_duration: int = 3600
-    # Maximum time (seconds) to auto-renew a peek-lock message while it is being processed. Increase for long-running handlers. Set to 0 to disable auto-renewal.
+    # Maximum time (seconds) to auto-renew a peek-lock message while it is being processed. Increase for long-running
+    # handlers. Set to 0 to disable auto-renewal.
     max_wait_time: int = 5
     # Maximum time to wait for messages in seconds
     queue_name: str | None = None
