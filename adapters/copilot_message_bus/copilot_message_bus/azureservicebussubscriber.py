@@ -287,17 +287,6 @@ class AzureServiceBusSubscriber(EventSubscriber):
                                         receiver.abandon_message(msg)
                                     except Exception as abandon_error:
                                         logger.error(f"Error abandoning message: {abandon_error}")
-                            finally:
-                                if renewer is not None:
-                                    # Explicitly unregister to stop lock renewal promptly
-                                    # after this message has been processed. Some SDK versions
-                                    # may not expose unregister(), so guard the call.
-                                    unregister = getattr(renewer, "unregister", None)
-                                    if callable(unregister):
-                                        try:
-                                            unregister(msg)
-                                        except Exception as e:
-                                            logger.debug(f"Failed to unregister auto-lock renewer: {e}")
 
                     except KeyboardInterrupt:
                         logger.info("Received keyboard interrupt, stopping consumption")
