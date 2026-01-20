@@ -357,3 +357,64 @@ class TestAzureServiceBusSubscriberProcessMessage:
 
 # Note: Integration tests would require an actual Azure Service Bus instance
 # and would be similar to test_integration_rabbitmq.py but adapted for Azure
+
+
+
+class TestAzureServiceBusSubscriberStartConsuming:
+    """Unit tests for start_consuming behavior without an Azure dependency."""
+
+    def test_peek_lock_uses_single_message_and_renews_lock(self, monkeypatch):
+        from copilot_message_bus import azureservicebussubscriber as module
+
+        subscriber = AzureServiceBusSubscriber(
+            connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
+            queue_name="test-queue",
+            auto_complete=False,
+            max_wait_time=0,
+            max_auto_lock_renewal_duration=123,
+        )
+
+        # Pretend the Azure SDK is available by patching receive mode and auto-lock renewer.
+        class _ReceiveMode:
+            PEEK_LOCK = object()
+            RECEIVE_AND_DELETE = object()
+
+        created = {}
+
+        class _Renewer:
+            def __init__(self):
+                self.register_calls = []
+                created["renewer"] = self
+
+            def register(self, receiver, msg, max_lock_renewal_duration):
+                self.register_calls.append((receiver, msg, max_lock_renewal_duration))
+
+            def close(self):
+                return None
+
+        monkeypatch.setattr(module, "ServiceBusReceiveMode", _ReceiveMode)
+        monkeypatch.setattr(module, "AutoLockRenewer", _Renewer)
+
+        receiver = Mock()
+        receiver.__enter__ = Mock(return_value=receiver)
+        receiver.__exit__ = Mock(return_value=False)
+        receiver.complete_message = Mock()
+        receiver.abandon_message = Mock()
+
+        msg = Mock()
+        msg.body = [b'{"event_type":"TestEvent","event_id":"1"}']
+
+        def _callback(_event):
+            subscriber.stop_consuming()
+
+        subscriber.client = Mock()
+        subscriber.client.get_queue_receiver = Mock(return_value=receiver)
+        subscriber.subscribe("TestEvent", _callback)
+
+        receiver.receive_messages = Mock(side_effect=[[msg], []])
+
+        subscriber.start_consuming()
+
+        receiver.receive_messages.assert_any_call(max_message_count=1, max_wait_time=0)
+        assert created["renewer"].register_calls == [(receiver, msg, 123)]
+
