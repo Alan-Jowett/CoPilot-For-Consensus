@@ -283,9 +283,12 @@ class SummarizationService:
                         thread_id=thread_id, selected_chunks=selected_chunks
                     )
                 else:
+                    # DEPRECATED: Fallback to document store query for backward compatibility
+                    # This path should be removed once all orchestrators pass selected_chunks
+                    # TODO: Add deprecation warning metrics and set removal timeline
                     logger.warning(
                         f"No pre-selected chunks provided for thread {thread_id}, "
-                        f"falling back to document store query"
+                        f"falling back to document store query (deprecated)"
                     )
                     context = self._retrieve_context(thread_id, top_k)
 

@@ -11,6 +11,11 @@ from .context_selector import ContextSelection, ContextSelector, SelectedChunk
 
 logger = get_logger(__name__)
 
+# Token estimation heuristic: multiply word count by this factor to account for
+# punctuation, subword tokenization, and special tokens. Based on empirical
+# observation that English text averages ~1.3 tokens per word.
+TOKEN_ESTIMATION_MULTIPLIER = 1.3
+
 
 class TopKRelevanceSelector(ContextSelector):
     """Select top-k chunks by relevance (similarity score).
@@ -142,8 +147,8 @@ class TopKRelevanceSelector(ContextSelector):
     def _default_token_estimator(text: str) -> int:
         """Default token estimator using word count heuristic.
 
-        Uses a simple heuristic: word count * 1.3 (accounts for punctuation,
-        subword tokens, etc.).
+        Uses a simple heuristic: word count * TOKEN_ESTIMATION_MULTIPLIER
+        (accounts for punctuation, subword tokens, etc.).
 
         Args:
             text: Text to estimate token count for
@@ -155,7 +160,7 @@ class TopKRelevanceSelector(ContextSelector):
             return 0
 
         word_count = len(text.split())
-        return int(word_count * 1.3)
+        return int(word_count * TOKEN_ESTIMATION_MULTIPLIER)
 
 
 class TopKCohesiveSelector(ContextSelector):
@@ -202,12 +207,15 @@ class TopKCohesiveSelector(ContextSelector):
         Returns:
             ContextSelection with ordered chunks
         """
+        # TODO: Implement cohesion-based selection strategy
+        # Future implementation will use clustering or graph-based approaches to select
+        # chunks that form a cohesive subset (e.g., densest-subgraph, MMR, or cluster centers).
+        # For now, fall back to relevance-based selection.
         logger.warning(
             f"TopKCohesiveSelector not fully implemented yet, falling back to relevance-based selection"
         )
 
         # For now, use same logic as TopKRelevanceSelector
-        # In the future, this will compute cohesion scores and cluster-based selection
         selector = TopKRelevanceSelector(token_estimator=self.token_estimator)
         result = selector.select(thread_id, candidates, top_k, context_window_tokens)
 

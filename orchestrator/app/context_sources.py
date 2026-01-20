@@ -13,6 +13,10 @@ from .context_selector import ContextSource
 
 logger = get_logger(__name__)
 
+# Default similarity score when vector store is unavailable or no query vector provided
+# 0.5 represents a neutral score, indicating no information about relevance
+NEUTRAL_SIMILARITY_SCORE = 0.5
+
 
 class ThreadChunksSource(ContextSource):
     """Context source that retrieves chunks for a thread from vector store.
@@ -62,7 +66,7 @@ class ThreadChunksSource(ContextSource):
 
             # Assign neutral score since we're not using vector similarity
             for chunk in chunks:
-                chunk["similarity_score"] = 0.5
+                chunk["similarity_score"] = NEUTRAL_SIMILARITY_SCORE
 
             return chunks
 
@@ -115,7 +119,7 @@ class ThreadChunksSource(ContextSource):
 
             # Assign neutral score
             for chunk in chunks:
-                chunk["similarity_score"] = 0.5
+                chunk["similarity_score"] = NEUTRAL_SIMILARITY_SCORE
 
             return chunks
 
