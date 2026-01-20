@@ -202,8 +202,9 @@ class OpenAISummarizer(Summarizer):
             # Extract retry-after from exception if available
             # The OpenAI library may include this in the response headers
             retry_after = None
-            if hasattr(exception, "response") and exception.response is not None:
-                headers = getattr(exception.response, "headers", {})
+            response = getattr(exception, "response", None)
+            if response is not None:
+                headers = getattr(response, "headers", {})
                 if isinstance(headers, dict):
                     # Azure OpenAI uses 'retry-after-ms' or 'retry-after' header
                     retry_after_ms = headers.get("retry-after-ms")
