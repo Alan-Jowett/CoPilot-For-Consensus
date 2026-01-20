@@ -275,9 +275,14 @@ class SummarizationService:
 
                 # Retrieve context using pre-selected chunks if provided
                 if selected_chunks:
+                    selector_type = (
+                        context_selection.get("selector_type", "unknown")
+                        if context_selection is not None
+                        else "unknown"
+                    )
                     logger.info(
                         f"Using {len(selected_chunks)} pre-selected chunks from orchestrator "
-                        f"(strategy: {context_selection.get('selector_type', 'unknown')})"
+                        f"(strategy: {selector_type})"
                     )
                     context = self._retrieve_context_from_selected_chunks(
                         thread_id=thread_id, selected_chunks=selected_chunks
