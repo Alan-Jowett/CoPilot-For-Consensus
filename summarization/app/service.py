@@ -266,11 +266,6 @@ class SummarizationService:
             context_selection: Selection metadata from orchestrator (optional).
                 Should include: selector_type, selector_version, selection_params, etc.
         """
-            context_window_tokens: Token budget for context
-            prompt_template: Prompt template with placeholders to substitute
-            selected_chunks: Pre-selected chunks from orchestrator (optional)
-            context_selection: Selection metadata from orchestrator (optional)
-        """
         start_time = time.time()
         retry_count = 0
 
