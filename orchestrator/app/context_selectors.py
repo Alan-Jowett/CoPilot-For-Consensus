@@ -3,7 +3,7 @@
 
 """Context selector implementations for orchestrator."""
 
-from typing import Any
+from typing import Any, Callable
 
 from copilot_logging import get_logger
 
@@ -27,7 +27,7 @@ class TopKRelevanceSelector(ContextSelector):
 
     VERSION = "1.0.0"
 
-    def __init__(self, token_estimator: callable[[str], int] | None = None):
+    def __init__(self, token_estimator: Callable[[str], int] | None = None):
         """Initialize top-k relevance selector.
 
         Args:
@@ -181,7 +181,7 @@ class TopKCohesiveSelector(ContextSelector):
     VERSION = "1.0.0"
     _warning_logged = False  # Class variable to track if warning has been logged
 
-    def __init__(self, token_estimator: callable[[str], int] | None = None):
+    def __init__(self, token_estimator: Callable[[str], int] | None = None):
         """Initialize top-k cohesive selector.
 
         Args:

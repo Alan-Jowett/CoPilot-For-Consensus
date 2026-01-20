@@ -1436,3 +1436,149 @@ def test_generate_summary_id_empty_citations(summarization_service):
     # Same thread with no citations should produce same ID
     id2 = summarization_service._generate_summary_id("1111222233334444", [])
     assert id1 == id2
+
+
+def test_retrieve_context_from_selected_chunks_success(summarization_service):
+    """Test _retrieve_context_from_selected_chunks with valid selected chunks."""
+    selected_chunks = [
+        {"chunk_id": "chunk1", "source": "thread_chunks", "score": 0.9, "rank": 0},
+        {"chunk_id": "chunk2", "source": "thread_chunks", "score": 0.8, "rank": 1},
+    ]
+
+    # Mock document store to return chunks
+    summarization_service.document_store.query_documents.return_value = [
+        {"_id": "chunk1", "text": "text1", "thread_id": "thread1"},
+        {"_id": "chunk2", "text": "text2", "thread_id": "thread1"},
+    ]
+
+    context = summarization_service._retrieve_context_from_selected_chunks(
+        thread_id="thread1",
+        selected_chunks=selected_chunks
+    )
+
+    # Verify document store was queried with correct chunk_ids
+    summarization_service.document_store.query_documents.assert_called_once_with(
+        collection="chunks",
+        filter_dict={"_id": {"$in": ["chunk1", "chunk2"]}},
+        limit=2
+    )
+
+    # Verify context structure
+    assert len(context["messages"]) == 2
+    assert context["messages"][0] == "text1"
+    assert context["messages"][1] == "text2"
+    assert len(context["chunks"]) == 2
+    
+    # Verify selection metadata is added to chunks
+    assert context["chunks"][0]["selection_score"] == 0.9
+    assert context["chunks"][0]["selection_rank"] == 0
+    assert context["chunks"][0]["selection_source"] == "thread_chunks"
+    assert context["chunks"][1]["selection_score"] == 0.8
+    assert context["chunks"][1]["selection_rank"] == 1
+
+
+def test_retrieve_context_from_selected_chunks_preserves_order(summarization_service):
+    """Test that _retrieve_context_from_selected_chunks preserves selection order."""
+    selected_chunks = [
+        {"chunk_id": "chunk2", "source": "thread_chunks", "score": 0.9, "rank": 0},
+        {"chunk_id": "chunk1", "source": "thread_chunks", "score": 0.8, "rank": 1},
+    ]
+
+    # Return chunks in different order than selected
+    summarization_service.document_store.query_documents.return_value = [
+        {"_id": "chunk1", "text": "text1"},
+        {"_id": "chunk2", "text": "text2"},
+    ]
+
+    context = summarization_service._retrieve_context_from_selected_chunks(
+        thread_id="thread1",
+        selected_chunks=selected_chunks
+    )
+
+    # Verify order matches selected_chunks, not document store return order
+    assert context["chunks"][0]["_id"] == "chunk2"
+    assert context["chunks"][1]["_id"] == "chunk1"
+
+
+def test_retrieve_context_from_selected_chunks_empty(summarization_service):
+    """Test _retrieve_context_from_selected_chunks with empty selected_chunks."""
+    context = summarization_service._retrieve_context_from_selected_chunks(
+        thread_id="thread1",
+        selected_chunks=[]
+    )
+
+    assert context["messages"] == []
+    assert context["chunks"] == []
+
+
+def test_retrieve_context_from_selected_chunks_missing_chunk_ids(summarization_service):
+    """Test _retrieve_context_from_selected_chunks with invalid chunk data."""
+    selected_chunks = [
+        {"source": "thread_chunks", "score": 0.9, "rank": 0},  # Missing chunk_id
+        {"chunk_id": None, "source": "thread_chunks", "score": 0.8, "rank": 1},  # None chunk_id
+    ]
+
+    context = summarization_service._retrieve_context_from_selected_chunks(
+        thread_id="thread1",
+        selected_chunks=selected_chunks
+    )
+
+    # Should handle gracefully and return empty
+    assert context["messages"] == []
+    assert context["chunks"] == []
+
+
+def test_retrieve_context_from_selected_chunks_missing_in_store(summarization_service, caplog):
+    """Test _retrieve_context_from_selected_chunks when chunks missing from document store."""
+    import logging
+    
+    selected_chunks = [
+        {"chunk_id": "chunk1", "source": "thread_chunks", "score": 0.9, "rank": 0},
+        {"chunk_id": "chunk2", "source": "thread_chunks", "score": 0.8, "rank": 1},
+        {"chunk_id": "chunk3", "source": "thread_chunks", "score": 0.7, "rank": 2},
+    ]
+
+    # Only return 2 of 3 chunks (chunk3 missing)
+    summarization_service.document_store.query_documents.return_value = [
+        {"_id": "chunk1", "text": "text1"},
+        {"_id": "chunk2", "text": "text2"},
+    ]
+
+    with caplog.at_level(logging.WARNING):
+        context = summarization_service._retrieve_context_from_selected_chunks(
+            thread_id="thread1",
+            selected_chunks=selected_chunks
+        )
+
+    # Verify only 2 chunks returned (missing one skipped)
+    assert len(context["chunks"]) == 2
+    assert context["chunks"][0]["_id"] == "chunk1"
+    assert context["chunks"][1]["_id"] == "chunk2"
+
+    # Verify warning was logged about missing chunk
+    assert any("Data inconsistency" in record.message for record in caplog.records)
+    assert any("chunk3" in record.message for record in caplog.records)
+
+
+def test_retrieve_context_from_selected_chunks_validates_dict_type(summarization_service):
+    """Test _retrieve_context_from_selected_chunks validates chunk dict type."""
+    selected_chunks = [
+        {"chunk_id": "chunk1", "source": "thread_chunks", "score": 0.9, "rank": 0},
+        None,  # Invalid - not a dict
+        "invalid",  # Invalid - not a dict
+        {"chunk_id": "chunk2", "source": "thread_chunks", "score": 0.8, "rank": 1},
+    ]
+
+    summarization_service.document_store.query_documents.return_value = [
+        {"_id": "chunk1", "text": "text1"},
+        {"_id": "chunk2", "text": "text2"},
+    ]
+
+    context = summarization_service._retrieve_context_from_selected_chunks(
+        thread_id="thread1",
+        selected_chunks=selected_chunks
+    )
+
+    # Should only process valid dict entries
+    assert len(context["chunks"]) == 2
+

@@ -218,3 +218,190 @@ class TestContextSourceFactory:
 
         with pytest.raises(ValueError, match="Unknown source type"):
             create_context_source("invalid_source", mock_doc_store, mock_vector_store)
+
+
+class TestThreadChunksSource:
+    """Tests for ThreadChunksSource.get_candidates method."""
+
+    def test_get_candidates_with_query_vector(self):
+        """Test get_candidates with query_vector (vector store path)."""
+        from app.context_sources import ThreadChunksSource
+
+        mock_doc_store = Mock()
+        mock_vector_store = Mock()
+
+        # Mock vector store query results
+        mock_vector_store.query.return_value = [
+            {"chunk_id": "chunk1", "similarity_score": 0.9},
+            {"chunk_id": "chunk2", "similarity_score": 0.8},
+            {"chunk_id": "chunk3", "similarity_score": 0.7},
+        ]
+
+        # Mock document store query for full chunk data
+        mock_doc_store.query_documents.return_value = [
+            {"_id": "chunk1", "text": "text1", "thread_id": "thread1"},
+            {"_id": "chunk2", "text": "text2", "thread_id": "thread1"},
+            {"_id": "chunk3", "text": "text3", "thread_id": "thread1"},
+        ]
+
+        source = ThreadChunksSource(mock_doc_store, mock_vector_store)
+        query_vector = [0.1, 0.2, 0.3]
+        
+        candidates = source.get_candidates(
+            thread_id="thread1",
+            query={"query_vector": query_vector, "top_k": 3, "min_score": 0.0}
+        )
+
+        # Verify vector store was queried
+        mock_vector_store.query.assert_called_once_with(query_vector=query_vector, top_k=3)
+        
+        # Verify document store was queried for chunks
+        mock_doc_store.query_documents.assert_called_once()
+        
+        # Verify results
+        assert len(candidates) == 3
+        assert candidates[0]["_id"] == "chunk1"
+        assert candidates[0]["similarity_score"] == 0.9
+        assert candidates[1]["_id"] == "chunk2"
+        assert candidates[1]["similarity_score"] == 0.8
+
+    def test_get_candidates_filters_by_thread_id(self):
+        """Test that get_candidates filters results by thread_id."""
+        from app.context_sources import ThreadChunksSource
+
+        mock_doc_store = Mock()
+        mock_vector_store = Mock()
+
+        # Mock vector store with mixed thread_ids
+        mock_vector_store.query.return_value = [
+            {"chunk_id": "chunk1", "similarity_score": 0.9},
+            {"chunk_id": "chunk2", "similarity_score": 0.8},
+        ]
+
+        # Mock document store with mixed thread_ids
+        mock_doc_store.query_documents.return_value = [
+            {"_id": "chunk1", "text": "text1", "thread_id": "thread1"},
+            {"_id": "chunk2", "text": "text2", "thread_id": "thread2"},  # Different thread
+        ]
+
+        source = ThreadChunksSource(mock_doc_store, mock_vector_store)
+        
+        candidates = source.get_candidates(
+            thread_id="thread1",
+            query={"query_vector": [0.1, 0.2], "top_k": 2}
+        )
+
+        # Should only include chunk1 (thread1)
+        assert len(candidates) == 1
+        assert candidates[0]["_id"] == "chunk1"
+
+    def test_get_candidates_filters_by_min_score(self):
+        """Test that get_candidates filters by min_score threshold."""
+        from app.context_sources import ThreadChunksSource
+
+        mock_doc_store = Mock()
+        mock_vector_store = Mock()
+
+        mock_vector_store.query.return_value = [
+            {"chunk_id": "chunk1", "similarity_score": 0.9},
+            {"chunk_id": "chunk2", "similarity_score": 0.5},
+            {"chunk_id": "chunk3", "similarity_score": 0.3},
+        ]
+
+        mock_doc_store.query_documents.return_value = [
+            {"_id": "chunk1", "text": "text1", "thread_id": "thread1"},
+            {"_id": "chunk2", "text": "text2", "thread_id": "thread1"},
+            {"_id": "chunk3", "text": "text3", "thread_id": "thread1"},
+        ]
+
+        source = ThreadChunksSource(mock_doc_store, mock_vector_store)
+        
+        candidates = source.get_candidates(
+            thread_id="thread1",
+            query={"query_vector": [0.1], "top_k": 10, "min_score": 0.6}
+        )
+
+        # Should only include chunk1 (score 0.9 >= 0.6)
+        assert len(candidates) == 1
+        assert candidates[0]["similarity_score"] == 0.9
+
+    def test_get_candidates_without_query_vector_fallback(self):
+        """Test get_candidates without query_vector (document store fallback)."""
+        from app.context_sources import ThreadChunksSource, DEFAULT_FALLBACK_SIMILARITY_SCORE
+
+        mock_doc_store = Mock()
+        mock_vector_store = Mock()
+
+        # Mock document store query
+        mock_doc_store.query_documents.return_value = [
+            {"_id": "chunk1", "text": "text1", "thread_id": "thread1"},
+            {"_id": "chunk2", "text": "text2", "thread_id": "thread1"},
+        ]
+
+        source = ThreadChunksSource(mock_doc_store, mock_vector_store)
+        
+        candidates = source.get_candidates(
+            thread_id="thread1",
+            query={"top_k": 5}  # No query_vector
+        )
+
+        # Verify vector store was NOT queried
+        mock_vector_store.query.assert_not_called()
+        
+        # Verify document store was queried
+        mock_doc_store.query_documents.assert_called_once_with(
+            collection="chunks",
+            filter_dict={"thread_id": "thread1", "embedding_generated": True},
+            limit=5
+        )
+        
+        # Verify fallback scores assigned
+        assert len(candidates) == 2
+        assert candidates[0]["similarity_score"] == DEFAULT_FALLBACK_SIMILARITY_SCORE
+        assert candidates[1]["similarity_score"] == DEFAULT_FALLBACK_SIMILARITY_SCORE
+
+    def test_get_candidates_empty_results(self):
+        """Test get_candidates with empty results."""
+        from app.context_sources import ThreadChunksSource
+
+        mock_doc_store = Mock()
+        mock_vector_store = Mock()
+
+        mock_vector_store.query.return_value = []
+        mock_doc_store.query_documents.return_value = []
+
+        source = ThreadChunksSource(mock_doc_store, mock_vector_store)
+        
+        candidates = source.get_candidates(
+            thread_id="thread1",
+            query={"query_vector": [0.1], "top_k": 5}
+        )
+
+        assert len(candidates) == 0
+
+    def test_get_candidates_vector_store_failure_fallback(self):
+        """Test that get_candidates falls back to document store on vector store error."""
+        from app.context_sources import ThreadChunksSource, DEFAULT_FALLBACK_SIMILARITY_SCORE
+
+        mock_doc_store = Mock()
+        mock_vector_store = Mock()
+
+        # Mock vector store to raise an exception
+        mock_vector_store.query.side_effect = Exception("Vector store unavailable")
+
+        # Mock document store fallback
+        mock_doc_store.query_documents.return_value = [
+            {"_id": "chunk1", "text": "text1", "thread_id": "thread1"},
+        ]
+
+        source = ThreadChunksSource(mock_doc_store, mock_vector_store)
+        
+        candidates = source.get_candidates(
+            thread_id="thread1",
+            query={"query_vector": [0.1], "top_k": 5}
+        )
+
+        # Should fall back to document store
+        assert len(candidates) == 1
+        assert candidates[0]["similarity_score"] == DEFAULT_FALLBACK_SIMILARITY_SCORE
+
