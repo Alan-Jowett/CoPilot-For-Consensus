@@ -68,7 +68,7 @@
             "source": "env",
             "env_var": "RABBITMQ_HEARTBEAT",
             "default": 300,
-            "description": "Heartbeat interval in seconds (default: 300). Higher values reduce network overhead and prevent disconnects during CPU-intensive tasks. Set to 0 to disable (not recommended)."
+            "description": "Heartbeat interval in seconds (default: 300). Higher values reduce network overhead and prevent disconnects during CPU-intensive tasks. Setting to 0 disables heartbeats entirely, which can lead to undetected connection failures and is strongly discouraged in production."
         },
         "blocked_connection_timeout": {
             "type": "int",

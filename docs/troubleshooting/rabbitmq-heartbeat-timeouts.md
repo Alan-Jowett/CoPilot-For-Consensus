@@ -166,4 +166,4 @@ To verify the fix is working:
 
 - [RabbitMQ Heartbeats Documentation](https://www.rabbitmq.com/heartbeats.html)
 - [pika Connection Parameters](https://pika.readthedocs.io/en/stable/modules/parameters.html)
-- [Issue: Investigate RabbitMQ heartbeat timeouts](https://github.com/Alan-Jowett/CoPilot-For-Consensus)
+- [GitHub Issue: messagebus: Investigate RabbitMQ 'missed heartbeats from client' timeouts in docker-compose runs](https://github.com/Alan-Jowett/CoPilot-For-Consensus)

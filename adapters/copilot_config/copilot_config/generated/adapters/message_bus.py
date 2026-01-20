@@ -61,7 +61,8 @@ class DriverConfig_MessageBus_Rabbitmq:
     # RabbitMQ exchange type
     heartbeat: int = 300
     # Heartbeat interval in seconds (default: 300). Higher values reduce network overhead and prevent disconnects during
-    # CPU-intensive tasks. Set to 0 to disable (not recommended).
+    # CPU-intensive tasks. Setting to 0 disables heartbeats entirely, which can lead to undetected connection failures
+    # and is strongly discouraged in production.
     queue_durable: bool = True
     # Whether the queue survives broker restart
     queue_name: str | None = None
