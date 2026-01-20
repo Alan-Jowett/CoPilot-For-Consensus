@@ -88,15 +88,17 @@ function Invoke-LawQuery {
     $kqlOneLine = ($kqlOneLine -replace "\s+", " ").Trim()
 
     # Keep output compact by using KQL summarize/take.
-    az monitor log-analytics query `
+    $queryOutput = az monitor log-analytics query `
         --workspace $workspaceId `
         --analytics-query $kqlOneLine `
         --timespan $Timespan `
-        -o json | Out-File -Encoding utf8 $outPath
+        -o json
 
     if ($LASTEXITCODE -ne 0) {
         throw "Azure CLI log-analytics query '$Name' failed with exit code $LASTEXITCODE."
     }
+
+    $queryOutput | Out-File -Encoding utf8 $outPath
 
     return $outPath
 }
