@@ -136,10 +136,11 @@ class TestSummarizationForwardProgress:
 
         assert event_data["thread_ids"] == ["thread-abc123"]
         assert event_data["top_k"] == 12
-        assert event_data["llm_backend"] == "ollama"
-        assert event_data["llm_model"] == "mistral"
-        assert event_data["context_window_tokens"] == 4096
         assert event_data["prompt_template"] == "Summarize: {email_chunks}"
+        # Schema only allows thread_ids, top_k, and prompt_template
+        assert "llm_backend" not in event_data
+        assert "llm_model" not in event_data
+        assert "context_window_tokens" not in event_data
 
     @patch("copilot_startup.StartupRequeue")
     def test_requeue_uses_service_configuration(
@@ -180,10 +181,11 @@ class TestSummarizationForwardProgress:
         event_data = build_event_data(test_doc)
 
         assert event_data["top_k"] == 20
-        assert event_data["llm_backend"] == "azure"
-        assert event_data["llm_model"] == "gpt-4"
-        assert event_data["context_window_tokens"] == 8192
         assert event_data["prompt_template"] == "Custom prompt: {email_chunks}"
+        # Schema only allows thread_ids, top_k, and prompt_template
+        assert "llm_backend" not in event_data
+        assert "llm_model" not in event_data
+        assert "context_window_tokens" not in event_data
 
     @patch("copilot_startup.StartupRequeue")
     def test_no_requeue_when_disabled(self, mock_requeue_class, summarization_service):
@@ -329,10 +331,14 @@ class TestSummarizationForwardProgress:
 
         # Verify default values
         assert event_data["top_k"] == 12  # Default from __init__
-        assert event_data["llm_backend"] == "local"  # Default from __init__
-        assert event_data["llm_model"] == "mistral"  # Default from __init__
-        assert event_data["context_window_tokens"] == 4096  # Default from __init__
-        assert event_data["prompt_template"] == ""  # Default from __init__
+        # New default is a non-empty prompt template
+        assert event_data["prompt_template"]  # Should be non-empty
+        assert len(event_data["prompt_template"]) > 0  # minLength: 1 requirement
+        assert "{email_chunks}" in event_data["prompt_template"]  # Should contain placeholder
+        # Schema only allows thread_ids, top_k, and prompt_template
+        assert "llm_backend" not in event_data
+        assert "llm_model" not in event_data
+        assert "context_window_tokens" not in event_data
 
     @patch("copilot_startup.StartupRequeue")
     def test_requeue_subscribes_after_requeue(self, mock_requeue_class, summarization_service, mock_subscriber):
@@ -378,3 +384,97 @@ class TestSummarizationForwardProgress:
         # Verify collection is threads
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
         assert call_kwargs["collection"] == "threads"
+
+    @patch("copilot_startup.StartupRequeue")
+    def test_requeue_event_data_validates_against_schema(
+        self,
+        mock_requeue_class,
+        summarization_service,
+    ):
+        """Test that requeue event data validates against SummarizationRequested schema."""
+        from .test_helpers import assert_valid_event_schema
+
+        mock_requeue_instance = Mock()
+        mock_requeue_instance.requeue_incomplete = Mock(return_value=1)
+        mock_requeue_class.return_value = mock_requeue_instance
+
+        summarization_service.start(enable_startup_requeue=True)
+
+        # Get the build_event_data function
+        call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
+        build_event_data = call_kwargs["build_event_data"]
+
+        # Build event data for a test document
+        test_doc = {"thread_id": "1234567890abcdef"}
+        event_data = build_event_data(test_doc)
+
+        # Construct a complete event envelope
+        event = {
+            "event_type": "SummarizationRequested",
+            "event_id": "test-event-id-12345678",
+            "timestamp": "2025-01-20T00:00:00Z",
+            "version": "1.0",
+            "data": event_data,
+        }
+
+        # Validate against schema - should not raise
+        assert_valid_event_schema(event)
+
+        # Also verify required fields are present
+        assert "thread_ids" in event_data
+        assert "top_k" in event_data
+        assert "prompt_template" in event_data
+
+        # Verify prompt_template is non-empty (minLength: 1 requirement)
+        assert len(event_data["prompt_template"]) > 0
+
+        # Verify no extra fields that violate additionalProperties: false
+        allowed_fields = {"thread_ids", "top_k", "prompt_template"}
+        assert set(event_data.keys()) == allowed_fields
+
+    @patch("copilot_startup.StartupRequeue")
+    def test_requeue_prompt_template_always_non_empty(
+        self,
+        mock_requeue_class,
+        mock_document_store,
+        mock_vector_store,
+        mock_publisher,
+        mock_subscriber,
+        mock_summarizer,
+    ):
+        """Test that requeue always includes a non-empty prompt_template.
+
+        The SummarizationRequested schema requires prompt_template with minLength: 1.
+        This test ensures that even with default configuration, the prompt_template
+        is never empty.
+        """
+        # Create service with defaults (no explicit prompt_template)
+        service = SummarizationService(
+            document_store=mock_document_store,
+            vector_store=mock_vector_store,
+            publisher=mock_publisher,
+            subscriber=mock_subscriber,
+            summarizer=mock_summarizer,
+        )
+
+        mock_requeue_instance = Mock()
+        mock_requeue_instance.requeue_incomplete = Mock(return_value=1)
+        mock_requeue_class.return_value = mock_requeue_instance
+
+        service.start(enable_startup_requeue=True)
+
+        # Get the build_event_data function
+        call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
+        build_event_data = call_kwargs["build_event_data"]
+
+        # Build event data
+        test_doc = {"thread_id": "test-thread-id"}
+        event_data = build_event_data(test_doc)
+
+        # Verify prompt_template meets schema requirement
+        assert "prompt_template" in event_data
+        assert isinstance(event_data["prompt_template"], str)
+        assert len(event_data["prompt_template"]) >= 1, "prompt_template must have minLength: 1"
+        assert event_data["prompt_template"] != "", "prompt_template cannot be empty"
+
+

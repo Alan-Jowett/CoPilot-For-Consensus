@@ -271,7 +271,7 @@ def main():
             llm_backend=str(config.llm_backend.llm_backend_type),
             llm_model=str(llm_model),
             context_window_tokens=4096,
-            prompt_template="",
+            # Use default prompt_template from service (omit parameter to use default)
         )
 
         subscriber_thread = threading.Thread(
