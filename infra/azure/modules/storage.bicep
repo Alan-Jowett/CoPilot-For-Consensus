@@ -161,5 +161,6 @@ output containerNames array = containerNames
 @description('File share names created')
 output fileShareNames array = fileShareNames
 
-@description('Storage Account primary key (for Azure Files volume mounts)')
+@description('Storage Account primary key (for Azure Files volume mounts). SECURITY: Use managed identity where possible.')
+@secure()
 output accountKey string = listKeys(storageAccount.id, '2023-01-01').keys[0].value

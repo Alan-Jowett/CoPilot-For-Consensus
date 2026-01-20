@@ -23,7 +23,7 @@ import csv
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -192,8 +192,8 @@ def main() -> int:
         return 1
 
     # Calculate lookback window
-    since = datetime.utcnow() - timedelta(hours=args.lookback_hours)
-    print(f"Processing blobs created since {since.isoformat()}Z")
+    since = datetime.now(tz=timezone.utc) - timedelta(hours=args.lookback_hours)
+    print(f"Processing blobs created since {since.isoformat()}")
 
     # List new blobs
     try:

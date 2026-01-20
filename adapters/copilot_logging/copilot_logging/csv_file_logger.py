@@ -6,7 +6,7 @@
 import csv
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -24,6 +24,13 @@ class CSVFileLogger(Logger):
     - Easy parsing with standard tools (Excel, pandas, qsv, etc.)
     - Low storage overhead compared to JSON
     - Schema evolution via the json_extras column
+
+    Thread Safety:
+    - This logger is NOT thread-safe. Each replica should have its own logger instance.
+    - In multi-threaded applications, consider using a thread-safe logging mechanism
+      or implement file locking if multiple threads write to the same logger.
+    - For Container Apps, each replica writes to its own file (replica_id in filename),
+      so thread safety within a single replica is the main concern.
     """
 
     def __init__(
@@ -63,7 +70,7 @@ class CSVFileLogger(Logger):
 
     def _get_log_file_path(self) -> Path:
         """Get current log file path with daily rotation."""
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
 
         # Rotate log file if date changed
         if self._current_date != today:
@@ -90,7 +97,7 @@ class CSVFileLogger(Logger):
         """
         # Extract known fields
         request_id = kwargs.pop("request_id", "")
-        ts = datetime.utcnow().isoformat() + "Z"
+        ts = datetime.now(tz=timezone.utc).isoformat()
 
         # Put remaining fields in json_extras
         json_extras = json.dumps(kwargs, ensure_ascii=False) if kwargs else ""

@@ -24,7 +24,7 @@ param enableSpringAppLogs bool = false
 // Diagnostic settings for Container App
 resource diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: diagnosticSettingsName
-  scope: resourceId('Microsoft.App/containerApps', last(split(containerAppId, '/')))
+  scope: resourceGroup().resources[last(split(containerAppId, '/'))]
   properties: {
     storageAccountId: storageAccountId
     logs: concat(
