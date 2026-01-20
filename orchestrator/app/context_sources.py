@@ -13,12 +13,12 @@ from .context_selector import ContextSource
 
 logger = get_logger(__name__)
 
-# Default similarity score when vector store is unavailable or no query vector provided.
+# Neutral similarity score when vector store is unavailable or no query vector provided.
 # This represents "unknown relevance" rather than "moderate relevance". The value 0.5
 # is used as a neutral placeholder score that doesn't bias selection toward or away
 # from these chunks (since all will have the same score, tie-breaking by chunk_id applies).
 # In practice, when this fallback is used, chunks are effectively sorted alphabetically.
-DEFAULT_FALLBACK_SIMILARITY_SCORE = 0.5
+UNKNOWN_RELEVANCE_SCORE = 0.5
 
 
 class ThreadChunksSource(ContextSource):
@@ -78,7 +78,7 @@ class ThreadChunksSource(ContextSource):
 
             # Assign fallback score since we're not using vector similarity
             for chunk in chunks:
-                chunk["similarity_score"] = DEFAULT_FALLBACK_SIMILARITY_SCORE
+                chunk["similarity_score"] = UNKNOWN_RELEVANCE_SCORE
 
             return chunks
 
@@ -94,7 +94,7 @@ class ThreadChunksSource(ContextSource):
             )
 
             for chunk in chunks:
-                chunk["similarity_score"] = DEFAULT_FALLBACK_SIMILARITY_SCORE
+                chunk["similarity_score"] = UNKNOWN_RELEVANCE_SCORE
 
             return chunks
 
@@ -177,7 +177,7 @@ class ThreadChunksSource(ContextSource):
 
             # Assign fallback score
             for chunk in chunks:
-                chunk["similarity_score"] = DEFAULT_FALLBACK_SIMILARITY_SCORE
+                chunk["similarity_score"] = UNKNOWN_RELEVANCE_SCORE
 
             return chunks
 

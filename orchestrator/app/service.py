@@ -33,13 +33,13 @@ from .context_sources import ThreadChunksSource
 
 logger = get_logger(__name__)
 
-# Candidate pool multiplier for context selection
+# Candidate pool size multiplier for context selection
 # Retrieve N times more candidates than top_k to allow for better selection.
 # Value of 2 provides a good balance: large enough to give selector filtering flexibility
 # (e.g., can apply token budget constraints, diversity filters) while keeping performance
 # reasonable (2x candidates means ~2x vector store query time).
 # This can be increased for higher quality selection at the cost of performance.
-CANDIDATE_POOL_MULTIPLIER = 2
+CANDIDATE_POOL_SIZE_MULTIPLIER = 2
 
 
 class OrchestrationService:
@@ -532,7 +532,7 @@ class OrchestrationService:
             # document store with neutral scores. To enable true relevance-based selection,
             # compute a query vector (e.g., mean of thread embeddings) and pass it here.
             candidates = self.context_source.get_candidates(
-                thread_id=thread_id, query={"top_k": self.top_k * CANDIDATE_POOL_MULTIPLIER}
+                thread_id=thread_id, query={"top_k": self.top_k * CANDIDATE_POOL_SIZE_MULTIPLIER}
             )
 
             if not candidates:

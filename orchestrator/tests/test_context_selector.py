@@ -327,7 +327,7 @@ class TestThreadChunksSource:
 
     def test_get_candidates_without_query_vector_fallback(self):
         """Test get_candidates without query_vector (document store fallback)."""
-        from app.context_sources import ThreadChunksSource, DEFAULT_FALLBACK_SIMILARITY_SCORE
+        from app.context_sources import ThreadChunksSource, UNKNOWN_RELEVANCE_SCORE
 
         mock_doc_store = Mock()
         mock_vector_store = Mock()
@@ -365,8 +365,8 @@ class TestThreadChunksSource:
         
         # Verify fallback scores assigned
         assert len(candidates) == 2
-        assert candidates[0]["similarity_score"] == DEFAULT_FALLBACK_SIMILARITY_SCORE
-        assert candidates[1]["similarity_score"] == DEFAULT_FALLBACK_SIMILARITY_SCORE
+        assert candidates[0]["similarity_score"] == UNKNOWN_RELEVANCE_SCORE
+        assert candidates[1]["similarity_score"] == UNKNOWN_RELEVANCE_SCORE
 
     def test_get_candidates_empty_results(self):
         """Test get_candidates with empty results."""
@@ -389,7 +389,7 @@ class TestThreadChunksSource:
 
     def test_get_candidates_vector_store_failure_fallback(self):
         """Test that get_candidates falls back to document store on vector store error."""
-        from app.context_sources import ThreadChunksSource, DEFAULT_FALLBACK_SIMILARITY_SCORE
+        from app.context_sources import ThreadChunksSource, UNKNOWN_RELEVANCE_SCORE
 
         mock_doc_store = Mock()
         mock_vector_store = Mock()
@@ -411,5 +411,5 @@ class TestThreadChunksSource:
 
         # Should fall back to document store
         assert len(candidates) == 1
-        assert candidates[0]["similarity_score"] == DEFAULT_FALLBACK_SIMILARITY_SCORE
+        assert candidates[0]["similarity_score"] == UNKNOWN_RELEVANCE_SCORE
 

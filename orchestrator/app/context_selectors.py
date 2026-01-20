@@ -81,7 +81,7 @@ class TopKRelevanceSelector(ContextSelector):
         # Select top-k with optional token budget
         selected = []
         total_tokens = 0
-        actual_rank = 0  # Track actual position in final selection
+        selection_index = 0  # Track zero-indexed position in final selection
 
         for chunk in sorted_candidates[:top_k]:
             chunk_id = chunk.get("_id") or chunk.get("chunk_id")
@@ -97,19 +97,19 @@ class TopKRelevanceSelector(ContextSelector):
                 # Check if adding this chunk would exceed budget
                 if total_tokens + chunk_tokens > context_window_tokens:
                     logger.debug(
-                        f"Token budget exceeded at rank {actual_rank} "
+                        f"Token budget exceeded at rank {selection_index} "
                         f"({total_tokens + chunk_tokens} > {context_window_tokens}), stopping selection"
                     )
                     break
 
                 total_tokens += chunk_tokens
 
-            # Create selected chunk with actual rank (0-indexed position in final selection)
+            # Create selected chunk with selection_index (0-indexed position in final selection)
             selected_chunk = SelectedChunk(
                 chunk_id=str(chunk_id),
                 source=chunk.get("source_type", "thread_chunks"),
                 score=chunk.get("similarity_score", 0.0),
-                rank=actual_rank,
+                rank=selection_index,
                 metadata={
                     "message_id": chunk.get("message_id", ""),
                     "message_doc_id": chunk.get("message_doc_id", ""),
@@ -118,7 +118,7 @@ class TopKRelevanceSelector(ContextSelector):
                 },
             )
             selected.append(selected_chunk)
-            actual_rank += 1  # Increment only when chunk is actually added
+            selection_index += 1  # Increment only when chunk is actually added
 
         logger.info(
             f"Selected {len(selected)}/{len(candidates)} chunks for thread {thread_id} "
