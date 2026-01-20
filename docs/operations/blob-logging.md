@@ -1,14 +1,26 @@
 # Blob Storage Logging for Azure Container Apps
 
-This document describes how to archive Azure Container Apps console logs to Blob Storage instead of Log Analytics to reduce costs.
+This document describes how to archive Azure Container Apps console logs to Blob Storage without using Log Analytics.
 
 ## Overview
 
-**Goal:** Archive container console logs (stdout/stderr) to Azure Blob Storage instead of Log Analytics.
+**Goal:** Archive container console logs (stdout/stderr) to Azure Blob Storage without the expensive Log Analytics workspace.
 
 **Cost Savings:** Blob Storage (~$0.02/GB) vs Log Analytics (~$2.30/GB) = >99% cost reduction for log storage.
 
-**Architecture:** Use Azure Diagnostic Settings to automatically archive `ContainerAppConsoleLogs` and `ContainerAppSystemLogs` to Blob Storage in NDJSON format.
+**Architecture:** Use Azure Diagnostic Settings to automatically archive `ContainerAppConsoleLogs` and `ContainerAppSystemLogs` to Blob Storage in NDJSON format. No Log Analytics workspace is deployed.
+
+## Important Changes
+
+**Log Analytics Removed:** This implementation completely removes the Log Analytics workspace to eliminate costs. Container Apps will:
+- Still function normally
+- Have console logs archived to Blob Storage via Diagnostic Settings
+- Not send logs to Log Analytics
+
+**Application Insights Disabled:** Since Application Insights depends on Log Analytics, it is also disabled. For application monitoring, consider using:
+- OpenTelemetry with alternative backends
+- Prometheus metrics (already configured)
+- Grafana dashboards with Prometheus data source
 
 ## Infrastructure
 

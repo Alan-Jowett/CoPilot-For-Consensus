@@ -90,12 +90,6 @@ param entraTenantId string = ''
 @description('OAuth redirect URI for auth service')
 param oauthRedirectUri string = ''
 
-@description('Log Analytics workspace resource ID')
-param logAnalyticsWorkspaceId string
-
-@description('Log Analytics workspace customerId (GUID)')
-param logAnalyticsCustomerId string
-
 param tags object = {}
 
 // Derived variables
@@ -144,13 +138,6 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
         workloadProfileType: 'Consumption'
       }
     ]
-    appLogsConfiguration: {
-      destination: 'log-analytics'
-      logAnalyticsConfiguration: {
-        customerId: logAnalyticsCustomerId
-        sharedKey: listKeys(logAnalyticsWorkspaceId, '2021-12-01-preview').primarySharedKey
-      }
-    }
   }
 }
 
