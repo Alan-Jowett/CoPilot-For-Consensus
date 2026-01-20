@@ -7,8 +7,9 @@ This repo includes a reusable utility to **cluster/minimize** large logs by mini
 
 Use it when you have:
 - large `docker compose logs` captures
-- Azure Container Apps console exports (`ContainerAppConsoleLogs_CL` with `Log_s`)
-- Azure Log Analytics query output (`az monitor log-analytics query -o json` with `tables/rows`)
+- Azure Container Apps console exports (`ContainerAppConsoleLogs_CL` with `Log_s`) (legacy)
+- Azure Diagnostic Settings NDJSON from Blob Storage (`TimeGenerated`/`Category`/`Level`/`ContainerAppName`/`Message`)
+- Azure Log Analytics query output (`az monitor log-analytics query -o json` with `tables/rows`) (legacy)
 
 ## Install
 
@@ -54,6 +55,14 @@ python -m scripts.log_mining --input logs_mined.json --input-is-report --output-
 
 ```powershell
 python -m scripts.log_mining --input path/to/az-query.json --format azure-law --group-by service --output law_mined.json --output-markdown law_mined_errors_warnings.md
+
+### 4) Azure Diagnostic Settings (Blob Storage NDJSON)
+
+If your Container Apps environment is configured to archive logs to Blob Storage via Diagnostic Settings, logs are stored as NDJSON. Point the tool at an NDJSON file (or a concatenated set) and use `azure-diagnostics`:
+
+```powershell
+python -m scripts.log_mining --input logs-raw.ndjson --format azure-diagnostics --group-by service --output diag_mined.json --output-markdown diag_mined_errors_warnings.md
+```
 ```
 
 ## What to Look At

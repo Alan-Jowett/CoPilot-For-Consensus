@@ -14,7 +14,7 @@ This implementation adds comprehensive Azure Resource Manager (ARM) template sup
    - Comprehensive ARM template defining all Azure resources
    - 10 microservices as Azure Container Apps
    - User-assigned managed identities for each service
-   - Virtual Network, Key Vault, Storage, Application Insights, Log Analytics
+   - Virtual Network, Key Vault, Storage, and Diagnostic Settings for Blob log archiving
    - RBAC role assignments for secure access
    - Parameterized for flexibility
 
@@ -90,8 +90,7 @@ The ARM template deploys:
 - **User-Assigned Managed Identities**: One per service (10 total)
 - **Azure Key Vault**: Secrets management with RBAC
 - **Azure Storage Account**: Blob storage for archives
-- **Application Insights**: Telemetry and monitoring
-- **Log Analytics Workspace**: Centralized logging
+- **Logs**: Archived to Blob Storage via Diagnostic Settings (NDJSON)
 
 ### Security & Access Control
 - **RBAC Role Assignments**:
@@ -107,7 +106,7 @@ The ARM template deploys:
 ✅ **ARM template defines all required Azure resources**
 - Container Apps for all 10 services
 - Managed identities, Key Vault, Storage, networking
-- Application Insights, Log Analytics
+- Diagnostic Settings for Blob log archiving (no Log Analytics workspace)
 
 ✅ **Each service is provisioned with its own user-assigned managed identity**
 - 10 managed identities created (one per service)
@@ -168,9 +167,8 @@ The ARM template deploys:
 - TLS for all external endpoints
 
 ### Observability
-- Application Insights for telemetry
-- Log Analytics for centralized logging
-- Pre-built dashboards (from Application Insights)
+- Prometheus metrics + Grafana dashboards (Container Apps)
+- Logs archived to Blob Storage via Diagnostic Settings (no Log Analytics workspace)
 - Health check validation in deployment
 
 ## Validation & Testing
@@ -191,7 +189,7 @@ The ARM template deploys:
 - **Quick Start**: Step-by-step deployment guide
 - **Configuration**: Complete parameter reference
 - **Post-Deployment**: OAuth setup, JWT keys, monitoring alerts
-- **Monitoring**: Application Insights, Log Analytics queries
+- **Monitoring**: Prometheus/Grafana dashboards; archived logs in Blob Storage
 - **Troubleshooting**: Common issues and solutions
 - **Cost Estimation**: ~$350-550/month for dev environment
 - **Security Best Practices**: Managed identities, Key Vault, network security
@@ -214,7 +212,7 @@ Instructions for creating these are provided in the README.
 
 ## Cost Considerations
 
-**Estimated monthly cost for dev environment**: ~$350-550
+**Estimated monthly cost for dev environment**: varies by workload and region
 
 Breakdown:
 - Container Apps Environment: ~$50
@@ -222,8 +220,7 @@ Breakdown:
 - Cosmos DB (400 RU/s): ~$25
 - Service Bus (Standard): ~$10
 - Storage (100GB): ~$2
-- Application Insights (5GB): ~$10
-- Log Analytics (5GB): ~$15
+- Log storage: Blob Storage archiving (typically low cost compared to Log Analytics ingestion)
 - Key Vault: ~$1
 - Azure OpenAI (1M tokens): ~$30
 

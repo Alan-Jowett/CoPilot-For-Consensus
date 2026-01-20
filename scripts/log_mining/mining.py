@@ -24,7 +24,7 @@ def _utc_now_iso() -> str:
 
 @dataclass(frozen=True)
 class MiningConfig:
-    input_format: str = "auto"  # auto|plain|docker|azure-console|azure-law
+    input_format: str = "auto"  # auto|plain|docker|azure-console|azure-law|azure-diagnostics
     group_by: str = "service"  # none|service
     extract_json_field: str = "message"
     include_fields: list[str] = field(default_factory=lambda: ["level", "logger"])
@@ -124,12 +124,27 @@ def _safe_json_loads(value: str) -> Any | None:
     value = value.strip()
     if not value:
         return None
-    if not ((value.startswith("{") and value.endswith("}")) or (value.startswith("[") and value.endswith("]"))):
-        return None
     try:
-        return json.loads(value)
+        # json.loads() requires full JSON. For auto-detection we often only have a
+        # prefix (e.g. first N bytes of a large file), so decode a single JSON value
+        # and ignore any trailing content.
+        decoder = json.JSONDecoder()
+        obj, _ = decoder.raw_decode(value)
+        return obj
     except json.JSONDecodeError:
         return None
+
+
+def _dict_get_case_insensitive(payload_obj: dict[str, Any], key: str) -> Any | None:
+    if key in payload_obj:
+        return payload_obj[key]
+
+    key_lower = key.lower()
+    for k, v in payload_obj.items():
+        if isinstance(k, str) and k.lower() == key_lower:
+            return v
+
+    return None
 
 
 def _extract_from_payload_json(
@@ -140,12 +155,12 @@ def _extract_from_payload_json(
 ) -> str:
     prefix_parts: list[str] = []
     for f in include_fields:
-        v = payload_obj.get(f)
+        v = _dict_get_case_insensitive(payload_obj, f)
         if v is None:
             continue
         prefix_parts.append(f"{f}={v}")
 
-    msg = payload_obj.get(extract_field)
+    msg = _dict_get_case_insensitive(payload_obj, extract_field)
     if msg is None:
         # Fallback: dump compactly, but keep deterministic ordering.
         msg = json.dumps(payload_obj, sort_keys=True, separators=(",", ":"))
@@ -313,6 +328,73 @@ def _iter_azure_law_records_from_obj(
             yield from _iter_azure_console_records_from_obj(row_dict, config)
 
 
+def _iter_azure_diagnostics_records_from_obj(
+    obj: Any,
+    config: MiningConfig,
+) -> Iterator[ParsedRecord]:
+    """Iterate Azure diagnostic settings exports (NDJSON or JSON arrays).
+
+    This is the log shape produced when archiving Container Apps logs to Blob Storage
+    via Diagnostic Settings (commonly stored as NDJSON files).
+    """
+
+    items: list[Any] = []
+    if isinstance(obj, list):
+        items = obj
+    elif isinstance(obj, dict):
+        items = [obj]
+
+    for row in items:
+        if not isinstance(row, dict):
+            continue
+
+        service = (
+            _dict_get_case_insensitive(row, "ContainerAppName")
+            or _dict_get_case_insensitive(row, "ContainerName")
+            or _dict_get_case_insensitive(row, "ContainerAppName_s")
+            or _dict_get_case_insensitive(row, "ContainerName_s")
+            or row.get("container")
+        )
+
+        extract_field = config.extract_json_field
+        if _dict_get_case_insensitive(row, extract_field) is None:
+            # Diagnostic Settings uses `Message` (not `message`). Prefer it when present.
+            if _dict_get_case_insensitive(row, "Message") is not None:
+                extract_field = "Message"
+            elif _dict_get_case_insensitive(row, "Log_s") is not None:
+                extract_field = "Log_s"
+
+        msg_val = _dict_get_case_insensitive(row, extract_field)
+        if msg_val is None or msg_val == "":
+            continue
+
+        raw = json.dumps(row, ensure_ascii=False, separators=(",", ":"))
+
+        # If Message itself is a JSON payload string, enrich it with include_fields.
+        if isinstance(msg_val, str):
+            payload_obj = _safe_json_loads(msg_val)
+            if isinstance(payload_obj, dict):
+                msg = _extract_from_payload_json(
+                    payload_obj,
+                    extract_field=config.extract_json_field,
+                    include_fields=config.include_fields,
+                )
+            else:
+                msg = _extract_from_payload_json(
+                    row,
+                    extract_field=extract_field,
+                    include_fields=config.include_fields,
+                )
+        else:
+            msg = _extract_from_payload_json(
+                row,
+                extract_field=extract_field,
+                include_fields=config.include_fields,
+            )
+
+        yield ParsedRecord(service=str(service) if service else None, message=msg, raw=raw)
+
+
 def _load_json_file_best_effort(path: Path) -> Any:
     # Best-effort load for azure console exports.
     # Use json.load on a file object to avoid an extra full-file string copy in memory.
@@ -384,6 +466,29 @@ def iter_records(
             yield from _iter_azure_law_records_from_obj(obj, config)
         return
 
+    if config.input_format in {"azure-diagnostics"}:
+        if sys_stdin:
+            # NDJSON mode: each line is a diagnostic record object
+            for line in sys.stdin:
+                row = _safe_json_loads(line)
+                if row is None:
+                    continue
+                yield from _iter_azure_diagnostics_records_from_obj(row, config)
+        else:
+            assert input_path is not None
+            try:
+                obj = _load_json_file_best_effort(input_path)
+                yield from _iter_azure_diagnostics_records_from_obj(obj, config)
+            except json.JSONDecodeError:
+                # Not a single JSON document (likely NDJSON); stream line-by-line.
+                with input_path.open("r", encoding="utf-8", errors="replace") as f:
+                    for line in f:
+                        row = _safe_json_loads(line)
+                        if row is None:
+                            continue
+                        yield from _iter_azure_diagnostics_records_from_obj(row, config)
+        return
+
     # auto
     if sys_stdin:
         # Assume docker compose logs by default for stdin
@@ -414,6 +519,18 @@ def iter_records(
 
         if isinstance(head_obj, dict) and ("tables" in head_obj or "Tables" in head_obj):
             new_config = replace(config, input_format="azure-law")
+        elif isinstance(head_obj, dict) and (
+            _dict_get_case_insensitive(head_obj, "TimeGenerated") is not None
+            or _dict_get_case_insensitive(head_obj, "Category") is not None
+            or _dict_get_case_insensitive(head_obj, "Message") is not None
+        ):
+            new_config = replace(config, input_format="azure-diagnostics")
+        elif isinstance(head_obj, list) and head_obj and isinstance(head_obj[0], dict) and (
+            _dict_get_case_insensitive(head_obj[0], "TimeGenerated") is not None
+            or _dict_get_case_insensitive(head_obj[0], "Category") is not None
+            or _dict_get_case_insensitive(head_obj[0], "Message") is not None
+        ):
+            new_config = replace(config, input_format="azure-diagnostics")
         else:
             new_config = replace(config, input_format="azure-console")
 

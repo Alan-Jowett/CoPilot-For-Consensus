@@ -179,8 +179,7 @@ The Bicep template (`main.bicep`) automates the deployment of the entire Copilot
 - **User-Assigned Managed Identities** for each service with least-privilege access
 - **Azure Key Vault** for secrets management
 - **Azure Storage Account** for blob storage
-- **Application Insights** for monitoring and diagnostics
-- **Log Analytics Workspace** for centralized logging
+- **Blob Storage log archiving** for Container Apps logs (Diagnostic Settings → `logs-raw` NDJSON)
 - **Virtual Network** with subnet for Container Apps
 - **Role-Based Access Control (RBAC)** assignments for secure resource access
 
@@ -474,8 +473,8 @@ The deployment creates resources across two resource groups:
 │  └────────────────────────────────────────────────────────┘ │
 │                                                               │
 │  ┌────────────────┐  ┌──────────────┐  ┌─────────────────┐ │
-│  │  Env Key Vault │  │  Storage     │  │  App Insights   │ │
-│  │  (JWT, OAuth)  │  │  (blobs)     │  │  (monitoring)   │ │
+│  │  Env Key Vault │  │  Storage     │  │  Monitoring     │ │
+│  │  (JWT, OAuth)  │  │  (blobs)     │  │ (Prom/Grafana)  │ │
 │  └────────────────┘  └──────────────┘  └─────────────────┘ │
 │                                                               │
 │  ┌────────────────┐  ┌──────────────┐  ┌─────────────────┐ │
@@ -484,7 +483,7 @@ The deployment creates resources across two resource groups:
 │  └────────────────┘  └──────────────┘  └─────────────────┘ │
 │                                                               │
 │  ┌─────────────────────────────────────────────────────────┐│
-│  │         Log Analytics Workspace (logs)                  ││
+│  │  Diagnostic Settings → Storage (logs-raw NDJSON logs)    ││
 │  └─────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────┘
                              │
@@ -863,7 +862,7 @@ When deploying Container Apps (`deployContainerApps: true`), the template create
 
 This design enables future VNet peering or hybrid connectivity scenarios without address conflicts. If your environments are fully isolated (separate subscriptions), you can use the same address space across all environments.
 
-> **Note**: Service Bus and Cosmos DB access now rely on managed identities; connection strings are no longer passed into the Container Apps module. The Container Apps environment logs are sent to Log Analytics using the workspace shared key (platform requirement).
+> **Note**: Service Bus and Cosmos DB access now rely on managed identities; connection strings are no longer passed into the Container Apps module. Container Apps logs are archived to Blob Storage via Diagnostic Settings when `enableBlobLogArchiving` is enabled (default). No Log Analytics workspace is deployed by the current template.
 
 ### Using Existing Managed Identities
 
@@ -1603,147 +1602,17 @@ The deployment automatically creates an Azure Portal Dashboard that visualizes O
 - **Failure Rates**: Service-specific failure counters
 
 **Accessing the Dashboard:**
-**Bash (Linux/macOS):**
-```bash
-# Get dashboard URL from deployment outputs
-DASHBOARD_URL=$(az deployment group show \
-  --name copilot-deployment \
-  --resource-group copilot-rg \
-  --query properties.outputs.dashboardUrl.value -o tsv)
+**Legacy note (not deployed by current template):** Previous versions deployed an Azure Portal dashboard backed by Log Analytics / Application Insights. The current template disables Application Insights and does not deploy a Log Analytics workspace (cost savings), so the `dashboardUrl` output and KQL-based tiles are not available by default.
 
-echo "Dashboard URL: $DASHBOARD_URL"
-# Or open directly in browser:
-# macOS: open "$DASHBOARD_URL"
-# Linux: xdg-open "$DASHBOARD_URL"
-```
+### Logs (Blob Storage)
 
-**PowerShell (Windows):**
-```powershell
-# Get dashboard URL from deployment outputs
-$dashboardUrl = (az deployment group show `
-  --name copilot-deployment `
-  --resource-group copilot-rg `
-  --query properties.outputs.dashboardUrl.value -o tsv)
+Container Apps console/system logs are archived to the deployment Storage Account (container: `logs-raw`) as NDJSON via Diagnostic Settings when `enableBlobLogArchiving` is true.
 
-Write-Host "Dashboard URL: $dashboardUrl"
-# Or open directly in browser:
-# start $dashboardUrl
-```
+- See `docs/operations/blob-logging.md` for how logs are archived and how to download them.
+- For analysis/mining: `python -m scripts.log_mining --format azure-diagnostics ...`
+- For conversion to CSV: `python scripts/convert_ndjson_to_csv.py ...`
 
-Or navigate manually:
-1. Go to Azure Portal (https://portal.azure.com)
-2. Search for "Dashboards" or click the Dashboard hub
-3. Find dashboard named: `<project>-dashboard-<env>-<suffix>`
-
-**Customizing the Dashboard:**
-
-To add or remove metrics from the dashboard:
-
-1. **Edit the Dashboard in Portal** (Quick, temporary changes):
-   - Open the dashboard in Azure Portal
-   - Click "Edit" in the top toolbar
-   - Add tiles by dragging from the Tile Gallery
-   - Click "Done customizing" to save
-   - **Note**: Changes made in Portal will be lost on next deployment
-
-2. **Edit the Bicep Template** (Permanent, Infrastructure-as-Code approach):
-   - Edit `infra/azure/modules/dashboard.bicep`
-   - Add new tile definitions in the `parts` array
-   - Each tile requires: `position`, `metadata` with KQL query, `inputs`
-   - Redeploy using `./deploy.env.sh` to apply changes
-
-**Example: Adding a New Metric Tile**
-
-```bicep
-// Add this to the parts array in dashboard.bicep
-{
-  position: {
-    x: 0
-    y: 17
-    colSpan: 6
-    rowSpan: 4
-  }
-  metadata: {
-    type: 'Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart'
-    settings: {
-      content: {
-        Query: '''
-customMetrics
-| where timestamp > ago(1h)
-| where name == "copilot.ingestion_files_total"
-| summarize FileCount = sum(value) by bin(timestamp, 5m)
-| render timechart
-'''
-        ControlType: 'FrameControlChart'
-        SpecificChart: 'Line'
-      }
-    }
-  }
-  inputs: [
-    {
-      name: 'resourceTypeMode'
-      value: 'workspace'
-    }
-    {
-      name: 'ComponentId'
-      value: {
-        ResourceId: logAnalyticsWorkspaceResourceId
-      }
-    }
-    {
-      name: 'TimeRange'
-      value: 'PT1H'
-    }
-  ]
-}
-```
-
-**Available Metrics:**
-
-See [../../docs/observability/metrics-catalog.md](../../docs/observability/metrics-catalog.md) for the complete list of metrics emitted by the system. Metrics are available in Application Insights under:
-- `requests` table: HTTP request telemetry
-- `traces` table: Application logs with severity levels
-- `customMetrics` table: Service-specific counters and histograms
-  - Naming pattern: `copilot.<service>_<metric>_<type>`
-  - Examples: `copilot.parsing_duration_seconds`, `copilot.ingestion_files_total`
-
-**Troubleshooting:**
-
-If metrics are not appearing in the dashboard:
-1. Verify Application Insights is receiving data:
-   **Bash:**
-   ```bash
-   # Check recent traces
-   az monitor app-insights query \
-     --app <app-insights-name> \
-     --resource-group copilot-rg \
-     --analytics-query "traces | where timestamp > ago(1h) | take 10"
-   ```
-
-   **PowerShell:**
-   ```powershell
-   # Check recent traces
-   az monitor app-insights query `
-     --app <app-insights-name> `
-     --resource-group copilot-rg `
-     --analytics-query "traces | where timestamp > ago(1h) | take 10"
-   ```
-2. Ensure Container Apps have correct Application Insights connection string
-3. Check that OpenTelemetry instrumentation is enabled in services
-4. Verify dashboard queries use correct metric names (see metrics-catalog.md)
-
-### Log Analytics
-
-
-All container logs are aggregated in Log Analytics:
-
-```kusto
-// Query logs from all services
-ContainerAppConsoleLogs_CL
-| where TimeGenerated > ago(1h)
-| project TimeGenerated, ContainerAppName_s, Log_s
-| order by TimeGenerated desc
-```
+**Legacy note:** Older deployments may have used Log Analytics and KQL queries (e.g., `ContainerAppConsoleLogs_CL`). The current template does not deploy or depend on Log Analytics.
 
 ## Troubleshooting
 
@@ -1836,12 +1705,11 @@ Approximate monthly costs for a development deployment (prices vary by region):
 | Cosmos DB for MongoDB | 400 RU/s | ~$25/month |
 | Azure Service Bus | Standard | ~$10/month |
 | Storage Account | Standard LRS, 100GB | ~$2/month |
-| Application Insights | Basic, 5GB/month | ~$10/month |
-| Log Analytics | 5GB ingestion | ~$15/month |
+| Log storage (archived) | Blob Storage (NDJSON) | typically low (usage-dependent) |
 | Key Vault | Standard | ~$1/month |
 | Azure OpenAI | GPT-4, 1M tokens | ~$30/month |
 
-**Total Estimated Cost**: ~$350-550/month for development
+**Total Estimated Cost**: ~$325-525/month for development
 
 For production, costs will scale with:
 - Container Apps autoscaling (more replicas)

@@ -109,8 +109,8 @@ All Container Apps use **user-assigned managed identities** for service-to-servi
 
 All services are configured with:
 
-- **Application Insights**: Connection string passed via environment variable (`APPLICATIONINSIGHTS_CONNECTION_STRING`)
-- **Log Analytics**: Container Apps environment logs to Log Analytics workspace
+- **Prometheus/Grafana**: Metrics and dashboards (Container Apps)
+- **Blob log archiving**: Container Apps logs archived to Blob Storage via Diagnostic Settings when enabled
 - **Azure Monitor**: Metrics and alerts can be configured post-deployment
 
 ## Troubleshooting

@@ -9,6 +9,7 @@ from pathlib import Path
 from scripts.log_mining.mining import (
     MiningConfig,
     _iter_azure_console_records_from_obj,
+    _iter_azure_diagnostics_records_from_obj,
     _iter_azure_law_records_from_obj,
     iter_records,
     normalize_message,
@@ -98,6 +99,24 @@ def test_azure_law_tables_rows_extracts_log_s() -> None:
     assert recs[0].service == "reporting"
     assert "level=INFO" in recs[0].message
     assert "logger=reporting" in recs[0].message
+    assert recs[0].message.endswith("Shutting down")
+
+
+def test_azure_diagnostics_extracts_message_and_containerappname() -> None:
+    obj = {
+        "TimeGenerated": "2026-01-19T23:24:16.4685245Z",
+        "Category": "ContainerAppConsoleLogs",
+        "Level": "INFO",
+        "ContainerAppName": "reporting",
+        "Message": "Shutting down",
+    }
+
+    cfg = MiningConfig(input_format="azure-diagnostics", group_by="service")
+    recs = list(_iter_azure_diagnostics_records_from_obj(obj, cfg))
+    assert len(recs) == 1
+    assert recs[0].service == "reporting"
+    # Default include_fields are level/logger; case-insensitive lookup should find Level.
+    assert "level=INFO" in recs[0].message
     assert recs[0].message.endswith("Shutting down")
 
 

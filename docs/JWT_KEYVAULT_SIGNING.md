@@ -361,10 +361,17 @@ az monitor diagnostic-settings create \
   --name keyvault-diagnostics \
   --resource /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.KeyVault/vaults/{vault} \
   --logs '[{"category": "AuditEvent", "enabled": true}]' \
-  --workspace /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{workspace}
+  --storage-account /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Storage/storageAccounts/{storage}
+
+# Optional/legacy: send to Log Analytics (KQL queries, but higher ingestion cost)
+# az monitor diagnostic-settings create \
+#   --name keyvault-diagnostics \
+#   --resource /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.KeyVault/vaults/{vault} \
+#   --logs '[{"category": "AuditEvent", "enabled": true}]' \
+#   --workspace /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{workspace}
 ```
 
-Query signing operations:
+Query signing operations (Log Analytics only):
 ```kql
 AzureDiagnostics
 | where ResourceProvider == "MICROSOFT.KEYVAULT"
@@ -372,6 +379,8 @@ AzureDiagnostics
 | project TimeGenerated, CallerIPAddress, ResultType, DurationMs
 | order by TimeGenerated desc
 ```
+
+If you send diagnostics to Storage, download the corresponding `insights-logs-auditevent` blobs and analyze offline (for example, with the tooling patterns in `docs/operations/blob-logging.md`).
 
 ### Common Issues
 

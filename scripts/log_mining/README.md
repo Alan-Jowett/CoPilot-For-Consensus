@@ -49,9 +49,19 @@ If you exported `ContainerAppConsoleLogs_CL` to JSON (array of objects) with a `
 
 ```powershell
 python -m scripts.log_mining --input logs-azure-console-sample.json --format azure-console --group-by service --output azure_mined.json
+
+### Azure Diagnostic Settings (Blob Storage NDJSON)
+
+If you enabled Container Apps log archiving to Blob Storage via Diagnostic Settings, the logs are typically stored as **NDJSON** (one JSON object per line) and contain fields like `TimeGenerated`, `Category`, `Level`, `ContainerAppName`, and `Message`.
+
+Download a blob (or concatenate multiple blobs) and run:
+
+```powershell
+python -m scripts.log_mining --input logs-raw.ndjson --format azure-diagnostics --group-by service --output diag_mined.json --output-markdown diag_mined_errors_warnings.md
+```
 ```
 
-### Azure Log Analytics query output (`az monitor log-analytics query -o json`)
+### Azure Log Analytics query output (`az monitor log-analytics query -o json`) (legacy)
 
 If you saved the raw `az` query result JSON (with `tables/columns/rows`):
 

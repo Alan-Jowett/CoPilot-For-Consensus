@@ -5,7 +5,8 @@
 
 Designed to work with:
 - docker compose logs (prefixed `service | ...`)
-- Azure Log Analytics exports (JSON arrays / JSON lines)
+- Azure diagnostic settings logs (Blob-archived NDJSON/JSON)
+- Azure Log Analytics exports (legacy, JSON arrays / JSON lines)
 
 Primary goals:
 - Normalize obvious variables (timestamps, GUIDs, IPs, IDs)
@@ -121,12 +122,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--format",
-        choices=["auto", "plain", "docker", "azure-console", "azure-law"],
+        choices=["auto", "plain", "docker", "azure-console", "azure-law", "azure-diagnostics"],
         default="auto",
         help=(
             "Input format. 'docker' expects `service | payload`. "
             "'azure-console' expects an Azure export JSON array/lines with Log_s. "
             "'azure-law' expects an Azure Log Analytics query JSON payload with tables/rows. "
+            "'azure-diagnostics' expects Diagnostic Settings NDJSON/JSON records (Blob-archived logs). "
             "'plain' treats each line as a log message."
         ),
     )

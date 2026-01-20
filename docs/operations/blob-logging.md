@@ -35,7 +35,7 @@ If you have an existing deployment with Log Analytics workspace:
 
 2. **Export Historical Data (Recommended):** Before upgrading, export any historical logs you need to retain:
    ```bash
-   # Export logs from Log Analytics
+  # Legacy-only: export logs from Log Analytics (if you still have a workspace)
    az monitor log-analytics query --workspace <workspace-id> \
      --analytics-query "ContainerAppConsoleLogs_CL | where TimeGenerated > ago(30d)" \
      --output json > historical-logs.json
@@ -85,6 +85,14 @@ Each Container App's console logs (`ContainerAppConsoleLogs`) and system logs (`
 **No manual configuration required** - logs begin archiving automatically upon deployment.
 
 ## Accessing Logs
+
+### Quick RCA export (recommended)
+
+To download recent blobs and generate a compact RCA report (JSON + Markdown):
+
+```powershell
+./scripts/export_blob_logs_rca.ps1 -StorageAccountName <storage-account> -Timespan PT6H
+```
 
 ### Download with AzCopy
 
