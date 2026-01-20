@@ -325,23 +325,16 @@ class TestRabbitMQSubscriber:
         # This is the actual error message from pika, reproduced exactly
         transport_error = AssertionError("_AsyncTransportBase._initate_abort() expected non-_STATE_COMPLETED", 4)
         
-        # Set up the error to trigger once, then set shutdown flag to exit the loop
-        call_count = [0]
+        # Set up the error to trigger once, then request shutdown so the loop exits
         def side_effect_func(*args, **kwargs):
-            call_count[0] += 1
-            if call_count[0] == 1:
-                raise transport_error
-            else:
-                # After first error, set shutdown flag so loop exits
-                subscriber._shutdown_requested = True
-                raise transport_error
+            # After raising the error once, request shutdown so the consuming loop exits
+            subscriber._shutdown_requested = True
+            raise transport_error
         
         mock_channel.start_consuming.side_effect = side_effect_func
 
-        # Mock the reconnection to prevent infinite loop - make it fail so it exits
-        with patch.object(subscriber, '_reconnect', return_value=False):
-            # Should not raise - should handle gracefully and exit when reconnection fails
-            subscriber.start_consuming()
+        # Should not raise - should handle the transport error gracefully and exit
+        subscriber.start_consuming()
 
         # Verify basic_consume was called before the error
         assert mock_channel.basic_consume.called

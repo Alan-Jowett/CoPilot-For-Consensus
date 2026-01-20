@@ -99,6 +99,7 @@ class RabbitMQSubscriber(EventSubscriber):
         self._shutdown_requested = False
         self._consumer_tag: str | None = None
         self._consume_channel_id: int | None = None
+        self._is_exclusive_queue = False  # Track if queue is exclusive (for reconnection)
 
     @classmethod
     def from_config(cls, driver_config: DriverConfig_MessageBus_Rabbitmq) -> "RabbitMQSubscriber":
@@ -189,6 +190,7 @@ class RabbitMQSubscriber(EventSubscriber):
             # Let RabbitMQ generate a unique queue name (temporary queue)
             result = self.channel.queue_declare(queue="", exclusive=True)
             self.queue_name = result.method.queue
+            self._is_exclusive_queue = True  # Track that this is an exclusive queue
 
         logger.info(
             f"Connected to RabbitMQ: {self.host}:{self.port}, "
@@ -227,6 +229,7 @@ class RabbitMQSubscriber(EventSubscriber):
         Implements exponential backoff with jitter to prevent reconnection storms.
         Resets reconnect count after successful reconnection.
         Re-establishes all subscriptions after successful reconnection.
+        Enforces a cooldown period (max_reconnect_delay) after exhausting max_reconnect_attempts.
 
         Returns:
             True if reconnection succeeded, False otherwise
@@ -249,10 +252,11 @@ class RabbitMQSubscriber(EventSubscriber):
         # Check reconnection limit
         if self._reconnect_count >= self.max_reconnect_attempts:
             logger.error(f"Maximum reconnection attempts ({self.max_reconnect_attempts}) exceeded in this cycle")
-            # Reset count to allow future reconnection attempts, but add a cooldown period
-            # by updating the last reconnect time so the next attempt will be throttled
+            # Reset count to allow future reconnection attempts, but enforce an explicit
+            # cooldown period by moving the last reconnect time forward by the maximum
+            # reconnect delay. This ensures a full cooldown before new attempts begin.
             self._reconnect_count = 0
-            self._last_reconnect_time = current_time
+            self._last_reconnect_time = current_time + self.max_reconnect_delay
             return False
 
         # Record attempt time only when we are actually going to attempt reconnect.
@@ -289,18 +293,17 @@ class RabbitMQSubscriber(EventSubscriber):
                 if channel is None:
                     raise RuntimeError("Reconnect succeeded but channel is not available")
 
-                # Check if we need to handle auto-generated exclusive queues
-                # These queues are deleted when the connection drops, so we need to create a new one
+                # Check if we need to handle exclusive queues
+                # Exclusive queues are deleted when the connection drops, so we need to create a new one
                 queue_name = self.queue_name
-                is_auto_generated = bool(queue_name and re.match(r"^amq\.gen-", queue_name))
                 
-                if is_auto_generated:
+                if self._is_exclusive_queue:
                     try:
                         declare_result = channel.queue_declare(queue="", exclusive=True, auto_delete=True)
                         queue_name = declare_result.method.queue
                         self.queue_name = queue_name
                         logger.info(
-                            f"Declared new exclusive auto-generated queue '{queue_name}' after reconnection"
+                            f"Declared new exclusive queue '{queue_name}' after reconnection"
                         )
                     except Exception as e:
                         logger.error(f"Failed to declare auto-generated exclusive queue during reconnection: {e}")
