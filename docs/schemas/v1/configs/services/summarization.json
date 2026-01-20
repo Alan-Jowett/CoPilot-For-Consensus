@@ -1,0 +1,107 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "service_name": "summarization",
+    "schema_version": "1.0.0",
+    "min_service_version": "0.1.0",
+    "metadata": {
+        "description": "Summarization service configuration schema",
+        "version": "1.0.0"
+    },
+    "service_settings": {
+        "http_port": {
+            "type": "int",
+            "source": "env",
+            "env_var": "SUMMARIZATION_HTTP_PORT",
+            "default": 8000,
+            "description": "HTTP server port"
+        },
+        "jwt_auth_enabled": {
+            "type": "bool",
+            "source": "env",
+            "env_var": ["SUMMARIZATION_JWT_AUTH_ENABLED", "JWT_AUTH_ENABLED"],
+            "default": true,
+            "description": "Enable JWT authentication middleware (supports global JWT_AUTH_ENABLED alias)"
+        },
+        "auth_service_url": {
+            "type": "string",
+            "source": "env",
+            "env_var": "SUMMARIZATION_AUTH_SERVICE_URL",
+            "default": "http://auth:8090",
+            "description": "URL of the authentication service"
+        },
+        "service_audience": {
+            "type": "string",
+            "source": "env",
+            "env_var": "SUMMARIZATION_SERVICE_AUDIENCE",
+            "default": "copilot-for-consensus",
+            "description": "JWT audience for this service"
+        },
+        "max_retries": {
+            "type": "int",
+            "source": "env",
+            "env_var": "SUMMARIZATION_RETRY_MAX_ATTEMPTS",
+            "default": 3,
+            "description": "Maximum retry attempts"
+        },
+        "retry_delay_seconds": {
+            "type": "int",
+            "source": "env",
+            "env_var": "SUMMARIZATION_RETRY_DELAY_SECONDS",
+            "default": 5,
+            "description": "Retry delay in seconds"
+        },
+        "top_k": {
+            "type": "int",
+            "source": "env",
+            "env_var": "SUMMARIZATION_TOP_K",
+            "default": 12,
+            "description": "Number of top chunks to retrieve"
+        },
+        "citation_count": {
+            "type": "int",
+            "source": "env",
+            "env_var": "SUMMARIZATION_CITATION_COUNT",
+            "default": 12,
+            "description": "Number of citations to include in summaries"
+        }
+    },
+    "adapters": {
+        "document_store": {
+            "$ref": "../adapters/document_store.json",
+            "required": true
+        },
+        "embedding_backend": {
+            "$ref": "../adapters/embedding_backend.json",
+            "required": true
+        },
+        "error_reporter": {
+            "$ref": "../adapters/error_reporter.json",
+            "required": true
+        },
+        "logger": {
+            "$ref": "../adapters/logger.json",
+            "required": true
+        },
+        "llm_backend": {
+            "$ref": "../adapters/llm_backend.json",
+            "required": true
+        },
+        "message_bus": {
+            "$ref": "../adapters/message_bus.json",
+            "required": true
+        },
+        "metrics": {
+            "$ref": "../adapters/metrics.json",
+            "required": true
+        },
+        "secret_provider": {
+            "$ref": "../adapters/secret_provider.json",
+            "required": true
+        },
+        "vector_store": {
+            "$ref": "../adapters/vector_store.json",
+            "required": true
+        }
+    }
+}

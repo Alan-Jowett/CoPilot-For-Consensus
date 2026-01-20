@@ -1,0 +1,47 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Azure OpenAI embedding backend driver settings",
+    "type": "object",
+    "properties": {
+        "api_key": {
+            "type": "string",
+            "minLength": 1,
+            "source": "secret",
+            "secret_name": "azure_openai_api_key",
+            "env": "AZURE_OPENAI_KEY",
+            "description": "Azure OpenAI API key"
+        },
+        "api_base": {
+            "type": "string",
+            "minLength": 1,
+            "format": "uri",
+            "source": "env",
+            "env_var": "AZURE_OPENAI_ENDPOINT",
+            "description": "Azure OpenAI endpoint URL"
+        },
+        "api_version": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZURE_OPENAI_API_VERSION",
+            "default": "2024-02-15-preview",
+            "description": "Azure OpenAI API version"
+        },
+        "deployment_name": {
+            "type": "string",
+            "minLength": 1,
+            "source": "env",
+            "env_var": "AZURE_OPENAI_DEPLOYMENT",
+            "description": "Azure OpenAI deployment name for embeddings"
+        },
+        "model": {
+            "type": "string",
+            "minLength": 1,
+            "source": "env",
+            "env_var": "EMBEDDING_MODEL",
+            "description": "Optional model name to map to deployment"
+        }
+    },
+    "required": ["api_key", "api_base", "deployment_name"],
+    "additionalProperties": false
+}

@@ -11,7 +11,7 @@ on:
     paths:
       - 'docker-compose*.yml'
       - '.env'
-      - 'docs/schemas/configs/**/*.json'
+      - 'docs/schemas/v1/configs/**/*.json'
       - 'scripts/validate_compose_config.py'
       - '.github/workflows/compose-config-validation.yml'
 

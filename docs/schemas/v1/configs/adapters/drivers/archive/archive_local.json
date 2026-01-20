@@ -1,0 +1,15 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Local filesystem archive store driver settings",
+    "type": "object",
+    "properties": {
+        "archive_base_path": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ARCHIVE_BASE_PATH",
+            "default": "/data/raw_archives",
+            "description": "Base path for archive storage on local filesystem"
+        }
+    }
+}

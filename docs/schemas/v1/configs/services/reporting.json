@@ -1,0 +1,103 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "service_name": "reporting",
+    "schema_version": "1.0.0",
+    "min_service_version": "0.1.0",
+    "metadata": {
+        "description": "Reporting service configuration schema",
+        "version": "1.0.0"
+    },
+    "service_settings": {
+        "http_port": {
+            "type": "int",
+            "source": "env",
+            "env_var": "REPORTING_HTTP_PORT",
+            "default": 8080,
+            "description": "HTTP server port"
+        },
+        "http_host": {
+            "type": "string",
+            "source": "env",
+            "env_var": "REPORTING_HTTP_HOST",
+            "default": "0.0.0.0",
+            "description": "HTTP server host"
+        },
+        "jwt_auth_enabled": {
+            "type": "bool",
+            "source": "env",
+            "env_var": ["REPORTING_JWT_AUTH_ENABLED", "JWT_AUTH_ENABLED"],
+            "default": true,
+            "description": "Enable JWT authentication middleware (supports global JWT_AUTH_ENABLED alias)"
+        },
+        "auth_service_url": {
+            "type": "string",
+            "source": "env",
+            "env_var": "REPORTING_AUTH_SERVICE_URL",
+            "default": "http://auth:8090",
+            "description": "URL of the authentication service"
+        },
+        "service_audience": {
+            "type": "string",
+            "source": "env",
+            "env_var": "REPORTING_SERVICE_AUDIENCE",
+            "default": "copilot-for-consensus",
+            "description": "JWT audience for this service"
+        },
+        "notify_enabled": {
+            "type": "bool",
+            "source": "env",
+            "env_var": "REPORTING_NOTIFY_ENABLED",
+            "default": false,
+            "description": "Enable webhook notifications"
+        },
+        "notify_webhook_url": {
+            "type": "string",
+            "source": "env",
+            "env_var": "REPORTING_NOTIFY_WEBHOOK_URL",
+            "default": "",
+            "description": "Webhook URL for notifications"
+        },
+        "webhook_summary_max_length": {
+            "type": "int",
+            "source": "env",
+            "env_var": "REPORTING_WEBHOOK_SUMMARY_MAX_LENGTH",
+            "default": 500,
+            "description": "Maximum length of summary in webhook notifications"
+        }
+    },
+    "adapters": {
+        "document_store": {
+            "$ref": "../adapters/document_store.json",
+            "required": true
+        },
+        "embedding_backend": {
+            "$ref": "../adapters/embedding_backend.json",
+            "required": true
+        },
+        "error_reporter": {
+            "$ref": "../adapters/error_reporter.json",
+            "required": true
+        },
+        "logger": {
+            "$ref": "../adapters/logger.json",
+            "required": true
+        },
+        "message_bus": {
+            "$ref": "../adapters/message_bus.json",
+            "required": true
+        },
+        "metrics": {
+            "$ref": "../adapters/metrics.json",
+            "required": true
+        },
+        "secret_provider": {
+            "$ref": "../adapters/secret_provider.json",
+            "required": true
+        },
+        "vector_store": {
+            "$ref": "../adapters/vector_store.json",
+            "required": true
+        }
+    }
+}

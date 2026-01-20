@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/embedding-generation-failed.schema.json",
+  "title": "EmbeddingGenerationFailed Event",
+  "allOf": [
+    { "$ref": "./event-envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "EmbeddingGenerationFailed" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "chunk_ids": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "error_message": { "type": "string", "minLength": 1 },
+            "error_type": { "type": "string", "minLength": 1 },
+            "embedding_backend": { "type": "string", "minLength": 1 },
+            "retry_count": { "type": "integer", "minimum": 0 },
+            "failed_at": { "type": "string", "format": "date-time" }
+          },
+          "required": [
+            "chunk_ids",
+            "error_message",
+            "error_type",
+            "embedding_backend",
+            "retry_count",
+            "failed_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event_type", "event_id", "timestamp", "version", "data"],
+      "additionalProperties": false
+    }
+  ]
+}

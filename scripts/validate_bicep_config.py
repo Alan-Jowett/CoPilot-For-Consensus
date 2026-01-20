@@ -298,8 +298,8 @@ def extract_env_vars(bicep_content: str, service_name: str) -> dict:
 
 
 def load_schema(service_name: str) -> dict:
-    """Load the service schema from docs/schemas/configs/services/{service_name}.json"""
-    schema_path = Path(__file__).parent.parent / "docs" / "schemas" / "configs" / "services" / f"{service_name}.json"
+    """Load the service schema from docs/schemas/v1/configs/services/{service_name}.json"""
+    schema_path = Path(__file__).parent.parent / "docs" / "schemas" / "v1" / "configs" / "services" / f"{service_name}.json"
 
     if not schema_path.exists():
         raise FileNotFoundError(f"Schema not found: {schema_path}")

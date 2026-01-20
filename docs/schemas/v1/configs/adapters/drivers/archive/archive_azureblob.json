@@ -1,0 +1,197 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Azure Blob Storage archive store driver settings",
+    "discriminant": {
+        "field": "azureblob_auth_type",
+        "type": "string",
+        "source": "env",
+        "env_var": "AZUREBLOB_AUTH_TYPE",
+        "enum": [
+            "connection_string",
+            "account_key",
+            "sas_token",
+            "managed_identity"
+        ],
+        "required": true,
+        "description": "Azure Blob authentication mode"
+    },
+    "oneOf": [
+        {
+            "title": "Connection string authentication",
+            "type": "object",
+            "properties": {
+                "azureblob_auth_type": {
+                    "type": "string",
+                    "const": "connection_string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_AUTH_TYPE",
+                    "required": true,
+                    "description": "Authentication mode discriminator"
+                },
+                "azureblob_connection_string": {
+                    "type": "string",
+                    "source": "secret",
+                    "secret_name": "azureblob_connection_string",
+                    "required": true,
+                    "description": "Azure Storage connection string"
+                },
+                "azureblob_container_name": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_CONTAINER_NAME",
+                    "default": "archives",
+                    "description": "Azure Blob Storage container name for archives"
+                },
+                "azureblob_prefix": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_PREFIX",
+                    "default": "",
+                    "description": "Optional path prefix for organizing blobs"
+                }
+            },
+            "required": [
+                "azureblob_auth_type",
+                "azureblob_connection_string"
+            ],
+            "additionalProperties": false
+        },
+        {
+            "title": "Account key authentication",
+            "type": "object",
+            "properties": {
+                "azureblob_auth_type": {
+                    "type": "string",
+                    "const": "account_key",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_AUTH_TYPE",
+                    "required": true,
+                    "description": "Authentication mode discriminator"
+                },
+                "azureblob_account_name": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_ACCOUNT_NAME",
+                    "required": true,
+                    "description": "Azure Storage account name"
+                },
+                "azureblob_account_key": {
+                    "type": "string",
+                    "source": "secret",
+                    "secret_name": "azureblob_account_key",
+                    "required": true,
+                    "description": "Azure Storage account key"
+                },
+                "azureblob_container_name": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_CONTAINER_NAME",
+                    "default": "archives",
+                    "description": "Azure Blob Storage container name for archives"
+                },
+                "azureblob_prefix": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_PREFIX",
+                    "default": "",
+                    "description": "Optional path prefix for organizing blobs"
+                }
+            },
+            "required": [
+                "azureblob_auth_type",
+                "azureblob_account_name",
+                "azureblob_account_key"
+            ],
+            "additionalProperties": false
+        },
+        {
+            "title": "SAS token authentication",
+            "type": "object",
+            "properties": {
+                "azureblob_auth_type": {
+                    "type": "string",
+                    "const": "sas_token",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_AUTH_TYPE",
+                    "required": true,
+                    "description": "Authentication mode discriminator"
+                },
+                "azureblob_account_name": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_ACCOUNT_NAME",
+                    "required": true,
+                    "description": "Azure Storage account name"
+                },
+                "azureblob_sas_token": {
+                    "type": "string",
+                    "source": "secret",
+                    "secret_name": "azureblob_sas_token",
+                    "required": true,
+                    "description": "Azure Storage SAS token (may include leading '?')"
+                },
+                "azureblob_container_name": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_CONTAINER_NAME",
+                    "default": "archives",
+                    "description": "Azure Blob Storage container name for archives"
+                },
+                "azureblob_prefix": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_PREFIX",
+                    "default": "",
+                    "description": "Optional path prefix for organizing blobs"
+                }
+            },
+            "required": [
+                "azureblob_auth_type",
+                "azureblob_account_name",
+                "azureblob_sas_token"
+            ],
+            "additionalProperties": false
+        },
+        {
+            "title": "Managed identity authentication",
+            "type": "object",
+            "properties": {
+                "azureblob_auth_type": {
+                    "type": "string",
+                    "const": "managed_identity",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_AUTH_TYPE",
+                    "required": true,
+                    "description": "Authentication mode discriminator"
+                },
+                "azureblob_account_name": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_ACCOUNT_NAME",
+                    "required": true,
+                    "description": "Azure Storage account name"
+                },
+                "azureblob_container_name": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_CONTAINER_NAME",
+                    "default": "archives",
+                    "description": "Azure Blob Storage container name for archives"
+                },
+                "azureblob_prefix": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "AZUREBLOB_PREFIX",
+                    "default": "",
+                    "description": "Optional path prefix for organizing blobs"
+                }
+            },
+            "required": [
+                "azureblob_auth_type",
+                "azureblob_account_name"
+            ],
+            "additionalProperties": false
+        }
+    ]
+}

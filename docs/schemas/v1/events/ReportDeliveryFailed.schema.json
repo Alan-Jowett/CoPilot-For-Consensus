@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/report-delivery-failed.schema.json",
+  "title": "ReportDeliveryFailed Event",
+  "allOf": [
+    { "$ref": "./event-envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "ReportDeliveryFailed" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "report_id": { "type": "string", "minLength": 1 },
+            "thread_id": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
+            "delivery_channel": { "type": "string", "minLength": 1 },
+            "error_message": { "type": "string", "minLength": 1 },
+            "error_type": { "type": "string", "minLength": 1 },
+            "retry_count": { "type": "integer", "minimum": 0 }
+          },
+          "required": [
+            "report_id",
+            "thread_id",
+            "delivery_channel",
+            "error_message",
+            "error_type",
+            "retry_count"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event_type", "event_id", "timestamp", "version", "data"],
+      "additionalProperties": false
+    }
+  ]
+}

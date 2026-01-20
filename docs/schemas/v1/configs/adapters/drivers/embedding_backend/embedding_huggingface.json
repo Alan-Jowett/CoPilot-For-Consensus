@@ -1,0 +1,39 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "HuggingFace Transformers embedding backend driver settings",
+    "type": "object",
+    "properties": {
+        "model_name": {
+            "type": "string",
+            "minLength": 1,
+            "source": "env",
+            "env_var": "HUGGINGFACE_MODEL_NAME",
+            "description": "HuggingFace model name (e.g., 'sentence-transformers/all-MiniLM-L6-v2')"
+        },
+        "device": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(cpu|mps|cuda(:\\d+)?)$",
+            "source": "env",
+            "env_var": "HUGGINGFACE_DEVICE",
+            "description": "Device to use (e.g., \"cpu\", \"mps\", \"cuda\", \"cuda:0\", \"cuda:1\")"
+        },
+        "cache_dir": {
+            "type": "string",
+            "source": "env",
+            "env_var": "HUGGINGFACE_CACHE_DIR",
+            "required": false,
+            "description": "Cache directory for model files"
+        },
+        "max_length": {
+            "type": "integer",
+            "source": "env",
+            "env_var": "HUGGINGFACE_MAX_LENGTH",
+            "default": 512,
+            "description": "Maximum sequence length for tokenization"
+        }
+    },
+    "required": ["model_name", "device"],
+    "additionalProperties": false
+}

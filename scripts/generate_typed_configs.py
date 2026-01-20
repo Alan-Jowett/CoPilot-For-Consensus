@@ -6,8 +6,8 @@
 
 This script reads service/adapter/driver configuration schemas and generates Python dataclasses
 with a structure that mirrors the schema file organization:
-- docs/schemas/configs/services/X.json → generated/services/X.py
-- docs/schemas/configs/adapters/Y.json → generated/adapters/Y.py
+- docs/schemas/v1/configs/services/X.json → generated/services/X.py
+- docs/schemas/v1/configs/adapters/Y.json → generated/adapters/Y.py
 
 This allows each component (service, adapter, driver) to import only what it needs.
 
@@ -72,7 +72,7 @@ def resolve_schema_directory() -> Path:
     """Resolve the schema directory path."""
     script_dir = Path(__file__).resolve().parent
     repo_root = script_dir.parent
-    schema_dir = repo_root / "docs" / "schemas" / "configs"
+    schema_dir = repo_root / "docs" / "schemas" / "v1" / "configs"
 
     if schema_dir.exists():
         return schema_dir

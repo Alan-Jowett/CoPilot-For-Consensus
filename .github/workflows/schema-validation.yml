@@ -7,7 +7,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'docs/schemas/configs/**'
+      - 'docs/schemas/v1/configs/**'
       - 'adapters/copilot_config/**'
       - 'adapters/copilot_config/copilot_config/generated/**'
       - 'scripts/generate_typed_configs.py'
@@ -15,7 +15,7 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - 'docs/schemas/configs/**'
+      - 'docs/schemas/v1/configs/**'
       - 'adapters/copilot_config/**'
       - 'adapters/copilot_config/copilot_config/generated/**'
       - 'scripts/generate_typed_configs.py'
@@ -67,7 +67,7 @@ jobs:
           import sys
 
           errors = []
-          for schema_path in glob.glob('docs/schemas/configs/services/*.json'):
+          for schema_path in glob.glob('docs/schemas/v1/configs/services/*.json'):
               print(f"Validating {schema_path}...")
               try:
                   with open(schema_path, 'r', encoding='utf-8') as f:
@@ -91,7 +91,7 @@ jobs:
           import glob
 
           errors = []
-          for schema_file in glob.glob('docs/schemas/configs/services/*.json'):
+          for schema_file in glob.glob('docs/schemas/v1/configs/services/*.json'):
               print(f"Checking {schema_file}...")
               try:
                   with open(schema_file, encoding='utf-8') as f:
@@ -120,7 +120,7 @@ jobs:
           echo "Checking for breaking changes in modified schemas..."
 
           # Get list of modified schema files
-          modified_schemas=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep 'docs/schemas/configs/.*\.json$' || true)
+          modified_schemas=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep 'docs/schemas/v1/configs/.*\.json$' || true)
 
           if [ -z "$modified_schemas" ]; then
             echo "No schema files changed"
@@ -202,14 +202,14 @@ jobs:
 
           errors = []
           for schema_file in [
-              'docs/schemas/configs/services/auth.json',
-              'docs/schemas/configs/services/chunking.json',
-              'docs/schemas/configs/services/embedding.json',
-              'docs/schemas/configs/services/ingestion.json',
-              'docs/schemas/configs/services/orchestrator.json',
-              'docs/schemas/configs/services/parsing.json',
-              'docs/schemas/configs/services/reporting.json',
-              'docs/schemas/configs/services/summarization.json',
+              'docs/schemas/v1/configs/services/auth.json',
+              'docs/schemas/v1/configs/services/chunking.json',
+              'docs/schemas/v1/configs/services/embedding.json',
+              'docs/schemas/v1/configs/services/ingestion.json',
+              'docs/schemas/v1/configs/services/orchestrator.json',
+              'docs/schemas/v1/configs/services/parsing.json',
+              'docs/schemas/v1/configs/services/reporting.json',
+              'docs/schemas/v1/configs/services/summarization.json',
           ]:
               try:
                   with open(schema_file, 'r') as f:

@@ -1,0 +1,34 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "SentenceTransformers embedding backend driver settings",
+    "type": "object",
+    "properties": {
+        "model_name": {
+            "type": "string",
+            "minLength": 1,
+            "source": "env",
+            "env_var": "SENTENCETRANSFORMERS_MODEL_NAME",
+            "default": "all-MiniLM-L6-v2",
+            "description": "SentenceTransformers model name to use"
+        },
+        "device": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(cpu|mps|cuda(:\\d+)?)$",
+            "source": "env",
+            "env_var": "SENTENCETRANSFORMERS_DEVICE",
+            "default": "cpu",
+            "description": "Device to use (supported: 'cpu', 'mps', 'cuda', 'cuda:N' like 'cuda:0')"
+        },
+        "cache_dir": {
+            "type": "string",
+            "source": "env",
+            "env_var": "SENTENCETRANSFORMERS_CACHE_FOLDER",
+            "required": false,
+            "description": "Cache folder for model files"
+        }
+    },
+    "required": ["model_name", "device"],
+    "additionalProperties": false
+}

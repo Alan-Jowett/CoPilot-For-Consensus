@@ -1,0 +1,27 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Vector store adapter - choose one vector store backend",
+    "type": "object",
+    "properties": {
+        "discriminant": {
+            "field": "vector_store_type",
+            "type": "string",
+            "source": "env",
+            "env_var": "VECTOR_STORE_TYPE",
+            "enum": ["qdrant", "azure_ai_search", "faiss", "inmemory"],
+            "description": "Vector store type (qdrant, azure_ai_search, faiss, inmemory)"
+        },
+        "drivers": {
+            "type": "object",
+            "properties": {
+                "qdrant": { "$ref": "./drivers/vector_store/vectorstore_qdrant.json" },
+                "azure_ai_search": { "$ref": "./drivers/vector_store/vectorstore_aisearch.json" },
+                "faiss": { "$ref": "./drivers/vector_store/vectorstore_faiss.json" },
+                "inmemory": { "$ref": "./drivers/vector_store/vectorstore_inmemory.json" }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": ["discriminant", "drivers"]
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/summary-complete.schema.json",
+  "title": "SummaryComplete Event",
+  "allOf": [
+    { "$ref": "./event-envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "SummaryComplete" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary_id": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
+            "thread_id": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
+            "summary_markdown": { "type": "string", "minLength": 1 },
+            "citations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "message_id": { "type": "string", "minLength": 1 },
+                  "chunk_id": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
+                  "offset": { "type": "integer", "minimum": 0 },
+                  "text": { "type": "string" }
+                },
+                "required": ["message_id", "chunk_id", "offset"],
+                "additionalProperties": false
+              },
+              "minItems": 0,
+              "uniqueItems": false
+            },
+            "llm_backend": { "type": "string", "minLength": 1 },
+            "llm_model": { "type": "string", "minLength": 1 },
+            "tokens_prompt": { "type": "integer", "minimum": 0 },
+            "tokens_completion": { "type": "integer", "minimum": 0 },
+            "latency_ms": { "type": "integer", "minimum": 0 }
+          },
+          "required": [
+            "summary_id",
+            "thread_id",
+            "summary_markdown",
+            "citations",
+            "llm_backend",
+            "llm_model",
+            "tokens_prompt",
+            "tokens_completion",
+            "latency_ms"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event_type", "event_id", "timestamp", "version", "data"],
+      "additionalProperties": false
+    }
+  ]
+}

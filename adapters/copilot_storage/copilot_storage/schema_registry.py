@@ -46,7 +46,7 @@ def _find_repo_root() -> Path:
 
 # Default schema directory
 _REPO_ROOT = _find_repo_root()
-_DEFAULT_SCHEMA_DIR = _REPO_ROOT / "docs" / "schemas" / "documents"
+_DEFAULT_SCHEMA_DIR = _REPO_ROOT / "docs" / "schemas" / "v1" / "documents"
 
 # Global registry: collection name -> set of allowed field names
 _COLLECTION_SCHEMAS: dict[str, set[str]] = {}

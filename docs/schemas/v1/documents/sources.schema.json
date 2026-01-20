@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "SPDX-License-Identifier: MIT, Copyright (c) 2025 Copilot-for-Consensus contributors",
+  "title": "Ingestion Source Configuration",
+  "description": "Configuration for an archive ingestion source (rsync, HTTP, IMAP, local)",
+  "type": "object",
+  "required": ["name", "source_type", "url"],
+  "properties": {
+    "_id": {
+      "type": "string",
+      "description": "MongoDB document ID"
+    },
+    "name": {
+      "type": "string",
+      "description": "Unique name for the source",
+      "minLength": 1
+    },
+    "source_type": {
+      "type": "string",
+      "enum": ["local", "http", "rsync", "imap"],
+      "description": "Type of source"
+    },
+    "url": {
+      "type": "string",
+      "description": "Source URL or connection string (rsync://..., http://..., local path, IMAP connection)",
+      "minLength": 1
+    },
+    "port": {
+      "type": ["integer", "null"],
+      "description": "Port number (for IMAP sources, typically 993 for SSL or 143 for plain)",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "username": {
+      "type": ["string", "null"],
+      "description": "Username for authentication (for IMAP or HTTP sources)"
+    },
+    "password": {
+      "type": ["string", "null"],
+      "description": "Password for authentication (for IMAP or HTTP sources) - should be encrypted in storage"
+    },
+    "folder": {
+      "type": ["string", "null"],
+      "description": "Folder path (for IMAP sources, e.g., 'INBOX' or 'Archive')"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the source is enabled for ingestion"
+    },
+    "schedule": {
+      "type": ["string", "null"],
+      "description": "Cron expression for scheduling (e.g., '0 */6 * * *' for every 6 hours)",
+      "pattern": "^((@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\\d+)([a-z]+))|((((\\d+-?)+(,)?)*\\d+)?|\\*)( ((((\\d+-?)+(,)?)*\\d+)?|\\*)){4,6}(\\s|$))?$"
+    },
+    "created_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when source was created"
+    },
+    "updated_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when source was last updated"
+    },
+    "last_run_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of last ingestion attempt"
+    },
+    "last_run_status": {
+      "type": ["string", "null"],
+      "enum": ["success", "failure", null],
+      "description": "Status of the last ingestion attempt"
+    },
+    "last_error": {
+      "type": ["string", "null"],
+      "description": "Error message from the last failed ingestion attempt"
+    },
+    "next_run_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of next scheduled ingestion (if scheduling is enabled)"
+    },
+    "files_processed": {
+      "type": "integer",
+      "default": 0,
+      "description": "Total number of files processed from this source"
+    },
+    "files_skipped": {
+      "type": "integer",
+      "default": 0,
+      "description": "Total number of files skipped (already ingested) from this source"
+    }
+  },
+  "additionalProperties": false
+}

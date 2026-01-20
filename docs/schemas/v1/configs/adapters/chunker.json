@@ -1,0 +1,39 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Chunker adapter",
+    "type": "object",
+    "properties": {
+        "discriminant": {
+            "field": "chunking_strategy",
+            "type": "string",
+            "source": "env",
+            "env_var": "CHUNKER_TYPE",
+            "enum": [
+                "token_window",
+                "fixed_size",
+                "semantic"
+            ],
+            "description": "Chunking strategy (token_window, fixed_size, semantic)"
+        },
+        "drivers": {
+            "type": "object",
+            "properties": {
+                "token_window": {
+                    "$ref": "./drivers/chunker/token_window.json"
+                },
+                "fixed_size": {
+                    "$ref": "./drivers/chunker/fixed_size.json"
+                },
+                "semantic": {
+                    "$ref": "./drivers/chunker/semantic.json"
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": [
+        "discriminant",
+        "drivers"
+    ]
+}

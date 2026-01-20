@@ -115,7 +115,7 @@ def _resolve_schema_directory(schema_dir: str | None = None) -> str:
     possible_dirs: list[str] = []
 
     for base in (cwd, os.path.join(cwd, "..")):
-        possible_dirs.append(os.path.join(base, "docs", "schemas", "configs"))
+        possible_dirs.append(os.path.join(base, "docs", "schemas", "v1", "configs"))
 
     # Also search upward from this module's location (more robust for tests)
     try:
@@ -123,7 +123,7 @@ def _resolve_schema_directory(schema_dir: str | None = None) -> str:
 
         here = Path(__file__).resolve()
         for parent in here.parents:
-            possible_dirs.append(str(parent / "docs" / "schemas" / "configs"))
+            possible_dirs.append(str(parent / "docs" / "schemas" / "v1" / "configs"))
     except Exception:
         # Fall back to cwd-based resolution
         pass
@@ -132,8 +132,8 @@ def _resolve_schema_directory(schema_dir: str | None = None) -> str:
         if os.path.exists(d):
             return d
 
-    # Default to docs/schemas/configs if nothing found
-    return os.path.join(cwd, "docs", "schemas", "configs")
+    # Default to docs/schemas/v1/configs if nothing found
+    return os.path.join(cwd, "docs", "schemas", "v1", "configs")
 
 
 def _parse_semver(version: str) -> tuple[int, int, int]:

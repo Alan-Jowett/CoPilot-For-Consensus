@@ -10,7 +10,7 @@ on:
   pull_request:
     paths:
       - 'infra/azure/**/*.bicep'
-      - 'docs/schemas/configs/**/*.json'
+      - 'docs/schemas/v1/configs/**/*.json'
       - 'scripts/validate_bicep_*.py'
       - '.github/workflows/bicep-config-validation.yml'
 

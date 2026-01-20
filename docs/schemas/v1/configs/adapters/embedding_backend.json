@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Embedding backend adapter - choose one embedding backend",
+    "type": "object",
+    "properties": {
+        "discriminant": {
+            "field": "embedding_backend_type",
+            "type": "string",
+            "source": "env",
+            "env_var": "EMBEDDING_BACKEND_TYPE",
+            "enum": ["mock", "sentencetransformers", "openai", "azure_openai", "huggingface"],
+            "required": true,
+            "description": "Embedding backend type (mock, sentencetransformers, openai, azure_openai, huggingface)"
+        },
+        "drivers": {
+            "type": "object",
+            "properties": {
+                "mock": { "$ref": "./drivers/embedding_backend/embedding_mock.json" },
+                "sentencetransformers": { "$ref": "./drivers/embedding_backend/embedding_sentencetransformers.json" },
+                "openai": { "$ref": "./drivers/embedding_backend/embedding_openai.json" },
+                "azure_openai": { "$ref": "./drivers/embedding_backend/embedding_azure_openai.json" },
+                "huggingface": { "$ref": "./drivers/embedding_backend/embedding_huggingface.json" }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": ["discriminant", "drivers"]
+}

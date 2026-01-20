@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+  "title": "OpenAI embedding backend driver settings",
+  "type": "object",
+  "properties": {
+    "api_key": {
+      "type": "string",
+      "minLength": 1,
+      "source": "secret",
+      "secret_name": "openai_api_key",
+      "env": "OPENAI_API_KEY",
+      "description": "OpenAI API key"
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "source": "env",
+      "env_var": "EMBEDDING_MODEL",
+      "description": "OpenAI embedding model name"
+    },
+    "organization": {
+      "type": "string",
+      "minLength": 1,
+      "source": "env",
+      "env_var": "OPENAI_ORGANIZATION",
+      "description": "Optional OpenAI organization id"
+    }
+  },
+  "required": ["api_key", "model"],
+  "additionalProperties": false
+}

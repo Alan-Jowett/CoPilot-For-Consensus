@@ -1,0 +1,48 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Logger adapter",
+    "type": "object",
+    "properties": {
+        "discriminant": {
+            "field": "logger_type",
+            "type": "string",
+            "source": "env",
+            "env_var": "LOG_TYPE",
+            "enum": ["stdout", "silent"],
+            "required": true,
+            "description": "Logger type (stdout, silent)"
+        },
+        "common": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "LOG_LEVEL",
+                    "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+                    "default": "INFO",
+                    "required": false,
+                    "description": "Logging level"
+                },
+                "name": {
+                    "type": "string",
+                    "source": "env",
+                    "env_var": "LOG_NAME",
+                    "default": "copilot",
+                    "required": false,
+                    "description": "Logger name for identification"
+                }
+            }
+        },
+        "drivers": {
+            "type": "object",
+            "properties": {
+                "stdout": { "$ref": "./drivers/logger/logger_stdout.json" },
+                "silent": { "$ref": "./drivers/logger/logger_silent.json" }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": ["discriminant", "drivers"]
+}

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 _schema_cache: dict[str, dict] = {}
 
 # Schema registry mapping (type, version) pairs to relative schema file paths
-# All paths are relative to the repository's docs/schemas/ directory
+# All paths are relative to the repository's docs/schemas/v1/ directory
 SCHEMA_REGISTRY: dict[str, str] = {
     # Event schemas (v1)
     "v1.ArchiveIngested": "events/ArchiveIngested.schema.json",
@@ -43,12 +43,16 @@ SCHEMA_REGISTRY: dict[str, str] = {
     "v1.ReportPublished": "events/ReportPublished.schema.json",
     "v1.ReportDeliveryFailed": "events/ReportDeliveryFailed.schema.json",
     "v1.EventEnvelope": "events/event-envelope.schema.json",
+    "v1.SourceCleanupCompleted": "events/SourceCleanupCompleted.schema.json",
+    "v1.SourceCleanupProgress": "events/SourceCleanupProgress.schema.json",
+    "v1.SourceDeletionRequested": "events/SourceDeletionRequested.schema.json",
     # Document schemas (v1)
     "v1.Archive": "documents/archives.schema.json",
     "v1.Message": "documents/messages.schema.json",
     "v1.Thread": "documents/threads.schema.json",
     "v1.Chunk": "documents/chunks.schema.json",
     "v1.Summary": "documents/summaries.schema.json",
+    "v1.Source": "documents/sources.schema.json",
     # Role store schemas (v1)
     "v1.UserRoles": "role_store/user_roles.schema.json",
 }
@@ -85,14 +89,14 @@ def _get_schema_base_dir() -> Path:
 
     # Walk up the directory tree looking for the schema directory
     for _ in range(10):  # Limit search depth to avoid infinite loops
-        schema_dir = current / "docs" / "schemas"
+        schema_dir = current / "docs" / "schemas" / "v1"
         if schema_dir.exists() and schema_dir.is_dir():
             logger.debug(f"Found schema directory at: {schema_dir}")
             return schema_dir
 
         # Check if we've reached the repo root by looking for common markers
         if (current / ".git").exists() or (current / "pyproject.toml").exists():
-            schema_dir = current / "docs" / "schemas"
+            schema_dir = current / "docs" / "schemas" / "v1"
             if schema_dir.exists() and schema_dir.is_dir():
                 return schema_dir
 
@@ -104,7 +108,7 @@ def _get_schema_base_dir() -> Path:
 
     error_msg = (
         f"Schema directory not found. Searched up from {Path(__file__).resolve().parent} "
-        f"but could not find docs/schemas directory."
+        f"but could not find docs/schemas/v1 directory."
     )
     logger.error(error_msg)
     raise FileNotFoundError(error_msg)
@@ -315,7 +319,6 @@ def get_configuration_schema_response(service_name: str, service_version: str) -
         >>> response['$schema']
         'http://json-schema.org/draft-07/schema#'
     """
-    del service_version
     schema_base_dir = _get_schema_base_dir()
     schema_path = schema_base_dir / "configs" / "services" / f"{service_name}.json"
 
