@@ -44,7 +44,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Test-CommandAvailable([string]$Name) {
+function Require-Command([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
         throw "Required command not found: $Name"
     }
@@ -57,7 +57,7 @@ if (-not $PSBoundParameters.ContainsKey('OutDir')) {
 $TopSize = 50
 $ErrorMessageTruncationLength = 200
 
-Test-CommandAvailable "az"
+Require-Command "az"
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
@@ -326,13 +326,13 @@ ContainerAppConsoleLogs_CL
 | where msg has 'JWKS fetch attempt' and msg has 'Connection refused'
 | summarize cnt=count()
 "@
-
 $jwksConnectionRefusedByAppKql = @"
 ContainerAppConsoleLogs_CL
 | extend l=parse_json(Log_s)
 | extend msg=tostring(l.message)
 | where msg has 'JWKS fetch attempt' and msg has 'Connection refused'
 | summarize cnt=count() by ContainerAppName_s
+| top $TopSize by cnt desc
 | top $TopSize by cnt desc
 "@
 
@@ -359,7 +359,6 @@ ContainerAppConsoleLogs_CL
 "@
 
 Write-Host "Running Log Analytics exports (timespan=$Timespan)..." -ForegroundColor Cyan
-
 $exportQueries = @(
     @{ Name = 'tables'; Kql = $tableInventoryKql; Key = 'table_inventory' },
     @{ Name = 'validation_errors_count'; Kql = $validationCountKql; Key = 'validation_count' },
