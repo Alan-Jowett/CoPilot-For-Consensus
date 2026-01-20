@@ -1014,7 +1014,6 @@ def test_requeue_publishes_schema_compliant_jsonparsed_events():
         DriverConfig_DocumentStore_Inmemory,
     )
     from copilot_storage import create_document_store
-    from .test_helpers import assert_valid_event_schema
 
     # Use inmemory document store which supports aggregation
     store = create_document_store(
