@@ -155,6 +155,8 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
 
 // Azure Files storage for Qdrant persistent storage
 // This enables scale-to-zero and ensures vector data persists across restarts/redeploys
+// Note: Uses storage account key for authentication (required for Azure Files with Container Apps)
+// Managed identity authentication for Azure Files mounts is not yet supported in Container Apps
 resource qdrantStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = if (vectorStoreBackend == 'qdrant' && qdrantStorageEnabled) {
   parent: containerAppsEnv
   name: 'qdrant-storage'

@@ -164,7 +164,7 @@ output primaryEndpoints object = storageAccount.properties.primaryEndpoints
 output containerNames array = containerNames
 
 @description('Qdrant file share name (if enabled)')
-output qdrantFileShareName string = enableQdrantFileShare ? qdrantFileShareName : ''
+output qdrantFileShareName string = enableQdrantFileShare ? qdrantFileShare.name : ''
 
 @description('Qdrant file share enabled status')
 output qdrantFileShareEnabled bool = enableQdrantFileShare
