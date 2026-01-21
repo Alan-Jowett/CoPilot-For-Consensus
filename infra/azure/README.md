@@ -46,6 +46,7 @@ See [Two-RG Deployment Guide](#two-rg-deployment-guide) for detailed instruction
 
 ## Related Documentation
 
+- **[Scale-to-Zero Configuration](SCALE_TO_ZERO_CONFIGURATION.md)** - Container Apps scale-to-zero setup for cost optimization with KEDA
 - **[Azure OpenAI Configuration Guide](OPENAI_CONFIGURATION.md)** - Detailed guide for configuring Azure OpenAI, model selection, and cost optimization
 - **[Bicep Architecture](BICEP_ARCHITECTURE.md)** - Infrastructure architecture and module design
 - **[GitHub OIDC Setup](GITHUB_OIDC_SETUP.md)** - Configure GitHub Actions for automated deployments
@@ -1698,18 +1699,28 @@ az containerapp exec \
 
 Approximate monthly costs for a development deployment (prices vary by region):
 
-| Resource | SKU | Estimated Cost |
-|----------|-----|----------------|
-| Container Apps Environment | Consumption | ~$50/month |
-| Container Apps (10 services) | 0.5-1.0 vCPU, 1-2GB RAM | ~$200-400/month |
-| Cosmos DB for MongoDB | 400 RU/s | ~$25/month |
-| Azure Service Bus | Standard | ~$10/month |
-| Storage Account | Standard LRS, 100GB | ~$2/month |
-| Log storage (archived) | Blob Storage (NDJSON) | typically low (usage-dependent) |
-| Key Vault | Standard | ~$1/month |
-| Azure OpenAI | GPT-4, 1M tokens | ~$30/month |
+| Resource | SKU | Estimated Cost (Always-On) | Estimated Cost (Scale-to-Zero) |
+|----------|-----|----------------|----------------|
+| Container Apps Environment | Consumption | ~$50/month | ~$50/month |
+| Container Apps (10 services) | 0.5-1.0 vCPU, 1-2GB RAM | ~$200-400/month | ~$130-260/month (35-50% reduction) |
+| Cosmos DB for MongoDB | 400 RU/s | ~$25/month | ~$25/month |
+| Azure Service Bus | Standard | ~$10/month | ~$10/month |
+| Storage Account | Standard LRS, 100GB | ~$2/month | ~$2/month |
+| Log storage (archived) | Blob Storage (NDJSON) | typically low (usage-dependent) | typically low (usage-dependent) |
+| Key Vault | Standard | ~$1/month | ~$1/month |
+| Azure OpenAI | GPT-4, 1M tokens | ~$30/month | ~$30/month |
 
-**Total Estimated Cost**: ~$325-525/month for development
+**Total Estimated Cost**: 
+- **Always-on**: ~$325-525/month for development
+- **Scale-to-zero**: ~$250-380/month for development
+- **Annual savings**: ~$900-1,740/year with scale-to-zero configuration
+
+**Scale-to-Zero Benefits** (see [Scale-to-Zero Configuration](SCALE_TO_ZERO_CONFIGURATION.md)):
+- All services scale to 0 replicas when idle (no HTTP traffic or Service Bus messages)
+- Pay only for active compute time
+- HTTP services scale on concurrent requests
+- Message consumers scale based on Service Bus queue depth via KEDA
+- Trade-off: 5-15 second cold start latency when waking from idle
 
 For production, costs will scale with:
 - Container Apps autoscaling (more replicas)
