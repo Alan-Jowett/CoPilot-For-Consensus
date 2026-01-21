@@ -227,6 +227,17 @@ def main():
             logger.error(f"Failed to connect to document store: {e}")
             raise
 
+        # Create vector store
+        logger.info("Creating vector store...")
+        try:
+            from copilot_vectorstore import create_vector_store
+
+            vector_store = create_vector_store(config.vector_store)
+            logger.info("Vector store created successfully")
+        except Exception as e:
+            logger.error(f"Failed to create vector store: {e}")
+            raise
+
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
         metrics_collector = create_metrics_collector(config.metrics)
@@ -235,15 +246,22 @@ def main():
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter(config.error_reporter)
 
+        # Get chunk selection strategy from config
+        chunk_selection_strategy = str(
+            config.service_settings.chunk_selection_strategy or "top_k_relevance"
+        )
+
         # Create orchestration service
         orchestration_service = OrchestrationService(
             document_store=document_store,
+            vector_store=vector_store,
             publisher=publisher,
             subscriber=subscriber,
             top_k=int(config.service_settings.top_k or 5),
             context_window_tokens=int(config.service_settings.context_window_tokens or 2048),
             system_prompt_path=str(config.service_settings.system_prompt_path or "/app/prompts/system.txt"),
             user_prompt_path=str(config.service_settings.user_prompt_path or "/app/prompts/user.txt"),
+            chunk_selection_strategy=chunk_selection_strategy,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
         )

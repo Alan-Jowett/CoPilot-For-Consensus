@@ -25,6 +25,7 @@ class ServiceSettings_Orchestrator:
     """Service-specific settings for orchestrator."""
 
     auth_service_url: str | None = "http://auth:8090"
+    chunk_selection_strategy: str | None = "top_k_relevance"
     consensus_timeout_seconds: int | None = 300
     context_window_tokens: int | None = 2048
     http_port: int | None = 8000

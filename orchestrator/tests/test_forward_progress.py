@@ -79,6 +79,23 @@ def get_collection_from_call(call):
     return None
 
 
+def get_filter_dict_from_call(call):
+    """Helper to extract filter_dict from mock call (positional or keyword arg)."""
+    args, kwargs = call
+    if "filter_dict" in kwargs and isinstance(kwargs["filter_dict"], dict):
+        return kwargs["filter_dict"]
+    if len(args) > 1 and isinstance(args[1], dict):
+        return args[1]
+    return None
+
+
+def is_thread_id_in_batch_filter(call) -> bool:
+    """Return True if call has filter_dict.thread_id.$in."""
+    filter_dict = get_filter_dict_from_call(call) or {}
+    thread_id_filter = filter_dict.get("thread_id")
+    return isinstance(thread_id_filter, dict) and thread_id_filter.get("$in") is not None
+
+
 class TestOrchestratorForwardProgress:
     """Test cases for orchestrator service forward progress logic."""
 
@@ -360,12 +377,12 @@ class TestOrchestratorForwardProgress:
             c
             for c in calls
             if get_collection_from_call(c) == "chunks"
-            and c[1].get("filter_dict", {}).get("thread_id", {}).get("$in") is not None
+            and is_thread_id_in_batch_filter(c)
         ]
         assert len(chunk_batch_calls) == 1
 
         # Verify all thread IDs were included
-        chunk_filter = chunk_batch_calls[0][1].get("filter_dict")
+        chunk_filter = get_filter_dict_from_call(chunk_batch_calls[0])
         assert len(chunk_filter["thread_id"]["$in"]) == 10
 
     @patch("copilot_startup.StartupRequeue")

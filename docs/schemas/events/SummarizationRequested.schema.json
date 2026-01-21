@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/summarization-requested.schema.json",
   "title": "SummarizationRequested Event",
+  "description": "Event for requesting summarization. The selected_chunks and context_selection fields are optional for backward compatibility with legacy orchestrators. New orchestrators should always provide selected_chunks. Legacy behavior (summarization service selecting chunks from document store) will be removed in a future version.",
   "allOf": [
     { "$ref": "./event-envelope.schema.json" },
     {
@@ -18,7 +19,36 @@
               "uniqueItems": true
             },
             "top_k": { "type": "integer", "minimum": 1 },
-            "prompt_template": { "type": "string", "minLength": 1 }
+            "prompt_template": { "type": "string", "minLength": 1 },
+            "selected_chunks": {
+              "type": "array",
+              "description": "Ordered list of selected chunk IDs for summarization context (optional for backward compatibility, required for new orchestrators)",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "chunk_id": { "type": "string" },
+                  "source": { "type": "string" },
+                  "score": { "type": "number" },
+                  "rank": { "type": "integer", "minimum": 0 },
+                  "metadata": { "type": "object" }
+                },
+                "required": ["chunk_id", "source", "score", "rank"],
+                "additionalProperties": false
+              }
+            },
+            "context_selection": {
+              "type": "object",
+              "description": "Metadata about how chunks were selected (optional for backward compatibility)",
+              "properties": {
+                "selector_type": { "type": "string" },
+                "selector_version": { "type": "string" },
+                "selection_params": { "type": "object" },
+                "total_candidates": { "type": "integer", "minimum": 0 },
+                "total_tokens": { "type": "integer", "minimum": 0 }
+              },
+              "required": ["selector_type", "selector_version"],
+              "additionalProperties": false
+            }
           },
           "required": [
             "thread_ids",

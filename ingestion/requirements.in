@@ -11,7 +11,10 @@
 python-dotenv>=1.2.1
 prometheus-client>=0.24.1
 fastapi>=0.127.0
-uvicorn[standard]>=0.40.0
+# Note: uvicorn[standard] pulls in uvloop which does not support Windows.
+# Use standard extras on non-Windows, and plain uvicorn on Windows.
+uvicorn>=0.40.0; platform_system == "Windows"
+uvicorn[standard]>=0.40.0; platform_system != "Windows"
 httpx>=0.28.1  # Required for FastAPI TestClient
 python-multipart>=0.0.20  # Required for file upload support
 # Authentication
