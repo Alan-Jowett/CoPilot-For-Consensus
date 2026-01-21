@@ -434,6 +434,21 @@ class OrchestrationService:
 
             # Check if a summary already exists with this exact set of chunks
             if self._summary_exists(expected_summary_id):
+                # Forward progress: if the summary already exists but the thread document
+                # wasn't updated (e.g., transient reporting failure), backfill the link.
+                report_id = self._report_id_from_original_summary_id(expected_summary_id)
+                try:
+                    self.document_store.update_document(
+                        "threads",
+                        thread_id,
+                        {"summary_id": report_id},
+                    )
+                except Exception as update_error:
+                    logger.warning(
+                        f"Summary exists but failed to update thread {thread_id} with summary_id {report_id}: "
+                        f"{update_error}",
+                        exc_info=True,
+                    )
                 logger.info(
                     f"Summary already exists for thread {thread_id} with current chunks "
                     f"(summary_id={expected_summary_id[:16]}), skipping"
@@ -487,6 +502,20 @@ class OrchestrationService:
         hash_obj = hashlib.sha256(id_input.encode("utf-8"))
         return hash_obj.hexdigest()
 
+    def _report_id_from_original_summary_id(self, original_summary_id: str) -> str:
+        """Convert a summarization-service summary_id (SHA-256 hex) to reporting report_id.
+
+        Reporting stores summaries using a deterministic 16-hex-character ID:
+        sha256(original_summary_id).hexdigest()[:16].
+
+        Args:
+            original_summary_id: Full SHA-256 hex string produced by summarization.
+
+        Returns:
+            16-character hex string used as summaries._id in reporting.
+        """
+        return hashlib.sha256(original_summary_id.encode()).hexdigest()[:16]
+
     def _summary_exists(self, summary_id: str) -> bool:
         """Check if a summary exists for the given summary_id.
 
@@ -501,7 +530,7 @@ class OrchestrationService:
         """
         try:
             # Generate 16-char ID (matches reporting service's truncation logic)
-            truncated_id = hashlib.sha256(summary_id.encode()).hexdigest()[:16]
+            truncated_id = self._report_id_from_original_summary_id(summary_id)
 
             # Check if summary document exists
             summaries = self.document_store.query_documents("summaries", {"_id": truncated_id}, limit=1)

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import requests
 from copilot_error_reporting import ErrorReporter
 from copilot_event_retry import (
-    DocumentNotFoundError,
+    DocumentNotFoundError as RetryDocumentNotFoundError,
     RetryConfig,
     handle_event_with_retry,
 )
@@ -26,6 +26,7 @@ from copilot_message_bus import (
     SummaryCompleteEvent,
 )
 from copilot_metrics import MetricsCollector
+from copilot_storage import DocumentNotFoundError as StorageDocumentNotFoundError
 from copilot_storage import DocumentStore
 
 # Optional dependencies for search/filtering features
@@ -299,22 +300,28 @@ class ReportingService:
                 )
             )
             if not thread_docs:
-                raise DocumentNotFoundError(f"Thread {thread_id} not found in database")
+                raise RetryDocumentNotFoundError(f"Thread {thread_id} not found in database")
 
             self.document_store.update_document(
                 "threads",
                 thread_id,
                 {"summary_id": report_id},
             )
+        except StorageDocumentNotFoundError as e:
+            # Convert storage-layer not-found into a retryable race-condition error.
+            raise RetryDocumentNotFoundError(
+                f"Thread {thread_id} not found in database"
+            ) from e
+        except RetryDocumentNotFoundError:
+            raise
         except Exception as e:
-            # Raise retryable error so the event retry wrapper can handle race conditions.
-            if isinstance(e, DocumentNotFoundError):
-                raise
-
+            # Do not swallow this: if we stored the summary but failed to link it to the
+            # thread, we must retry/requeue so the system converges.
             logger.warning(
                 f"Failed to update thread {thread_id} with summary_id {report_id}: {e}",
                 exc_info=True,
             )
+            raise
 
         # Attempt webhook notification if enabled
         notified = False

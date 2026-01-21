@@ -3,6 +3,8 @@
 
 """Unit tests for forward progress (startup requeue) logic in orchestrator service."""
 
+import hashlib
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -14,6 +16,7 @@ def mock_document_store():
     """Create a mock document store."""
     store = Mock()
     store.query_documents = Mock(return_value=[])
+    store.update_document = Mock()
     return store
 
 
@@ -256,6 +259,32 @@ class TestOrchestratorForwardProgress:
         assert event_data["thread_ids"] == ["thread-001"]
         assert "top_k" in event_data
         assert "prompt_template" in event_data
+
+    def test_orchestrate_backfills_thread_when_summary_already_exists(
+        self, orchestration_service, mock_document_store, mock_publisher
+    ):
+        """If a summary already exists, orchestrator should backfill threads.summary_id and not re-publish."""
+        thread_id = "thread-001"
+        original_summary_id = "summaryhash"
+        expected_report_id = hashlib.sha256(original_summary_id.encode()).hexdigest()[:16]
+
+        with (
+            patch.object(orchestration_service, "_retrieve_context", return_value={"chunks": [{"_id": "chunk-001"}]}),
+            patch.object(orchestration_service, "_calculate_summary_id", return_value=original_summary_id),
+            patch.object(orchestration_service, "_summary_exists", return_value=True),
+        ):
+            orchestration_service._orchestrate_thread(thread_id)
+
+        mock_document_store.update_document.assert_called_once_with(
+            "threads",
+            thread_id,
+            {"summary_id": expected_report_id},
+        )
+
+        publish_calls = [
+            c for c in mock_publisher.publish.call_args_list if c[1].get("routing_key") == "summarization.requested"
+        ]
+        assert len(publish_calls) == 0
 
     def test_no_requeue_when_all_threads_have_summaries(
         self, orchestration_service, mock_document_store, mock_publisher

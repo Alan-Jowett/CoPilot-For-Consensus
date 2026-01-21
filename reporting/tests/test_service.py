@@ -271,6 +271,29 @@ def test_process_summary_stores_document(reporting_service, mock_document_store,
     assert doc["metadata"]["tokens_prompt"] == 1000
 
 
+def test_process_summary_raises_if_thread_update_fails(
+    reporting_service, mock_document_store, mock_publisher, sample_summary_complete_event
+):
+    """If the summary is stored but threads.summary_id cannot be updated, the event must requeue."""
+    thread_id = sample_summary_complete_event["data"]["thread_id"]
+
+    def query_documents_side_effect(collection: str, **kwargs):
+        if collection == "summaries":
+            return []
+        if collection == "threads":
+            return [{"_id": thread_id}]
+        return []
+
+    mock_document_store.query_documents.side_effect = query_documents_side_effect
+    mock_document_store.update_document.side_effect = Exception("db write failed")
+
+    with pytest.raises(Exception, match="db write failed"):
+        reporting_service.process_summary(sample_summary_complete_event["data"], sample_summary_complete_event)
+
+    # Summary insert may have already happened; but we must not publish ReportPublished on failure.
+    assert mock_publisher.publish.call_count == 0
+
+
 def test_process_summary_publishes_report_published_event(
     reporting_service, mock_publisher, sample_summary_complete_event
 ):
