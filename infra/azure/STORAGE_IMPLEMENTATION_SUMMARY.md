@@ -57,7 +57,41 @@ Created a new Bicep module to provision Azure Storage Account for blob storage:
 
 These enable the ingestion service to use Azure Blob Storage for raw email archive storage with managed identity authentication.
 
-### 4. Cosmos DB Module Enhancements (`infra/azure/modules/cosmos.bicep`)
+### 4. Qdrant Persistent Storage (Azure Files)
+
+**Issue Addressed:** Qdrant was previously deployed without persistent storage, causing data loss on restart/redeploy/scale events. This blocked scale-to-zero capability and risked losing vector embeddings.
+
+**Solution Implemented:**
+
+**Storage Module Updates (`infra/azure/modules/storage.bicep`):**
+- Added Azure Files service (`fileService`) with 7-day delete retention policy
+- Created dedicated file share (`qdrant-storage`) for Qdrant vector database
+- Configurable quota: 5GB (dev/staging), 10GB (production)
+- Access tier: `TransactionOptimized` for frequent read/write operations
+- Enabled conditionally when `vectorStoreBackend == 'qdrant'`
+
+**Container Apps Environment Storage:**
+- Registered Azure Files share as managed storage (`qdrant-storage`) in Container Apps Environment
+- Uses storage account key for authentication (required for Azure Files with Container Apps)
+- Access mode: `ReadWrite` to support Qdrant's database operations
+
+**Qdrant Container Updates (`infra/azure/modules/containerapps.bicep`):**
+- Added volume mount to `/qdrant/storage` path (Qdrant's default storage location)
+- Volume configuration uses `storageType: 'AzureFile'` with reference to environment storage
+- Mount is conditional on `qdrantStorageEnabled` parameter
+
+**Benefits:**
+- **Scale-to-zero capable**: Vector data persists when Qdrant scales down to 0 replicas
+- **Durable across restarts**: No data loss on container restart, redeploy, or reschedule
+- **Production-ready**: Eliminates risk of losing embedding index in production
+- **Cost-effective**: Small file share quota (5-10GB) sufficient for typical workloads
+
+**Configuration:**
+- Automatically enabled when `vectorStoreBackend == 'qdrant'` in deployment
+- No additional parameters required in parameter files
+- File share size scales with environment (dev: 5GB, prod: 10GB)
+
+### 5. Cosmos DB Module Enhancements (`infra/azure/modules/cosmos.bicep`)
 
 **Enhanced Indexing Policy:**
 
@@ -76,7 +110,7 @@ All composite indexes include `collection` first to ensure efficient partition-s
 - Documented benefits and trade-offs of single-container approach
 - Explained when to migrate to separate containers
 
-### 5. Documentation
+### 6. Documentation
 
 #### New: `COSMOS_DB_DESIGN.md`
 Comprehensive documentation covering:
@@ -211,15 +245,23 @@ This enables keyless blob read/write operations via managed identity.
 1. **Deploy to dev environment** and verify:
    - Storage account is created
    - `archives` container exists
+   - `qdrant-storage` file share exists
    - Managed identities have blob contributor access
    - Ingestion service can read/write blobs
 
-2. **Test Cosmos DB** queries with composite indexes:
+2. **Test Qdrant persistent storage**:
+   - Verify Qdrant container mounts `/qdrant/storage` volume
+   - Create test collection and insert embeddings
+   - Restart Qdrant container and verify data persists
+   - Test scale-to-zero: scale down to 0, then scale back up
+   - Verify collections and vectors remain intact
+
+3. **Test Cosmos DB** queries with composite indexes:
    - Query messages by thread_id + date
    - Query archives by source + ingestion_date
    - Monitor RU consumption
 
-3. **Validate RBAC** (no access keys):
+4. **Validate RBAC** (no access keys):
    - Ingestion service connects to blob storage without connection string
    - All services connect to Cosmos DB without keys
 
@@ -229,12 +271,17 @@ This enables keyless blob read/write operations via managed identity.
 - **Dev/Staging**: ~$2-5/month (100GB, Standard_LRS, Hot tier)
 - **Production**: ~$10-20/month (1TB, Standard_GRS, Hot tier)
 
+### Azure Files (Qdrant Persistent Storage)
+- **Dev/Staging**: ~$0.30-0.60/month (5GB file share, transaction optimized)
+- **Production**: ~$0.60-1.20/month (10GB file share, transaction optimized)
+- Note: Minimal cost for small file shares, critical for data durability and scale-to-zero
+
 ### Cosmos DB
 - **Dev**: ~$24/month (400 RU/s minimum, autoscale to 1000)
 - **Staging**: ~$58/month (1000 RU/s minimum, autoscale to 2000)
 - **Production**: ~$233+/month (4000 RU/s minimum, autoscale based on load)
 
-Total additional infrastructure cost: **~$26-50/month for dev, $250+/month for prod**
+Total additional infrastructure cost: **~$27-56/month for dev, $244-254/month for prod**
 
 ## References
 
