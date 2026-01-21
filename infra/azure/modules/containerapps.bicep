@@ -206,6 +206,16 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
       scale: {
         minReplicas: minReplicaCount
         maxReplicas: environment == 'prod' ? 2 : 1
+        rules: [
+          {
+            name: 'http-scaling'
+            http: {
+              metadata: {
+                concurrentRequests: '10'
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -989,6 +999,9 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
+              // Authentication: Uses container app's managed identity automatically
+              // The managed identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
+              // No explicit auth configuration needed - Container Apps KEDA uses the app's managed identity
             }
           }
         ]
