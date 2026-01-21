@@ -170,6 +170,25 @@ The deployment provisions two storage services with distinct purposes:
 **RBAC roles assigned**:
 - **Storage Blob Data Contributor**: All services (read/write blob data using managed identity)
 
+##### Azure Files (Qdrant Persistent Storage)
+- **Purpose**: Durable storage for Qdrant vector database (embeddings, collections, indexes)
+- **Access**: Mounted to Qdrant Container App via Azure Files SMB share
+- **File Share**: `qdrant-storage` with transaction-optimized access tier
+- **Configuration**: 5GB (dev/staging), 10GB (prod)
+- **Mount Path**: `/qdrant/storage` (Qdrant's default storage directory)
+- **Authentication**: Storage account key (required for Container Apps Azure Files mounts)
+
+**Benefits**:
+- **Scale-to-zero ready**: Vector data persists when Qdrant scales down to 0 replicas
+- **Durable across restarts**: No data loss on container restart, redeploy, or reschedule
+- **Production-ready**: Eliminates risk of losing embedding index in production
+
+**Technical details**:
+- Deployed conditionally when `vectorStoreBackend == 'qdrant'`
+- Registered as managed storage in Container Apps Environment
+- Volume mounted to Qdrant container using `storageType: 'AzureFile'`
+- File share provisioned in same storage account as blob storage
+
 #### 3. **Conditional Deployments Per Environment**
 
 

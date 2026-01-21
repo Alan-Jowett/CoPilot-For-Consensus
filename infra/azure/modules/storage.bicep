@@ -28,6 +28,15 @@ param containerNames array = ['archives']
 @description('Managed identity principal IDs that need Storage Blob Data Contributor access')
 param contributorPrincipalIds array = []
 
+@description('Enable Azure Files share for Qdrant persistent storage')
+param enableQdrantFileShare bool = true
+
+@description('Qdrant file share name')
+param qdrantFileShareName string = 'qdrant-storage'
+
+@description('Qdrant file share quota in GB')
+param qdrantFileShareQuotaGb int = 5
+
 @description('Tags applied to all storage resources')
 param tags object = {}
 
@@ -101,6 +110,30 @@ resource containers 'Microsoft.Storage/storageAccounts/blobServices/containers@2
   }
 }]
 
+// File Service for Azure Files (used for Qdrant persistent storage)
+resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-01-01' = if (enableQdrantFileShare) {
+  parent: storageAccount
+  name: 'default'
+  properties: {
+    shareDeleteRetentionPolicy: {
+      enabled: true
+      days: 7
+    }
+  }
+}
+
+// Azure Files share for Qdrant persistent storage
+// This provides durable storage for Qdrant's vector database, enabling scale-to-zero
+resource qdrantFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = if (enableQdrantFileShare) {
+  parent: fileService
+  name: qdrantFileShareName
+  properties: {
+    shareQuota: qdrantFileShareQuotaGb
+    enabledProtocols: 'SMB'
+    accessTier: 'TransactionOptimized'
+  }
+}
+
 // RBAC: Assign Storage Blob Data Contributor role to managed identities
 // Role definition ID for Storage Blob Data Contributor: ba92f5b4-2d11-453d-a403-e96b0029c9fe
 var storageBlobDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
@@ -129,3 +162,9 @@ output primaryEndpoints object = storageAccount.properties.primaryEndpoints
 
 @description('Container names created')
 output containerNames array = containerNames
+
+@description('Qdrant file share name (if enabled)')
+output qdrantFileShareName string = enableQdrantFileShare ? qdrantFileShare.name : ''
+
+@description('Qdrant file share enabled status')
+output qdrantFileShareEnabled bool = enableQdrantFileShare
