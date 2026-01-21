@@ -1178,6 +1178,9 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
+              // Authentication: Uses container app's managed identity automatically
+              // The managed identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
+              // No explicit auth configuration needed - Container Apps KEDA uses the app's managed identity
             }
           }
         ]
@@ -1411,6 +1414,9 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
+              // Authentication: Uses container app's managed identity automatically
+              // The managed identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
+              // No explicit auth configuration needed - Container Apps KEDA uses the app's managed identity
             }
           }
         ]
@@ -1644,6 +1650,9 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
+              // Authentication: Uses container app's managed identity automatically
+              // The managed identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
+              // No explicit auth configuration needed - Container Apps KEDA uses the app's managed identity
             }
           }
         ]
@@ -1884,6 +1893,9 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
+              // Authentication: Uses container app's managed identity automatically
+              // The managed identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
+              // No explicit auth configuration needed - Container Apps KEDA uses the app's managed identity
             }
           }
         ]
