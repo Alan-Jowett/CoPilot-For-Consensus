@@ -78,6 +78,12 @@ param storageAccountId string = ''
 @description('Enable Blob storage archiving for ACA console logs')
 param enableBlobLogArchiving bool = true
 
+@description('Enable Qdrant persistent storage using Azure Files')
+param qdrantStorageEnabled bool = false
+
+@description('Azure Files share name for Qdrant storage')
+param qdrantStorageShareName string = 'qdrant-storage'
+
 @description('Container Apps subnet ID')
 param subnetId string
 
@@ -147,12 +153,26 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
+// Azure Files storage for Qdrant persistent storage
+// This enables scale-to-zero and ensures vector data persists across restarts/redeploys
+resource qdrantStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = if (vectorStoreBackend == 'qdrant' && qdrantStorageEnabled) {
+  parent: containerAppsEnv
+  name: 'qdrant-storage'
+  properties: {
+    azureFile: {
+      accountName: storageAccountName
+      shareName: qdrantStorageShareName
+      accessMode: 'ReadWrite'
+      accountKey: listKeys(resourceId('Microsoft.Storage/storageAccounts', storageAccountName), '2023-01-01').keys[0].value
+    }
+  }
+}
+
 // Qdrant Vector Database (port 6333) - Internal service for vector similarity search
 // Only deployed when vectorStoreBackend is 'qdrant' (default, lower cost option)
 // Deployed before application services that depend on it (embedding, summarization)
-// Note: Currently configured without persistent storage, suitable for development/ephemeral use.
-// For production with persistent vector data, consider adding Azure Files volume mount.
-// See: https://learn.microsoft.com/en-us/azure/container-apps/storage-mounts
+// Persistent storage: When qdrantStorageEnabled is true, Azure Files share is mounted to /qdrant/storage
+// This enables scale-to-zero and ensures vector data persists across restarts/redeploys
 resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBackend == 'qdrant') {
   name: '${projectPrefix}-qdrant-${environment}'
   location: location
@@ -188,6 +208,13 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
             cpu: json('0.25')
             memory: '0.5Gi'
           }
+          // Mount Azure Files share for persistent storage when enabled
+          volumeMounts: qdrantStorageEnabled ? [
+            {
+              volumeName: 'qdrant-data'
+              mountPath: '/qdrant/storage'
+            }
+          ] : []
           probes: [
             {
               type: 'Liveness'
@@ -203,12 +230,21 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
           ]
         }
       ]
+      // Define volume using Azure Files storage when enabled
+      volumes: qdrantStorageEnabled ? [
+        {
+          name: 'qdrant-data'
+          storageType: 'AzureFile'
+          storageName: 'qdrant-storage'
+        }
+      ] : []
       scale: {
         minReplicas: minReplicaCount
         maxReplicas: environment == 'prod' ? 2 : 1
       }
     }
   }
+  dependsOn: qdrantStorageEnabled ? [qdrantStorage] : []
 }
 
 // Auth service (port 8090)

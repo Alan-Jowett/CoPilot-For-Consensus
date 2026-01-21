@@ -315,6 +315,10 @@ module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
       identitiesModule.outputs.identityPrincipalIdsByName.parsing
     ]
     networkDefaultAction: effectiveEnablePublicNetworkAccess ? 'Allow' : 'Deny'
+    // Qdrant persistent storage (Azure Files) - Required for scale-to-zero and data durability
+    enableQdrantFileShare: vectorStoreBackend == 'qdrant'
+    qdrantFileShareName: 'qdrant-storage'
+    qdrantFileShareQuotaGb: environment == 'prod' ? 10 : 5  // 5GB dev/staging, 10GB prod
     tags: tags
   }
 }
@@ -642,6 +646,9 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     storageAccountName: storageModule!.outputs.accountName
     storageBlobEndpoint: storageModule!.outputs.blobEndpoint
     storageAccountId: storageModule!.outputs.accountId
+    // Qdrant persistent storage (Azure Files share)
+    qdrantStorageEnabled: storageModule!.outputs.qdrantFileShareEnabled
+    qdrantStorageShareName: storageModule!.outputs.qdrantFileShareName
     enableBlobLogArchiving: enableBlobLogArchiving
     subnetId: vnetModule!.outputs.containerAppsSubnetId
     keyVaultName: keyVaultName
