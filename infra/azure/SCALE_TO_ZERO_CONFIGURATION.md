@@ -26,6 +26,7 @@ The following services scale based on HTTP concurrent requests:
 | **reporting** | 8080 | Internal | HTTP concurrent requests (10 per replica) |
 | **ingestion** | 8001 | Internal | HTTP concurrent requests (10 per replica) |
 | **auth** | 8090 | Internal | HTTP concurrent requests (10 per replica) |
+| **qdrant** | 6333 | Internal | HTTP concurrent requests (10 per replica) |
 
 ### Service Bus Message Consumers (Scale on Queue Depth)
 
@@ -92,7 +93,17 @@ rules: [
 ]
 ```
 
-**Authentication**: KEDA scalers use the container app's managed identity automatically (no explicit auth configuration needed).
+**Authentication**: 
+
+KEDA scalers use the container app's user-assigned managed identity automatically. Azure Container Apps automatically configures KEDA to authenticate with Azure Service Bus using the app's managed identity when:
+1. The container app has a user-assigned managed identity configured
+2. The managed identity has the required RBAC roles (Azure Service Bus Data Receiver)
+3. No explicit auth configuration is provided in the scale rule
+
+This is the **recommended approach** for Container Apps as it:
+- Eliminates the need for connection strings or secrets
+- Leverages existing RBAC role assignments
+- Simplifies configuration and maintenance
 
 ## Behavior
 
@@ -137,6 +148,29 @@ When a service is scaled to zero:
 - Use Azure Container Apps Premium plan for faster cold starts
 - Pre-warm services during known high-traffic periods
 
+### Qdrant Vector Database Considerations
+
+**⚠️ IMPORTANT: Data Persistence**
+
+The Qdrant vector database service is currently configured **without persistent storage**, suitable for development/ephemeral use. When Qdrant scales to zero and restarts:
+
+- **All vector embeddings stored in memory will be lost**
+- **Re-ingestion of all data will be required** to rebuild the vector index
+- Embedding services depend on Qdrant having persistent data
+
+**Recommendations**:
+
+1. **For Development/Test**: 
+   - Accept data loss and re-ingest after cold starts
+   - Set `minReplicas: 1` for Qdrant if frequent re-ingestion is disruptive
+
+2. **For Production**:
+   - Add persistent storage (Azure Files volume mount) before enabling scale-to-zero
+   - See: [Azure Container Apps Storage Mounts](https://learn.microsoft.com/en-us/azure/container-apps/storage-mounts)
+   - OR set `minReplicas: 1` for Qdrant to maintain data availability
+
+3. **Alternative**: Use Azure AI Search as the vector store backend (configured via `vectorStoreBackend` parameter) which has built-in persistence
+
 ### Monitoring Implications
 
 **Prometheus/Grafana Scraping**:
@@ -173,9 +207,11 @@ When a service is scaled to zero:
 
 | Configuration | Compute Cost | Notes |
 |--------------|--------------|-------|
-| **Always-on (minReplicas=1)** | ~$400/month (5 services × $80) | 24/7 running containers |
-| **Scale-to-zero (minReplicas=0)** | ~$260/month | Pay only for active time + execution |
-| **Annual savings** | ~$1,680/year | 35% reduction |
+| **Always-on (minReplicas=1)** | ~$200-400/month | 24/7 running containers for up to 10 services |
+| **Scale-to-zero (minReplicas=0)** | ~$130-260/month | Pay only for active time + execution |
+| **Annual savings** | ~$840-1,680/year | 35-45% reduction |
+
+**Note**: Cost estimates vary based on the number of services deployed (5-10) and actual usage patterns. See README.md for detailed breakdown of all infrastructure costs.
 
 **Savings increase with**:
 - More services
