@@ -103,10 +103,10 @@ var uniqueSuffix = uniqueString(resourceGroup().id)
 var projectPrefix = take(replace(projectName, '-', ''), 8)
 var caEnvName = '${projectPrefix}-env-${environment}-${take(uniqueSuffix, 5)}'
 
-// Scale-to-zero configuration for cost optimization in dev environment
-// Dev: minReplicas = 1 (keep running during debugging to see startup failures)
-// Staging/Prod: minReplicas = 1 (maintain at least one replica for faster response times)
-var minReplicaCount = 1
+// Scale-to-zero configuration for cost optimization across all environments
+// All services now scale to 0 when idle to minimize compute costs
+// HTTP services scale based on concurrent requests; Service Bus consumers scale via KEDA
+var minReplicaCount = 0
 
 // Service port mappings (internal container listen ports)
 // Note: Gateway uses 8080 internally; Container Apps platform handles TLS termination and exposes externally on 443
@@ -397,8 +397,18 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
+        rules: [
+          {
+            name: 'http-scaling'
+            http: {
+              metadata: {
+                concurrentRequests: '10'
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -584,8 +594,18 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
+        rules: [
+          {
+            name: 'http-scaling'
+            http: {
+              metadata: {
+                concurrentRequests: '10'
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -783,6 +803,16 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
       scale: {
         minReplicas: minReplicaCount
         maxReplicas: 2
+        rules: [
+          {
+            name: 'http-scaling'
+            http: {
+              metadata: {
+                concurrentRequests: '10'
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -947,6 +977,21 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
       scale: {
         minReplicas: minReplicaCount
         maxReplicas: 2
+        rules: [
+          {
+            name: 'servicebus-scaling'
+            custom: {
+              type: 'azure-servicebus'
+              metadata: {
+                topicName: 'copilot.events'
+                subscriptionName: 'parsing'
+                messageCount: '5'
+                activationMessageCount: '1'
+                namespace: serviceBusNamespace
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -1108,6 +1153,21 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
       scale: {
         minReplicas: minReplicaCount
         maxReplicas: 2
+        rules: [
+          {
+            name: 'servicebus-scaling'
+            custom: {
+              type: 'azure-servicebus'
+              metadata: {
+                topicName: 'copilot.events'
+                subscriptionName: 'chunking'
+                messageCount: '5'
+                activationMessageCount: '1'
+                namespace: serviceBusNamespace
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -1326,6 +1386,21 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
       scale: {
         minReplicas: minReplicaCount
         maxReplicas: 2
+        rules: [
+          {
+            name: 'servicebus-scaling'
+            custom: {
+              type: 'azure-servicebus'
+              metadata: {
+                topicName: 'copilot.events'
+                subscriptionName: 'embedding'
+                messageCount: '5'
+                activationMessageCount: '1'
+                namespace: serviceBusNamespace
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -1544,6 +1619,21 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
       scale: {
         minReplicas: minReplicaCount
         maxReplicas: 2
+        rules: [
+          {
+            name: 'servicebus-scaling'
+            custom: {
+              type: 'azure-servicebus'
+              metadata: {
+                topicName: 'copilot.events'
+                subscriptionName: 'orchestrator'
+                messageCount: '5'
+                activationMessageCount: '1'
+                namespace: serviceBusNamespace
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -1769,6 +1859,21 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
       scale: {
         minReplicas: minReplicaCount
         maxReplicas: 2
+        rules: [
+          {
+            name: 'servicebus-scaling'
+            custom: {
+              type: 'azure-servicebus'
+              metadata: {
+                topicName: 'copilot.events'
+                subscriptionName: 'summarization'
+                messageCount: '5'
+                activationMessageCount: '1'
+                namespace: serviceBusNamespace
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -1832,6 +1937,16 @@ resource uiApp 'Microsoft.App/containerApps@2024-03-01' = {
       scale: {
         minReplicas: minReplicaCount
         maxReplicas: 2
+        rules: [
+          {
+            name: 'http-scaling'
+            http: {
+              metadata: {
+                concurrentRequests: '10'
+              }
+            }
+          }
+        ]
       }
     }
   }
@@ -1911,6 +2026,16 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
       scale: {
         minReplicas: minReplicaCount
         maxReplicas: 3
+        rules: [
+          {
+            name: 'http-scaling'
+            http: {
+              metadata: {
+                concurrentRequests: '10'
+              }
+            }
+          }
+        ]
       }
     }
   }
