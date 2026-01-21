@@ -175,7 +175,7 @@ The Qdrant vector database service is currently configured **without persistent 
 
 **Prometheus/Grafana Scraping**:
 - Services at 0 replicas will not expose metrics endpoints
-- Metrics timeseries will have gaps during idle periods
+- Metrics time series will have gaps during idle periods
 - Consider push-based metrics (Pushgateway) or Application Insights for continuous monitoring
 
 **Recommendations**:
