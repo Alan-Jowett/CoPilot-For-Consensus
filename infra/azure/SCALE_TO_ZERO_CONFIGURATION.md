@@ -11,7 +11,7 @@ All services in the Container Apps environment are configured to scale to zero w
 - **HTTP-triggered services** scale based on incoming HTTP request concurrency
 - **Service Bus message consumers** scale based on queue/subscription depth via KEDA
 
-This achieves significant cost savings (estimated 35-50% reduction) while maintaining responsiveness to workload demands.
+This achieves significant cost savings (estimated 35% reduction) while maintaining responsiveness to workload demands.
 
 ## Architecture
 
@@ -207,11 +207,11 @@ The Qdrant vector database service is currently configured **without persistent 
 
 | Configuration | Compute Cost | Notes |
 |--------------|--------------|-------|
-| **Always-on (minReplicas=1)** | ~$200-400/month | 24/7 running containers for up to 10 services |
+| **Always-on (minReplicas=1)** | ~$200-400/month | 24/7 running containers for 10-11 services (11 with Qdrant, 10 with Azure AI Search) |
 | **Scale-to-zero (minReplicas=0)** | ~$130-260/month | Pay only for active time + execution |
-| **Annual savings** | ~$840-1,680/year | 35-45% reduction |
+| **Annual savings** | ~$840-1,680/year | 35% reduction |
 
-**Note**: Cost estimates vary based on the number of services deployed (5-10) and actual usage patterns. See README.md for detailed breakdown of all infrastructure costs.
+**Note**: Cost estimates vary based on the number of services deployed (10-11, depending on vector store backend) and actual usage patterns. See README.md for detailed breakdown of all infrastructure costs.
 
 **Savings increase with**:
 - More services

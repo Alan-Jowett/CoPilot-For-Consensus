@@ -1702,7 +1702,7 @@ Approximate monthly costs for a development deployment (prices vary by region):
 | Resource | SKU | Estimated Cost (Always-On) | Estimated Cost (Scale-to-Zero) |
 |----------|-----|----------------|----------------|
 | Container Apps Environment | Consumption | ~$50/month | ~$50/month |
-| Container Apps (10 services) | 0.5-1.0 vCPU, 1-2GB RAM | ~$200-400/month | ~$130-260/month (35-50% reduction) |
+| Container Apps (10-11 services) | 0.5-1.0 vCPU, 1-2GB RAM | ~$200-400/month | ~$130-260/month (35% reduction) |
 | Cosmos DB for MongoDB | 400 RU/s | ~$25/month | ~$25/month |
 | Azure Service Bus | Standard | ~$10/month | ~$10/month |
 | Storage Account | Standard LRS, 100GB | ~$2/month | ~$2/month |
