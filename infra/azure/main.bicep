@@ -229,6 +229,8 @@ module keyVaultModule 'modules/keyvault.bicep' = {
       [jwtKeysIdentity!.properties.principalId],
       deployEntraApp ? [entraAppIdentity!.properties.principalId] : []
     ) : []
+    // jwtKeysIdentity must be able to create/read Key Vault keys for JWT signing.
+    keyWriterPrincipalIds: deployContainerApps ? [jwtKeysIdentity!.properties.principalId] : []
     enablePublicNetworkAccess: effectiveEnablePublicNetworkAccess
     enableRbacAuthorization: enableRbacAuthorization
     tags: tags

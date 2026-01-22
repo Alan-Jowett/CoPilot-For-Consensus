@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-metadata description = 'Module to configure diagnostic settings for Azure Container Apps to archive logs to Storage'
+metadata description = 'Module to configure diagnostic settings for Azure Container Apps Environment to archive logs to Storage'
 
-@description('Container App name')
-param containerAppName string
+@description('Container Apps Environment name (Microsoft.App/managedEnvironments)')
+param managedEnvironmentName string
 
 @description('Diagnostic settings name')
 param diagnosticSettingsName string = 'archive-to-storage'
@@ -21,41 +21,35 @@ param enableSystemLogs bool = true
 @description('Enable AppEnvSpringAppConsoleLogs archiving')
 param enableSpringAppLogs bool = false
 
-// Reference existing Container App
-resource containerApp 'Microsoft.App/containerApps@2024-03-01' existing = {
-  name: containerAppName
+// Reference existing Container Apps Environment
+resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' existing = {
+  name: managedEnvironmentName
 }
 
-// Diagnostic settings for Container App
-resource diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01' = {
+// Diagnostic settings for Container Apps Environment
+resource diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: diagnosticSettingsName
-  scope: containerApp
+  scope: containerAppsEnv
   properties: {
     storageAccountId: storageAccountId
     logs: [
       {
         category: 'ContainerAppConsoleLogs'
         enabled: enableConsoleLogs
-        retentionPolicy: {
-          enabled: false
-          days: 0
-        }
       }
       {
         category: 'ContainerAppSystemLogs'
         enabled: enableSystemLogs
-        retentionPolicy: {
-          enabled: false
-          days: 0
-        }
       }
       {
         category: 'AppEnvSpringAppConsoleLogs'
         enabled: enableSpringAppLogs
-        retentionPolicy: {
-          enabled: false
-          days: 0
-        }
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
       }
     ]
   }

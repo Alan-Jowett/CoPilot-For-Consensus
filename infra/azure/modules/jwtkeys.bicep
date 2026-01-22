@@ -139,7 +139,29 @@ for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
     }
 
     # Create new RSA key in Key Vault
-    $key = Add-AzKeyVaultKey -VaultName $keyVaultName -Name $jwtKeyName -KeyType RSA -KeySize $jwtKeySize -ErrorAction Stop
+    $addParams = @{
+      VaultName = $keyVaultName
+      Name = $jwtKeyName
+      KeyType = 'RSA'
+      ErrorAction = 'Stop'
+    }
+
+    $addCmd = Get-Command Add-AzKeyVaultKey -ErrorAction Stop
+    if ($addCmd.Parameters.ContainsKey('Destination')) {
+      # Some Az.KeyVault versions require Destination; default to software-protected keys.
+      $addParams['Destination'] = 'Software'
+    }
+    if ($addCmd.Parameters.ContainsKey('KeySize')) {
+      $addParams['KeySize'] = $jwtKeySize
+    }
+    elseif ($addCmd.Parameters.ContainsKey('Size')) {
+      $addParams['Size'] = $jwtKeySize
+    }
+    else {
+      throw "Add-AzKeyVaultKey does not support a key size parameter (expected -KeySize or -Size)."
+    }
+
+    $key = Add-AzKeyVaultKey @addParams
     Write-Host "JWT RSA key created successfully: $($key.Id)"
     Write-Host "  Key Version: $($key.Version)"
     $keyCreated = $true

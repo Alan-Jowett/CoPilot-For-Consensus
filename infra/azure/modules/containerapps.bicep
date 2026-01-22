@@ -2105,147 +2105,18 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [reportingApp, authApp, ingestionApp, uiApp]
 }
 
-// Diagnostic Settings - Archive Container App logs to Blob Storage
-module authDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
-  name: 'authDiagnosticsDeployment'
+// Diagnostic Settings - Archive Container Apps Environment logs to Blob Storage
+// Note: diagnostic log categories are supported at the managedEnvironment scope, not per container app.
+module envDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
+  name: 'containerAppsEnvDiagnosticsDeployment'
   params: {
-    containerAppName: authApp.name
+    managedEnvironmentName: containerAppsEnv.name
     storageAccountId: storageAccountId
     enableConsoleLogs: true
     enableSystemLogs: true
   }
   dependsOn: [
-    authApp
-  ]
-}
-
-module reportingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
-  name: 'reportingDiagnosticsDeployment'
-  params: {
-    containerAppName: reportingApp.name
-    storageAccountId: storageAccountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-  dependsOn: [
-    reportingApp
-  ]
-}
-
-module ingestionDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
-  name: 'ingestionDiagnosticsDeployment'
-  params: {
-    containerAppName: ingestionApp.name
-    storageAccountId: storageAccountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-  dependsOn: [
-    ingestionApp
-  ]
-}
-
-module parsingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
-  name: 'parsingDiagnosticsDeployment'
-  params: {
-    containerAppName: parsingApp.name
-    storageAccountId: storageAccountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-  dependsOn: [
-    parsingApp
-  ]
-}
-
-module chunkingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
-  name: 'chunkingDiagnosticsDeployment'
-  params: {
-    containerAppName: chunkingApp.name
-    storageAccountId: storageAccountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-  dependsOn: [
-    chunkingApp
-  ]
-}
-
-module embeddingDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
-  name: 'embeddingDiagnosticsDeployment'
-  params: {
-    containerAppName: embeddingApp.name
-    storageAccountId: storageAccountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-  dependsOn: [
-    embeddingApp
-  ]
-}
-
-module orchestratorDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
-  name: 'orchestratorDiagnosticsDeployment'
-  params: {
-    containerAppName: orchestratorApp.name
-    storageAccountId: storageAccountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-  dependsOn: [
-    orchestratorApp
-  ]
-}
-
-module summarizationDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
-  name: 'summarizationDiagnosticsDeployment'
-  params: {
-    containerAppName: summarizationApp.name
-    storageAccountId: storageAccountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-  dependsOn: [
-    summarizationApp
-  ]
-}
-
-module uiDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
-  name: 'uiDiagnosticsDeployment'
-  params: {
-    containerAppName: uiApp.name
-    storageAccountId: storageAccountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-  dependsOn: [
-    uiApp
-  ]
-}
-
-module gatewayDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
-  name: 'gatewayDiagnosticsDeployment'
-  params: {
-    containerAppName: gatewayApp.name
-    storageAccountId: storageAccountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-  dependsOn: [
-    gatewayApp
-  ]
-}
-
-module qdrantDiagnostics 'diagnosticsettings.bicep' = if (vectorStoreBackend == 'qdrant' && enableBlobLogArchiving && storageAccountId != '') {
-  name: 'qdrantDiagnosticsDeployment'
-  params: {
-    containerAppName: qdrantApp!.name
-    storageAccountId: storageAccountId
-    enableConsoleLogs: true
-    enableSystemLogs: true
-  }
-  dependsOn: [
-    qdrantApp
+    containerAppsEnv
   ]
 }
 

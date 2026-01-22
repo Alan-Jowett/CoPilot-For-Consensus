@@ -8,6 +8,8 @@ param keyVaultName string
 param tenantId string
 param managedIdentityPrincipalIds array
 param secretWriterPrincipalIds array = []
+@description('Principals that need to create/read Key Vault keys (e.g., deployment scripts that generate JWT signing keys).')
+param keyWriterPrincipalIds array = []
 param enablePublicNetworkAccess bool = true
 @description('Enable Azure RBAC authorization for Key Vault. Default is false for backward compatibility with existing deployments, but true is STRONGLY RECOMMENDED for production (see security warnings below).')
 param enableRbacAuthorization bool = false
@@ -16,6 +18,8 @@ param tags object
 // Built-in role IDs
 // Key Vault Secrets Officer: allows write/read of secrets without full admin
 var keyVaultSecretsOfficerRoleId = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
+// Key Vault Crypto Officer: allows full management of keys (required to create keys)
+var keyVaultCryptoOfficerRoleId = '14b46e9e-c2b7-41b4-b07b-48a6ebf60603'
 
 // ⚠️ SECURITY WARNING: Legacy access policy mode (enableRbacAuthorization=false)
 // When RBAC is disabled, all managed identities receive vault-wide 'get' permission.
@@ -58,7 +62,12 @@ var writeAccessPolicies = [
         'get'  // Read access to verify written secrets
         'set'  // Write access for deployment scripts (e.g., JWT key generation)
       ]
-      keys: []
+      // Some deployment scripts also need to create/read keys (e.g., JWT signing keys)
+      keys: contains(keyWriterPrincipalIds, principalId) ? [
+        'get'
+        'create'
+        'list'
+      ] : []
       certificates: []
     }
   }
@@ -105,6 +114,19 @@ resource secretWriterRoleAssignments 'Microsoft.Authorization/roleAssignments@20
     scope: keyVault
     properties: {
       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsOfficerRoleId)
+      principalId: principalId
+      principalType: 'ServicePrincipal'
+    }
+  }
+]
+
+// RBAC role assignments for key write access (used by deployment scripts when enableRbacAuthorization = true)
+resource keyWriterRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for principalId in keyWriterPrincipalIds: if (enableRbacAuthorization) {
+    name: guid(keyVault.id, principalId, keyVaultCryptoOfficerRoleId)
+    scope: keyVault
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultCryptoOfficerRoleId)
       principalId: principalId
       principalType: 'ServicePrincipal'
     }
