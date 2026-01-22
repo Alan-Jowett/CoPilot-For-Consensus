@@ -162,6 +162,8 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: caEnvName
   location: location
   tags: tags
+  // NOTE: When enableBlobLogArchiving is false, envAzureMonitorLogsProperties is an empty object,
+  // and union(envBaseProperties, {}) intentionally leaves envBaseProperties unchanged.
   properties: union(envBaseProperties, envAzureMonitorLogsProperties)
 }
 

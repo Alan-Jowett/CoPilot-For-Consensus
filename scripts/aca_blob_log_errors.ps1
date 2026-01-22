@@ -220,6 +220,8 @@ foreach ($ref in $blobRefs) {
     '--only-show-errors'
   )
 
+  $jsonParseErrors = 0
+
   Get-Content -Path $localPath -ErrorAction SilentlyContinue | ForEach-Object {
     $line = $_.Trim()
     if (-not $line) { return }
@@ -227,6 +229,8 @@ foreach ($ref in $blobRefs) {
     try {
       $rec = $line | ConvertFrom-Json
     } catch {
+      # Skip corrupted / non-JSON lines; keep processing later lines.
+      $script:jsonParseErrors += 1
       return
     }
 
@@ -286,6 +290,10 @@ foreach ($ref in $blobRefs) {
       }
       $outObj | ConvertTo-Json -Compress
     }
+  }
+
+  if ($jsonParseErrors -gt 0) {
+    Write-Warning "Skipped $jsonParseErrors invalid JSON lines in $localName."
   }
 }
 

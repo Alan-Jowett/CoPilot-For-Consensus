@@ -50,6 +50,8 @@ var readAccessPolicies = [
         'get'  // ⚠️ Can read ANY secret by name (vault-wide permission)
       ]
       // In legacy access policy mode, specific services may need crypto permissions.
+      // NOTE: cryptoUserPrincipalIds is intentionally a subset of managedIdentityPrincipalIds.
+      // Only principals present in BOTH arrays receive these extra key permissions.
       // Example: auth service using Key Vault-backed JWT signing must be able to
       // read the signing key metadata/public key and perform signing operations.
       keys: contains(cryptoUserPrincipalIds, principalId) ? [

@@ -180,7 +180,7 @@ The Bicep template (`main.bicep`) automates the deployment of the entire Copilot
 - **User-Assigned Managed Identities** for each service with least-privilege access
 - **Azure Key Vault** for secrets management
 - **Azure Storage Account** for blob storage
-- **Blob Storage log archiving** for Container Apps logs (Diagnostic Settings → `logs-raw` NDJSON)
+- **Blob Storage log archiving** for Container Apps logs (Diagnostic Settings → Azure Monitor `insights-logs-*` containers, NDJSON)
 - **Virtual Network** with subnet for Container Apps
 - **Role-Based Access Control (RBAC)** assignments for secure resource access
 
@@ -484,7 +484,7 @@ The deployment creates resources across two resource groups:
 │  └────────────────┘  └──────────────┘  └─────────────────┘ │
 │                                                               │
 │  ┌─────────────────────────────────────────────────────────┐│
-│  │  Diagnostic Settings → Storage (logs-raw NDJSON logs)    ││
+│  │  Diagnostic Settings → Storage (Azure Monitor insights logs, NDJSON) ││
 │  └─────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────┘
                              │
@@ -1607,7 +1607,7 @@ The deployment automatically creates an Azure Portal Dashboard that visualizes O
 
 ### Logs (Blob Storage)
 
-Container Apps console/system logs are archived to the deployment Storage Account (container: `logs-raw`) as NDJSON via Diagnostic Settings when `enableBlobLogArchiving` is true.
+Container Apps console/system logs are archived to the deployment Storage Account (containers: `insights-logs-containerappconsolelogs`, `insights-logs-containerappsystemlogs`) as NDJSON via Diagnostic Settings when `enableBlobLogArchiving` is true.
 
 - See `docs/operations/blob-logging.md` for how logs are archived and how to download them.
 - For analysis/mining: `python -m scripts.log_mining --format azure-diagnostics ...`

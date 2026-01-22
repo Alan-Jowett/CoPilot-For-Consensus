@@ -20,6 +20,8 @@ var projectPrefix = take(replace(projectName, '-', ''), 8)
 var appInsightsName = '${projectPrefix}-ai-${environment}-${take(uniqueSuffix, 5)}'
 
 // Classic Application Insights (no WorkspaceResourceId) to avoid Log Analytics workspace costs.
+// NOTE: We intentionally omit WorkspaceResourceId; that keeps the resource in classic mode.
+// We also stick to a stable API version here (avoid preview schema drift).
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: appInsightsName
   location: location
@@ -29,6 +31,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
     Application_Type: 'web'
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
+    // WorkspaceResourceId intentionally omitted (classic mode).
   }
 }
 

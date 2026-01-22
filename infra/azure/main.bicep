@@ -378,7 +378,7 @@ module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps && vect
 }
 
 // Store Azure Monitor (Application Insights) secrets securely in Key Vault
-// NOTE: This deployment does not provision a Log Analytics workspace.
+// NOTE: Application Insights is provisioned in classic mode without a Log Analytics workspace to minimize costs.
 
 // Store Azure OpenAI API key in Env Key Vault for services using env secret_provider
 // NOTE: Core infrastructure also stores this in Core Key Vault. Env services currently use env Key Vault

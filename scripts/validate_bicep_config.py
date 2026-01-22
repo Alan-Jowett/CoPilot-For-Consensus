@@ -175,11 +175,16 @@ def _strip_bicep_comments(bicep_content: str) -> str:
             # Block comment
             if nxt == "*":
                 i += 2
+                found_closing = False
                 while i + 1 < len(bicep_content):
                     if bicep_content[i] == "*" and bicep_content[i + 1] == "/":
                         i += 2
+                        found_closing = True
                         break
                     i += 1
+                if not found_closing:
+                    # Unterminated block comment: treat rest of file as comment.
+                    i = len(bicep_content)
                 continue
 
         # Track string literals (best-effort)
@@ -187,9 +192,18 @@ def _strip_bicep_comments(bicep_content: str) -> str:
             if not in_string:
                 in_string = True
                 string_char = ch
-            elif ch == string_char and (i == 0 or bicep_content[i - 1] != "\\"):
-                in_string = False
-                string_char = None
+            elif ch == string_char:
+                # Determine if this quote is escaped by counting consecutive
+                # backslashes immediately preceding it. An odd number means the
+                # quote is escaped; an even number means it is not.
+                backslash_count = 0
+                j = i - 1
+                while j >= 0 and bicep_content[j] == "\\":
+                    backslash_count += 1
+                    j -= 1
+                if backslash_count % 2 == 0:
+                    in_string = False
+                    string_char = None
 
         out.append(ch)
         i += 1

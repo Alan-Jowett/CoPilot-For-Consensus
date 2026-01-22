@@ -212,6 +212,7 @@ def _download_blob(ref: LogBlobRef, output_path: Path) -> None:
 
 def _iter_ndjson(path: Path) -> Iterable[Dict[str, Any]]:
     # Azure Monitor exports here are AppendBlob with NDJSON
+    parse_errors = 0
     with path.open("r", encoding="utf-8", errors="ignore") as f:
         for line in f:
             line = line.strip()
@@ -220,10 +221,14 @@ def _iter_ndjson(path: Path) -> Iterable[Dict[str, Any]]:
             try:
                 rec = json.loads(line)
             except Exception:
-                # Not NDJSON or corrupted line; stop to avoid spam.
-                return
+                # Not NDJSON or corrupted line; skip it.
+                parse_errors += 1
+                continue
             if isinstance(rec, dict):
                 yield rec
+
+    if parse_errors:
+        print(f"Warning: skipped {parse_errors} invalid JSON lines in {path.name}.", file=sys.stderr)
 
 
 def _get_message(rec: Dict[str, Any]) -> Optional[str]:
@@ -419,6 +424,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # We may have multiple storage accounts; try them in order.
     blob_refs: List[LogBlobRef] = []
     chosen_sa: Optional[str] = None
+    last_err: Optional[str] = None
     for sa in storage_accounts:
         try:
             refs: List[LogBlobRef] = []
@@ -434,13 +440,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             continue
 
     if not blob_refs or not chosen_sa:
-        print(
+        msg = (
             "Unable to list/download blobs via --auth-mode login.\n"
             "You likely need a data-plane role on the Storage Account, e.g. 'Storage Blob Data Reader'.\n"
-            "Try:\n"
-            "  az role assignment create --assignee <your-object-id> --role \"Storage Blob Data Reader\" --scope <storage-account-resource-id>\n",
-            file=sys.stderr,
         )
+        if last_err:
+            msg += f"Last error: {last_err}\n"
+        msg += (
+            "Try:\n"
+            "  az role assignment create --assignee <your-object-id> --role \"Storage Blob Data Reader\" --scope <storage-account-resource-id>\n"
+        )
+        print(msg, file=sys.stderr)
         return 3
 
     # Download and scan
