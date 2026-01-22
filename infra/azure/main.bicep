@@ -231,6 +231,9 @@ module keyVaultModule 'modules/keyvault.bicep' = {
     ) : []
     // jwtKeysIdentity must be able to create/read Key Vault keys for JWT signing.
     keyWriterPrincipalIds: deployContainerApps ? [jwtKeysIdentity!.properties.principalId] : []
+    // Auth service needs Key Vault crypto operations when JWT signing uses Key Vault.
+    // This is required for /keys (JWKS) and token signing/verification flows in legacy access policy mode.
+    cryptoUserPrincipalIds: deployContainerApps ? [identitiesModule.outputs.identityPrincipalIdsByName.auth] : []
     enablePublicNetworkAccess: effectiveEnablePublicNetworkAccess
     enableRbacAuthorization: enableRbacAuthorization
     tags: tags
