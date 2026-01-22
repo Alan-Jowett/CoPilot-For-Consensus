@@ -309,7 +309,7 @@ module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
     sku: environment == 'prod' ? 'Standard_GRS' : 'Standard_LRS'
     accessTier: 'Hot'
     enableHierarchicalNamespace: false
-    containerNames: concat(['archives'], enableBlobLogArchiving ? ['logs-raw'] : [])
+    containerNames: ['archives']
     // SECURITY: Only grant blob access to services that actually need it
     // ingestion: stores raw email archives, parsing: reads archives for processing
     contributorPrincipalIds: [
@@ -321,6 +321,18 @@ module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
     enableQdrantFileShare: vectorStoreBackend == 'qdrant'
     qdrantFileShareName: 'qdrant-storage'
     qdrantFileShareQuotaGb: environment == 'prod' ? 10 : 5  // 5GB dev/staging, 10GB prod
+    tags: tags
+  }
+}
+
+// Module: Azure Monitor telemetry (Application Insights classic)
+// Used by the azure_monitor metrics driver (no Log Analytics workspace).
+module azureMonitorModule 'modules/azuremonitor.bicep' = if (deployContainerApps) {
+  name: 'azureMonitorDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
     tags: tags
   }
 }
@@ -362,9 +374,8 @@ module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps && vect
   }
 }
 
-// Store Application Insights secrets securely in Key Vault
-// NOTE: Application Insights and Log Analytics have been removed for cost savings
-// Monitoring is now done via Prometheus/Grafana
+// Store Azure Monitor (Application Insights) secrets securely in Key Vault
+// NOTE: This deployment does not provision a Log Analytics workspace.
 
 // Store Azure OpenAI API key in Env Key Vault for services using env secret_provider
 // NOTE: Core infrastructure also stores this in Core Key Vault. Env services currently use env Key Vault
@@ -408,16 +419,28 @@ module jwtKeysModule 'modules/jwtkeys.bicep' = if (deployContainerApps) {
   ]
 }
 
-// resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
-//   name: '${keyVaultName}/azure-monitor-connection-string'
-//   properties: {
-//     value: appInsightsModule!.outputs.connectionString
-//     contentType: 'text/plain'
-//   }
-//   dependsOn: [
-//     keyVaultModule
-//   ]
-// }
+// Azure Monitor telemetry secrets (used by the azure_monitor metrics driver)
+resource azureMonitorInstrumentationKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
+  name: '${keyVaultName}/azure-monitor-instrumentation-key'
+  properties: {
+    value: azureMonitorModule!.outputs.instrumentationKey
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
+
+resource azureMonitorConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
+  name: '${keyVaultName}/azure-monitor-connection-string'
+  properties: {
+    value: azureMonitorModule!.outputs.connectionString
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
 
 // Store Grafana admin credentials in Key Vault
 // These are used when Grafana is deployed as a Container App for monitoring dashboards
@@ -490,6 +513,8 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
     keyVaultModule
     jwtKeysModule  // Ensure JWT secrets exist before assigning access
     envOpenaiApiKeySecret
+    azureMonitorInstrumentationKeySecret
+    azureMonitorConnectionStringSecret
     coreKvRbacModule  // Ensure Core KV access is granted before RBAC module runs
   ]
 }

@@ -109,6 +109,29 @@ var uniqueSuffix = uniqueString(resourceGroup().id)
 var projectPrefix = take(replace(projectName, '-', ''), 8)
 var caEnvName = '${projectPrefix}-env-${environment}-${take(uniqueSuffix, 5)}'
 
+// Logging options
+// We intentionally do NOT enable Log Analytics (cost).
+// To route logs to a Storage Account via Azure Monitor diagnostic settings, the environment must have
+// logs destination set to Azure Monitor.
+var envBaseProperties = {
+  vnetConfiguration: {
+    internal: false
+    infrastructureSubnetId: subnetId
+  }
+  workloadProfiles: [
+    {
+      name: 'Consumption'
+      workloadProfileType: 'Consumption'
+    }
+  ]
+}
+
+var envAzureMonitorLogsProperties = (enableBlobLogArchiving && storageAccountId != '') ? {
+  appLogsConfiguration: {
+    destination: 'azure-monitor'
+  }
+} : {}
+
 // Scale-to-zero configuration for cost optimization across all environments
 // All services now scale to 0 when idle to minimize compute costs
 // HTTP services scale based on concurrent requests; Service Bus consumers scale via KEDA
@@ -139,18 +162,7 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: caEnvName
   location: location
   tags: tags
-  properties: {
-    vnetConfiguration: {
-      internal: false
-      infrastructureSubnetId: subnetId
-    }
-    workloadProfiles: [
-      {
-        name: 'Consumption'
-        workloadProfileType: 'Consumption'
-      }
-    ]
-  }
+  properties: union(envBaseProperties, envAzureMonitorLogsProperties)
 }
 
 // Azure Files storage for Qdrant persistent storage
@@ -2105,8 +2117,9 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [reportingApp, authApp, ingestionApp, uiApp]
 }
 
-// Diagnostic Settings - Archive Container Apps Environment logs to Blob Storage
+// Diagnostic Settings - Archive Container Apps Environment logs to Storage via Azure Monitor
 // Note: diagnostic log categories are supported at the managedEnvironment scope, not per container app.
+// Prereq: containerAppsEnv.properties.appLogsConfiguration.destination must be set to 'azure-monitor'.
 module envDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving && storageAccountId != '') {
   name: 'containerAppsEnvDiagnosticsDeployment'
   params: {

@@ -148,6 +148,55 @@ def _extract_keyvault_created_secret_names(bicep_content: str, vault_name_var: s
     return secret_names
 
 
+def _strip_bicep_comments(bicep_content: str) -> str:
+    """Remove Bicep comments (// and /* */) while preserving string literals.
+
+    This prevents commented-out resources from being treated as active IaC.
+    """
+
+    out: list[str] = []
+    i = 0
+    in_string = False
+    string_char: str | None = None
+
+    while i < len(bicep_content):
+        ch = bicep_content[i]
+
+        if not in_string and ch == "/" and i + 1 < len(bicep_content):
+            nxt = bicep_content[i + 1]
+
+            # Line comment
+            if nxt == "/":
+                i += 2
+                while i < len(bicep_content) and bicep_content[i] not in "\r\n":
+                    i += 1
+                continue
+
+            # Block comment
+            if nxt == "*":
+                i += 2
+                while i + 1 < len(bicep_content):
+                    if bicep_content[i] == "*" and bicep_content[i + 1] == "/":
+                        i += 2
+                        break
+                    i += 1
+                continue
+
+        # Track string literals (best-effort)
+        if ch in ("'", '"'):
+            if not in_string:
+                in_string = True
+                string_char = ch
+            elif ch == string_char and (i == 0 or bicep_content[i - 1] != "\\"):
+                in_string = False
+                string_char = None
+
+        out.append(ch)
+        i += 1
+
+    return "".join(out)
+
+
 def _load_iac_keyvault_secret_inventory() -> dict[str, set[str]]:
     """Load a best-effort inventory of Key Vault secrets created by IaC.
 
@@ -165,11 +214,11 @@ def _load_iac_keyvault_secret_inventory() -> dict[str, set[str]]:
     inventory: dict[str, set[str]] = {"env": set(), "core": set()}
 
     if env_main.exists():
-        content = env_main.read_text(encoding="utf-8")
+        content = _strip_bicep_comments(env_main.read_text(encoding="utf-8"))
         inventory["env"] = _extract_keyvault_created_secret_names(content, "keyVaultName")
 
     if core_main.exists():
-        content = core_main.read_text(encoding="utf-8")
+        content = _strip_bicep_comments(core_main.read_text(encoding="utf-8"))
         inventory["core"] = _extract_keyvault_created_secret_names(content, "coreKeyVaultName")
 
     return inventory
