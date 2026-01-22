@@ -10,6 +10,8 @@ param managedIdentityPrincipalIds array
 param secretWriterPrincipalIds array = []
 @description('Principals that need to create/read Key Vault keys (e.g., deployment scripts that generate JWT signing keys).')
 param keyWriterPrincipalIds array = []
+@description('Principals that need Key Vault crypto operations (get/list/sign/verify) but should NOT be able to create/manage keys. Typically the auth service identity when JWT signing uses Key Vault.')
+param cryptoUserPrincipalIds array = []
 param enablePublicNetworkAccess bool = true
 @description('Enable Azure RBAC authorization for Key Vault. Default is false for backward compatibility with existing deployments, but true is STRONGLY RECOMMENDED for production (see security warnings below).')
 param enableRbacAuthorization bool = false
@@ -47,7 +49,17 @@ var readAccessPolicies = [
       secrets: [
         'get'  // ⚠️ Can read ANY secret by name (vault-wide permission)
       ]
-      keys: []
+      // In legacy access policy mode, specific services may need crypto permissions.
+      // NOTE: cryptoUserPrincipalIds is intentionally a subset of managedIdentityPrincipalIds.
+      // Only principals present in BOTH arrays receive these extra key permissions.
+      // Example: auth service using Key Vault-backed JWT signing must be able to
+      // read the signing key metadata/public key and perform signing operations.
+      keys: contains(cryptoUserPrincipalIds, principalId) ? [
+        'get'
+        'list'
+        'sign'
+        'verify'
+      ] : []
       certificates: []
     }
   }

@@ -57,7 +57,7 @@ If you enabled Container Apps log archiving to Blob Storage via Diagnostic Setti
 Download a blob (or concatenate multiple blobs) and run:
 
 ```powershell
-python -m scripts.log_mining --input logs-raw.ndjson --format azure-diagnostics --group-by service --output diag_mined.json --output-markdown diag_mined_errors_warnings.md
+python -m scripts.log_mining --input aca-console.ndjson --format azure-diagnostics --group-by service --output diag_mined.json --output-markdown diag_mined_errors_warnings.md
 ```
 ```
 

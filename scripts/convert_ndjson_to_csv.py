@@ -12,7 +12,7 @@ Usage:
 
 Environment Variables:
     STORAGE_ACCOUNT_NAME: Azure Storage account name (required)
-    INPUT_CONTAINER: Blob container with NDJSON logs (default: logs-raw)
+    INPUT_CONTAINER: Blob container with NDJSON logs (default: insights-logs-containerappconsolelogs)
     OUTPUT_SHARE: File share for CSV output (default: logs-csv)
     OUTPUT_MOUNT_PATH: Local mount path for file share (default: /mnt/logs)
     AZURE_CLIENT_ID: Managed identity client ID for authentication
@@ -43,7 +43,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--input-container",
-        default=os.getenv("INPUT_CONTAINER", "logs-raw"),
+        default=os.getenv("INPUT_CONTAINER", "insights-logs-containerappconsolelogs"),
         help="Blob container with NDJSON logs",
     )
     parser.add_argument(

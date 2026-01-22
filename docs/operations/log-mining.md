@@ -61,7 +61,7 @@ python -m scripts.log_mining --input path/to/az-query.json --format azure-law --
 If your Container Apps environment is configured to archive logs to Blob Storage via Diagnostic Settings, logs are stored as NDJSON. Point the tool at an NDJSON file (or a concatenated set) and use `azure-diagnostics`:
 
 ```powershell
-python -m scripts.log_mining --input logs-raw.ndjson --format azure-diagnostics --group-by service --output diag_mined.json --output-markdown diag_mined_errors_warnings.md
+python -m scripts.log_mining --input aca-console.ndjson --format azure-diagnostics --group-by service --output diag_mined.json --output-markdown diag_mined_errors_warnings.md
 ```
 ```
 

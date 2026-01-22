@@ -20,10 +20,7 @@ This document describes how to archive Azure Container Apps console logs to Blob
 - Have console logs archived to Blob Storage via Diagnostic Settings
 - Not send logs to Log Analytics
 
-**Application Insights Disabled:** Since Application Insights depends on Log Analytics, it is also disabled. For application monitoring, consider using:
-- OpenTelemetry with alternative backends
-- Prometheus metrics (already configured)
-- Grafana dashboards with Prometheus data source
+**Application Insights (No Log Analytics):** This repo provisions Application Insights in classic mode (no Log Analytics workspace) to support OpenTelemetry exporters without Log Analytics costs.
 
 ## Migration from Existing Deployments
 
@@ -67,7 +64,7 @@ param enableBlobLogArchiving bool = true
 ```
 
 **Storage Account:**
-- Creates `logs-raw` blob container when `enableBlobLogArchiving` is true
+- Azure Monitor automatically creates the `insights-logs-containerappconsolelogs` and `insights-logs-containerappsystemlogs` containers when archiving begins
 - Blob lifecycle policies can be added for automatic deletion (e.g., 30 days)
 
 ### Deployment
@@ -80,7 +77,9 @@ The `diagnosticsettings.bicep` module is invoked for each Container App in `cont
 - auth, reporting, ingestion, parsing, chunking, embedding
 - orchestrator, summarization, ui, gateway, qdrant (if enabled)
 
-Each Container App's console logs (`ContainerAppConsoleLogs`) and system logs (`ContainerAppSystemLogs`) are archived to the `logs-raw` blob container.
+Each Container App's console logs (`ContainerAppConsoleLogs`) and system logs (`ContainerAppSystemLogs`) are archived to Azure Monitor-managed containers:
+- `insights-logs-containerappconsolelogs`
+- `insights-logs-containerappsystemlogs`
 
 **No manual configuration required** - logs begin archiving automatically upon deployment.
 
@@ -100,12 +99,12 @@ To download recent blobs and generate a compact RCA report (JSON + Markdown):
 # List blobs
 az storage blob list \
   --account-name <storage-account> \
-  --container-name logs-raw \
+  --container-name insights-logs-containerappconsolelogs \
   --output table
 
 # Download specific date
 azcopy copy \
-  "https://<storage-account>.blob.core.windows.net/logs-raw/resourceId=.../y=2025/m=01/d=20/*" \
+  "https://<storage-account>.blob.core.windows.net/insights-logs-containerappconsolelogs/resourceId=.../y=2025/m=01/d=20/*" \
   ./logs/ \
   --recursive
 ```
@@ -127,7 +126,7 @@ Use the provided `scripts/convert_ndjson_to_csv.py` script to convert NDJSON log
 ```bash
 python scripts/convert_ndjson_to_csv.py \
   --storage-account <account-name> \
-  --input-container logs-raw \
+  --input-container insights-logs-containerappconsolelogs \
   --output-mount /tmp/csv-logs \
   --lookback-hours 24
 ```
@@ -150,7 +149,10 @@ resource blobLifecyclePolicy 'Microsoft.Storage/storageAccounts/managementPolici
           definition: {
             filters: {
               blobTypes: ['blockBlob']
-              prefixMatch: ['logs-raw/']
+              prefixMatch: [
+                'insights-logs-containerappconsolelogs/'
+                'insights-logs-containerappsystemlogs/'
+              ]
             }
             actions: {
               baseBlob: {

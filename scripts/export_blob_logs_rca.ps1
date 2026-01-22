@@ -6,8 +6,11 @@
 Exports Azure Container Apps logs from Blob Storage (Diagnostic Settings) for RCA.
 
 .DESCRIPTION
-This repo's Azure templates archive Container Apps logs to Blob Storage (container: logs-raw)
-via Diagnostic Settings (NDJSON, typically one JSON object per line).
+This repo's Azure templates archive Container Apps logs to Blob Storage via Diagnostic Settings
+(NDJSON, typically one JSON object per line).
+
+By default, Azure Monitor writes to the `insights-logs-containerappconsolelogs` container.
+Use `-ContainerName insights-logs-containerappsystemlogs` for system logs.
 
 This script:
 - Lists blobs in the logs container (optionally filtered by prefix)
@@ -39,7 +42,7 @@ param(
     [string]$StorageAccountName,
 
     [Parameter(Mandatory = $false)]
-    [string]$ContainerName = "logs-raw",
+    [string]$ContainerName = "insights-logs-containerappconsolelogs",
 
     [Parameter(Mandatory = $false)]
     [string]$Prefix = "",
