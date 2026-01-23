@@ -376,12 +376,19 @@ class AzureServiceBusSubscriber(EventSubscriber):
             callback = self.callbacks.get(event_type)
 
             if callback:
+                callback_error = None
                 try:
                     callback(event)
                     logger.debug(f"Processed {event_type} event: {event.get('event_id')}")
+                except Exception as e:
+                    # Save callback error for later handling
+                    callback_error = e
+                    logger.error(f"Error in callback for {event_type}: {e}")
 
-                    # Complete message if not auto-complete
-                    if not self.auto_complete:
+                # Complete or abandon message based on callback result
+                if not self.auto_complete:
+                    if callback_error is None:
+                        # Callback succeeded - try to complete message
                         try:
                             receiver.complete_message(msg)
                         except AttributeError as e:
@@ -389,18 +396,20 @@ class AzureServiceBusSubscriber(EventSubscriber):
                             # Log but don't re-raise as message was processed successfully
                             logger.error(f"Cannot complete message - receiver AttributeError: {e}", exc_info=True)
                             logger.warning("Message processed but not completed - will be redelivered")
-
-                except Exception as e:
-                    logger.error(f"Error in callback for {event_type}: {e}")
-                    # Abandon message for retry if not auto-complete
-                    if not self.auto_complete:
+                    else:
+                        # Callback failed - try to abandon message for retry
                         try:
                             receiver.abandon_message(msg)
                         except AttributeError as abandon_error:
                             logger.error(
                                 f"Cannot abandon message - receiver AttributeError: {abandon_error}", exc_info=True
                             )
-                    raise
+                        except Exception as abandon_error:
+                            logger.error(f"Error abandoning message: {abandon_error}")
+
+                # Re-raise callback error after attempting to handle the message
+                if callback_error is not None:
+                    raise callback_error
             else:
                 logger.debug(f"No callback registered for {event_type}")
                 # Complete message even if no callback (to avoid reprocessing)
