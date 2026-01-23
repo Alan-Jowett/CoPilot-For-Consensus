@@ -9,6 +9,7 @@ from typing import Any, cast
 from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_Mongodb
 
 from .document_store import (
+    DocumentAlreadyExistsError,
     DocumentNotFoundError,
     DocumentStore,
     DocumentStoreConnectionError,
@@ -159,6 +160,7 @@ class MongoDocumentStore(DocumentStore):
 
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
+            DocumentAlreadyExistsError: If document with same ID already exists
         """
         if self.database is None:
             raise DocumentStoreNotConnectedError("Not connected to MongoDB")
@@ -170,6 +172,16 @@ class MongoDocumentStore(DocumentStore):
             logger.debug(f"MongoDocumentStore: inserted document {doc_id} into {collection}")
             return doc_id
         except Exception as e:
+            # Import pymongo errors here to avoid ImportError if pymongo is not installed
+            try:
+                from pymongo.errors import DuplicateKeyError
+                if isinstance(e, DuplicateKeyError):
+                    doc_id = doc.get("_id", "unknown")
+                    logger.error(f"MongoDocumentStore: document with id {doc_id} already exists - {e}")
+                    raise DocumentAlreadyExistsError(f"Document with id {doc_id} already exists in collection {collection}") from e
+            except ImportError:
+                pass
+            
             logger.error(f"MongoDocumentStore: insert failed - {e}")
             raise
 
