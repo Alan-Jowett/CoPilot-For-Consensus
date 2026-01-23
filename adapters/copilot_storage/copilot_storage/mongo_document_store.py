@@ -183,9 +183,9 @@ class MongoDocumentStore(DocumentStore):
             # Check if this is a duplicate key error from pymongo
             if DuplicateKeyError is not None and isinstance(e, DuplicateKeyError):
                 doc_id = doc.get("_id", "unknown")
-                logger.error(f"MongoDocumentStore: document with id {doc_id} already exists - {e}")
+                logger.info(f"MongoDocumentStore: document with id {doc_id} already exists - {e}")
                 raise DocumentAlreadyExistsError(f"Document with id {doc_id} already exists in collection {collection}") from e
-            
+
             logger.error(f"MongoDocumentStore: insert failed - {e}")
             raise
 

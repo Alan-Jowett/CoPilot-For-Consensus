@@ -260,11 +260,11 @@ def test_store_messages_handles_none_from_field():
 
 
 def test_store_messages_skips_document_already_exists_and_continues(caplog):
-    """Test that DocumentAlreadyExistsError from CosmosDB is handled as a duplicate.
+    """Test that DocumentAlreadyExistsError from the document store is handled as a duplicate.
 
-    This tests the fix for CosmosDB conflicts where documents with the same ID
-    already exist. The error should be caught and handled gracefully like
-    MongoDB's DuplicateKeyError.
+    This tests the fix for duplicate document errors where documents with the same
+    ID already exist. The error should be caught and handled gracefully like other
+    duplicate-key errors (e.g., MongoDB's DuplicateKeyError or Cosmos conflict errors).
     """
     from copilot_storage import DocumentAlreadyExistsError
 
@@ -300,7 +300,7 @@ def test_store_messages_skips_document_already_exists_and_continues(caplog):
 
 
 def test_store_threads_skips_document_already_exists_and_continues(caplog):
-    """Test that DocumentAlreadyExistsError from CosmosDB is handled for threads too."""
+    """Test that DocumentAlreadyExistsError from the document store is handled for threads too."""
     from copilot_storage import DocumentAlreadyExistsError
 
     caplog.set_level(logging.DEBUG)

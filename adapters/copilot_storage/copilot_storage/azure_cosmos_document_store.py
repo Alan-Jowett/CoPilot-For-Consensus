@@ -252,6 +252,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         Raises:
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
+            DocumentAlreadyExistsError: If document with same ID already exists
             DocumentStoreError: If insertion fails
         """
         if self.container is None:
@@ -286,7 +287,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             return doc_id
 
         except cosmos_exceptions.CosmosResourceExistsError as e:
-            logger.error(f"AzureCosmosDocumentStore: document with id {doc_id} already exists - {e}")
+            logger.info(f"AzureCosmosDocumentStore: document with id {doc_id} already exists - {e}")
             raise DocumentAlreadyExistsError(f"Document with id {doc_id} already exists in collection {collection}") from e
         except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
