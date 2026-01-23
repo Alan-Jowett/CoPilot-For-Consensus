@@ -20,6 +20,14 @@ from .schema_registry import sanitize_document, sanitize_documents
 
 logger = logging.getLogger(__name__)
 
+# Import pymongo DuplicateKeyError at module level to avoid nested try-catch
+# This dependency is optional; when missing, the store will still work but
+# won't convert pymongo-specific duplicate errors to DocumentAlreadyExistsError
+try:
+    from pymongo.errors import DuplicateKeyError
+except ImportError:
+    DuplicateKeyError = None  # type: ignore
+
 
 class MongoDocumentStore(DocumentStore):
     """MongoDB document store implementation."""
@@ -172,15 +180,11 @@ class MongoDocumentStore(DocumentStore):
             logger.debug(f"MongoDocumentStore: inserted document {doc_id} into {collection}")
             return doc_id
         except Exception as e:
-            # Import pymongo errors here to avoid ImportError if pymongo is not installed
-            try:
-                from pymongo.errors import DuplicateKeyError
-                if isinstance(e, DuplicateKeyError):
-                    doc_id = doc.get("_id", "unknown")
-                    logger.error(f"MongoDocumentStore: document with id {doc_id} already exists - {e}")
-                    raise DocumentAlreadyExistsError(f"Document with id {doc_id} already exists in collection {collection}") from e
-            except ImportError:
-                pass
+            # Check if this is a duplicate key error from pymongo
+            if DuplicateKeyError is not None and isinstance(e, DuplicateKeyError):
+                doc_id = doc.get("_id", "unknown")
+                logger.error(f"MongoDocumentStore: document with id {doc_id} already exists - {e}")
+                raise DocumentAlreadyExistsError(f"Document with id {doc_id} already exists in collection {collection}") from e
             
             logger.error(f"MongoDocumentStore: insert failed - {e}")
             raise
