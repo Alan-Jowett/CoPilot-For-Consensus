@@ -432,12 +432,24 @@ class AzureServiceBusSubscriber(EventSubscriber):
             logger.error(f"Failed to decode message body as UTF-8: {e}")
             # Complete malformed messages to avoid blocking the queue
             if not self.auto_complete:
-                receiver.complete_message(msg)
+                try:
+                    receiver.complete_message(msg)
+                except AttributeError as complete_error:
+                    logger.error(
+                        f"Cannot complete malformed message - receiver AttributeError: {complete_error}",
+                        exc_info=True,
+                    )
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode message JSON: {e}")
             # Complete malformed messages to avoid blocking the queue
             if not self.auto_complete:
-                receiver.complete_message(msg)
+                try:
+                    receiver.complete_message(msg)
+                except AttributeError as complete_error:
+                    logger.error(
+                        f"Cannot complete malformed message - receiver AttributeError: {complete_error}",
+                        exc_info=True,
+                    )
         except Exception as e:
             logger.error(f"Error processing message: {e}")
             # Let the exception propagate to the caller for error handling

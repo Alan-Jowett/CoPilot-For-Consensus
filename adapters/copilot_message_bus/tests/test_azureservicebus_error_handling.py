@@ -141,6 +141,45 @@ class TestAzureServiceBusAttributeErrorHandling:
         receiver.complete_message.assert_not_called()
         receiver.abandon_message.assert_not_called()
 
+    def test_start_consuming_handles_process_message_attributeerror(self, subscriber):
+        """Test that AttributeError from _process_message is logged and handled in start_consuming."""
+        # Mock the client and receiver
+        mock_client = Mock()
+        subscriber.client = mock_client
+
+        mock_receiver = Mock()
+        mock_receiver.__enter__ = Mock(return_value=mock_receiver)
+        mock_receiver.__exit__ = Mock(return_value=False)
+
+        mock_message = Mock()
+        mock_message.body = [json.dumps({"event_type": "test.event", "event_id": "123"}).encode("utf-8")]
+
+        # First call returns a message, second returns empty to exit
+        mock_receiver.receive_messages.side_effect = [
+            [mock_message],
+            [],
+        ]
+        mock_client.get_queue_receiver.return_value = mock_receiver
+
+        # Patch _process_message to raise AttributeError
+        with patch.object(subscriber, '_process_message', side_effect=AttributeError("'NoneType' object has no attribute 'flow'")):
+            with patch("copilot_message_bus.azureservicebussubscriber.logger") as mock_logger:
+                with patch("copilot_message_bus.azureservicebussubscriber.ServiceBusReceiveMode", Mock()):
+                    # Stop after processing one batch
+                    def stop_after_delay():
+                        time.sleep(0.1)
+                        subscriber.stop_consuming()
+                    thread = threading.Thread(target=stop_after_delay)
+                    thread.start()
+
+                    subscriber.start_consuming()
+                    thread.join()
+
+                # Verify error was logged with the specific message for this handler
+                error_calls = [call for call in mock_logger.error.call_args_list
+                              if "handler became None" in str(call)]
+                assert len(error_calls) > 0
+
     def test_start_consuming_handles_receive_attributeerror(self, subscriber):
         """Test that AttributeError during receive_messages is logged and handled."""
         # Mock the client and receiver

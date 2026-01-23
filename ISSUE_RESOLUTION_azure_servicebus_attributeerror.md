@@ -74,7 +74,7 @@ Added comprehensive AttributeError handling throughout the message processing pi
 
 #### Changes Made:
 
-**A. AutoLockRenewer Registration (Lines 277-282)**
+**A. AutoLockRenewer Registration** (in `start_consuming` method, AutoLockRenewer registration block)
 ```python
 except AttributeError as e:
     # Known azure-servicebus SDK bug: internal handler can become None
@@ -82,7 +82,7 @@ except AttributeError as e:
     logger.error(f"AutoLockRenewer AttributeError (likely SDK bug): {e}", exc_info=True)
 ```
 
-**B. Message Processing Loop (Lines 286-294)**
+**B. Message Processing Loop** (in `start_consuming` method, message processing loop)
 ```python
 except AttributeError as e:
     # Known azure-servicebus SDK bug: receiver._handler can become None
@@ -95,7 +95,7 @@ except AttributeError as e:
     # Message will be retried after lock expires
 ```
 
-**C. Message Abandon Operations (Lines 301-306)**
+**C. Message Abandon Operations** (in `start_consuming` method, exception handler for message processing errors)
 ```python
 except AttributeError as abandon_error:
     # Receiver may be in invalid state - log but don't fail
@@ -105,7 +105,7 @@ except AttributeError as abandon_error:
     )
 ```
 
-**D. Receive Messages Loop (Lines 313-319)**
+**D. Receive Messages Loop** (in `start_consuming` method, outer message receive loop)
 ```python
 except AttributeError as e:
     # Known azure-servicebus SDK bug: receiver._handler can become None
@@ -116,13 +116,13 @@ except AttributeError as e:
     # Continue processing unless explicitly stopped
 ```
 
-**E. _process_message Method (Multiple locations)**
-Added AttributeError handling for all receiver operations:
-- `complete_message()` calls
-- `abandon_message()` calls
-- Message processing with proper logging
+**E. _process_message Method** (multiple locations within the method)
+Added AttributeError handling for receiver operations:
+- `complete_message()` calls after successful callback execution
+- `abandon_message()` calls when callback fails
+- `complete_message()` calls for messages without callbacks
 
-**F. AutoLockRenewer Cleanup (Lines 332-333)**
+**F. AutoLockRenewer Cleanup** (in `start_consuming` method, finally block)
 ```python
 except AttributeError as e:
     logger.debug(f"AutoLockRenewer AttributeError during close: {e}")
@@ -157,7 +157,7 @@ Created comprehensive test suite covering:
 ## Verification Steps
 
 ### 1. Code Review
-- ✅ All AttributeError-prone operations wrapped in try-except
+- ✅ All critical AttributeError-prone operations wrapped in try-except
 - ✅ Proper logging with traceback for diagnosis
 - ✅ Service continues processing after errors
 - ✅ No cascading failures from AttributeError
