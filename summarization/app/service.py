@@ -631,17 +631,11 @@ class SummarizationService:
         # Preserve the order from selected_chunks
         chunk_map: dict[str, dict[str, Any]] = {}
         for chunk in chunks:
-            primary_id = chunk.get("_id") or chunk.get("chunk_id")
+            primary_id = chunk.get("_id")
             if not primary_id:
                 continue
 
-            # Ensure callers/tests can rely on _id being present.
-            if "_id" not in chunk and chunk.get("chunk_id"):
-                chunk["_id"] = chunk.get("chunk_id")
-
             chunk_map[str(primary_id)] = chunk
-            if chunk.get("chunk_id"):
-                chunk_map[str(chunk.get("chunk_id"))] = chunk
         ordered_chunks = []
         missing_chunk_ids = []
         for sc in selected_chunks:
