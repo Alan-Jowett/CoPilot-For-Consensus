@@ -52,10 +52,9 @@ class TestAzureServiceBusAttributeErrorHandling:
         callback = Mock()
         subscriber.callbacks["test.event"] = callback
 
-        # Process message should not raise, but should log the error
+        # Process message should not raise - AttributeError is caught and logged
         with patch("copilot_message_bus.azureservicebussubscriber.logger") as mock_logger:
-            with pytest.raises(AttributeError):  # Re-raised after logging
-                subscriber._process_message(mock_message, mock_receiver)
+            subscriber._process_message(mock_message, mock_receiver)
 
             # Verify callback was called
             callback.assert_called_once()
@@ -65,6 +64,12 @@ class TestAzureServiceBusAttributeErrorHandling:
             error_calls = [call for call in mock_logger.error.call_args_list
                           if "receiver AttributeError" in str(call)]
             assert len(error_calls) > 0
+
+            # Verify warning about redelivery was logged
+            assert mock_logger.warning.called
+            warning_calls = [call for call in mock_logger.warning.call_args_list
+                           if "will be redelivered" in str(call)]
+            assert len(warning_calls) > 0
 
     def test_process_message_handles_abandon_attributeerror(self, subscriber, mock_receiver, mock_message):
         """Test that AttributeError on abandon_message is logged and doesn't crash."""
