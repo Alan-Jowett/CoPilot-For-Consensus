@@ -470,8 +470,8 @@ def test_idempotent_orchestration(
 
     # Setup: chunks exist and map to thread
     chunks = [
-        {"chunk_id": "chunk-1", "thread_id": thread_id, "embedding_generated": True},
-        {"chunk_id": "chunk-2", "thread_id": thread_id, "embedding_generated": True},
+        {"_id": "chunk-1", "chunk_id": "chunk-1", "thread_id": thread_id, "embedding_generated": True},
+        {"_id": "chunk-2", "chunk_id": "chunk-2", "thread_id": thread_id, "embedding_generated": True},
     ]
 
     # First call: no existing summary
