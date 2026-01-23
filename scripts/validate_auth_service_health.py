@@ -34,12 +34,11 @@ except ImportError:
     sys.exit(2)
 
 
-# Required JWK fields for validation
-REQUIRED_JWK_FIELDS = ["kty", "use", "kid", "alg"]
-
-
 class AuthServiceValidator:
     """Validator for auth service health and JWKS endpoints."""
+
+    # Required JWK fields for validation (per RFC 7517)
+    REQUIRED_JWK_FIELDS = ["kty", "use", "kid", "alg"]
 
     def __init__(self, base_url: str, timeout: int = 10):
         """Initialize validator.
@@ -135,7 +134,7 @@ class AuthServiceValidator:
                     if isinstance(keys, list) and len(keys) > 0:
                         # Validate first key has required JWK fields
                         key = keys[0]
-                        missing_fields = [f for f in REQUIRED_JWK_FIELDS if f not in key]
+                        missing_fields = [f for f in self.REQUIRED_JWK_FIELDS if f not in key]
                         if not missing_fields:
                             print(f"✓ JWKS endpoint: {url} - OK")
                             print(f"  Keys: {len(keys)}, Algorithm: {key.get('alg')}, Key ID: {key.get('kid')}")
