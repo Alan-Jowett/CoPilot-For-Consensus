@@ -274,35 +274,63 @@ class AzureServiceBusSubscriber(EventSubscriber):
                                         msg,
                                         max_lock_renewal_duration=self.max_auto_lock_renewal_duration,
                                     )
+                                except AttributeError as e:
+                                    # Known azure-servicebus SDK bug: internal handler can become None
+                                    # during concurrent operations or connection closure
+                                    logger.error(f"AutoLockRenewer AttributeError (likely SDK bug): {e}", exc_info=True)
                                 except Exception as e:
                                     logger.warning(f"Failed to register auto-lock renewer: {e}")
 
                             try:
                                 self._process_message(msg, receiver)
+                            except AttributeError as e:
+                                # Known azure-servicebus SDK bug: receiver._handler can become None
+                                # This is a race condition where the handler is closed during message processing
+                                logger.error(
+                                    f"Receiver AttributeError (likely SDK bug - handler became None): {e}",
+                                    exc_info=True,
+                                )
+                                # Cannot abandon message if receiver is in invalid state
+                                # Message will be retried after lock expires
                             except Exception as e:
                                 logger.error(f"Error processing message: {e}")
                                 # In manual ack mode, abandon the message so it can be retried
                                 if not self.auto_complete:
                                     try:
                                         receiver.abandon_message(msg)
+                                    except AttributeError as abandon_error:
+                                        # Receiver may be in invalid state - log but don't fail
+                                        logger.error(
+                                            f"Cannot abandon message - receiver AttributeError: {abandon_error}",
+                                            exc_info=True,
+                                        )
                                     except Exception as abandon_error:
                                         logger.error(f"Error abandoning message: {abandon_error}")
 
                     except KeyboardInterrupt:
                         logger.info("Received keyboard interrupt, stopping consumption")
                         break
+                    except AttributeError as e:
+                        # Known azure-servicebus SDK bug: receiver._handler can become None
+                        if self._consuming.is_set():
+                            logger.error(
+                                f"Receiver AttributeError during message receive (likely SDK bug): {e}", exc_info=True
+                            )
+                        # Continue processing unless explicitly stopped
                     except Exception as e:
                         if self._consuming.is_set():
                             logger.error(f"Error receiving messages: {e}")
                         # Continue processing unless explicitly stopped
 
         except Exception as e:
-            logger.error(f"Error in start_consuming: {e}")
+            logger.error(f"Error in start_consuming: {e}", exc_info=True)
             raise
         finally:
             try:
                 if renewer is not None:
                     renewer.close()
+            except AttributeError as e:
+                logger.debug(f"AutoLockRenewer AttributeError during close: {e}")
             except Exception as e:
                 logger.debug(f"Error closing auto-lock renewer: {e}")
             self._consuming.clear()
@@ -320,6 +348,11 @@ class AzureServiceBusSubscriber(EventSubscriber):
         Args:
             msg: ServiceBusReceivedMessage object
             receiver: ServiceBusReceiver object
+
+        Note:
+            This method handles AttributeError gracefully as the azure-servicebus SDK
+            has a known bug where internal handlers can become None during message
+            processing (see GitHub issues #35618, #36334).
         """
         try:
             # Parse message body from the received message (body is bytes)
@@ -333,7 +366,10 @@ class AzureServiceBusSubscriber(EventSubscriber):
             if not event_type:
                 logger.warning("Received message without event_type field")
                 if not self.auto_complete:
-                    receiver.complete_message(msg)
+                    try:
+                        receiver.complete_message(msg)
+                    except AttributeError as e:
+                        logger.error(f"Cannot complete message - receiver AttributeError: {e}", exc_info=True)
                 return
 
             # Find and call registered callback
@@ -346,19 +382,31 @@ class AzureServiceBusSubscriber(EventSubscriber):
 
                     # Complete message if not auto-complete
                     if not self.auto_complete:
-                        receiver.complete_message(msg)
+                        try:
+                            receiver.complete_message(msg)
+                        except AttributeError as e:
+                            logger.error(f"Cannot complete message - receiver AttributeError: {e}", exc_info=True)
+                            raise
 
                 except Exception as e:
                     logger.error(f"Error in callback for {event_type}: {e}")
                     # Abandon message for retry if not auto-complete
                     if not self.auto_complete:
-                        receiver.abandon_message(msg)
+                        try:
+                            receiver.abandon_message(msg)
+                        except AttributeError as abandon_error:
+                            logger.error(
+                                f"Cannot abandon message - receiver AttributeError: {abandon_error}", exc_info=True
+                            )
                     raise
             else:
                 logger.debug(f"No callback registered for {event_type}")
                 # Complete message even if no callback (to avoid reprocessing)
                 if not self.auto_complete:
-                    receiver.complete_message(msg)
+                    try:
+                        receiver.complete_message(msg)
+                    except AttributeError as e:
+                        logger.error(f"Cannot complete message - receiver AttributeError: {e}", exc_info=True)
 
         except UnicodeDecodeError as e:
             logger.error(f"Failed to decode message body as UTF-8: {e}")
