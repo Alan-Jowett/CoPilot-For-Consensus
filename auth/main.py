@@ -611,8 +611,8 @@ def jwks() -> JSONResponse:
         jwks_data = auth_service.get_jwks()
         return JSONResponse(content=jwks_data)
     except Exception as e:
-        # Log the error but don't expose internal details
-        logger.error(f"Failed to retrieve JWKS: {e}")
+        # Log error type without exposing sensitive details
+        logger.error(f"Failed to retrieve JWKS: {type(e).__name__}")
         metrics.increment("jwks_errors_total")
         raise HTTPException(
             status_code=500,

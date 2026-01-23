@@ -34,6 +34,10 @@ except ImportError:
     sys.exit(2)
 
 
+# Required JWK fields for validation
+REQUIRED_JWK_FIELDS = ["kty", "use", "kid", "alg"]
+
+
 class AuthServiceValidator:
     """Validator for auth service health and JWKS endpoints."""
 
@@ -131,8 +135,7 @@ class AuthServiceValidator:
                     if isinstance(keys, list) and len(keys) > 0:
                         # Validate first key has required JWK fields
                         key = keys[0]
-                        required_fields = ["kty", "use", "kid", "alg"]
-                        missing_fields = [f for f in required_fields if f not in key]
+                        missing_fields = [f for f in REQUIRED_JWK_FIELDS if f not in key]
                         if not missing_fields:
                             print(f"✓ JWKS endpoint: {url} - OK")
                             print(f"  Keys: {len(keys)}, Algorithm: {key.get('alg')}, Key ID: {key.get('kid')}")
@@ -288,7 +291,7 @@ def wait_for_service(base_url: str, max_wait_seconds: int = 60, check_interval: 
         except requests.RequestException:
             pass
 
-        remaining = max_wait_seconds - (time.time() - start_time)
+        remaining = max(0, max_wait_seconds - (time.time() - start_time))
         print(f"  Waiting... ({remaining:.0f}s remaining)")
         time.sleep(check_interval)
 

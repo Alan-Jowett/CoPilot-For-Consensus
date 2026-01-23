@@ -397,7 +397,7 @@ class TestKeyVaultJWTSignerEC:
         message = b"test message"
         
         # Should fail immediately without retries (1 attempt only)
-        with pytest.raises(KeyVaultSignerError, match="Key Vault sign operation failed after 1 attempts"):
+        with pytest.raises(KeyVaultSignerError, match="Key Vault sign operation failed after 1 attempt"):
             signer.sign(message)
         
         # Verify sign was called only once (no retries)
