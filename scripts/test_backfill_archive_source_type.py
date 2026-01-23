@@ -154,7 +154,7 @@ def test_backfill_handles_update_error(mock_mongo_class):
         mongodb_host="localhost", mongodb_port=27017, mongodb_database="test", dry_run=False
     )
 
-    assert result["total_found"] == 0  # Error happened before counting completed
+    assert result["total_found"] == 0  # Connection error prevents any database operations
     assert result["updated"] == 0
     assert result["errors"] == 1
     assert "error_message" in result
