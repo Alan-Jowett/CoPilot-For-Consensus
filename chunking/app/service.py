@@ -354,7 +354,7 @@ class ChunkingService:
                     # This is raised by azure_cosmos_document_store when catching CosmosResourceExistsError
                     if isinstance(exc, DocumentStoreError):
                         err_msg = str(exc).lower()
-                        if "already exists in collection" in err_msg or "document with id" in err_msg and "already exists" in err_msg:
+                        if "already exists in collection" in err_msg or ("document with id" in err_msg and "already exists" in err_msg):
                             return True
 
                     return False
