@@ -255,6 +255,18 @@ jobs:
         }
         echo "✓ Auth service is healthy"
 
+    - name: Validate auth service endpoints
+      run: |
+        echo "Validating auth service endpoints (JWKS, health, readiness)..."
+        pip install --quiet requests
+        python3 scripts/validate_auth_service_health.py --url http://localhost:8090 --timeout 10 || {
+          echo "❌ Auth service validation failed"
+          echo "=== Auth Service Logs (last 100 lines) ==="
+          docker compose logs auth --tail=100
+          exit 1
+        }
+        echo "✓ Auth service validation passed"
+
     # Start independent processing services in parallel
     - name: Start processing services in parallel
       run: |

@@ -593,9 +593,12 @@ def userinfo(request: Request) -> JSONResponse:
 @app.get("/keys")
 def jwks() -> JSONResponse:
     """Get JSON Web Key Set (JWKS) for token validation.
-
+    
     Returns:
         JWKS with public keys
+    
+    Raises:
+        HTTPException: 503 if service not initialized, 500 if JWKS retrieval fails
     """
     global auth_service
 
@@ -603,8 +606,18 @@ def jwks() -> JSONResponse:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     metrics.increment("jwks_requests_total")
-    jwks_data = auth_service.get_jwks()
-    return JSONResponse(content=jwks_data)
+    
+    try:
+        jwks_data = auth_service.get_jwks()
+        return JSONResponse(content=jwks_data)
+    except Exception as e:
+        # Log the error but don't expose internal details
+        logger.error(f"Failed to retrieve JWKS: {e}")
+        metrics.increment("jwks_errors_total")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve public keys for token validation"
+        )
 
 
 @app.get("/.well-known/jwks.json")
