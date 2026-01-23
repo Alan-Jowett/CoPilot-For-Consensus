@@ -8,6 +8,8 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
+
+# Schema validation is required - install copilot_schema_validation via install_adapters.py
 from copilot_schema_validation import create_schema_provider, validate_json
 from copilot_startup import StartupRequeue
 
