@@ -310,10 +310,24 @@ class TestParsingForwardProgress:
         assert valid_data["source_type"] == "rsync"
         assert "missing 'source_type' field" not in caplog.text
 
-        # Legacy document should work with warning
+        # First legacy document should log WARNING
         with caplog.at_level(logging.WARNING):
             caplog.clear()
             legacy_data = build_event_data(legacy_doc)
         assert legacy_data["source_type"] == "local"
         assert "Archive legacy-archive-002 missing 'source_type' field (legacy document)" in caplog.text
         assert "Defaulting to 'local'" in caplog.text
+        
+        # Second legacy document should log at INFO level (rate-limited)
+        legacy_doc2 = {
+            "archive_id": "legacy-archive-003",
+            "source": "legacy-source",
+            # source_type is missing
+        }
+        with caplog.at_level(logging.INFO):
+            caplog.clear()
+            legacy_data2 = build_event_data(legacy_doc2)
+        assert legacy_data2["source_type"] == "local"
+        # Should be at INFO level now, not WARNING
+        assert "Archive legacy-archive-003 missing 'source_type' field (legacy document)" in caplog.text
+        assert "defaulting to 'local'" in caplog.text
