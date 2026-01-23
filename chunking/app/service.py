@@ -31,7 +31,7 @@ from copilot_message_bus import (
     SourceDeletionRequestedEvent,
 )
 from copilot_metrics import MetricsCollector
-from copilot_storage import DocumentStore
+from copilot_storage import DocumentStore, DocumentStoreError
 
 logger = get_logger(__name__)
 
@@ -341,11 +341,19 @@ class ChunkingService:
                 new_chunks_created = 0
 
                 def _is_duplicate_key_error(exc: Exception) -> bool:
+                    # MongoDB duplicate key error
                     if DuplicateKeyError is not None and isinstance(exc, DuplicateKeyError):
                         return True
 
-                    # Best-effort fallback when pymongo isn't installed.
-                    return type(exc).__name__ == "DuplicateKeyError"
+                    # Best-effort fallback when pymongo isn't installed
+                    if type(exc).__name__ == "DuplicateKeyError":
+                        return True
+
+                    # CosmosDB duplicate document error (via DocumentStoreError)
+                    if isinstance(exc, DocumentStoreError) and "already exists" in str(exc):
+                        return True
+
+                    return False
 
                 for chunk in all_chunks:
                     try:

@@ -844,6 +844,59 @@ def test_idempotent_chunk_insertion(chunking_service, mock_document_store, mock_
     assert chunking_service.chunks_created_total > 0
 
 
+def test_idempotent_chunk_insertion_cosmosdb(chunking_service, mock_document_store, mock_publisher):
+    """Test that duplicate chunk insertions from CosmosDB are handled gracefully (idempotency)."""
+    from copilot_storage import DocumentStoreError
+
+    # Setup mock to simulate CosmosDB duplicate on second insert
+    messages = [
+        {
+            "_id": "abc123def4567890",
+            "message_id": "<test@example.com>",
+            "thread_id": "1111222233334444",
+            "archive_id": "a1b2c3d4e5f67890",
+            "body_normalized": "This is a test message. " * 50,
+            "from": {"email": "user@example.com", "name": "Test User"},
+            "date": "2023-10-15T12:00:00Z",
+            "subject": "Test Subject",
+            "draft_mentions": [],
+        }
+    ]
+
+    mock_document_store.query_documents.return_value = messages
+
+    # First insert succeeds, second raises CosmosDB-style DocumentStoreError
+    insert_count = [0]
+
+    def insert_side_effect(collection, document):
+        insert_count[0] += 1
+        if insert_count[0] == 2:
+            # Simulate the CosmosDB error from azure_cosmos_document_store.py
+            raise DocumentStoreError(
+                f"Document with id {document.get('_id', 'unknown')} already exists in collection {collection}"
+            )
+        return f"chunk_{insert_count[0]}"
+
+    mock_document_store.insert_document.side_effect = insert_side_effect
+
+    event_data = {
+        "archive_id": "a1b2c3d4e5f67890",
+        "message_doc_ids": ["abc123def4567890"],
+    }
+
+    # Process should succeed despite duplicate
+    chunking_service.process_messages(event_data)
+
+    # Verify ChunksPrepared event was still published
+    mock_publisher.publish.assert_called_once()
+    call_args = mock_publisher.publish.call_args
+    assert call_args[1]["routing_key"] == "chunks.prepared"
+
+    # Stats should be updated
+    assert chunking_service.messages_processed == 1
+    assert chunking_service.chunks_created_total > 0
+
+
 def test_metrics_collector_uses_observe_for_histograms():
     """Test that metrics collector uses observe() method for duration and size metrics."""
     mock_store = Mock()
