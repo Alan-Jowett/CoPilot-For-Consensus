@@ -150,15 +150,15 @@ def get_qdrant_points_count(
         data = resp.json()
         points = data.get("result", {}).get("points_count")
         if isinstance(points, int):
-            return CountResult(name="embeddings", count=points, source="qdrant")
+            return CountResult(name=collection, count=points, source="qdrant")
         return CountResult(
-            name="embeddings",
+            name=collection,
             count=None,
             source="qdrant",
             detail=f"Unexpected response shape from {url}",
         )
     except Exception as exc:
-        return CountResult(name="embeddings", count=None, source="qdrant", detail=str(exc))
+        return CountResult(name=collection, count=None, source="qdrant", detail=str(exc))
 
 
 def _run_az_json(args: list[str]) -> dict[str, Any]:

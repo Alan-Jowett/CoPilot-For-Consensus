@@ -132,7 +132,6 @@ $templates = @($report.templates)
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
 $contextLines = New-Object System.Collections.Generic.List[string]
-$contextLines.Add('Context')
 $contextLines.Add('- Source: Blob-archived ACA console logs (Azure Monitor Diagnostic Settings)')
 if ($StorageAccountName) { $contextLines.Add("- Storage account: $StorageAccountName") }
 if ($ContainerName) { $contextLines.Add("- Container: $ContainerName") }
