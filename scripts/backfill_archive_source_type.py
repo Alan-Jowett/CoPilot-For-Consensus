@@ -50,6 +50,21 @@ def _get_env_or_secret(env_var: str, secret_name: str) -> str | None:
         return None
 
 
+def _build_mongo_connection_string(
+    host: str, port: int, database: str, username: str | None, password: str | None
+) -> str:
+    """Build MongoDB connection string.
+
+    This is a separate function to isolate credential handling from logging code paths.
+    """
+    if username and password:
+        return (
+            f"mongodb://{username}:{password}@"
+            f"{host}:{port}/{database}?authSource=admin"
+        )
+    return f"mongodb://{host}:{port}/{database}"
+
+
 def backfill_archive_source_type(
     mongodb_host: str,
     mongodb_port: int,
@@ -79,14 +94,10 @@ def backfill_archive_source_type(
     if limit:
         logger.info(f"Processing limit: {limit} documents")
 
-    # Connect to MongoDB
-    if mongodb_username and mongodb_password:
-        connection_string = (
-            f"mongodb://{mongodb_username}:{mongodb_password}@"
-            f"{mongodb_host}:{mongodb_port}/{mongodb_database}?authSource=admin"
-        )
-    else:
-        connection_string = f"mongodb://{mongodb_host}:{mongodb_port}/{mongodb_database}"
+    # Build connection string in separate function to isolate credentials from logging
+    connection_string = _build_mongo_connection_string(
+        mongodb_host, mongodb_port, mongodb_database, mongodb_username, mongodb_password
+    )
 
     try:
         mongo_client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
@@ -95,10 +106,10 @@ def backfill_archive_source_type(
         # Test connection
         mongo_client.admin.command("ping")
         logger.info(f"Connected to MongoDB at {mongodb_host}:{mongodb_port}")
-    except Exception as e:
-        # Log error type only - avoid logging exception message which may contain credentials
-        logger.error(f"Failed to connect to MongoDB at {mongodb_host}:{mongodb_port}: {type(e).__name__}")
-        return {"total_found": 0, "updated": 0, "errors": 1, "error_message": type(e).__name__}
+    except Exception:
+        # Log error without any exception details - connection errors may expose credentials
+        logger.error(f"Failed to connect to MongoDB at {mongodb_host}:{mongodb_port}")
+        return {"total_found": 0, "updated": 0, "errors": 1, "error_message": "ConnectionError"}
 
     try:
         # Find archives missing source_type field
