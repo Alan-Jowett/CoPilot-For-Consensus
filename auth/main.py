@@ -631,6 +631,10 @@ def well_known_jwks() -> JSONResponse:
 
     Returns:
         JWKS with public keys
+    
+    Note:
+        This endpoint delegates to jwks() and inherits all its error handling,
+        including proper 500 responses for Key Vault permission errors.
     """
     return jwks()
 
