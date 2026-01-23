@@ -72,7 +72,7 @@ def mock_publisher():
     """Create a mock event publisher that tracks published events."""
     publisher = Mock()
     publisher.published_events = []
-    
+
     def publish_with_tracking(event, routing_key, exchange=""):
         publisher.published_events.append({
             "event": event,
@@ -80,7 +80,7 @@ def mock_publisher():
             "exchange": exchange,
         })
         return True
-    
+
     publisher.publish = Mock(side_effect=publish_with_tracking)
     return publisher
 

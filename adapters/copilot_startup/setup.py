@@ -19,5 +19,9 @@ setup(
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
         ],
+        "test": [
+            "pytest>=7.0.0",
+            "copilot-schema-validation",  # For schema validation tests
+        ],
     },
 )
