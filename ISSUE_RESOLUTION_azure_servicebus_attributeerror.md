@@ -168,7 +168,7 @@ Created comprehensive test suite covering:
 - ✅ Type checking considerations addressed
 
 ### 3. Test Coverage
-- ✅ Test suite created with 8 test cases
+- ✅ Test suite created with 9 test cases
 - ✅ Mock-based unit tests for all error scenarios
 - ⏳ Integration tests pending (requires full environment)
 
@@ -274,8 +274,9 @@ template_id=90
 ### Expected Log After Fix
 ```
 level=error msg="Receiver AttributeError (likely SDK bug - handler became None): 'NoneType' object has no attribute 'flow'"
-level=info msg="Continuing message processing"
 ```
+
+The service will log the error with full traceback and continue processing subsequent messages. The affected message's lock will expire and the message will be automatically retried.
 
 ---
 
