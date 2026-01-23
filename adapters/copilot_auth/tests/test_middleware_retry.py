@@ -104,21 +104,30 @@ def test_jwks_fetch_retry_failure_after_max_attempts():
         assert mock_get.call_count == 3
 
 
-def test_jwks_fetch_retry_with_503_error(mock_jwks):
-    """Test JWKS fetch retries on 503 Service Unavailable."""
+@pytest.mark.parametrize(
+    "status_code,error_message",
+    [
+        (500, "Internal server error"),
+        (502, "Bad gateway"),
+        (503, "Service unavailable"),
+        (504, "Gateway timeout"),
+    ],
+)
+def test_jwks_fetch_retry_with_5xx_errors(mock_jwks, status_code, error_message):
+    """Test JWKS fetch retries on 5xx server errors."""
     app = FastAPI()
 
     with patch("copilot_auth.middleware.httpx.get") as mock_get:
-        # First call raises HTTPStatusError with 503, second succeeds
-        mock_503_response = MagicMock()
-        mock_503_response.status_code = 503
+        # First call raises HTTPStatusError with 5xx status, second succeeds
+        mock_error_response = MagicMock()
+        mock_error_response.status_code = status_code
 
         mock_success_response = MagicMock()
         mock_success_response.json.return_value = mock_jwks
         mock_success_response.raise_for_status = MagicMock()
 
         mock_get.side_effect = [
-            httpx.HTTPStatusError("Service unavailable", request=MagicMock(), response=mock_503_response),
+            httpx.HTTPStatusError(error_message, request=MagicMock(), response=mock_error_response),
             mock_success_response,
         ]
 
@@ -132,7 +141,7 @@ def test_jwks_fetch_retry_with_503_error(mock_jwks):
                 defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
             )
 
-        # Verify JWKS was fetched successfully after 503 retry
+        # Verify JWKS was fetched successfully after 5xx retry
         assert middleware.jwks == mock_jwks
         assert mock_get.call_count == 2
 

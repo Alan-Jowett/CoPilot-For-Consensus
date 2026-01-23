@@ -157,17 +157,19 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     logger.error(f"JWKS fetch failed after {self.jwks_fetch_retries} attempts: " f"{error_type} - {e}")
             except httpx.HTTPStatusError as e:
                 last_error = e
-                # For 503 Service Unavailable, retry; for other errors, fail immediately
-                if e.response.status_code == 503:
+                # For 5xx server errors (transient), retry; for other errors, fail immediately
+                if e.response.status_code >= 500:
                     if attempt < self.jwks_fetch_retries:
                         logger.warning(
-                            f"Auth service unavailable (503) on attempt {attempt}/{self.jwks_fetch_retries}. "
+                            f"Auth service error ({e.response.status_code}) on attempt {attempt}/{self.jwks_fetch_retries}. "
                             f"Retrying in {delay:.1f}s..."
                         )
                         time.sleep(delay)
                         delay *= 2
                     else:
-                        logger.error(f"Auth service unavailable (503) after {self.jwks_fetch_retries} attempts")
+                        logger.error(
+                            f"Auth service error ({e.response.status_code}) after {self.jwks_fetch_retries} attempts"
+                        )
                 else:
                     logger.error(
                         f"JWKS fetch failed with HTTP {e.response.status_code}: {e}. "
