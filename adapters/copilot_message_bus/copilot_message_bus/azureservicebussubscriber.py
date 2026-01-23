@@ -290,8 +290,11 @@ class AzureServiceBusSubscriber(EventSubscriber):
                                     f"Receiver AttributeError (likely SDK bug - handler became None): {e}",
                                     exc_info=True,
                                 )
-                                # Cannot abandon message if receiver is in invalid state
-                                # Message will be retried after lock expires
+                                # INTENTIONALLY NOT RE-RAISED: When the receiver is in an invalid state
+                                # (handler is None), we cannot perform any operations on it (complete/abandon).
+                                # Re-raising would crash the service. Instead, we continue processing other
+                                # messages. This message's lock will expire and it will be retried.
+                                # This is graceful degradation from an SDK bug, not masking application errors.
                             except Exception as e:
                                 logger.error(f"Error processing message: {e}")
                                 # In manual ack mode, abandon the message so it can be retried
@@ -376,6 +379,12 @@ class AzureServiceBusSubscriber(EventSubscriber):
             callback = self.callbacks.get(event_type)
 
             if callback:
+                # Use callback_error pattern to separate callback exceptions from receiver AttributeErrors.
+                # This ensures we can distinguish between:
+                # 1. Callback failures (application errors) - should be re-raised
+                # 2. Receiver AttributeErrors (SDK bug) - should be handled gracefully
+                # Without this separation, a receiver AttributeError during complete_message would
+                # incorrectly be caught as a callback error, masking the true cause.
                 callback_error = None
                 try:
                     callback(event)
