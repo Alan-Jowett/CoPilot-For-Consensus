@@ -8,23 +8,7 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
-
-try:
-    # Prefer the real schema validation library when available.
-    from copilot_schema_validation import create_schema_provider, validate_json
-except ImportError:  # pragma: no cover - exercised only when optional dep is missing
-
-    def _skip_missing_schema_validation(*args, **kwargs):
-        """Skip tests that require copilot_schema_validation when it is not installed."""
-        pytest.skip(
-            "copilot_schema_validation is not installed; "
-            "install copilot-schema-validation to run schema validation tests."
-        )
-
-    # Fallback shims: any test that calls these will be skipped gracefully.
-    create_schema_provider = _skip_missing_schema_validation
-    validate_json = _skip_missing_schema_validation
-
+from copilot_schema_validation import create_schema_provider, validate_json
 from copilot_startup import StartupRequeue
 
 

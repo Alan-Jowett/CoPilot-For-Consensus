@@ -21,7 +21,7 @@ setup(
         ],
         "test": [
             "pytest>=7.0.0",
-            "copilot-schema-validation",  # For schema validation tests
+            # copilot_schema_validation is installed via install_adapters.py
         ],
     },
 )
