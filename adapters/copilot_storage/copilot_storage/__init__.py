@@ -10,6 +10,7 @@ in the Copilot-for-Consensus system.
 __version__ = "0.1.0"
 
 from .document_store import (  # noqa: E402
+    DocumentAlreadyExistsError,
     DocumentNotFoundError,
     DocumentStore,
     DocumentStoreConnectionError,
@@ -36,6 +37,7 @@ __all__ = [
     "DocumentStoreNotConnectedError",
     "DocumentStoreConnectionError",
     "DocumentNotFoundError",
+    "DocumentAlreadyExistsError",
     "DocumentValidationError",
     "ValidatingDocumentStore",
     "get_collection_fields",

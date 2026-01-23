@@ -12,6 +12,7 @@ from typing import Any, cast
 from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_AzureCosmosdb
 
 from .document_store import (
+    DocumentAlreadyExistsError,
     DocumentNotFoundError,
     DocumentStore,
     DocumentStoreConnectionError,
@@ -286,7 +287,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         except cosmos_exceptions.CosmosResourceExistsError as e:
             logger.error(f"AzureCosmosDocumentStore: document with id {doc_id} already exists - {e}")
-            raise DocumentStoreError(f"Document with id {doc_id} already exists in collection {collection}") from e
+            raise DocumentAlreadyExistsError(f"Document with id {doc_id} already exists in collection {collection}") from e
         except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during insert - {e}")

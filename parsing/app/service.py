@@ -28,7 +28,7 @@ from copilot_message_bus import (
 )
 from copilot_metrics import MetricsCollector
 from copilot_schema_validation import generate_message_doc_id
-from copilot_storage import DocumentStore
+from copilot_storage import DocumentAlreadyExistsError, DocumentStore
 from copilot_storage.validating_document_store import DocumentValidationError
 
 from .parser import MessageParser
@@ -558,6 +558,17 @@ class ParsingService:
                         "parsing_messages_skipped_total",
                         tags={"reason": skip_reason},
                     )
+            except DocumentAlreadyExistsError as e:
+                # Document already exists - skip but log it (idempotent operation)
+                message_id = message.get("message_id", "unknown")
+                logger.info(f"Skipping message {message_id} (DocumentAlreadyExistsError): {e}")
+                skipped_count += 1
+
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "parsing_messages_skipped_total",
+                        tags={"reason": "duplicate"},
+                    )
             except Exception as e:
                 if _is_duplicate_key_error(e):
                     message_id = message.get("message_id", "unknown")
@@ -606,6 +617,17 @@ class ParsingService:
                     self.metrics_collector.increment(
                         "parsing_threads_skipped_total",
                         tags={"reason": "validation_error"},
+                    )
+            except DocumentAlreadyExistsError as e:
+                # Document already exists - skip but log it (idempotent operation)
+                thread_id = thread.get("thread_id", "unknown")
+                logger.info(f"Skipping thread {thread_id} (DocumentAlreadyExistsError): {e}")
+                skipped_count += 1
+
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "parsing_threads_skipped_total",
+                        tags={"reason": "duplicate"},
                     )
             except Exception as e:
                 if _is_duplicate_key_error(e):

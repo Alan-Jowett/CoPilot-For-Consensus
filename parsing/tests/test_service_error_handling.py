@@ -246,3 +246,78 @@ def test_store_messages_handles_none_from_field():
 
     # Both messages should have been processed
     assert store.calls["messages"] == 2
+
+
+def test_store_messages_skips_document_already_exists_and_continues(caplog):
+    """Test that DocumentAlreadyExistsError from CosmosDB is handled as a duplicate.
+
+    This tests the fix for CosmosDB conflicts where documents with the same ID
+    already exist. The error should be caught and handled gracefully like
+    MongoDB's DuplicateKeyError.
+    """
+    from copilot_storage import DocumentAlreadyExistsError
+
+    caplog.set_level(logging.DEBUG)
+    msgs = [
+        {"message_id": "m1"},
+        {"message_id": "m2"},
+        {"message_id": "m3"},
+    ]
+    store = FakeDocumentStore(
+        {
+            "messages": [
+                None,  # m1 -> success
+                DocumentAlreadyExistsError("Document with id abc123 already exists in collection messages"),  # m2 -> skip
+                None,  # m3 -> success continues
+            ]
+        }
+    )
+    service = make_service_with_store(store)
+
+    service._store_messages(msgs)
+
+    # Verify calls progressed through all messages
+    assert store.calls["messages"] == 3
+
+    # Verify skip was logged
+    duplicate_logs = [r for r in caplog.records if "Skipping message m2" in r.message and "DocumentAlreadyExistsError" in r.message]
+    assert duplicate_logs, "Expected a log indicating message m2 was skipped due to DocumentAlreadyExistsError"
+
+    # Verify summary info log includes skipped count
+    info_summaries = [r for r in caplog.records if r.levelno == logging.INFO and "skipped" in r.message]
+    assert any("skipped 1" in r.message for r in info_summaries)
+
+
+def test_store_threads_skips_document_already_exists_and_continues(caplog):
+    """Test that DocumentAlreadyExistsError from CosmosDB is handled for threads too."""
+    from copilot_storage import DocumentAlreadyExistsError
+
+    caplog.set_level(logging.DEBUG)
+    threads = [
+        {"thread_id": "t1"},
+        {"thread_id": "t2"},
+        {"thread_id": "t3"},
+    ]
+    store = FakeDocumentStore(
+        {
+            "threads": [
+                None,  # t1 -> success
+                DocumentAlreadyExistsError("Document with id thread123 already exists in collection threads"),  # t2 -> skip
+                None,  # t3 -> success continues
+            ]
+        }
+    )
+    service = make_service_with_store(store)
+
+    service._store_threads(threads)
+
+    # Verify calls progressed through all threads
+    assert store.calls["threads"] == 3
+
+    # Verify skip was logged
+    duplicate_logs = [r for r in caplog.records if "Skipping thread t2" in r.message and "DocumentAlreadyExistsError" in r.message]
+    assert duplicate_logs, "Expected a log indicating thread t2 was skipped due to DocumentAlreadyExistsError"
+
+    # Verify summary info log includes skipped count
+    info_summaries = [r for r in caplog.records if r.levelno == logging.INFO and "skipped" in r.message]
+    assert any("skipped 1" in r.message for r in info_summaries)
