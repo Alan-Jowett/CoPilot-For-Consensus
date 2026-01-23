@@ -197,5 +197,6 @@ def test_backfill_connection_failure(mock_mongo_class):
     assert result["updated"] == 0
     assert result["errors"] == 1
     assert "error_message" in result
-    assert "Connection refused" in result["error_message"]
+    # Error message contains exception type, not full message (to avoid leaking credentials)
+    assert result["error_message"] == "Exception"
 

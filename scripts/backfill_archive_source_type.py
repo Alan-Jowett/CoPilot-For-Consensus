@@ -96,8 +96,9 @@ def backfill_archive_source_type(
         mongo_client.admin.command("ping")
         logger.info(f"Connected to MongoDB at {mongodb_host}:{mongodb_port}")
     except Exception as e:
-        logger.error(f"Failed to connect to MongoDB: {e}")
-        return {"total_found": 0, "updated": 0, "errors": 1, "error_message": str(e)}
+        # Log error type only - avoid logging exception message which may contain credentials
+        logger.error(f"Failed to connect to MongoDB at {mongodb_host}:{mongodb_port}: {type(e).__name__}")
+        return {"total_found": 0, "updated": 0, "errors": 1, "error_message": type(e).__name__}
 
     try:
         # Find archives missing source_type field
