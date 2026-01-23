@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 import scripts.get_data_counts as mod
 
 
@@ -228,11 +230,8 @@ def test_resolve_cosmos_resource_id_multiple_accounts_requires_name(monkeypatch)
 
     monkeypatch.setattr(mod, "_run_az_json", fake_run_az_json)
 
-    try:
+    with pytest.raises(RuntimeError, match="Multiple Cosmos accounts"):
         mod.resolve_cosmos_resource_id_from_resource_group(resource_group="copilot-app-rg")
-        assert False, "expected an error"
-    except RuntimeError as exc:
-        assert "Multiple Cosmos accounts" in str(exc)
 
     rid = mod.resolve_cosmos_resource_id_from_resource_group(resource_group="copilot-app-rg", account_name="acct2")
     assert rid.endswith("/databaseAccounts/acct2")
