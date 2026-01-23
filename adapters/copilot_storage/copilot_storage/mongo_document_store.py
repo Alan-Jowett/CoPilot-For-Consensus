@@ -20,9 +20,10 @@ from .schema_registry import sanitize_document, sanitize_documents
 
 logger = logging.getLogger(__name__)
 
-# Import pymongo DuplicateKeyError at module level to avoid nested try-catch
-# This dependency is optional; when missing, the store will still work but
-# won't convert pymongo-specific duplicate errors to DocumentAlreadyExistsError
+# Import pymongo DuplicateKeyError at module level to avoid nested try-catch.
+# Note: pymongo is required to use MongoDocumentStore. This optional import is
+# only to keep module import and type-checking lightweight; when pymongo is
+# missing, connect() will fail with a DocumentStoreConnectionError.
 try:
     from pymongo.errors import DuplicateKeyError
 except ImportError:
