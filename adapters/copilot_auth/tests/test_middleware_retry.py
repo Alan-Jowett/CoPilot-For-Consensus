@@ -137,6 +137,39 @@ def test_jwks_fetch_retry_with_503_error(mock_jwks):
         assert mock_get.call_count == 2
 
 
+def test_jwks_fetch_retry_with_500_error(mock_jwks):
+    """Test JWKS fetch retries on 500 Internal Server Error."""
+    app = FastAPI()
+
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
+        # First call raises HTTPStatusError with 500, second succeeds
+        mock_500_response = MagicMock()
+        mock_500_response.status_code = 500
+
+        mock_success_response = MagicMock()
+        mock_success_response.json.return_value = mock_jwks
+        mock_success_response.raise_for_status = MagicMock()
+
+        mock_get.side_effect = [
+            httpx.HTTPStatusError("Internal server error", request=MagicMock(), response=mock_500_response),
+            mock_success_response,
+        ]
+
+        with patch("copilot_auth.middleware.time.sleep"):  # Speed up test by mocking sleep
+            middleware = JWTMiddleware(
+                app=app.router,
+                auth_service_url="http://auth:8090",
+                audience="test-service",
+                jwks_fetch_retries=3,
+                jwks_fetch_retry_delay=0.1,
+                defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
+            )
+
+        # Verify JWKS was fetched successfully after 500 retry
+        assert middleware.jwks == mock_jwks
+        assert mock_get.call_count == 2
+
+
 def test_jwks_fetch_no_retry_on_404_error():
     """Test JWKS fetch does not retry on 404 Not Found."""
     app = FastAPI()
