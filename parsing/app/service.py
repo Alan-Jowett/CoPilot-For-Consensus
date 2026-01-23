@@ -40,12 +40,6 @@ logger = get_logger(__name__)
 VALID_SOURCE_TYPES = ["rsync", "imap", "http", "local"]
 
 
-def _is_duplicate_key_error(exc: BaseException) -> bool:
-    return (
-        type(exc).__name__ == "DuplicateKeyError" or "duplicate key" in str(exc).lower() or "e11000" in str(exc).lower()
-    )
-
-
 class ParsingService:
     """Main parsing service for converting mbox archives to structured JSON."""
 
@@ -570,18 +564,6 @@ class ParsingService:
                         tags={"reason": "duplicate"},
                     )
             except Exception as e:
-                if _is_duplicate_key_error(e):
-                    message_id = message.get("message_id", "unknown")
-                    logger.info(f"Skipping message {message_id} (DuplicateKeyError): {e}")
-                    skipped_count += 1
-
-                    if self.metrics_collector:
-                        self.metrics_collector.increment(
-                            "parsing_messages_skipped_total",
-                            tags={"reason": "duplicate"},
-                        )
-                    continue
-
                 # Other errors are transient failures - re-raise
                 logger.error(f"Error storing message: {e}")
                 raise
@@ -630,18 +612,6 @@ class ParsingService:
                         tags={"reason": "duplicate"},
                     )
             except Exception as e:
-                if _is_duplicate_key_error(e):
-                    thread_id = thread.get("thread_id", "unknown")
-                    logger.info(f"Skipping thread {thread_id} (DuplicateKeyError): {e}")
-                    skipped_count += 1
-
-                    if self.metrics_collector:
-                        self.metrics_collector.increment(
-                            "parsing_threads_skipped_total",
-                            tags={"reason": "duplicate"},
-                        )
-                    continue
-
                 # Other errors are transient failures - re-raise
                 logger.error(f"Error storing thread: {e}")
                 raise

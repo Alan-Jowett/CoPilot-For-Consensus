@@ -8,7 +8,6 @@ import logging
 import pytest
 from app.service import ParsingService
 from copilot_storage.validating_document_store import DocumentValidationError
-from pymongo.errors import DuplicateKeyError
 
 
 class DummyPublisher:
@@ -90,6 +89,12 @@ def make_service_with_store(store):
 
 
 def test_store_messages_skips_duplicate_and_continues(caplog):
+    """Test that DocumentAlreadyExistsError from any adapter is handled as a duplicate.
+    
+    This test verifies the standardized duplicate handling across all document store adapters.
+    """
+    from copilot_storage import DocumentAlreadyExistsError
+
     caplog.set_level(logging.DEBUG)
     msgs = [
         {"message_id": "m1"},
@@ -100,7 +105,7 @@ def test_store_messages_skips_duplicate_and_continues(caplog):
         {
             "messages": [
                 None,  # m1 -> success
-                DuplicateKeyError("duplicate key error"),  # m2 -> skip
+                DocumentAlreadyExistsError("Document already exists"),  # m2 -> skip
                 None,  # m3 -> success continues
             ]
         }
@@ -165,6 +170,12 @@ def test_store_messages_transient_errors_are_reraised(caplog):
 
 
 def test_store_threads_skips_duplicate_and_validation_and_continues(caplog):
+    """Test that DocumentAlreadyExistsError and DocumentValidationError are handled for threads.
+    
+    This test verifies standardized error handling for both duplicate and validation errors.
+    """
+    from copilot_storage import DocumentAlreadyExistsError
+
     caplog.set_level(logging.DEBUG)
     threads = [
         {"thread_id": "t1"},
@@ -175,7 +186,7 @@ def test_store_threads_skips_duplicate_and_validation_and_continues(caplog):
         {
             "threads": [
                 None,  # t1 -> success
-                DuplicateKeyError("duplicate thread"),  # t2 -> skip
+                DocumentAlreadyExistsError("duplicate thread"),  # t2 -> skip
                 DocumentValidationError("threads", ["bad thread schema"]),  # t3 -> skip
             ]
         }
