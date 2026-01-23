@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, RefResolver, RefResolutionError
 from referencing import Registry, Resource
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,81 @@ logger = logging.getLogger(__name__)
 # Small helper to preload shared schemas (e.g., event envelope) so $ref resolution
 # works even when schemas are stored outside the local filesystem (like MongoDB).
 # Falls back silently if the supporting schema file is not present.
+def _build_resolver() -> RefResolver:
+    """Build a RefResolver with preloaded event envelope schema.
+
+    The event envelope schema is loaded from the filesystem to allow
+    proper $ref resolution when validating event documents.
+
+    Returns:
+        RefResolver with preloaded schemas for $ref resolution
+    """
+    envelope_schema = None
+
+    # Load event envelope from filesystem
+    candidate_bases = [
+        Path(__file__).resolve().parents[2],  # when running from repo package folder
+        Path(__file__).resolve().parents[3],  # repo root (common during editable installs)
+    ]
+
+    for base in candidate_bases:
+        envelope_path = base / "docs" / "schemas" / "events" / "event-envelope.schema.json"
+        try:
+            if envelope_path.exists():
+                envelope_schema = json.loads(envelope_path.read_text(encoding="utf-8"))
+                logger.debug(f"Loaded event-envelope schema from filesystem: {envelope_path}")
+                break
+        except Exception as exc:
+            logger.debug(f"Could not load envelope schema from {envelope_path} (will try next candidate): {exc}")
+
+    # Build a handlers dict to resolve references
+    handlers = {}
+    if envelope_schema:
+        schema_id = envelope_schema.get("$id", "")
+        handlers[schema_id] = envelope_schema
+        # Also handle relative and simple references
+        handlers["event-envelope.schema.json"] = envelope_schema
+        handlers["./event-envelope.schema.json"] = envelope_schema
+        handlers["../event-envelope.schema.json"] = envelope_schema
+
+    # Create a resolver with custom handlers
+    # The base_uri and referrer are set to match the schema context
+    return RefResolver(
+        base_uri="",
+        referrer={},
+        handlers={
+            "https": _make_remote_handler(handlers),
+            "http": _make_remote_handler(handlers),
+            "": _make_relative_handler(handlers),
+        }
+    )
+
+
+def _make_remote_handler(handlers):
+    """Create a handler for remote (https/http) URIs."""
+    def handler(uri):
+        # Extract just the filename from the URI
+        filename = uri.rstrip('/').split('/')[-1]
+        if filename in handlers:
+            return handlers[filename]
+        # If not in handlers, raise RefResolutionError to indicate resolution failure
+        raise RefResolutionError(f"Unknown schema reference: {uri}")
+    return handler
+
+
+def _make_relative_handler(handlers):
+    """Create a handler for relative references."""
+    def handler(uri):
+        if uri in handlers:
+            return handlers[uri]
+        # Extract filename for matching
+        filename = uri.rstrip('/').split('/')[-1]
+        if filename in handlers:
+            return handlers[filename]
+        raise RefResolutionError(f"Unknown schema reference: {uri}")
+    return handler
+
+
 def _build_registry() -> Registry:
     """Build a referencing Registry with preloaded schemas.
 
@@ -108,8 +183,8 @@ def validate_json(document: dict[str, Any], schema: dict[str, Any], schema_provi
     del schema_provider
     try:
         normalized_schema = _strip_allof_additional_properties(schema)
-        registry = _build_registry()
-        validator = Draft202012Validator(normalized_schema, registry=registry)
+        resolver = _build_resolver()
+        validator = Draft202012Validator(normalized_schema, resolver=resolver)
         errors = sorted(validator.iter_errors(document), key=lambda e: e.path)
         if not errors:
             return True, []

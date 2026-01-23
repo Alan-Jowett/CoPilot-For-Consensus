@@ -69,9 +69,19 @@ def mock_embedding_provider():
 
 @pytest.fixture
 def mock_publisher():
-    """Create a mock event publisher."""
+    """Create a mock event publisher that tracks published events."""
     publisher = Mock()
-    publisher.publish = Mock(return_value=True)
+    publisher.published_events = []
+    
+    def publish_with_tracking(event, routing_key, exchange=""):
+        publisher.published_events.append({
+            "event": event,
+            "routing_key": routing_key,
+            "exchange": exchange,
+        })
+        return True
+    
+    publisher.publish = Mock(side_effect=publish_with_tracking)
     return publisher
 
 
@@ -991,3 +1001,85 @@ def test_cascade_cleanup_handler():
     assert progress_event["event"]["data"]["correlation_id"] == "test-correlation-123"
     assert progress_event["event"]["data"]["deletion_counts"]["embeddings"] == 2
     assert progress_event["event"]["data"]["service_name"] == "embedding"
+
+
+def test_requeue_incomplete_chunks_validates_schema(
+    mock_document_store,
+    mock_vector_store,
+    mock_embedding_provider,
+    mock_publisher,
+    mock_subscriber,
+):
+    """Test that _requeue_incomplete_chunks() publishes events that validate against ChunksPrepared schema."""
+    from copilot_schema_validation import create_schema_provider, validate_json
+
+    # Mock chunks without embeddings
+    mock_chunks = [
+        {
+            "_id": "abcd1234abcd1234",
+            "message_doc_id": "aabbccddaabbccdd",
+            "embedding_generated": False,
+            "token_count": 128,
+        },
+        {
+            "_id": "def5678def567890",
+            "message_doc_id": "ccddaabbccddaabb",
+            "embedding_generated": False,
+            "token_count": 256,
+        },
+    ]
+    mock_document_store.query_documents = Mock(return_value=mock_chunks)
+
+    # Create service
+    service = EmbeddingService(
+        document_store=mock_document_store,
+        vector_store=mock_vector_store,
+        embedding_provider=mock_embedding_provider,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        embedding_backend="ollama",
+        embedding_model="nomic-embed-text",
+        embedding_dimension=384,
+        batch_size=10,
+        max_retries=3,
+        retry_backoff_seconds=1.0,
+        vector_store_collection="test",
+    )
+
+    # Call requeue method directly
+    service._requeue_incomplete_chunks()
+
+    # Verify events were published
+    assert len(mock_publisher.published_events) == 2, "Should publish 2 events for 2 chunks"
+
+    # Get schema for validation
+    schema_provider = create_schema_provider()
+    schema = schema_provider.get_schema("ChunksPrepared")
+
+    # Validate each published event against ChunksPrepared schema
+    for published in mock_publisher.published_events:
+        event = published["event"]
+
+        # Verify it's a ChunksPrepared event
+        assert event["event_type"] == "ChunksPrepared"
+        assert published["routing_key"] == "chunks.prepared"
+
+        # Validate against actual JSON schema
+        is_valid, errors = validate_json(event, schema, schema_provider=schema_provider)
+        assert is_valid, f"ChunksPrepared event failed schema validation: {errors}"
+
+        # Verify the event has all required data fields
+        data = event["data"]
+        assert "chunk_ids" in data
+        assert "message_doc_ids" in data
+        assert "chunk_count" in data
+        assert "chunks_ready" in data
+        assert "chunking_strategy" in data
+        assert "avg_chunk_size_tokens" in data
+
+        # Verify values are sensible
+        assert data["chunk_count"] == 1
+        assert data["chunks_ready"] is True
+        assert data["chunking_strategy"] == "requeue"
+        assert isinstance(data["avg_chunk_size_tokens"], int)
+        assert data["avg_chunk_size_tokens"] > 0

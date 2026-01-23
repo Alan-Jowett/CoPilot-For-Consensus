@@ -8,6 +8,7 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
+from copilot_schema_validation import create_schema_provider, validate_json
 from copilot_startup import StartupRequeue
 
 
@@ -206,40 +207,13 @@ class TestStartupRequeue:
         call_args, call_kwargs = mock_publisher.publish.call_args
         event = call_kwargs["event"]
 
-        # Verify all required ChunksPrepared schema fields are present
-        assert event["event_type"] == "ChunksPrepared"
-        assert "event_id" in event
-        assert "timestamp" in event
-        assert "version" in event
-        assert "data" in event
+        # Validate the event against the actual ChunksPrepared JSON schema
+        schema_provider = create_schema_provider()
+        schema = schema_provider.get_schema("ChunksPrepared")
+        is_valid, errors = validate_json(event, schema, schema_provider=schema_provider)
 
-        # Verify all required data fields per schema
-        data = event["data"]
-        assert "chunk_ids" in data
-        assert isinstance(data["chunk_ids"], list)
-        assert len(data["chunk_ids"]) == 1
-        assert data["chunk_ids"][0] == "abcd1234abcd1234"
-
-        assert "message_doc_ids" in data
-        assert isinstance(data["message_doc_ids"], list)
-        assert len(data["message_doc_ids"]) == 1
-        assert data["message_doc_ids"][0] == "aabbccddaabbccdd"
-
-        assert "chunk_count" in data
-        assert isinstance(data["chunk_count"], int)
-        assert data["chunk_count"] == 1
-
-        assert "chunks_ready" in data
-        assert isinstance(data["chunks_ready"], bool)
-        assert data["chunks_ready"] is True
-
-        assert "chunking_strategy" in data
-        assert isinstance(data["chunking_strategy"], str)
-        assert data["chunking_strategy"] == "requeue"
-
-        assert "avg_chunk_size_tokens" in data
-        assert isinstance(data["avg_chunk_size_tokens"], int)
-        assert data["avg_chunk_size_tokens"] == 128
+        # Assert validation passes
+        assert is_valid, f"ChunksPrepared event failed schema validation: {errors}"
 
     def test_requeue_no_incomplete_documents(self):
         """Test requeue when no incomplete documents exist."""
