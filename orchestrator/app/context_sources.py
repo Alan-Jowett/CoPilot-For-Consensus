@@ -143,6 +143,10 @@ class ThreadChunksSource(ContextSource):
             for chunk in chunks:
                 chunk_identifier = chunk.get("_id")
                 if chunk_identifier is None:
+                    logger.warning(
+                        f"Chunk missing required _id field, skipping. "
+                        f"Chunk keys: {list(chunk.keys()) if chunk else 'empty'}"
+                    )
                     continue
                 chunk_map[str(chunk_identifier)] = chunk
 

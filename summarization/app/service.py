@@ -633,6 +633,10 @@ class SummarizationService:
         for chunk in chunks:
             primary_id = chunk.get("_id")
             if not primary_id:
+                logger.warning(
+                    f"Chunk missing required _id field, skipping. "
+                    f"Chunk keys: {list(chunk.keys()) if chunk else 'empty'}"
+                )
                 continue
 
             chunk_map[str(primary_id)] = chunk
