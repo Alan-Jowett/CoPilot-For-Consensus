@@ -45,7 +45,7 @@ Created `scripts/backfill_archive_source_type.py` to:
 Preview what will be changed without modifying the database:
 
 ```bash
-cd /home/runner/work/CoPilot-For-Consensus/CoPilot-For-Consensus
+# From the repository root
 python scripts/backfill_archive_source_type.py --dry-run
 ```
 

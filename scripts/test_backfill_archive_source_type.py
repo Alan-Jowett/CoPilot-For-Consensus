@@ -4,7 +4,6 @@
 
 """Tests for backfill_archive_source_type migration script."""
 
-import pytest
 from unittest.mock import Mock, patch, MagicMock
 
 # Add scripts directory to path for imports
@@ -138,7 +137,7 @@ def test_backfill_with_limit(mock_mongo_class):
 
 @patch("backfill_archive_source_type.MongoClient")
 def test_backfill_handles_update_error(mock_mongo_class):
-    """Test migration handles database update errors gracefully."""
+    """Test migration handles database update errors gracefully after successful connection."""
     mock_client, mock_db, mock_archives = _create_mock_mongo_client()
     mock_mongo_class.return_value = mock_client
     mock_archives.count_documents.return_value = 10
@@ -148,17 +147,17 @@ def test_backfill_handles_update_error(mock_mongo_class):
     mock_cursor.limit.return_value = [{"_id": "doc1", "archive_id": "archive1", "source": "test-source"}]
     mock_archives.find.return_value = mock_cursor
 
-    mock_archives.update_many.side_effect = Exception("Database connection error")
+    mock_archives.update_many.side_effect = Exception("Database update error")
 
     result = backfill_archive_source_type(
         mongodb_host="localhost", mongodb_port=27017, mongodb_database="test", dry_run=False
     )
 
-    assert result["total_found"] == 0  # Connection error prevents any database operations
+    assert result["total_found"] == 10  # Count was successful before update error
     assert result["updated"] == 0
     assert result["errors"] == 1
     assert "error_message" in result
-    assert "Database connection error" in result["error_message"]
+    assert "Database update error" in result["error_message"]
 
 
 @patch("backfill_archive_source_type.MongoClient")

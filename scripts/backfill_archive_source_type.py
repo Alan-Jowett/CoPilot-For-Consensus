@@ -150,8 +150,10 @@ def backfill_archive_source_type(
         }
     except Exception as e:
         logger.error(f"Error during migration: {e}")
+        # Preserve total_count if it was determined before the error
+        found_count = locals().get('total_count', 0)
         return {
-            "total_found": 0,
+            "total_found": found_count,
             "updated": 0,
             "errors": 1,
             "error_message": str(e),
