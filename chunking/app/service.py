@@ -31,7 +31,7 @@ from copilot_message_bus import (
     SourceDeletionRequestedEvent,
 )
 from copilot_metrics import MetricsCollector
-from copilot_storage import DocumentStore
+from copilot_storage import DocumentStore, DocumentStoreError
 
 logger = get_logger(__name__)
 
@@ -341,11 +341,23 @@ class ChunkingService:
                 new_chunks_created = 0
 
                 def _is_duplicate_key_error(exc: Exception) -> bool:
+                    # MongoDB duplicate key error
                     if DuplicateKeyError is not None and isinstance(exc, DuplicateKeyError):
                         return True
 
-                    # Best-effort fallback when pymongo isn't installed.
-                    return type(exc).__name__ == "DuplicateKeyError"
+                    # Best-effort fallback when pymongo isn't installed
+                    if type(exc).__name__ == "DuplicateKeyError":
+                        return True
+
+                    # CosmosDB duplicate document error (via DocumentStoreError)
+                    # The error message follows the pattern: "Document with id <id> already exists in collection <name>"
+                    # This is raised by azure_cosmos_document_store when catching CosmosResourceExistsError
+                    if isinstance(exc, DocumentStoreError):
+                        err_msg = str(exc).lower()
+                        if "already exists in collection" in err_msg or ("document with id" in err_msg and "already exists" in err_msg):
+                            return True
+
+                    return False
 
                 for chunk in all_chunks:
                     try:
