@@ -255,8 +255,14 @@ class TestThreadChunksSource:
         # Verify vector store was queried
         mock_vector_store.query.assert_called_once_with(query_vector=query_vector, top_k=3)
         
-        # Verify document store was queried for chunks
+        # Verify document store was queried for chunks with _id: {$in: ...} filter
         mock_doc_store.query_documents.assert_called_once()
+        call_args = mock_doc_store.query_documents.call_args
+        assert call_args[1]["collection"] == "chunks"
+        filter_dict = call_args[1]["filter_dict"]
+        assert "_id" in filter_dict, "Expected _id field in filter"
+        assert "$in" in filter_dict["_id"], "Expected $in operator for _id"
+        assert "$or" not in filter_dict, "Should not use $or operator (Azure Cosmos DB incompatible)"
         
         # Verify results
         assert len(candidates) == 3

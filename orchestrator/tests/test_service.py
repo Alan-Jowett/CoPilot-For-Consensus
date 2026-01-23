@@ -193,6 +193,18 @@ def test_retrieve_context(orchestration_service, mock_document_store):
     assert len(context["messages"]) == 2
     assert "retrieved_at" in context
 
+    # Verify the chunks query uses _id: {$in: ...} filter (not $or)
+    # This ensures Azure Cosmos DB can process the query correctly
+    calls = [call for call in mock_document_store.query_documents.call_args_list 
+             if call[0][0] == "chunks"]
+    assert len(calls) >= 1, "Expected at least one chunks query"
+    chunks_call = calls[0]
+    filter_dict = chunks_call[0][1] if len(chunks_call[0]) > 1 else chunks_call[1].get("filter_dict")
+    assert filter_dict is not None, "Expected filter_dict in chunks query"
+    assert "_id" in filter_dict, "Expected _id field in filter"
+    assert "$in" in filter_dict["_id"], "Expected $in operator for _id"
+    assert "$or" not in filter_dict, "Should not use $or operator (Azure Cosmos DB incompatible)"
+
 
 def test_publish_summarization_requested(orchestration_service, mock_publisher):
     """Test publishing SummarizationRequested event."""

@@ -85,7 +85,11 @@ class TopKRelevanceSelector(ContextSelector):
         for chunk in sorted_candidates[:top_k]:
             chunk_id = chunk.get("_id")
             if not chunk_id:
-                logger.warning(f"Candidate chunk missing required _id field, skipping: {chunk}")
+                logger.warning(
+                    "Candidate chunk missing required _id field for thread %s; keys=%s",
+                    thread_id,
+                    list(chunk.keys()),
+                )
                 continue
 
             # Estimate token count if budget is specified
