@@ -634,8 +634,9 @@ class SummarizationService:
             primary_id = chunk.get("_id")
             if not primary_id:
                 logger.warning(
-                    f"Chunk missing required _id field, skipping. "
-                    f"Chunk keys: {list(chunk.keys()) if chunk else 'empty'}"
+                    "Chunk missing required _id field for thread %s, skipping. Chunk keys: %s",
+                    thread_id,
+                    list(chunk.keys()) if chunk else "empty",
                 )
                 continue
 

@@ -195,14 +195,19 @@ def test_retrieve_context(orchestration_service, mock_document_store):
 
     # Verify the chunks query uses _id: {$in: ...} filter (not $or)
     # This ensures Azure Cosmos DB can process the query correctly
-    calls = [call for call in mock_document_store.query_documents.call_args_list 
-             if call[0][0] == "chunks"]
-    assert len(calls) >= 1, "Expected at least one chunks query"
-    chunks_call = calls[0]
-    filter_dict = chunks_call[0][1] if len(chunks_call[0]) > 1 else chunks_call[1].get("filter_dict")
-    assert filter_dict is not None, "Expected filter_dict in chunks query"
-    assert "_id" in filter_dict, "Expected _id field in filter"
-    assert "$in" in filter_dict["_id"], "Expected $in operator for _id"
+    retrieval_calls = []
+    for call in mock_document_store.query_documents.call_args_list:
+        args, kwargs = call
+        # Support both positional and keyword arguments
+        collection = args[0] if args else kwargs.get("collection")
+        filter_dict = args[1] if len(args) > 1 else kwargs.get("filter_dict")
+        if collection == "chunks" and isinstance(filter_dict, dict):
+            _id_filter = filter_dict.get("_id", {})
+            if isinstance(_id_filter, dict) and "$in" in _id_filter:
+                retrieval_calls.append((collection, filter_dict))
+
+    assert retrieval_calls, "Expected at least one chunks retrieval query using _id.$in filter"
+    _, filter_dict = retrieval_calls[0]
     assert "$or" not in filter_dict, "Should not use $or operator (Azure Cosmos DB incompatible)"
 
 

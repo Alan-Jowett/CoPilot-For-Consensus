@@ -601,8 +601,9 @@ class OrchestrationService:
                 chunk_identifier = chunk.get("_id")
                 if chunk_identifier is None:
                     logger.warning(
-                        f"Chunk missing required _id field, skipping. "
-                        f"Chunk keys: {list(chunk.keys()) if chunk else 'empty'}"
+                        "Chunk missing required _id field for thread %s, skipping. Chunk keys: %s",
+                        thread_id,
+                        list(chunk.keys()) if chunk else "empty",
                     )
                     continue
                 chunk_map[str(chunk_identifier)] = chunk
