@@ -385,8 +385,10 @@ class AzureServiceBusSubscriber(EventSubscriber):
                         try:
                             receiver.complete_message(msg)
                         except AttributeError as e:
+                            # Cannot complete - handler is in invalid state
+                            # Log but don't re-raise as message was processed successfully
                             logger.error(f"Cannot complete message - receiver AttributeError: {e}", exc_info=True)
-                            raise
+                            logger.warning("Message processed but not completed - will be redelivered")
 
                 except Exception as e:
                     logger.error(f"Error in callback for {event_type}: {e}")
