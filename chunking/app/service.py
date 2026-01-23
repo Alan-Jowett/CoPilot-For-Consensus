@@ -350,8 +350,12 @@ class ChunkingService:
                         return True
 
                     # CosmosDB duplicate document error (via DocumentStoreError)
-                    if isinstance(exc, DocumentStoreError) and "already exists" in str(exc):
-                        return True
+                    # The error message follows the pattern: "Document with id <id> already exists in collection <name>"
+                    # This is raised by azure_cosmos_document_store when catching CosmosResourceExistsError
+                    if isinstance(exc, DocumentStoreError):
+                        err_msg = str(exc).lower()
+                        if "already exists in collection" in err_msg or "document with id" in err_msg and "already exists" in err_msg:
+                            return True
 
                     return False
 
