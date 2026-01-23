@@ -105,7 +105,7 @@ class AuthServiceValidator:
                     try:
                         detail = response.json().get("detail", "Unknown")
                         print(f"  Detail: {detail}")
-                    except (ValueError, AttributeError) as exc:
+                    except (ValueError, TypeError, AttributeError) as exc:
                         # Log, but do not fail the check solely due to detail parsing issues.
                         print(f"  Detail: <unavailable> (failed to parse JSON response: {exc})")
                 self.checks_failed += 1
@@ -157,8 +157,8 @@ class AuthServiceValidator:
                 try:
                     detail = response.json().get("detail", "Unknown")
                     print(f"  Detail: {detail}")
-                except (ValueError, TypeError, AttributeError) as parse_error:
-                    print(f"  Detail: unable to parse error response as JSON ({parse_error})")
+                except (ValueError, TypeError, AttributeError) as exc:
+                    print(f"  Detail: unable to parse error response as JSON ({exc})")
                 self.checks_failed += 1
                 return False
             elif response.status_code == 503:
