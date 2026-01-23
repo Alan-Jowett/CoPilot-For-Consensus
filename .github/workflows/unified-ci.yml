@@ -172,7 +172,7 @@ jobs:
     with:
       service_id: 'embedding'
       service_path: 'embedding'
-      adapter_names: 'copilot_config copilot_secrets copilot_message_bus copilot_storage copilot_vectorstore copilot_embedding copilot_metrics copilot_error_reporting copilot_schema_validation copilot_logging copilot_event_retry'
+      adapter_names: 'copilot_config copilot_secrets copilot_message_bus copilot_storage copilot_vectorstore copilot_embedding copilot_metrics copilot_error_reporting copilot_schema_validation copilot_logging copilot_startup copilot_event_retry'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
