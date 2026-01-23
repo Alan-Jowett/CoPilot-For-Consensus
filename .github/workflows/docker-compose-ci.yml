@@ -259,7 +259,7 @@ jobs:
       run: |
         echo "Validating auth service endpoints (JWKS, health, readiness)..."
         pip install --quiet requests
-        python3 scripts/validate_auth_service_health.py --url http://localhost:8090 --timeout 10 || {
+        python3 scripts/validate_auth_service_health.py --url http://localhost:8090 --timeout 10 --wait 30 || {
           echo "❌ Auth service validation failed"
           echo "=== Auth Service Logs (last 100 lines) ==="
           docker compose logs auth --tail=100
