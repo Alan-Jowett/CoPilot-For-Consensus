@@ -19,6 +19,65 @@ From repo root:
 python -m pip install -r scripts/requirements.txt
 ```
 
+## Procedure (Azure Container Apps, Blob-archived logs)
+
+This is the recommended workflow for production incidents because it does not require Log Analytics.
+
+### 1) Prereqs
+
+- Container Apps logs are archived to Blob Storage via Diagnostic Settings.
+  - See: `docs/operations/blob-logging.md`
+- Azure CLI authenticated: `az login`
+- Blob read RBAC on the storage account (e.g., **Storage Blob Data Reader**)
+
+### 2) Identify the storage account
+
+If you don't already know which storage account is receiving archived logs:
+
+```powershell
+$rg = "<resource-group>"
+az storage account list -g $rg -o table
+```
+
+Pick the storage account used for log archiving.
+
+### 3) Export + mine the last 6 hours (console logs)
+
+This downloads the matching NDJSON blobs and runs the miner, producing:
+- a JSON report (templates + samples)
+- a Markdown report focused on `ERROR`/`WARNING`
+
+```powershell
+$storage = "<storage-account-name>"
+./scripts/export_blob_logs_rca.ps1 -StorageAccountName $storage -Timespan PT6H
+```
+
+Output defaults to `logs/azure/<storage-account-name>/rca/`.
+
+### 4) Optional: include system logs
+
+System logs can include platform/runtime issues (startup, probes, etc):
+
+```powershell
+$storage = "<storage-account-name>"
+./scripts/export_blob_logs_rca.ps1 -StorageAccountName $storage -Timespan PT6H -ContainerName insights-logs-containerappsystemlogs
+```
+
+### 5) Optional: scope to one app (Prefix)
+
+If you want to mine just one Container App, pass a `-Prefix` matching the Azure Monitor blob layout.
+
+```powershell
+$sub = az account show --query id -o tsv
+$rg = "<resource-group>"
+$app = "<container-app-name>"
+
+$prefix = "resourceId=/SUBSCRIPTIONS/$sub/RESOURCEGROUPS/$rg/PROVIDERS/MICROSOFT.APP/CONTAINERAPPS/$app/"
+./scripts/export_blob_logs_rca.ps1 -StorageAccountName "<storage-account-name>" -Timespan PT6H -Prefix $prefix
+```
+
+Note: blob paths commonly use uppercased segments in `resourceId=...`. If you get zero results, list a few blobs and copy the prefix casing from the returned `name`.
+
 ## Common Workflows
 
 ### 1) Mine templates + generate Markdown (recommended)
@@ -55,6 +114,7 @@ python -m scripts.log_mining --input logs_mined.json --input-is-report --output-
 
 ```powershell
 python -m scripts.log_mining --input path/to/az-query.json --format azure-law --group-by service --output law_mined.json --output-markdown law_mined_errors_warnings.md
+```
 
 ### 4) Azure Diagnostic Settings (Blob Storage NDJSON)
 
@@ -63,7 +123,12 @@ If your Container Apps environment is configured to archive logs to Blob Storage
 ```powershell
 python -m scripts.log_mining --input aca-console.ndjson --format azure-diagnostics --group-by service --output diag_mined.json --output-markdown diag_mined_errors_warnings.md
 ```
-```
+
+## Troubleshooting
+
+- **No blobs selected / empty export**: verify the storage account and container names, and try a larger `-Timespan` (e.g., `PT24H`).
+- **Access denied**: ensure your identity has **Storage Blob Data Reader** on the storage account.
+- **Too much data**: use `-Prefix` to target a specific app, or reduce `-Timespan`.
 
 ## What to Look At
 

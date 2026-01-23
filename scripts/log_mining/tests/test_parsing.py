@@ -120,6 +120,28 @@ def test_azure_diagnostics_extracts_message_and_containerappname() -> None:
     assert recs[0].message.endswith("Shutting down")
 
 
+def test_azure_diagnostics_extracts_properties_log_and_containerappname() -> None:
+    obj = {
+        "Tenant": "westus-001",
+        "Level": 4,
+        "category": "ContainerAppConsoleLogs",
+        "time": "2026-01-22T18:22:22.8536835Z",
+        "properties": {
+            "ContainerAppName": "copilot-ui-dev",
+            "ContainerName": "ui",
+            "Log": "/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/",
+            "Stream": "stdout",
+        },
+    }
+
+    cfg = MiningConfig(input_format="azure-diagnostics", group_by="service")
+    recs = list(_iter_azure_diagnostics_records_from_obj(obj, cfg))
+    assert len(recs) == 1
+    assert recs[0].service == "copilot-ui-dev"
+    assert "level=4" in recs[0].message
+    assert recs[0].message.endswith("/docker-entrypoint.d/")
+
+
 def test_markdown_focus_includes_warning_and_error(tmp_path: Path) -> None:
     report = {
         "meta": {
