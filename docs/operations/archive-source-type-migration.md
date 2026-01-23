@@ -69,20 +69,42 @@ python scripts/backfill_archive_source_type.py --limit 1000
 python scripts/backfill_archive_source_type.py --limit 1000
 ```
 
-## Using Docker
+## Running from Docker Compose Environment
 
-If running from Docker Compose environment:
+If you are running the document database via Docker Compose (for example, using the `documentdb` service), you should run the migration script from your local checkout, not inside the `parsing` container. The `parsing` image does not include the `scripts/` directory.
 
-```bash
-# Dry run
-docker compose run --rm parsing python /app/scripts/backfill_archive_source_type.py --dry-run
+A typical workflow is:
 
-# Live migration
-docker compose run --rm parsing python /app/scripts/backfill_archive_source_type.py
+1. Start the Docker Compose stack so the database is available:
 
-# With limit
-docker compose run --rm parsing python /app/scripts/backfill_archive_source_type.py --limit 1000
-```
+   ```bash
+   docker compose up -d documentdb
+   ```
+
+2. From the repository root on your host, set the environment variables so the script can reach the database exposed by Docker, then run the script:
+
+   ```bash
+   # Example values; adjust to match your docker-compose.yml
+   export DOCUMENT_DATABASE_HOST=localhost
+   export DOCUMENT_DATABASE_PORT=27017
+   export DOCUMENT_DATABASE_NAME=copilot
+
+   # Dry run
+   python scripts/backfill_archive_source_type.py --dry-run
+
+   # Live migration
+   python scripts/backfill_archive_source_type.py
+
+   # With limit
+   python scripts/backfill_archive_source_type.py --limit 1000
+   ```
+
+3. Alternatively, if you have access to the MongoDB container directly:
+
+   ```bash
+   # Run from inside the documentdb container (if pymongo is installed)
+   docker compose exec documentdb python /path/to/backfill_archive_source_type.py --dry-run
+   ```
 
 ## Verification
 
