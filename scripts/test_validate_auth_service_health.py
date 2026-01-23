@@ -199,7 +199,6 @@ class TestAuthServiceValidator:
         This simulates the Key Vault permission error scenario where
         health and readiness pass but JWKS fails.
         """
-        mock_response = MagicMock()
         responses = [
             (200, {"status": "healthy", "service": "auth", "version": "1.0.0"}),
             (200, {"status": "ready"}),

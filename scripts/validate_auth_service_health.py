@@ -22,16 +22,15 @@ Exit codes:
 """
 
 import argparse
-import json
 import sys
 import time
-from typing import Any
 
 try:
     import requests
-except ImportError:
-    print("ERROR: requests library not found. Install with: pip install requests")
-    sys.exit(2)
+except ImportError as exc:
+    raise RuntimeError(
+        "requests library not found. Install with: pip install requests"
+    ) from exc
 
 
 class AuthServiceValidator:
@@ -106,8 +105,9 @@ class AuthServiceValidator:
                     try:
                         detail = response.json().get("detail", "Unknown")
                         print(f"  Detail: {detail}")
-                    except Exception:
-                        pass
+                    except (ValueError, AttributeError) as exc:
+                        # Log, but do not fail the check solely due to detail parsing issues.
+                        print(f"  Detail: <unavailable> (failed to parse JSON response: {exc})")
                 self.checks_failed += 1
                 return False
         except requests.RequestException as e:
@@ -157,8 +157,8 @@ class AuthServiceValidator:
                 try:
                     detail = response.json().get("detail", "Unknown")
                     print(f"  Detail: {detail}")
-                except Exception:
-                    pass
+                except (ValueError, TypeError, AttributeError) as parse_error:
+                    print(f"  Detail: unable to parse error response as JSON ({parse_error})")
                 self.checks_failed += 1
                 return False
             elif response.status_code == 503:
@@ -288,6 +288,8 @@ def wait_for_service(base_url: str, max_wait_seconds: int = 60, check_interval: 
                 print(f"✓ Service is available")
                 return True
         except requests.RequestException:
+            # The service may not be reachable yet during startup; ignore transient
+            # connection errors here and rely on the overall timeout to fail the check.
             pass
 
         remaining = max(0, max_wait_seconds - (time.time() - start_time))

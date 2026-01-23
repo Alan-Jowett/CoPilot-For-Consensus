@@ -99,9 +99,6 @@ def test_keys_endpoint_handles_jwks_errors_gracefully():
     
     Related to issue: Key Vault key permission errors cause JWKS/signing failures
     """
-    from unittest.mock import MagicMock, patch
-    from fastapi.testclient import TestClient
-    
     # Mock auth service that raises an error on get_jwks()
     mock_service = MagicMock()
     mock_service.config.service_settings.audiences = "copilot-for-consensus"
@@ -131,8 +128,6 @@ def test_keys_endpoint_returns_503_when_service_not_initialized():
     This prevents misleading 500 errors during startup before the service
     is fully initialized.
     """
-    from fastapi.testclient import TestClient
-    
     with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
         import main
         
