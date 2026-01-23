@@ -348,23 +348,36 @@ def _iter_azure_diagnostics_records_from_obj(
         if not isinstance(row, dict):
             continue
 
+        # Azure Monitor diagnostic archives for Container Apps often wrap the
+        # interesting fields under `properties`.
+        props = row.get("properties")
+        lookup_row: dict[str, Any] = row
+        if isinstance(props, dict):
+            # Prefer `properties.*` for container/app fields and message, but
+            # keep top-level metadata in case investigators include it.
+            lookup_row = dict(row)
+            lookup_row.update(props)
+
         service = (
-            _dict_get_case_insensitive(row, "ContainerAppName")
-            or _dict_get_case_insensitive(row, "ContainerName")
-            or _dict_get_case_insensitive(row, "ContainerAppName_s")
-            or _dict_get_case_insensitive(row, "ContainerName_s")
-            or row.get("container")
+            _dict_get_case_insensitive(lookup_row, "ContainerAppName")
+            or _dict_get_case_insensitive(lookup_row, "ContainerName")
+            or _dict_get_case_insensitive(lookup_row, "ContainerAppName_s")
+            or _dict_get_case_insensitive(lookup_row, "ContainerName_s")
+            or lookup_row.get("container")
         )
 
         extract_field = config.extract_json_field
-        if _dict_get_case_insensitive(row, extract_field) is None:
+        if _dict_get_case_insensitive(lookup_row, extract_field) is None:
             # Diagnostic Settings uses `Message` (not `message`). Prefer it when present.
-            if _dict_get_case_insensitive(row, "Message") is not None:
+            if _dict_get_case_insensitive(lookup_row, "Message") is not None:
                 extract_field = "Message"
-            elif _dict_get_case_insensitive(row, "Log_s") is not None:
+            elif _dict_get_case_insensitive(lookup_row, "Log") is not None:
+                # Container Apps console/system logs commonly use `Log` under properties.
+                extract_field = "Log"
+            elif _dict_get_case_insensitive(lookup_row, "Log_s") is not None:
                 extract_field = "Log_s"
 
-        msg_val = _dict_get_case_insensitive(row, extract_field)
+        msg_val = _dict_get_case_insensitive(lookup_row, extract_field)
         if msg_val is None or msg_val == "":
             continue
 
@@ -381,13 +394,13 @@ def _iter_azure_diagnostics_records_from_obj(
                 )
             else:
                 msg = _extract_from_payload_json(
-                    row,
+                    lookup_row,
                     extract_field=extract_field,
                     include_fields=config.include_fields,
                 )
         else:
             msg = _extract_from_payload_json(
-                row,
+                lookup_row,
                 extract_field=extract_field,
                 include_fields=config.include_fields,
             )
