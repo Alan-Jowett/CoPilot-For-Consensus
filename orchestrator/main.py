@@ -77,7 +77,7 @@ def health():
 
 
 @app.get("/readyz")
-def readyz():
+async def readyz() -> dict[str, str]:
     """Readiness check endpoint - indicates if service is ready to process requests."""
     global orchestration_service
     global subscriber_thread
