@@ -62,7 +62,13 @@ ADAPTER_DEPENDENCIES = {
     "copilot_auth": ["copilot_config", "copilot_logging"],  # Auth depends on config and logging
     "copilot_draft_diff": ["copilot_config"],  # Draft diff depends on copilot-config
     "copilot_consensus": ["copilot_config"],  # Consensus depends on copilot-config
-    "copilot_startup": ["copilot_config", "copilot_schema_validation"],  # Startup depends on copilot-config and schema-validation
+    "copilot_startup": [
+        "copilot_config",
+        "copilot_schema_validation",
+        "copilot_message_bus",
+        "copilot_metrics",
+        "copilot_storage",
+    ],  # Startup depends on config, schema-validation, message-bus, metrics, and storage
 }
 
 
