@@ -321,10 +321,11 @@ jobs:
 
     - name: Validate auth service endpoints
       run: |
-        echo "Validating auth service endpoints (JWKS, health, readiness) via gateway..."
+        echo "Validating auth service endpoints (JWKS, health) via gateway..."
         pip install --quiet requests
         # Access auth service through gateway at /auth prefix (HTTPS with self-signed cert)
-        python3 scripts/validate_auth_service_health.py --url https://localhost/auth --timeout 10 --wait 30 --insecure || {
+        # Skip readiness check since CI has no OAuth providers configured
+        python3 scripts/validate_auth_service_health.py --url https://localhost/auth --timeout 10 --wait 30 --insecure --skip-readiness || {
           echo "❌ Auth service validation failed"
           echo "=== Auth Service Logs (last 100 lines) ==="
           docker compose logs auth --tail=100

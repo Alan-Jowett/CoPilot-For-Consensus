@@ -38,17 +38,19 @@ class AuthServiceValidator:
     # Required JWK fields for validation (per RFC 7517)
     REQUIRED_JWK_FIELDS = ["kty", "use", "kid", "alg"]
 
-    def __init__(self, base_url: str, timeout: int = 10, verify_ssl: bool = True):
+    def __init__(self, base_url: str, timeout: int = 10, verify_ssl: bool = True, skip_readiness: bool = False):
         """Initialize validator.
 
         Args:
             base_url: Base URL of auth service (e.g., http://localhost:8090)
             timeout: Request timeout in seconds
             verify_ssl: Whether to verify SSL certificates (set False for self-signed)
+            skip_readiness: Whether to skip the readiness check (for CI without OAuth providers)
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.verify_ssl = verify_ssl
+        self.skip_readiness = skip_readiness
         self.checks_passed = 0
         self.checks_failed = 0
 
@@ -240,17 +242,22 @@ class AuthServiceValidator:
         Returns:
             True if all checks passed
         """
-        print(f"\n=== Auth Service Validation ===")
+        print("\n=== Auth Service Validation ===")
         print(f"Target: {self.base_url}\n")
 
         # Run checks in order of importance
         checks = [
             ("Health", self.check_health_endpoint),
-            ("Readiness", self.check_readyz_endpoint),
             ("JWKS (/keys)", self.check_jwks_endpoint),
             ("Well-known JWKS", self.check_wellknown_jwks_endpoint),
             ("Providers", self.check_providers_endpoint),
         ]
+
+        # Optionally include readiness check (requires OAuth providers configured)
+        if not self.skip_readiness:
+            checks.insert(1, ("Readiness", self.check_readyz_endpoint))
+        else:
+            print("ℹ Skipping readiness check (--skip-readiness flag)")
 
         for name, check_fn in checks:
             try:
@@ -260,7 +267,7 @@ class AuthServiceValidator:
                 self.checks_failed += 1
 
         # Print summary
-        print(f"\n=== Summary ===")
+        print("\n=== Summary ===")
         print(f"Checks passed: {self.checks_passed}")
         print(f"Checks failed: {self.checks_failed}")
 
@@ -331,6 +338,11 @@ def main():
         action="store_true",
         help="Skip SSL certificate verification (for self-signed certs)",
     )
+    parser.add_argument(
+        "--skip-readiness",
+        action="store_true",
+        help="Skip readiness check (for CI without OAuth providers configured)",
+    )
 
     args = parser.parse_args()
     verify_ssl = not args.insecure
@@ -346,7 +358,12 @@ def main():
             sys.exit(1)
 
     # Run validation
-    validator = AuthServiceValidator(args.url, timeout=args.timeout, verify_ssl=verify_ssl)
+    validator = AuthServiceValidator(
+        args.url,
+        timeout=args.timeout,
+        verify_ssl=verify_ssl,
+        skip_readiness=args.skip_readiness,
+    )
     success = validator.run_all_checks()
 
     sys.exit(0 if success else 1)
