@@ -248,29 +248,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             logger.error(f"AzureCosmosDocumentStore: failed to create/access container '{container_name}' - {e}")
             raise DocumentStoreError(f"Failed to create/access container '{container_name}'") from e
 
-    def _get_partition_key_value(self, collection: str, doc: dict[str, Any]) -> str:
-        """Get the partition key value for a document based on routing mode.
-
-        Args:
-            collection: Logical collection name
-            doc: Document data
-
-        Returns:
-            Partition key value
-        """
-        if self.container_routing_mode == "legacy":
-            # Legacy mode: partition key is the collection name
-            return collection
-
-        # Per-type mode: partition key is typically the document ID
-        _, partition_key_path = self._get_container_config_for_collection(collection)
-
-        # Extract partition key from path (e.g., "/id" -> "id")
-        key_field = partition_key_path.lstrip("/")
-
-        # Return the value from the document
-        return doc.get(key_field, doc.get("id", ""))
-
     def connect(self) -> None:
         """Connect to Azure Cosmos DB.
 

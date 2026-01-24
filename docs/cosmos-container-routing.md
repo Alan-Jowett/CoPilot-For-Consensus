@@ -119,7 +119,6 @@ pytest tests/test_azure_cosmos_document_store.py -v     # Existing tests (62)
 
 ## References
 
-- Issue: #[issue-number]
 - Schema: `docs/schemas/configs/adapters/drivers/document_store/azure_cosmosdb.json`
 - Implementation: `adapters/copilot_storage/copilot_storage/azure_cosmos_document_store.py`
 - Tests: `adapters/copilot_storage/tests/test_azure_cosmos_container_routing.py`
