@@ -4,6 +4,7 @@
 
 """Tests for backfill_archive_source_type migration script."""
 
+import pytest
 from unittest.mock import Mock, patch, MagicMock
 
 # Add scripts directory to path for imports
@@ -199,4 +200,9 @@ def test_backfill_connection_failure(mock_mongo_class):
     assert "error_message" in result
     # Error message is generic to avoid leaking credentials
     assert result["error_message"] == "ConnectionError"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
+
 
