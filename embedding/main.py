@@ -3,7 +3,9 @@
 
 """Embedding Service: Generate vector embeddings for text chunks."""
 
+import os
 import threading
+import time
 from dataclasses import replace
 from typing import cast
 
@@ -122,6 +124,27 @@ def get_stats():
     return embedding_service.get_stats()
 
 
+def log_memory_usage(logger, stage: str):
+    """Log current memory usage for startup diagnostics.
+
+    Args:
+        logger: Logger instance
+        stage: Description of current startup stage
+    """
+    try:
+        import psutil
+
+        process = psutil.Process(os.getpid())
+        mem_info = process.memory_info()
+        mem_mb = mem_info.rss / 1024 / 1024
+        logger.info(f"[Startup Diagnostics] {stage}: Memory usage = {mem_mb:.2f} MB")
+    except ImportError:
+        # psutil not available, skip memory logging
+        pass
+    except Exception as e:
+        logger.debug(f"Failed to log memory usage: {e}")
+
+
 def start_subscriber_thread(service: EmbeddingService):
     """Start the event subscriber in a separate thread.
 
@@ -172,12 +195,17 @@ def main():
     global logger
     global subscriber_thread
 
+    startup_start = time.time()
     logger.info(f"Starting Embedding Service (version {__version__})")
+    log_memory_usage(logger, "Initial startup")
 
     try:
         # Load strongly-typed configuration from JSON schemas
+        config_start = time.time()
         config = cast(ServiceConfig_Embedding, get_config("embedding"))
-        logger.info("Configuration loaded successfully")
+        config_time = time.time() - config_start
+        logger.info(f"Configuration loaded successfully in {config_time:.2f}s")
+        log_memory_usage(logger, "After config load")
 
         # Replace bootstrap logger with config-based logger
         logger = create_logger(config.logger)
@@ -241,7 +269,7 @@ def main():
         embedding_service_module.logger = get_logger(embedding_service_module.__name__)
 
         logger.info("Creating message bus publisher...")
-
+        publisher_start = time.time()
         publisher = create_publisher(
             config.message_bus,
             enable_validation=True,
@@ -249,6 +277,9 @@ def main():
         )
         try:
             publisher.connect()
+            publisher_time = time.time() - publisher_start
+            logger.info(f"Publisher connected to message bus in {publisher_time:.2f}s")
+            log_memory_usage(logger, "After publisher connect")
         except Exception as e:
             if str(config.message_bus.message_bus_type).lower() != "noop":
                 logger.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
@@ -257,7 +288,7 @@ def main():
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
         logger.info("Creating message bus subscriber...")
-
+        subscriber_start = time.time()
         subscriber = create_subscriber(
             config.message_bus,
             enable_validation=True,
@@ -265,11 +296,15 @@ def main():
         )
         try:
             subscriber.connect()
+            subscriber_time = time.time() - subscriber_start
+            logger.info(f"Subscriber connected to message bus in {subscriber_time:.2f}s")
+            log_memory_usage(logger, "After subscriber connect")
         except Exception as e:
             logger.error(f"Failed to connect subscriber to message bus: {e}")
             raise ConnectionError("Subscriber failed to connect to message bus")
 
         logger.info("Creating document store...")
+        docstore_start = time.time()
         document_schema_provider = create_schema_provider(schema_type="documents")
         document_store = create_document_store(
             config.document_store,
@@ -279,6 +314,9 @@ def main():
         )
         logger.info("Connecting to document store...")
         document_store.connect()
+        docstore_time = time.time() - docstore_start
+        logger.info(f"Document store connected successfully in {docstore_time:.2f}s")
+        log_memory_usage(logger, "After document store connect")
 
         logger.info("Creating embedding provider from typed configuration...")
         backend_name = str(config.embedding_backend.embedding_backend_type).lower()
@@ -300,6 +338,7 @@ def main():
         embedding_backend_label = backend_name
 
         logger.info("Creating vector store from adapter configuration...")
+        vectorstore_start = time.time()
 
         # Ensure vector store dimension matches embedding provider.
         if config.vector_store.vector_store_type == "qdrant":
@@ -325,6 +364,10 @@ def main():
                 if config.vector_store.vector_store_type != "inmemory":
                     logger.error(f"Failed to connect to vector store: {e}")
                     raise ConnectionError("Vector store failed to connect")
+        
+        vectorstore_time = time.time() - vectorstore_start
+        logger.info(f"Vector store connected successfully in {vectorstore_time:.2f}s")
+        log_memory_usage(logger, "After vector store connect")
 
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
@@ -391,6 +434,10 @@ def main():
         )
         subscriber_thread.start()
         logger.info("Subscriber thread started")
+
+        startup_total = time.time() - startup_start
+        logger.info(f"[Startup Diagnostics] Service fully initialized in {startup_total:.2f}s")
+        log_memory_usage(logger, "Service ready")
 
         # Start FastAPI server
         http_port = config.service_settings.http_port if config.service_settings.http_port is not None else 8000
