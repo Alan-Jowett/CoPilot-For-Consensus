@@ -465,13 +465,13 @@ def test_idempotent_orchestration(
     This test verifies that the orchestrator processes requests even when a
     summary already exists.
     """
-    thread_id = "<thread@example.com>"
-    chunk_ids = ["chunk-1", "chunk-2"]
+    thread_id = "1234567890abcdef"
+    chunk_ids = ["aaaa1111bbbb2222", "cccc3333dddd4444"]
 
     # Setup: chunks exist and map to thread
     chunks = [
-        {"_id": "chunk-1", "chunk_id": "chunk-1", "thread_id": thread_id, "embedding_generated": True},
-        {"_id": "chunk-2", "chunk_id": "chunk-2", "thread_id": thread_id, "embedding_generated": True},
+        {"_id": "aaaa1111bbbb2222", "thread_id": thread_id, "embedding_generated": True},
+        {"_id": "cccc3333dddd4444", "thread_id": thread_id, "embedding_generated": True},
     ]
 
     # First call: no existing summary
