@@ -19,6 +19,9 @@ class DriverConfig_DocumentStore_AzureCosmosdb:
     # Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
     container: str = "documents"
     # Cosmos DB container name
+    container_routing_mode: str = "legacy"
+    # Container routing mode: 'legacy' uses single container for all collections (default), 'per_type' routes each
+    # collection type to its own container
     database: str = "copilot"
     # Cosmos DB database name
     key: str | None = None

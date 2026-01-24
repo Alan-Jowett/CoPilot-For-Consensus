@@ -37,6 +37,14 @@
             "env_var": "COSMOS_PARTITION_KEY",
             "default": "/collection",
             "description": "Cosmos DB partition key path"
+        },
+        "container_routing_mode": {
+            "type": "string",
+            "source": "env",
+            "env_var": "COSMOS_CONTAINER_ROUTING_MODE",
+            "default": "legacy",
+            "enum": ["legacy", "per_type"],
+            "description": "Container routing mode: 'legacy' uses single container for all collections (default), 'per_type' routes each collection type to its own container"
         }
     },
     "required": ["endpoint"]
