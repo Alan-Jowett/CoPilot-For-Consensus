@@ -193,6 +193,23 @@ def test_retrieve_context(orchestration_service, mock_document_store):
     assert len(context["messages"]) == 2
     assert "retrieved_at" in context
 
+    # Verify the chunks query uses _id: {$in: ...} filter (not $or)
+    # This ensures Azure Cosmos DB can process the query correctly
+    retrieval_calls = []
+    for call in mock_document_store.query_documents.call_args_list:
+        args, kwargs = call
+        # Support both positional and keyword arguments
+        collection = args[0] if args else kwargs.get("collection")
+        filter_dict = args[1] if len(args) > 1 else kwargs.get("filter_dict")
+        if collection == "chunks" and isinstance(filter_dict, dict):
+            _id_filter = filter_dict.get("_id", {})
+            if isinstance(_id_filter, dict) and "$in" in _id_filter:
+                retrieval_calls.append((collection, filter_dict))
+
+    assert retrieval_calls, "Expected at least one chunks retrieval query using _id.$in filter"
+    _, filter_dict = retrieval_calls[0]
+    assert "$or" not in filter_dict, "Should not use $or operator (Azure Cosmos DB incompatible)"
+
 
 def test_publish_summarization_requested(orchestration_service, mock_publisher):
     """Test publishing SummarizationRequested event."""
@@ -448,13 +465,13 @@ def test_idempotent_orchestration(
     This test verifies that the orchestrator processes requests even when a
     summary already exists.
     """
-    thread_id = "<thread@example.com>"
-    chunk_ids = ["chunk-1", "chunk-2"]
+    thread_id = "1234567890abcdef"
+    chunk_ids = ["aaaa1111bbbb2222", "cccc3333dddd4444"]
 
     # Setup: chunks exist and map to thread
     chunks = [
-        {"chunk_id": "chunk-1", "thread_id": thread_id, "embedding_generated": True},
-        {"chunk_id": "chunk-2", "thread_id": thread_id, "embedding_generated": True},
+        {"_id": "aaaa1111bbbb2222", "thread_id": thread_id, "embedding_generated": True},
+        {"_id": "cccc3333dddd4444", "thread_id": thread_id, "embedding_generated": True},
     ]
 
     # First call: no existing summary

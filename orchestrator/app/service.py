@@ -591,20 +591,19 @@ class OrchestrationService:
             selected_chunk_ids = [sc.chunk_id for sc in selection.selected_chunks]
             chunks = self.document_store.query_documents(
                 "chunks",
-                {
-                    "$or": [
-                        {"_id": {"$in": selected_chunk_ids}},
-                        {"chunk_id": {"$in": selected_chunk_ids}},
-                    ]
-                },
+                {"_id": {"$in": selected_chunk_ids}},
                 limit=len(selected_chunk_ids),
             )
 
-            # Preserve selection order (tolerate stores that sanitize away _id)
+            # Preserve selection order
             chunk_map: dict[str, dict[str, Any]] = {}
             for chunk in chunks:
-                chunk_identifier = chunk.get("_id") or chunk.get("chunk_id")
+                chunk_identifier = chunk.get("_id")
                 if chunk_identifier is None:
+                    chunk_keys = list(chunk.keys()) if chunk else "empty"
+                    logger.warning(
+                        f"Chunk missing required _id field for thread {thread_id}, skipping. Chunk keys: {chunk_keys}"
+                    )
                     continue
                 chunk_map[str(chunk_identifier)] = chunk
 

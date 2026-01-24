@@ -69,12 +69,11 @@ class TopKRelevanceSelector(ContextSelector):
             )
 
         # Sort by score (descending), then by chunk id (ascending) for determinism.
-        # Some document stores sanitize away backend _id and expose schema chunk_id.
         sorted_candidates = sorted(
             candidates,
             key=lambda c: (
                 -c.get("similarity_score", 0.0),
-                str(c.get("_id") or c.get("chunk_id") or ""),
+                str(c.get("_id") or ""),
             ),
         )
 
@@ -84,9 +83,12 @@ class TopKRelevanceSelector(ContextSelector):
         selection_index = 0  # Track zero-indexed position in final selection
 
         for chunk in sorted_candidates[:top_k]:
-            chunk_id = chunk.get("_id") or chunk.get("chunk_id")
+            chunk_id = chunk.get("_id")
             if not chunk_id:
-                logger.warning(f"Candidate chunk missing chunk identifier, skipping: {chunk}")
+                chunk_keys = list(chunk.keys())
+                logger.warning(
+                    f"Candidate chunk missing required _id field for thread {thread_id}; keys={chunk_keys}"
+                )
                 continue
 
             # Estimate token count if budget is specified
