@@ -92,6 +92,25 @@ def health():
     }
 
 
+@app.get("/readyz")
+def readyz():
+    """Readiness check endpoint - indicates if service is ready to process requests."""
+    global embedding_service
+    global subscriber_thread
+
+    # Service is ready only when:
+    # 1. Service is initialized
+    # 2. Subscriber thread is running
+    if embedding_service is None:
+        return {"status": "not_ready", "reason": "Service not initialized"}, 503
+
+    subscriber_alive = subscriber_thread is not None and subscriber_thread.is_alive()
+    if not subscriber_alive:
+        return {"status": "not_ready", "reason": "Subscriber thread not running"}, 503
+
+    return {"status": "ready", "service": "embedding"}
+
+
 @app.get("/stats")
 def get_stats():
     """Get embedding statistics."""
