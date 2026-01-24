@@ -255,18 +255,6 @@ jobs:
         }
         echo "✓ Auth service is healthy"
 
-    - name: Validate auth service endpoints
-      run: |
-        echo "Validating auth service endpoints (JWKS, health, readiness)..."
-        pip install --quiet requests
-        python3 scripts/validate_auth_service_health.py --url http://localhost:8090 --timeout 10 --wait 30 || {
-          echo "❌ Auth service validation failed"
-          echo "=== Auth Service Logs (last 100 lines) ==="
-          docker compose logs auth --tail=100
-          exit 1
-        }
-        echo "✓ Auth service validation passed"
-
     # Start independent processing services in parallel
     - name: Start processing services in parallel
       run: |
@@ -330,6 +318,19 @@ jobs:
           exit 1
         }
         echo "✓ Gateway is healthy"
+
+    - name: Validate auth service endpoints
+      run: |
+        echo "Validating auth service endpoints (JWKS, health, readiness) via gateway..."
+        pip install --quiet requests
+        # Access auth service through gateway at /auth prefix (HTTPS with self-signed cert)
+        python3 scripts/validate_auth_service_health.py --url https://localhost/auth --timeout 10 --wait 30 --insecure || {
+          echo "❌ Auth service validation failed"
+          echo "=== Auth Service Logs (last 100 lines) ==="
+          docker compose logs auth --tail=100
+          exit 1
+        }
+        echo "✓ Auth service validation passed"
 
     - name: Check service status
       run: docker compose ps

@@ -38,15 +38,17 @@ class AuthServiceValidator:
     # Required JWK fields for validation (per RFC 7517)
     REQUIRED_JWK_FIELDS = ["kty", "use", "kid", "alg"]
 
-    def __init__(self, base_url: str, timeout: int = 10):
+    def __init__(self, base_url: str, timeout: int = 10, verify_ssl: bool = True):
         """Initialize validator.
 
         Args:
             base_url: Base URL of auth service (e.g., http://localhost:8090)
             timeout: Request timeout in seconds
+            verify_ssl: Whether to verify SSL certificates (set False for self-signed)
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.verify_ssl = verify_ssl
         self.checks_passed = 0
         self.checks_failed = 0
 
@@ -58,7 +60,7 @@ class AuthServiceValidator:
         """
         url = f"{self.base_url}/health"
         try:
-            response = requests.get(url, timeout=self.timeout)
+            response = requests.get(url, timeout=self.timeout, verify=self.verify_ssl)
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "healthy":
@@ -87,7 +89,7 @@ class AuthServiceValidator:
         """
         url = f"{self.base_url}/readyz"
         try:
-            response = requests.get(url, timeout=self.timeout)
+            response = requests.get(url, timeout=self.timeout, verify=self.verify_ssl)
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "ready":
@@ -125,7 +127,7 @@ class AuthServiceValidator:
         """
         url = f"{self.base_url}/keys"
         try:
-            response = requests.get(url, timeout=self.timeout)
+            response = requests.get(url, timeout=self.timeout, verify=self.verify_ssl)
             if response.status_code == 200:
                 data = response.json()
                 if "keys" in data:
@@ -181,7 +183,7 @@ class AuthServiceValidator:
         """
         url = f"{self.base_url}/.well-known/jwks.json"
         try:
-            response = requests.get(url, timeout=self.timeout)
+            response = requests.get(url, timeout=self.timeout, verify=self.verify_ssl)
             if response.status_code == 200:
                 data = response.json()
                 if "keys" in data and isinstance(data["keys"], list):
@@ -209,7 +211,7 @@ class AuthServiceValidator:
         """
         url = f"{self.base_url}/providers"
         try:
-            response = requests.get(url, timeout=self.timeout)
+            response = requests.get(url, timeout=self.timeout, verify=self.verify_ssl)
             if response.status_code == 200:
                 data = response.json()
                 if "providers" in data:
@@ -265,13 +267,16 @@ class AuthServiceValidator:
         return self.checks_failed == 0
 
 
-def wait_for_service(base_url: str, max_wait_seconds: int = 60, check_interval: int = 5) -> bool:
+def wait_for_service(
+    base_url: str, max_wait_seconds: int = 60, check_interval: int = 5, verify_ssl: bool = True
+) -> bool:
     """Wait for service to become available.
 
     Args:
         base_url: Base URL of auth service
         max_wait_seconds: Maximum time to wait
         check_interval: Seconds between checks
+        verify_ssl: Whether to verify SSL certificates
 
     Returns:
         True if service became available
@@ -282,9 +287,9 @@ def wait_for_service(base_url: str, max_wait_seconds: int = 60, check_interval: 
 
     while time.time() - start_time < max_wait_seconds:
         try:
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=5, verify=verify_ssl)
             if response.status_code == 200:
-                print(f"✓ Service is available")
+                print("✓ Service is available")
                 return True
         except requests.RequestException:
             # The service may not be reachable yet during startup; ignore transient
@@ -321,16 +326,27 @@ def main():
         default=10,
         help="Request timeout in seconds (default: 10)",
     )
+    parser.add_argument(
+        "--insecure",
+        action="store_true",
+        help="Skip SSL certificate verification (for self-signed certs)",
+    )
 
     args = parser.parse_args()
+    verify_ssl = not args.insecure
+
+    # Suppress InsecureRequestWarning when using --insecure
+    if args.insecure:
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     # Wait for service if requested
     if args.wait > 0:
-        if not wait_for_service(args.url, max_wait_seconds=args.wait):
+        if not wait_for_service(args.url, max_wait_seconds=args.wait, verify_ssl=verify_ssl):
             sys.exit(1)
 
     # Run validation
-    validator = AuthServiceValidator(args.url, timeout=args.timeout)
+    validator = AuthServiceValidator(args.url, timeout=args.timeout, verify_ssl=verify_ssl)
     success = validator.run_all_checks()
 
     sys.exit(0 if success else 1)
