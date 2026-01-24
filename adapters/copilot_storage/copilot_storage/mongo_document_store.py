@@ -9,6 +9,7 @@ from typing import Any, cast
 from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_Mongodb
 
 from .document_store import (
+    DocumentAlreadyExistsError,
     DocumentNotFoundError,
     DocumentStore,
     DocumentStoreConnectionError,
@@ -18,6 +19,15 @@ from .document_store import (
 from .schema_registry import sanitize_document, sanitize_documents
 
 logger = logging.getLogger(__name__)
+
+# Import pymongo DuplicateKeyError at module level to avoid nested try-catch.
+# Note: pymongo is required to use MongoDocumentStore. This optional import is
+# only to keep module import and type-checking lightweight; when pymongo is
+# missing, connect() will fail with a DocumentStoreConnectionError.
+try:
+    from pymongo.errors import DuplicateKeyError
+except ImportError:
+    DuplicateKeyError = None  # type: ignore
 
 
 class MongoDocumentStore(DocumentStore):
@@ -159,6 +169,7 @@ class MongoDocumentStore(DocumentStore):
 
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
+            DocumentAlreadyExistsError: If document with same ID already exists
         """
         if self.database is None:
             raise DocumentStoreNotConnectedError("Not connected to MongoDB")
@@ -170,6 +181,12 @@ class MongoDocumentStore(DocumentStore):
             logger.debug(f"MongoDocumentStore: inserted document {doc_id} into {collection}")
             return doc_id
         except Exception as e:
+            # Check if this is a duplicate key error from pymongo
+            if DuplicateKeyError is not None and isinstance(e, DuplicateKeyError):
+                doc_id = doc.get("_id", "unknown")
+                logger.debug(f"MongoDocumentStore: document with id {doc_id} already exists - {e}")
+                raise DocumentAlreadyExistsError(f"Document with id {doc_id} already exists in collection {collection}") from e
+
             logger.error(f"MongoDocumentStore: insert failed - {e}")
             raise
 

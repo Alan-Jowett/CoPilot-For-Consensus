@@ -15,16 +15,8 @@ from copilot_event_retry.event_handler import DocumentNotFoundError, RetryExhaus
 from copilot_event_retry.retry_policy import RetryConfig
 from copilot_message_bus import EventPublisher, EventSubscriber, create_publisher, create_subscriber
 from copilot_schema_validation import create_schema_provider
-from copilot_storage import DocumentStore, create_document_store
+from copilot_storage import DocumentAlreadyExistsError, DocumentStore, create_document_store
 from copilot_storage.validating_document_store import DocumentValidationError
-
-try:
-    from pymongo.errors import DuplicateKeyError
-except ImportError:  # pragma: no cover
-
-    class DuplicateKeyError(Exception):
-        """Fallback DuplicateKeyError for environments without pymongo installed."""
-
 
 from .test_helpers import assert_valid_event_schema
 
@@ -464,13 +456,13 @@ class TestParsingService:
             {"message_id": "m1"},
             {"message_id": "m2"},
         ]
-        store.insert_document = Mock(side_effect=[DuplicateKeyError("dup"), None])
+        store.insert_document = Mock(side_effect=[DocumentAlreadyExistsError("dup"), None])
 
         with caplog.at_level(logging.DEBUG):
             service._store_messages(messages)
 
         assert store.insert_document.call_count == 2
-        assert "Skipping message m1 (DuplicateKeyError)" in caplog.text
+        assert "Skipping message m1 (DocumentAlreadyExistsError)" in caplog.text
         assert "Stored 1 messages, skipped 1 (duplicates/validation)" in caplog.text
 
     def test_store_messages_skips_validation_errors_and_continues(self, mock_service, caplog):
@@ -513,7 +505,7 @@ class TestParsingService:
             {"message_id": "m4"},  # success
         ]
 
-        duplicate_error = DuplicateKeyError("duplicate key")
+        duplicate_error = DocumentAlreadyExistsError("duplicate key")
         empty_body_error = DocumentValidationError("messages", ["'' should be non-empty at 'body_normalized'"])
         other_validation_error = DocumentValidationError("messages", ["missing required field"])
 
@@ -555,13 +547,13 @@ class TestParsingService:
             {"thread_id": "t1"},
             {"thread_id": "t2"},
         ]
-        store.insert_document = Mock(side_effect=[DuplicateKeyError("dup"), None])
+        store.insert_document = Mock(side_effect=[DocumentAlreadyExistsError("dup"), None])
 
         with caplog.at_level(logging.DEBUG):
             service._store_threads(threads)
 
         assert store.insert_document.call_count == 2
-        assert "Skipping thread t1 (DuplicateKeyError)" in caplog.text
+        assert "Skipping thread t1 (DocumentAlreadyExistsError)" in caplog.text
         assert "Stored 1 threads, skipped 1 (duplicates/validation)" in caplog.text
 
     def test_store_threads_skips_validation_errors_and_continues(self, mock_service, caplog):
@@ -611,7 +603,7 @@ class TestParsingService:
             {"thread_id": "t3"},  # success
         ]
 
-        duplicate_error = DuplicateKeyError("duplicate key")
+        duplicate_error = DocumentAlreadyExistsError("duplicate key")
         validation_error = DocumentValidationError("threads", ["missing required field"])
 
         store.insert_document = Mock(

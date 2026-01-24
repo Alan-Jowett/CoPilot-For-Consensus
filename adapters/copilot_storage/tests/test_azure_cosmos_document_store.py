@@ -11,6 +11,7 @@ from copilot_config.generated.adapters.document_store import (
     DriverConfig_DocumentStore_AzureCosmosdb,
 )
 from copilot_storage import (
+    DocumentAlreadyExistsError,
     DocumentNotFoundError,
     DocumentStore,
     DocumentStoreConnectionError,
@@ -260,7 +261,7 @@ class TestAzureCosmosDocumentStore:
         assert inserted_doc["collection"] == "archives"
 
     def test_insert_document_resource_exists(self):
-        """Test that insert fails when document already exists."""
+        """Test that insert raises DocumentAlreadyExistsError when document already exists."""
         from azure.cosmos import exceptions
 
         store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
@@ -274,7 +275,7 @@ class TestAzureCosmosDocumentStore:
             status_code=409, message="Document already exists"
         )
 
-        with pytest.raises(DocumentStoreError, match="already exists"):
+        with pytest.raises(DocumentAlreadyExistsError, match="already exists"):
             store.insert_document("users", {"id": "user-123", "name": "test"})
 
     def test_insert_document_throttled(self):

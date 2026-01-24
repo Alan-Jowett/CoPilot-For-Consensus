@@ -11,7 +11,7 @@ from typing import Any
 
 from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_Inmemory
 
-from .document_store import DocumentNotFoundError, DocumentStore
+from .document_store import DocumentAlreadyExistsError, DocumentNotFoundError, DocumentStore
 from .schema_registry import sanitize_document, sanitize_documents
 
 logger = logging.getLogger(__name__)
@@ -61,9 +61,16 @@ class InMemoryDocumentStore(DocumentStore):
 
         Returns:
             Document ID as string
+
+        Raises:
+            DocumentAlreadyExistsError: If document with same ID already exists
         """
         # Generate ID if not provided
         doc_id = doc.get("_id", str(uuid.uuid4()))
+
+        # Check if document already exists
+        if doc_id in self.collections[collection]:
+            raise DocumentAlreadyExistsError(f"Document with id {doc_id} already exists in collection {collection}")
 
         # Make a deep copy to avoid external mutations affecting stored data
         doc_copy = copy.deepcopy(doc)

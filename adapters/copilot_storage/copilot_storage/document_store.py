@@ -31,6 +31,12 @@ class DocumentNotFoundError(DocumentStoreError):
     pass
 
 
+class DocumentAlreadyExistsError(DocumentStoreError):
+    """Exception raised when attempting to insert a document that already exists."""
+
+    pass
+
+
 class DocumentStore(ABC):
     """Abstract base class for document storage backends."""
 
@@ -60,6 +66,7 @@ class DocumentStore(ABC):
             Document ID as string
 
         Raises:
+            DocumentAlreadyExistsError: If document with same ID already exists
             Exception: If insertion fails
         """
         pass
