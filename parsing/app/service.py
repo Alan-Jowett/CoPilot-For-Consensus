@@ -83,6 +83,9 @@ class ParsingService:
         self.messages_parsed = 0
         self.threads_created = 0
         self.last_processing_time = 0.0
+        
+        # Track if we've logged the legacy source_type warning to reduce noise
+        self._legacy_source_type_warning_logged = False
 
     def start(self, enable_startup_requeue: bool = True):
         """Start the parsing service and subscribe to events.
@@ -148,10 +151,19 @@ class ParsingService:
         # Handle legacy archives missing source_type by defaulting to 'local'
         if not source_type:
             source_type = "local"
-            logger.warning(
-                f"Archive {archive_id} missing 'source_type' field (legacy document). "
-                f"Defaulting to 'local'. Consider backfilling with correct source_type."
-            )
+            # Log warning once per service instance, then use INFO to reduce noise
+            if not self._legacy_source_type_warning_logged:
+                logger.warning(
+                    f"Archive {archive_id} missing 'source_type' field (legacy document). "
+                    f"Defaulting to 'local'. Consider backfilling with correct source_type. "
+                    f"(Further occurrences will be logged at INFO level)"
+                )
+                self._legacy_source_type_warning_logged = True
+            else:
+                logger.info(
+                    f"Archive {archive_id} missing 'source_type' field (legacy document), "
+                    f"defaulting to 'local'"
+                )
 
         # Validate source_type is a known enum value
         if source_type not in VALID_SOURCE_TYPES:
