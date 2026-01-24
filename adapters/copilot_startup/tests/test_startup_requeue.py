@@ -8,6 +8,9 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
+
+# Schema validation is required - install copilot_schema_validation via install_adapters.py
+from copilot_schema_validation import create_schema_provider, validate_json
 from copilot_startup import StartupRequeue
 
 
@@ -118,11 +121,13 @@ class TestStartupRequeue:
                 "_id": "abcd1234abcd1234",
                 "message_doc_id": "aabbccddaabbccdd",
                 "embedding_generated": False,
+                "token_count": 128,
             },
             {
                 "_id": "abcd5678abcd5678",
                 "message_doc_id": "aabbccddaabbccdd",
                 "embedding_generated": False,
+                "token_count": 256,
             },
         ]
 
@@ -144,12 +149,73 @@ class TestStartupRequeue:
             build_event_data=lambda doc: {
                 "chunk_ids": [doc.get("_id")],
                 "message_doc_ids": [doc.get("message_doc_id")],
+                "chunk_count": 1,
+                "chunks_ready": True,
+                "chunking_strategy": "requeue",
+                "avg_chunk_size_tokens": doc.get("token_count", 0),
             },
         )
 
         # Verify events were published
         assert mock_publisher.publish.call_count == 2
         assert count == 2
+
+    def test_requeue_chunks_prepared_schema_validation(self):
+        """Test that requeued ChunksPrepared events validate against schema."""
+        # Setup mocks
+        mock_store = Mock()
+        mock_publisher = Mock()
+
+        # Mock incomplete chunk with all required fields
+        incomplete_chunks = [
+            {
+                "_id": "abcd1234abcd1234",
+                "message_doc_id": "aabbccddaabbccdd",
+                "embedding_generated": False,
+                "token_count": 128,
+            },
+        ]
+
+        mock_store.query_documents.return_value = incomplete_chunks
+
+        # Create requeue utility
+        requeue = StartupRequeue(
+            document_store=mock_store,
+            publisher=mock_publisher,
+        )
+
+        # Execute requeue with proper event data structure
+        count = requeue.requeue_incomplete(
+            collection="chunks",
+            query={"embedding_generated": False},
+            event_type="ChunksPrepared",
+            routing_key="chunks.prepared",
+            id_field="_id",
+            build_event_data=lambda doc: {
+                "chunk_ids": [doc.get("_id")],
+                "message_doc_ids": [doc.get("message_doc_id")],
+                "chunk_count": 1,
+                "chunks_ready": True,
+                "chunking_strategy": "requeue",
+                "avg_chunk_size_tokens": doc.get("token_count", 0),
+            },
+        )
+
+        # Verify event was published
+        assert mock_publisher.publish.call_count == 1
+        assert count == 1
+
+        # Get the published event
+        call_args, call_kwargs = mock_publisher.publish.call_args
+        event = call_kwargs["event"]
+
+        # Validate the event against the actual ChunksPrepared JSON schema
+        schema_provider = create_schema_provider()
+        schema = schema_provider.get_schema("ChunksPrepared")
+        is_valid, errors = validate_json(event, schema)
+
+        # Assert validation passes
+        assert is_valid, f"ChunksPrepared event failed schema validation: {errors}"
 
     def test_requeue_no_incomplete_documents(self):
         """Test requeue when no incomplete documents exist."""

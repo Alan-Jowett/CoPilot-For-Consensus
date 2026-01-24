@@ -148,6 +148,10 @@ class EmbeddingService:
                 build_event_data=lambda doc: {
                     "chunk_ids": [doc.get("_id")],
                     "message_doc_ids": [doc.get("message_doc_id")],
+                    "chunk_count": 1,  # Single chunk per requeue event
+                    "chunks_ready": True,  # Chunks already exist in database
+                    "chunking_strategy": "requeue",  # Indicate this is a requeued chunk
+                    "avg_chunk_size_tokens": doc.get("token_count", 0),  # Use actual token count from chunk
                 },
                 limit=1000,
             )

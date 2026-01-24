@@ -19,5 +19,9 @@ setup(
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
         ],
+        "test": [
+            "pytest>=7.0.0",
+            # copilot_schema_validation is installed via install_adapters.py
+        ],
     },
 )

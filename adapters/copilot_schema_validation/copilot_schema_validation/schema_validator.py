@@ -15,9 +15,6 @@ from referencing import Registry, Resource
 logger = logging.getLogger(__name__)
 
 
-# Small helper to preload shared schemas (e.g., event envelope) so $ref resolution
-# works even when schemas are stored outside the local filesystem (like MongoDB).
-# Falls back silently if the supporting schema file is not present.
 def _build_registry() -> Registry:
     """Build a referencing Registry with preloaded schemas.
 
