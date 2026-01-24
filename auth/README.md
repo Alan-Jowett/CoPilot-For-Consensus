@@ -574,6 +574,65 @@ For production deployments:
 7. **Audit logs** for all authentication events
 8. **Initial admin setup**: Create the first admin in a strictly isolated environment with temporary auto-promotion enabled, then immediately disable it. Bootstrap token mechanism is planned but not yet implemented.
 
+### Azure Key Vault Integration
+
+The auth service supports Azure Key Vault for secure JWT signing in production environments. This provides:
+
+- **Secure Key Storage**: Private keys never leave Azure Key Vault
+- **Managed Identity**: Uses Azure Managed Identity for authentication
+- **Key Rotation**: Supports automatic key rotation
+- **Audit Trail**: All signing operations are logged by Azure
+
+#### Required Key Vault Permissions
+
+The auth service's managed identity (or service principal) requires the following Key Vault permissions:
+
+**Required Permissions:**
+- `keys/get`: Read public key metadata (for JWKS endpoint)
+- `keys/sign`: Sign JWT tokens using the private key
+
+**Configuration in Azure:**
+```bash
+# Grant permissions to the managed identity
+az keyvault set-policy \
+  --name <key-vault-name> \
+  --object-id <managed-identity-object-id> \
+  --key-permissions get sign
+```
+
+**Important Notes:**
+- Missing `keys/get` permission will cause `/keys` (JWKS) endpoint to return HTTP 500
+- Missing `keys/sign` permission will prevent JWT token minting
+- Both permissions are **required** for the auth service to function
+- The service implements retry logic with exponential backoff for transient errors
+- A circuit breaker pattern protects against cascading failures (opens after 5 consecutive failures)
+- Permission errors (403 Forbidden) are **not retried** as they require infrastructure changes
+
+#### Monitoring Key Vault Health
+
+Use the provided validation script to check auth service health after deployment:
+
+```bash
+# Validate auth service including JWKS endpoint
+python3 scripts/validate_auth_service_health.py \
+  --url https://your-auth-service.azurecontainerapps.io \
+  --wait 60
+```
+
+This script validates:
+- Health endpoint (`/health`)
+- Readiness endpoint (`/readyz`)
+- JWKS endpoint (`/keys`) - **critical for Key Vault integration**
+- Well-known JWKS endpoint (`/.well-known/jwks.json`)
+- Providers endpoint (`/providers`)
+
+**Troubleshooting 500 Errors on /keys:**
+If the `/keys` endpoint returns HTTP 500:
+1. Check Azure Key Vault access policies for missing permissions
+2. Verify managed identity has `keys/get` and `keys/sign` permissions
+3. Check auth service logs for `Forbidden` or `ClientAuthenticationError` messages
+4. Review Azure Key Vault audit logs for denied operations
+
 ## Future Enhancements
 
 - [ ] Refresh token support

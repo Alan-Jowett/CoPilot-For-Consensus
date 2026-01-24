@@ -368,3 +368,85 @@ class TestKeyVaultJWTSignerEC:
         result = signer.health_check()
         assert result is False
 
+    def test_forbidden_permission_error_fails_immediately(self, mock_azure_clients, mocker):
+        """Test that Forbidden (403) Key Vault permission errors fail immediately without retry.
+        
+        This test ensures that authentication/permission errors (Forbidden 403) 
+        are not retried, as retrying won't help if permissions are missing.
+        This prevents log spam and unnecessary delays when Key Vault permissions
+        are misconfigured.
+        
+        Related to issue: Key Vault key permission errors cause JWKS/signing failures
+        """
+        from azure.core.exceptions import HttpResponseError
+        
+        # Simulate a 403 Forbidden response (missing keys/get or keys/sign permissions)
+        forbidden_error = HttpResponseError(message="Forbidden")
+        forbidden_error.status_code = 403
+        
+        mock_azure_clients["crypto_client"].sign.side_effect = forbidden_error
+        
+        signer = KeyVaultJWTSigner(
+            algorithm="RS256",
+            key_vault_url="https://test.vault.azure.net/",
+            key_name="test-key",
+            max_retries=3,  # Should not retry
+            retry_delay=0.1
+        )
+        
+        message = b"test message"
+        
+        # Should fail immediately without retries (1 attempt only)
+        with pytest.raises(KeyVaultSignerError, match="Key Vault sign operation failed after 1 attempt"):
+            signer.sign(message)
+        
+        # Verify sign was called only once (no retries)
+        assert mock_azure_clients["crypto_client"].sign.call_count == 1
+
+    def test_jwks_endpoint_graceful_degradation_with_circuit_breaker(self, mock_azure_clients, mocker):
+        """Test that JWKS endpoint can gracefully handle circuit breaker open state.
+        
+        When circuit breaker is open due to Key Vault failures, JWKS endpoints
+        should still be able to serve cached public keys if available, preventing
+        500 errors that would break authentication for all dependent services.
+        
+        Related to issue: /keys (JWKS) can return 500 when Key Vault errors occur
+        """
+        from azure.core.exceptions import ServiceRequestError
+        
+        # First, successfully get the public key (this will cache it)
+        mock_sign_result = mocker.MagicMock()
+        mock_sign_result.signature = b"mock_signature"
+        mock_azure_clients["crypto_client"].sign.return_value = mock_sign_result
+        
+        signer = KeyVaultJWTSigner(
+            algorithm="RS256",
+            key_vault_url="https://test.vault.azure.net/",
+            key_name="test-key",
+            max_retries=1,
+            circuit_breaker_threshold=2,
+            circuit_breaker_timeout=60
+        )
+        
+        # Get public key successfully (this caches it)
+        jwk = signer.get_public_key_jwk()
+        assert jwk["kty"] == "RSA"
+        
+        # Now simulate Key Vault failures to open circuit breaker
+        mock_azure_clients["crypto_client"].sign.side_effect = ServiceRequestError("Network error")
+        
+        # Open the circuit breaker
+        for _ in range(2):
+            with pytest.raises(KeyVaultSignerError):
+                signer.sign(b"test")
+        
+        # Circuit breaker should be open
+        with pytest.raises(CircuitBreakerOpenError):
+            signer.sign(b"test")
+        
+        # IMPORTANT: get_public_key_jwk() should still work with cached key
+        # even though circuit breaker is open for signing operations
+        cached_jwk = signer.get_public_key_jwk()
+        assert cached_jwk == jwk  # Should return cached value
+        assert cached_jwk["kty"] == "RSA"
+
