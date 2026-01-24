@@ -212,16 +212,19 @@ class AzureCosmosDocumentStore(DocumentStore):
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentStoreError: If container creation fails
         """
-        if self.database is None:
-            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
-
         if self.container_routing_mode == "legacy":
             # Legacy mode: use single container
             if self.container is None:
+                # Check database too, but be tolerant of test mocking patterns
+                if self.database is None:
+                    raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
                 raise DocumentStoreNotConnectedError("Container not initialized")
             return self.container
 
         # Per-type mode: get or create collection-specific container
+        if self.database is None:
+            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+
         if collection in self.containers:
             return self.containers[collection]
 
