@@ -3,7 +3,9 @@
 
 """Chunking Service: Split long email bodies into semantically coherent chunks."""
 
+import os
 import threading
+import time
 from dataclasses import replace
 from pathlib import Path
 from typing import cast
@@ -109,6 +111,27 @@ def get_stats():
     return chunking_service.get_stats()
 
 
+def log_memory_usage(logger, stage: str):
+    """Log current memory usage for startup diagnostics.
+
+    Args:
+        logger: Logger instance
+        stage: Description of current startup stage
+    """
+    try:
+        import psutil
+
+        process = psutil.Process(os.getpid())
+        mem_info = process.memory_info()
+        mem_mb = mem_info.rss / 1024 / 1024
+        logger.info(f"[Startup Diagnostics] {stage}: Memory usage = {mem_mb:.2f} MB")
+    except ImportError:
+        # psutil not available, skip memory logging
+        pass
+    except Exception as e:
+        logger.debug(f"Failed to log memory usage: {e}")
+
+
 def start_subscriber_thread(service: ChunkingService):
     """Start the event subscriber in a separate thread.
 
@@ -136,12 +159,17 @@ def main():
     global logger
     global subscriber_thread
 
+    startup_start = time.time()
     logger.info(f"Starting Chunking Service (version {__version__})")
+    log_memory_usage(logger, "Initial startup")
 
     try:
         # Load strongly-typed configuration from JSON schemas
+        config_start = time.time()
         config = cast(ServiceConfig_Chunking, get_config("chunking"))
-        logger.info("Configuration loaded successfully")
+        config_time = time.time() - config_start
+        logger.info(f"Configuration loaded successfully in {config_time:.2f}s")
+        log_memory_usage(logger, "After config load")
 
         # These identities are service-owned constants (not deployment settings).
         # - RabbitMQ: stable queue name (durable) to avoid ephemeral exclusive queues.
@@ -204,6 +232,7 @@ def main():
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
 
         logger.info("Creating message bus publisher...")
+        publisher_start = time.time()
         publisher = create_publisher(
             config.message_bus,
             enable_validation=True,
@@ -211,6 +240,9 @@ def main():
         )
         try:
             publisher.connect()
+            publisher_time = time.time() - publisher_start
+            logger.info(f"Publisher connected to message bus in {publisher_time:.2f}s")
+            log_memory_usage(logger, "After publisher connect")
         except Exception as e:
             if str(config.message_bus.message_bus_type).lower() != "noop":
                 logger.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
@@ -219,6 +251,7 @@ def main():
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
         logger.info("Creating message bus subscriber...")
+        subscriber_start = time.time()
         subscriber = create_subscriber(
             config.message_bus,
             enable_validation=True,
@@ -226,11 +259,15 @@ def main():
         )
         try:
             subscriber.connect()
+            subscriber_time = time.time() - subscriber_start
+            logger.info(f"Subscriber connected to message bus in {subscriber_time:.2f}s")
+            log_memory_usage(logger, "After subscriber connect")
         except Exception as e:
             logger.error(f"Failed to connect subscriber to message bus: {e}")
             raise ConnectionError("Subscriber failed to connect to message bus")
 
         logger.info("Creating document store...")
+        docstore_start = time.time()
         document_schema_provider = create_schema_provider(
             schema_dir=Path(__file__).parent / "docs" / "schemas" / "documents",
             schema_type="documents",
@@ -244,7 +281,9 @@ def main():
         logger.info("Connecting to document store...")
         # connect() raises on failure; None return indicates success
         document_store.connect()
-        logger.info("Document store connected successfully")
+        docstore_time = time.time() - docstore_start
+        logger.info(f"Document store connected successfully in {docstore_time:.2f}s")
+        log_memory_usage(logger, "After document store connect")
 
         # Create chunker via adapter config
         logger.info("Creating chunker from adapter configuration")
@@ -299,6 +338,10 @@ def main():
         )
         subscriber_thread.start()
         logger.info("Subscriber thread started")
+
+        startup_total = time.time() - startup_start
+        logger.info(f"[Startup Diagnostics] Service fully initialized in {startup_total:.2f}s")
+        log_memory_usage(logger, "Service ready")
 
         # Start FastAPI server
         http_port = config.service_settings.http_port if config.service_settings.http_port is not None else 8000

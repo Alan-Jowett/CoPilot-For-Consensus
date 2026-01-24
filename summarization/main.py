@@ -306,7 +306,7 @@ def main():
                 if str(config.vector_store.vector_store_type).lower() != "inmemory":
                     logger.error(f"Failed to connect to vector store: {e}")
                     raise ConnectionError("Vector store failed to connect")
-        
+
         vectorstore_time = time.time() - vectorstore_start
         logger.info(f"Vector store connected successfully in {vectorstore_time:.2f}s")
         log_memory_usage(logger, "After vector store connect")
