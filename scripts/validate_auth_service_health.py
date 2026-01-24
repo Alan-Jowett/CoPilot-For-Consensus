@@ -25,11 +25,7 @@ import argparse
 import sys
 import time
 
-try:
-    import requests
-except ImportError:
-    print("ERROR: requests library not found. Install with: pip install requests", file=sys.stderr)
-    sys.exit(2)
+import requests
 
 
 class AuthServiceValidator:
