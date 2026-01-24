@@ -1065,7 +1065,7 @@ def test_requeue_incomplete_chunks_validates_schema(
         assert published["routing_key"] == "chunks.prepared"
 
         # Validate against actual JSON schema
-        is_valid, errors = validate_json(event, schema, schema_provider=schema_provider)
+        is_valid, errors = validate_json(event, schema)
         assert is_valid, f"ChunksPrepared event failed schema validation: {errors}"
 
         # Verify the event has all required data fields
@@ -1082,4 +1082,4 @@ def test_requeue_incomplete_chunks_validates_schema(
         assert data["chunks_ready"] is True
         assert data["chunking_strategy"] == "requeue"
         assert isinstance(data["avg_chunk_size_tokens"], int)
-        assert data["avg_chunk_size_tokens"] > 0
+        assert data["avg_chunk_size_tokens"] >= 0

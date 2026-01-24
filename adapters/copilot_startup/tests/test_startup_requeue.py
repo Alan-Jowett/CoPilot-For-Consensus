@@ -212,7 +212,7 @@ class TestStartupRequeue:
         # Validate the event against the actual ChunksPrepared JSON schema
         schema_provider = create_schema_provider()
         schema = schema_provider.get_schema("ChunksPrepared")
-        is_valid, errors = validate_json(event, schema, schema_provider=schema_provider)
+        is_valid, errors = validate_json(event, schema)
 
         # Assert validation passes
         assert is_valid, f"ChunksPrepared event failed schema validation: {errors}"
