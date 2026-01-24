@@ -10,7 +10,7 @@ from copilot_config.generated.adapters.document_store import (
     DriverConfig_DocumentStore_Inmemory,
     DriverConfig_DocumentStore_Mongodb,
 )
-from copilot_storage import DocumentNotFoundError, DocumentStore, DocumentStoreConnectionError, create_document_store
+from copilot_storage import DocumentNotFoundError, DocumentStore, DocumentStoreConnectionError, create_document_store, DocumentAlreadyExistsError
 from copilot_storage.azure_cosmos_document_store import AzureCosmosDocumentStore
 from copilot_storage.inmemory_document_store import InMemoryDocumentStore
 from copilot_storage.mongo_document_store import MongoDocumentStore
@@ -634,3 +634,28 @@ class TestMongoDocumentStore:
     # Note: Actual connection and operation tests would require a running MongoDB instance
     # or mocking the pymongo library. These are integration tests better suited for
     # a separate test suite with docker-compose.
+
+    def test_insert_document_duplicate_key_error(self):
+        """Test that insert_document raises DocumentAlreadyExistsError on DuplicateKeyError."""
+        from unittest.mock import MagicMock, Mock
+
+        store = MongoDocumentStore(host="localhost", port=27017, database="test_db")
+
+        # Mock connected state
+        mock_collection = MagicMock()
+        mock_database = MagicMock()
+        mock_database.__getitem__ = Mock(return_value=mock_collection)
+        store.database = mock_database
+
+        # Create a mock DuplicateKeyError
+        try:
+            from pymongo.errors import DuplicateKeyError
+            # Mock the duplicate key error
+            mock_collection.insert_one.side_effect = DuplicateKeyError("E11000 duplicate key error")
+        except ImportError:
+            # If pymongo is not installed, skip this test
+            pytest.skip("pymongo not installed")
+
+        # Verify DocumentAlreadyExistsError is raised (not DuplicateKeyError)
+        with pytest.raises(DocumentAlreadyExistsError, match="already exists"):
+            store.insert_document("messages", {"_id": "test-123", "name": "test"})
