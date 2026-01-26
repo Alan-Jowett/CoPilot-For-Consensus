@@ -2085,6 +2085,20 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'ENABLE_INTERNAL_TLS'
               value: 'false'
             }
+            // Gateway diagnostics toggles (used by infra/nginx/nginx.conf.template)
+            // Defaults preserve existing behavior unless explicitly enabled.
+            {
+              name: 'CFC_GATEWAY_LOG_RESPONSES'
+              value: '0'
+            }
+            {
+              name: 'CFC_GATEWAY_GZIP'
+              value: 'on'
+            }
+            {
+              name: 'CFC_GATEWAY_ERROR_LOG_LEVEL'
+              value: 'warn'
+            }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''

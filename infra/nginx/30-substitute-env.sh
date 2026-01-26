@@ -15,6 +15,14 @@ export INGESTION_BACKEND=${INGESTION_BACKEND:-http://ingestion:8001/}
 export UI_BACKEND=${UI_BACKEND:-http://ui:80/}
 # GRAFANA_BACKEND is optional (Docker Compose only, must be set explicitly)
 
+# Diagnostics toggles
+# CFC_GATEWAY_GZIP: "on" (default) or "off" to compare compressed vs uncompressed responses
+# CFC_GATEWAY_LOG_RESPONSES: "1"/"true"/"on"/"yes" to emit response-focused access logs
+# CFC_GATEWAY_ERROR_LOG_LEVEL: "warn" (default), "info", or "debug" for deeper protocol debugging
+export CFC_GATEWAY_GZIP=${CFC_GATEWAY_GZIP:-on}
+export CFC_GATEWAY_LOG_RESPONSES=${CFC_GATEWAY_LOG_RESPONSES:-0}
+export CFC_GATEWAY_ERROR_LOG_LEVEL=${CFC_GATEWAY_ERROR_LOG_LEVEL:-warn}
+
 echo "Configuring NGINX with backend URLs:"
 echo "  REPORTING_BACKEND=$REPORTING_BACKEND"
 echo "  AUTH_BACKEND=$AUTH_BACKEND"
@@ -23,6 +31,9 @@ if [ -n "$GRAFANA_BACKEND" ]; then
   echo "  GRAFANA_BACKEND=$GRAFANA_BACKEND (optional, Docker Compose only)"
 fi
 echo "  UI_BACKEND=$UI_BACKEND"
+echo "  CFC_GATEWAY_GZIP=$CFC_GATEWAY_GZIP"
+echo "  CFC_GATEWAY_LOG_RESPONSES=$CFC_GATEWAY_LOG_RESPONSES"
+echo "  CFC_GATEWAY_ERROR_LOG_LEVEL=$CFC_GATEWAY_ERROR_LOG_LEVEL"
 
 # Verify template file exists
 if [ ! -f /etc/nginx/nginx.conf.template ]; then
@@ -32,7 +43,7 @@ fi
 
 # Substitute environment variables in the nginx configuration
 # Note: GRAFANA_BACKEND is optional (Docker Compose only)
-if ! envsubst '${REPORTING_BACKEND} ${AUTH_BACKEND} ${INGESTION_BACKEND} ${GRAFANA_BACKEND} ${UI_BACKEND}' \
+if ! envsubst '${REPORTING_BACKEND} ${AUTH_BACKEND} ${INGESTION_BACKEND} ${GRAFANA_BACKEND} ${UI_BACKEND} ${CFC_GATEWAY_GZIP} ${CFC_GATEWAY_LOG_RESPONSES} ${CFC_GATEWAY_ERROR_LOG_LEVEL}' \
   < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf.tmp; then
   echo "ERROR: Failed to substitute environment variables"
   exit 1

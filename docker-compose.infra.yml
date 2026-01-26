@@ -539,6 +539,14 @@ services:
       - INGESTION_BACKEND=http://ingestion:8001
       - GRAFANA_BACKEND=http://grafana:3000
       - UI_BACKEND=http://ui:80
+
+      # Diagnostics toggles (optional)
+      # - CFC_GATEWAY_LOG_RESPONSES=1 enables response-focused JSON logs (encoding/length/bytes)
+      # - CFC_GATEWAY_GZIP=off disables gateway gzip to compare compressed vs uncompressed behavior
+      # - CFC_GATEWAY_ERROR_LOG_LEVEL=info|debug increases NGINX error logging verbosity
+      - CFC_GATEWAY_LOG_RESPONSES=${CFC_GATEWAY_LOG_RESPONSES:-0}
+      - CFC_GATEWAY_GZIP=${CFC_GATEWAY_GZIP:-on}
+      - CFC_GATEWAY_ERROR_LOG_LEVEL=${CFC_GATEWAY_ERROR_LOG_LEVEL:-warn}
     ports:
       # HTTPS on standard port 443 (mapped from internal 8443)
       - "0.0.0.0:443:8443"
