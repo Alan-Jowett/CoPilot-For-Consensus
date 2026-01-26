@@ -195,6 +195,23 @@ async def health():
 - `audience`: Expected audience claim (default: `SERVICE_NAME` env var)
 - `required_roles`: Optional list of required roles (default: none)
 - `public_paths`: List of paths that don't require auth (default: `/health`, `/readyz`, `/docs`, `/openapi.json`)
+- `jwks_cache_ttl`: JWKS cache TTL in seconds (default: 3600 = 1 hour)
+- `jwks_fetch_retries`: Number of retries for initial JWKS fetch (default: 10)
+- `jwks_fetch_retry_delay`: Initial delay between retries in seconds (default: 1.0)
+- `jwks_fetch_timeout`: Timeout for JWKS fetch requests in seconds (default: 30.0)
+- `defer_jwks_fetch`: Defer JWKS fetch to background thread to avoid blocking startup (default: True)
+
+**JWKS Fetch Resilience:**
+
+The middleware implements robust JWKS (JSON Web Key Set) fetching with several reliability features:
+
+1. **Jittered Exponential Backoff**: Retries use exponential backoff with ±20% random jitter to prevent thundering herd problems when multiple services start simultaneously
+2. **Increased Default Timeout**: 30-second timeout (up from 10s) accommodates cold-start and network delays
+3. **More Retry Attempts**: 10 retries by default (up from 5) provide better resilience during startup
+4. **Consolidated Error Logging**: Instead of logging a warning for each retry, the middleware logs a single consolidated error with timing information after all retries fail
+5. **Background Fetch**: By default, JWKS fetch happens in a background thread to avoid blocking service startup
+
+These improvements significantly reduce JWKS timeout/refusal errors observed in production environments with slow auth service startup or transient network issues.
 
 **Request State Attributes:**
 
