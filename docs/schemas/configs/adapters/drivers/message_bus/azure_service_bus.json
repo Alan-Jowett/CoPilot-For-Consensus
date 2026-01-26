@@ -82,6 +82,29 @@
             "type": "int",
             "default": 3600,
             "description": "Maximum time (seconds) to auto-renew a peek-lock message while it is being processed. Increase for long-running handlers. Set to 0 to disable auto-renewal."
+        },
+        "retry_attempts": {
+            "type": "int",
+            "default": 3,
+            "minimum": 0,
+            "maximum": 10,
+            "description": "Number of retry attempts for transient connection errors (SSL EOF, connection reset). Set to 0 to disable retries."
+        },
+        "retry_backoff_seconds": {
+            "type": "float",
+            "default": 1.0,
+            "minimum": 0.1,
+            "maximum": 60.0,
+            "description": "Initial backoff delay in seconds before retry. Uses exponential backoff (multiplied by 2 on each retry)."
+        },
+        "transport_type": {
+            "type": "string",
+            "default": "amqp",
+            "enum": [
+                "amqp",
+                "websockets"
+            ],
+            "description": "Transport protocol for Service Bus connection. Use 'websockets' if experiencing SSL/firewall issues with AMQP."
         }
     }
 }

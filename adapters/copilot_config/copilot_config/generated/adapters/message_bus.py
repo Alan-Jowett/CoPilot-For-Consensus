@@ -26,6 +26,10 @@ class DriverConfig_MessageBus_AzureServiceBus:
     # Maximum time to wait for messages in seconds
     queue_name: str | None = None
     # Azure Service Bus queue name (optional)
+    retry_attempts: int = 3
+    # Number of retry attempts for transient connection errors (SSL EOF, connection reset). Set to 0 to disable retries.
+    retry_backoff_seconds: float = 1.0
+    # Initial backoff delay in seconds before retry. Uses exponential backoff (multiplied by 2 on each retry).
     servicebus_fully_qualified_namespace: str | None = None
     # Azure Service Bus fully qualified namespace
     servicebus_use_managed_identity: bool = False
@@ -34,6 +38,8 @@ class DriverConfig_MessageBus_AzureServiceBus:
     # Azure Service Bus subscription name (optional, required if topic_name is set)
     topic_name: str | None = None
     # Azure Service Bus topic name (optional)
+    transport_type: str = "amqp"
+    # Transport protocol for Service Bus connection. Use 'websockets' if experiencing SSL/firewall issues with AMQP.
 
 
 @dataclass
