@@ -145,8 +145,13 @@ jobs:
           export GRAFANA_BACKEND="http://grafana:3000"
           export UI_BACKEND="http://ui:80"
 
+          # Gateway diagnostics toggles (defaults match production/runtime defaults)
+          export CFC_GATEWAY_GZIP="on"
+          export CFC_GATEWAY_LOG_RESPONSES="0"
+          export CFC_GATEWAY_ERROR_LOG_LEVEL="warn"
+
           # Substitute environment variables into template
-          envsubst '${REPORTING_BACKEND} ${AUTH_BACKEND} ${INGESTION_BACKEND} ${GRAFANA_BACKEND} ${UI_BACKEND}' \
+          envsubst '${REPORTING_BACKEND} ${AUTH_BACKEND} ${INGESTION_BACKEND} ${GRAFANA_BACKEND} ${UI_BACKEND} ${CFC_GATEWAY_GZIP} ${CFC_GATEWAY_LOG_RESPONSES} ${CFC_GATEWAY_ERROR_LOG_LEVEL}' \
             < infra/nginx/nginx.conf > /tmp/nginx-test.conf
 
           # Test the generated configuration
