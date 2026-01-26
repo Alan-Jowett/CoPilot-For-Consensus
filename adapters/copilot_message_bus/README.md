@@ -447,6 +447,8 @@ Azure Service Bus publisher implementation with:
 - Persistent messages by default
 - JSON serialization
 - Comprehensive logging and error handling
+- **Automatic retry with exponential backoff for transient connection errors (SSL EOF, connection reset)**
+- **WebSockets transport as alternative to AMQP (useful for firewall/proxy environments)**
 
 **Authentication Options:**
 
@@ -499,6 +501,62 @@ publisher.publish(
 
 publisher.disconnect()
 ```
+
+**Retry and Transport Configuration:**
+
+```python
+from copilot_message_bus import AzureServiceBusPublisher
+
+# Create publisher with retry configuration for SSL EOF resilience
+publisher = AzureServiceBusPublisher(
+    connection_string="Endpoint=sb://namespace.servicebus.windows.net/;...",
+    topic_name="copilot-events",
+    retry_attempts=3,  # Number of retry attempts (default: 3)
+    retry_backoff_seconds=1.0,  # Initial backoff delay (default: 1.0), uses exponential backoff
+    transport_type="websockets"  # Use WebSockets instead of AMQP (default: "amqp")
+)
+publisher.connect()
+
+# Publisher will automatically retry transient connection errors:
+# - SSL: UNEXPECTED_EOF_WHILE_READING
+# - Connection reset by peer
+# - Socket errors
+# - Timeouts
+publisher.publish(
+    exchange="copilot.events",
+    routing_key="archive.ingested",
+    event={"event_type": "ArchiveIngested", "data": {...}}
+)
+
+publisher.disconnect()
+```
+
+**Configuration via Schema (recommended):**
+
+The retry and transport settings can be configured via the `azure_service_bus.json` schema:
+
+```json
+{
+  "message_bus": {
+    "message_bus_type": "azure_service_bus",
+    "driver": {
+      "connection_string": "Endpoint=sb://...",
+      "topic_name": "copilot-events",
+      "retry_attempts": 3,
+      "retry_backoff_seconds": 1.0,
+      "transport_type": "websockets"
+    }
+  }
+}
+```
+
+**When to Use WebSockets Transport:**
+
+Use `transport_type="websockets"` when:
+- Experiencing SSL EOF errors or connection resets with AMQP
+- Behind corporate firewalls or proxies that block AMQP port 5671
+- Network infrastructure has issues with long-lived TCP connections
+- Azure Service Bus connection is unstable
 
 **Environment Variables for Configuration:**
 
