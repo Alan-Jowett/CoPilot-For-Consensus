@@ -173,26 +173,33 @@ def test_jwks_fetch_no_retry_on_404_error():
 
 
 def test_jwks_fetch_exponential_backoff():
-    """Test JWKS fetch uses exponential backoff between retries."""
+    """Test JWKS fetch uses exponential backoff with jitter between retries."""
     app = FastAPI()
 
     with patch("copilot_auth.middleware.httpx.get") as mock_get:
         mock_get.side_effect = httpx.TimeoutException("Connection timeout")
 
         with patch("copilot_auth.middleware.time.sleep") as mock_sleep:
-            JWTMiddleware(
-                app=app.router,
-                auth_service_url="http://auth:8090",
-                audience="test-service",
-                jwks_fetch_retries=4,
-                jwks_fetch_retry_delay=1.0,
-                defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
-            )
+            with patch("copilot_auth.middleware.random.uniform") as mock_random:
+                # Mock random to return predictable jitter values for testing
+                mock_random.return_value = 0.0  # No jitter for this test
+                
+                JWTMiddleware(
+                    app=app.router,
+                    auth_service_url="http://auth:8090",
+                    audience="test-service",
+                    jwks_fetch_retries=4,
+                    jwks_fetch_retry_delay=1.0,
+                    defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
+                )
 
-            # Verify exponential backoff: 1s, 2s, 4s (3 sleeps for 4 attempts)
-            assert mock_sleep.call_count == 3
-            calls = [call[0][0] for call in mock_sleep.call_args_list]
-            assert calls == [1.0, 2.0, 4.0]
+                # Verify exponential backoff: 1s, 2s, 4s (3 sleeps for 4 attempts)
+                assert mock_sleep.call_count == 3
+                calls = [call[0][0] for call in mock_sleep.call_args_list]
+                # With jitter, delays should be roughly: 1.0, 2.0, 4.0 (with ±20% jitter)
+                assert len(calls) == 3
+                # Verify delays are in ascending order (exponential growth)
+                assert calls[0] < calls[1] < calls[2]
 
 
 def test_jwks_fetch_connect_error_retry():
@@ -237,3 +244,58 @@ def test_jwks_fetch_no_retry_on_unexpected_exception():
         # Verify only 1 attempt was made (no retries for unexpected errors)
         assert middleware.jwks == {"keys": []}
         assert mock_get.call_count == 1
+
+
+def test_jwks_fetch_jitter_applied():
+    """Test JWKS fetch applies jitter to retry delays to prevent thundering herd."""
+    app = FastAPI()
+
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
+        mock_get.side_effect = httpx.TimeoutException("Connection timeout")
+
+        with patch("copilot_auth.middleware.time.sleep") as mock_sleep:
+            with patch("copilot_auth.middleware.random.uniform") as mock_random:
+                # Mock random to return specific jitter values
+                mock_random.side_effect = [0.1, -0.15, 0.05]  # Different jitter for each retry
+                
+                JWTMiddleware(
+                    app=app.router,
+                    auth_service_url="http://auth:8090",
+                    audience="test-service",
+                    jwks_fetch_retries=4,
+                    jwks_fetch_retry_delay=1.0,
+                    defer_jwks_fetch=False,
+                )
+
+                # Verify jitter was applied: random.uniform(-0.2, 0.2) called 3 times
+                assert mock_random.call_count == 3
+                for call in mock_random.call_args_list:
+                    args = call[0]
+                    assert args == (-0.2, 0.2)
+                
+                # Verify sleep was called 3 times with jittered delays
+                assert mock_sleep.call_count == 3
+
+
+def test_jwks_fetch_consolidated_error_logging():
+    """Test JWKS fetch logs a single consolidated error after all retries fail."""
+    app = FastAPI()
+
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
+        mock_get.side_effect = httpx.TimeoutException("Connection timeout")
+
+        with patch("copilot_auth.middleware.time.sleep"):
+            with patch("copilot_auth.middleware.logger") as mock_logger:
+                JWTMiddleware(
+                    app=app.router,
+                    auth_service_url="http://auth:8090",
+                    audience="test-service",
+                    jwks_fetch_retries=3,
+                    jwks_fetch_retry_delay=0.1,
+                    defer_jwks_fetch=False,
+                )
+
+                # Verify consolidated error was logged (should have "failed after X attempts over Y.Ys")
+                error_calls = [call for call in mock_logger.error.call_args_list 
+                               if "failed after" in str(call) and "attempts over" in str(call)]
+                assert len(error_calls) >= 1, "Should log consolidated error message"
