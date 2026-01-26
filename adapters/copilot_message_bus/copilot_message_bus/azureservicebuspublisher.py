@@ -211,13 +211,16 @@ class AzureServiceBusPublisher(EventPublisher):
         Returns:
             True if error is transient (connection/SSL errors), False otherwise
         """
-        error_str = str(error).lower()
-        
         # Check for ServiceBusConnectionError (includes SSL EOF errors)
         if ServiceBusConnectionError is not None and isinstance(error, ServiceBusConnectionError):
             return True
         
-        # Check for SSL/connection-related error messages
+        # Check for common transient exception types
+        if isinstance(error, (TimeoutError, OSError, ConnectionError)):
+            return True
+        
+        # Check for SSL/connection-related error messages as fallback
+        error_str = str(error).lower()
         transient_patterns = [
             "ssl",
             "eof",
