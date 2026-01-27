@@ -170,7 +170,6 @@ var serviceBusReceiverServices = [
   'orchestrator'
   'summarization'
   'reporting'
-  'ingestion'
 ]
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
