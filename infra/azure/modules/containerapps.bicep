@@ -1051,9 +1051,9 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
-              // Authentication: Container Apps automatically configures KEDA to use the app's user-assigned managed identity
-              // The parsing service's managed identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
-              // This is the recommended approach for Container Apps - no explicit auth configuration needed
+              identity: identityResourceIds.parsing
+              // Authentication: KEDA uses the parsing service's user-assigned managed identity
+              // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
           }
         ]
@@ -1230,9 +1230,9 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
-              // Authentication: Container Apps automatically configures KEDA to use the app's user-assigned managed identity
-              // The chunking service's managed identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
-              // This is the recommended approach for Container Apps - no explicit auth configuration needed
+              identity: identityResourceIds.chunking
+              // Authentication: KEDA uses the chunking service's user-assigned managed identity
+              // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
           }
         ]
@@ -1466,9 +1466,9 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
-              // Authentication: Container Apps automatically configures KEDA to use the app's user-assigned managed identity
-              // The embedding service's managed identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
-              // This is the recommended approach for Container Apps - no explicit auth configuration needed
+              identity: identityResourceIds.embedding
+              // Authentication: KEDA uses the embedding service's user-assigned managed identity
+              // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
           }
         ]
@@ -1702,9 +1702,9 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
-              // Authentication: Container Apps automatically configures KEDA to use the app's user-assigned managed identity
-              // The orchestrator service's managed identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
-              // This is the recommended approach for Container Apps - no explicit auth configuration needed
+              identity: identityResourceIds.orchestrator
+              // Authentication: KEDA uses the orchestrator service's user-assigned managed identity
+              // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
           }
         ]
@@ -1945,9 +1945,9 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
-              // Authentication: Container Apps automatically configures KEDA to use the app's user-assigned managed identity
-              // The summarization service's managed identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
-              // This is the recommended approach for Container Apps - no explicit auth configuration needed
+              identity: identityResourceIds.summarization
+              // Authentication: KEDA uses the summarization service's user-assigned managed identity
+              // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
           }
         ]
