@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Cosmos DB Container Routing Feature
 
 ## Overview
@@ -38,6 +41,7 @@ export COSMOS_CONTAINER_ROUTING_MODE=per_type
 from copilot_config.generated.adapters.document_store import (
     DriverConfig_DocumentStore_AzureCosmosdb
 )
+from copilot_storage.azure_cosmos_document_store import AzureCosmosDocumentStore
 
 config = DriverConfig_DocumentStore_AzureCosmosdb(
     endpoint="https://myaccount.documents.azure.com:443/",
@@ -67,8 +71,12 @@ In per-type mode, collections map to containers as follows:
 
 1. **Clean Experimentation**
    ```bash
-   # Delete all chunks without affecting messages
-   az cosmosdb mongodb collection delete --name chunks ...
+   # Delete all chunks without affecting messages (SQL/Core API)
+   az cosmosdb sql container delete \
+     --account-name <account-name> \
+     --database-name copilot \
+     --name chunks \
+     --resource-group <resource-group>
    ```
 
 2. **Per-Container Metrics**
@@ -93,15 +101,15 @@ In per-type mode, collections map to containers as follows:
 ### Backward Compatibility
 - Default mode is "legacy"
 - Existing deployments continue working unchanged
-- Tests confirm no regressions (155/159 tests passing)
+- Automated tests confirm no regressions
 
 ## Testing
 
-Run the test suite:
+Run the relevant tests:
 ```bash
 cd adapters/copilot_storage
-pytest tests/test_azure_cosmos_container_routing.py -v  # New tests (21)
-pytest tests/test_azure_cosmos_document_store.py -v     # Existing tests (62)
+pytest tests/test_azure_cosmos_container_routing.py -v  # Container routing tests
+pytest tests/test_azure_cosmos_document_store.py -v     # Cosmos document store tests
 ```
 
 ## Migration Path

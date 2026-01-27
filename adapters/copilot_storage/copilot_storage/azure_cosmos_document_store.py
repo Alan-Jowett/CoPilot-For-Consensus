@@ -233,6 +233,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         try:
             from azure.cosmos import PartitionKey
+            from azure.core.exceptions import AzureError
 
             container_client = self.database.create_container_if_not_exists(
                 id=container_name, partition_key=PartitionKey(path=partition_key)
@@ -247,6 +248,9 @@ class AzureCosmosDocumentStore(DocumentStore):
         except cosmos_exceptions.CosmosHttpResponseError as e:
             logger.error(f"AzureCosmosDocumentStore: failed to create/access container '{container_name}' - {e}")
             raise DocumentStoreError(f"Failed to create/access container '{container_name}'") from e
+        except AzureError as e:
+            logger.error(f"AzureCosmosDocumentStore: Azure error during container creation for '{container_name}' - {e}")
+            raise DocumentStoreError(f"Azure error creating/accessing container '{container_name}'") from e
 
     def connect(self) -> None:
         """Connect to Azure Cosmos DB.
@@ -708,9 +712,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentStoreError: If aggregation operation fails
         """
-        # Get the target container for this collection
-        container = self._get_container_for_collection(collection)
-
         try:
             # Process pipeline stages sequentially
             # Start by querying the initial collection with $match stages before any $lookup
