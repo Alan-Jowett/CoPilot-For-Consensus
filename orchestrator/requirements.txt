@@ -38,7 +38,7 @@ idna==3.11
     #   httpx
 prometheus-client==0.24.1
     # via -r requirements.in
-pycparser==2.23
+pycparser==3.0
     # via cffi
 pydantic==2.12.5
     # via fastapi
