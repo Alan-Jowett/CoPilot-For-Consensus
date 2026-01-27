@@ -85,7 +85,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             required_roles: Optional list of required roles
             public_paths: List of paths that don't require auth
             jwks_cache_ttl: JWKS cache TTL in seconds (default: 3600 = 1 hour)
-            jwks_fetch_retries: Number of retries for initial JWKS fetch (default: 10)
+            jwks_fetch_retries: Maximum number of attempts (including the initial attempt) to fetch JWKS during initial load (default: 10)
             jwks_fetch_retry_delay: Initial delay between retries in seconds (default: 1.0)
             jwks_fetch_timeout: Timeout for JWKS fetch requests in seconds (default: 30.0)
             defer_jwks_fetch: Defer JWKS fetch to background thread to avoid blocking startup (default: True)
@@ -148,7 +148,6 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 return
             except (httpx.TimeoutException, httpx.ConnectError, httpx.ConnectTimeout) as e:
                 last_error = e
-                error_type = type(e).__name__
                 failed_attempts += 1
                 if first_error_time is None:
                     first_error_time = time.time()
@@ -184,7 +183,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 failed_attempts += 1
                 if first_error_time is None:
                     first_error_time = time.time()
-                logger.error(f"Unexpected error fetching JWKS: {type(e).__name__} - {e}")
+                # Break immediately; consolidated error will be logged after loop
                 break
 
         # If we reach here, all retries failed - log consolidated error

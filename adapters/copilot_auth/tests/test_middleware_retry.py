@@ -196,10 +196,8 @@ def test_jwks_fetch_exponential_backoff():
                 # Verify exponential backoff: 1s, 2s, 4s (3 sleeps for 4 attempts)
                 assert mock_sleep.call_count == 3
                 calls = [call[0][0] for call in mock_sleep.call_args_list]
-                # With jitter, delays should be roughly: 1.0, 2.0, 4.0 (with ±20% jitter)
-                assert len(calls) == 3
-                # Verify delays are in ascending order (exponential growth)
-                assert calls[0] < calls[1] < calls[2]
+                # With jitter disabled (mock returns 0.0), expect exact exponential backoff
+                assert calls == [1.0, 2.0, 4.0], f"Expected [1.0, 2.0, 4.0], got {calls}"
 
 
 def test_jwks_fetch_connect_error_retry():
@@ -275,6 +273,14 @@ def test_jwks_fetch_jitter_applied():
                 
                 # Verify sleep was called 3 times with jittered delays
                 assert mock_sleep.call_count == 3
+                
+                # Verify actual sleep durations match expected jittered values
+                # delay = 1.0, jitter = 0.1 * 1.0 = 0.1, actual = max(0.1, 1.0 + 0.1) = 1.1
+                # delay = 2.0, jitter = -0.15 * 2.0 = -0.3, actual = max(0.1, 2.0 - 0.3) = 1.7
+                # delay = 4.0, jitter = 0.05 * 4.0 = 0.2, actual = max(0.1, 4.0 + 0.2) = 4.2
+                expected_delays = [1.1, 1.7, 4.2]
+                actual_delays = [call[0][0] for call in mock_sleep.call_args_list]
+                assert actual_delays == expected_delays, f"Expected {expected_delays}, got {actual_delays}"
 
 
 def test_jwks_fetch_consolidated_error_logging():
@@ -295,7 +301,12 @@ def test_jwks_fetch_consolidated_error_logging():
                     defer_jwks_fetch=False,
                 )
 
-                # Verify consolidated error was logged (should have "failed after X attempts over Y.Ys")
-                error_calls = [call for call in mock_logger.error.call_args_list 
-                               if "failed after" in str(call) and "attempts over" in str(call)]
-                assert len(error_calls) >= 1, "Should log consolidated error message"
+                # Verify exactly one ERROR was logged
+                assert mock_logger.error.call_count == 1, f"Expected 1 error, got {mock_logger.error.call_count}"
+                
+                # Inspect the error message directly
+                error_message = mock_logger.error.call_args[0][0]
+                assert "failed after" in error_message, f"Missing 'failed after' in: {error_message}"
+                assert "attempts over" in error_message, f"Missing 'attempts over' in: {error_message}"
+                assert "3 attempts" in error_message, f"Missing '3 attempts' in: {error_message}"
+                assert "TimeoutException" in error_message, f"Missing error type in: {error_message}"

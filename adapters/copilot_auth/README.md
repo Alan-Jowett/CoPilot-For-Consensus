@@ -196,7 +196,7 @@ async def health():
 - `required_roles`: Optional list of required roles (default: none)
 - `public_paths`: List of paths that don't require auth (default: `/health`, `/readyz`, `/docs`, `/openapi.json`)
 - `jwks_cache_ttl`: JWKS cache TTL in seconds (default: 3600 = 1 hour)
-- `jwks_fetch_retries`: Number of retries for initial JWKS fetch (default: 10)
+- `jwks_fetch_retries`: Maximum number of attempts (including the initial attempt) to fetch JWKS during initial load (default: 10)
 - `jwks_fetch_retry_delay`: Initial delay between retries in seconds (default: 1.0)
 - `jwks_fetch_timeout`: Timeout for JWKS fetch requests in seconds (default: 30.0)
 - `defer_jwks_fetch`: Defer JWKS fetch to background thread to avoid blocking startup (default: True)
