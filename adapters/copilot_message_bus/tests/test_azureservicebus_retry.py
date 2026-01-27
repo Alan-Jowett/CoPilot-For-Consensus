@@ -3,9 +3,7 @@
 
 """Tests for Azure Service Bus retry logic for SSL EOF and connection errors."""
 
-import json
-import time
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, patch
 
 import pytest
 from copilot_message_bus.azureservicebuspublisher import AzureServiceBusPublisher

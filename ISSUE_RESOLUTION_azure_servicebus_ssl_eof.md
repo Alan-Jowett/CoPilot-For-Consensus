@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: MIT
-  Copyright (c) 2026 Copilot-for-Consensus contributors -->
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 
 # Azure Service Bus SSL EOF Connection Error Resolution
 

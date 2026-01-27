@@ -114,6 +114,10 @@ class AzureServiceBusPublisher(EventPublisher):
     def connect(self) -> None:
         """Connect to Azure Service Bus with retry logic for transient errors.
 
+        Note: This method is not thread-safe. Do not call connect() concurrently
+        from multiple threads on the same publisher instance. Each thread should
+        use its own publisher instance.
+
         Raises:
             ImportError: If azure-servicebus or azure-identity library is not installed
             Exception: If connection fails after all retry attempts
@@ -197,10 +201,6 @@ class AzureServiceBusPublisher(EventPublisher):
                     else:
                         logger.error(f"Failed to connect to Azure Service Bus (non-transient error): {e}")
                     raise
-        
-        # If we get here, we exhausted retries
-        if last_exception:
-            raise last_exception
 
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if an error is transient and should be retried.
@@ -219,16 +219,26 @@ class AzureServiceBusPublisher(EventPublisher):
         if isinstance(error, (TimeoutError, OSError, ConnectionError)):
             return True
         
-        # Check for SSL/connection-related error messages as fallback
+        # Check for SSL/connection-related error messages as a conservative fallback.
+        # Use more specific phrases instead of broad substrings like "ssl", "eof", or "socket"
+        # to avoid retrying on non-transient errors (e.g., "invalid socket parameter").
         error_str = str(error).lower()
         transient_patterns = [
-            "ssl",
-            "eof",
+            "ssl handshake failed",
+            "ssl error",
+            "tls handshake",
+            "eof occurred in violation of protocol",
+            "unexpected eof while reading",
             "connection reset",
+            "connection reset by peer",
             "connection refused",
-            "timeout",
-            "temporary failure",
-            "socket",
+            "read timed out",
+            "request timed out",
+            "temporary failure in name resolution",
+            "temporary failure in dns resolution",
+            "broken pipe",
+            "socket error",
+            "connection aborted",
         ]
         
         return any(pattern in error_str for pattern in transient_patterns)
@@ -282,6 +292,10 @@ class AzureServiceBusPublisher(EventPublisher):
         - routing_key parameter maps to queue name (if queue_name is set) or is used as message label
         - If both topic and queue are configured, topic takes precedence
 
+        Note: This method is not thread-safe. Do not call publish() concurrently
+        from multiple threads on the same publisher instance. Each thread should
+        use its own publisher instance.
+
         Args:
             exchange: Exchange name (used as topic name if topic_name not set)
             routing_key: Routing key (used as queue name if queue_name not set, or as message label)
@@ -303,31 +317,29 @@ class AzureServiceBusPublisher(EventPublisher):
             logger.error(error_msg)
             raise ConnectionError(error_msg)
 
+        # Serialize event to JSON and create message outside retry loop for efficiency
+        message_body = json.dumps(event)
+        message = ServiceBusMessage(
+            body=message_body,
+            content_type="application/json",
+            subject=routing_key,  # Use subject for message filtering in subscriptions
+        )
+        
+        # Add custom properties for compatibility with event-driven patterns
+        message.application_properties = {
+            "event_type": event.get("event_type", ""),
+            "routing_key": routing_key,
+            "exchange": exchange,
+        }
+
+        # Determine target: topic or queue
+        target_topic, target_queue = self._determine_publish_target(exchange, routing_key)
+
         attempt = 0
         last_exception = None
         
         while attempt <= self.retry_attempts:
             try:
-                # Serialize event to JSON
-                message_body = json.dumps(event)
-
-                # Create Service Bus message with application properties for routing
-                message = ServiceBusMessage(
-                    body=message_body,
-                    content_type="application/json",
-                    subject=routing_key,  # Use subject for message filtering in subscriptions
-                )
-
-                # Add custom properties for compatibility with event-driven patterns
-                message.application_properties = {
-                    "event_type": event.get("event_type", ""),
-                    "routing_key": routing_key,
-                    "exchange": exchange,
-                }
-
-                # Determine target: topic or queue
-                target_topic, target_queue = self._determine_publish_target(exchange, routing_key)
-
                 if target_topic:
                     # Publish to topic
                     with self.client.get_topic_sender(topic_name=target_topic) as sender:
@@ -386,7 +398,3 @@ class AzureServiceBusPublisher(EventPublisher):
                         else:
                             logger.error(f"Failed to publish event (non-transient error): {e}")
                     raise
-        
-        # If we get here, we exhausted retries
-        if last_exception:
-            raise last_exception
