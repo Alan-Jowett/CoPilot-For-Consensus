@@ -118,6 +118,20 @@ class JWTMiddleware(BaseHTTPMiddleware):
             # Legacy behavior: fetch synchronously during init
             self._fetch_jwks_with_retry()
 
+    def _sleep_with_jitter(self, delay: float) -> float:
+        """Sleep with jittered delay to prevent thundering herd.
+        
+        Args:
+            delay: Base delay in seconds
+            
+        Returns:
+            Actual delay used (after jitter applied)
+        """
+        jitter = delay * random.uniform(-0.2, 0.2)
+        actual_delay = max(0.1, delay + jitter)
+        time.sleep(actual_delay)
+        return actual_delay
+
     def _fetch_jwks_with_retry(self) -> None:
         """Fetch JWKS from auth service with retry logic on startup.
 
@@ -151,26 +165,36 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 failed_attempts += 1
                 if first_error_time is None:
                     first_error_time = time.time()
+                    # Log first failure as WARNING for visibility
+                    logger.warning(
+                        f"JWKS fetch attempt {attempt}/{self.jwks_fetch_retries} failed: "
+                        f"{type(e).__name__} - {e}"
+                    )
                 
                 if attempt < self.jwks_fetch_retries:
-                    # Add jitter (±20%) to prevent thundering herd
-                    jitter = delay * random.uniform(-0.2, 0.2)
-                    actual_delay = max(0.1, delay + jitter)
-                    time.sleep(actual_delay)
+                    actual_delay = self._sleep_with_jitter(delay)
+                    logger.debug(
+                        f"Retrying JWKS fetch in {actual_delay:.1f}s (attempt {attempt + 1}/{self.jwks_fetch_retries})"
+                    )
                     delay *= 2  # Exponential backoff
             except httpx.HTTPStatusError as e:
                 last_error = e
                 failed_attempts += 1
                 if first_error_time is None:
                     first_error_time = time.time()
+                    # Log first failure as WARNING for visibility
+                    logger.warning(
+                        f"JWKS fetch attempt {attempt}/{self.jwks_fetch_retries} failed: "
+                        f"HTTP {e.response.status_code}"
+                    )
                 
                 # For 5xx server errors (transient), retry; for other errors, fail immediately
                 if e.response.status_code >= 500:
                     if attempt < self.jwks_fetch_retries:
-                        # Add jitter (±20%) to prevent thundering herd
-                        jitter = delay * random.uniform(-0.2, 0.2)
-                        actual_delay = max(0.1, delay + jitter)
-                        time.sleep(actual_delay)
+                        actual_delay = self._sleep_with_jitter(delay)
+                        logger.debug(
+                            f"Retrying JWKS fetch in {actual_delay:.1f}s (attempt {attempt + 1}/{self.jwks_fetch_retries})"
+                        )
                         delay *= 2
                 else:
                     logger.error(
