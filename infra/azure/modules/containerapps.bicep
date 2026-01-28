@@ -1053,7 +1053,7 @@ resource parsingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'parsing'
                 messageCount: '5'
-                activationMessageCount: '1'
+                activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the parsing service's user-assigned managed identity
@@ -1232,7 +1232,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'chunking'
                 messageCount: '5'
-                activationMessageCount: '1'
+                activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the chunking service's user-assigned managed identity
@@ -1468,7 +1468,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'embedding'
                 messageCount: '5'
-                activationMessageCount: '1'
+                activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the embedding service's user-assigned managed identity
@@ -1704,7 +1704,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'orchestrator'
                 messageCount: '5'
-                activationMessageCount: '1'
+                activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the orchestrator service's user-assigned managed identity
@@ -1947,7 +1947,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'summarization'
                 messageCount: '5'
-                activationMessageCount: '1'
+                activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the summarization service's user-assigned managed identity
