@@ -1054,9 +1054,9 @@ resource parsingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 subscriptionName: 'parsing'
                 messageCount: '5'
                 // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
-                // to wake from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
-                // and would change the activation threshold. This intentionally differs from older
-                // SCALE_TO_ZERO_CONFIGURATION.md text to avoid future misconfiguration/reverts.
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. See SCALE_TO_ZERO_CONFIGURATION.md for rationale
+                // and additional guidance on this configuration.
                 activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
@@ -1237,9 +1237,9 @@ resource chunkingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 subscriptionName: 'chunking'
                 messageCount: '5'
                 // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
-                // to wake from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
-                // and would change the activation threshold. This intentionally differs from older
-                // SCALE_TO_ZERO_CONFIGURATION.md text to avoid future misconfiguration/reverts.
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would instead change the activation threshold, breaking scale-from-zero behavior.
+                // See SCALE_TO_ZERO_CONFIGURATION.md for the full rationale and related guidance.
                 activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
@@ -1477,9 +1477,9 @@ resource embeddingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 subscriptionName: 'embedding'
                 messageCount: '5'
                 // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
-                // to wake from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
-                // and would change the activation threshold. This intentionally differs from older
-                // SCALE_TO_ZERO_CONFIGURATION.md text to avoid future misconfiguration/reverts.
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. This setting matches the documented
+                // behavior in SCALE_TO_ZERO_CONFIGURATION.md and helps avoid misconfiguration/reverts.
                 activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
@@ -1717,9 +1717,9 @@ resource orchestratorApp 'Microsoft.App/containerApps@2025-01-01' = {
                 subscriptionName: 'orchestrator'
                 messageCount: '5'
                 // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
-                // to wake from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
-                // and would change the activation threshold. This intentionally differs from older
-                // SCALE_TO_ZERO_CONFIGURATION.md text to avoid future misconfiguration/reverts.
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. See SCALE_TO_ZERO_CONFIGURATION.md
+                // for the canonical scale-to-zero configuration details.
                 activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
@@ -1964,9 +1964,9 @@ resource summarizationApp 'Microsoft.App/containerApps@2025-01-01' = {
                 subscriptionName: 'summarization'
                 messageCount: '5'
                 // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
-                // to wake from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
-                // and would change the activation threshold. This intentionally differs from older
-                // SCALE_TO_ZERO_CONFIGURATION.md text to avoid future misconfiguration/reverts.
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. See SCALE_TO_ZERO_CONFIGURATION.md for
+                // the authoritative description of this setting; this configuration matches that doc.
                 activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
