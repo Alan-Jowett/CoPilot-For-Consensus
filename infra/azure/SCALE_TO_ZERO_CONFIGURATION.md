@@ -85,7 +85,7 @@ rules: [
         topicName: 'copilot.events'
         subscriptionName: '<service-name>'
         messageCount: '5'  // Target: 5 messages per replica
-        activationMessageCount: '1'  // Wake from 0 when >=1 message
+        activationMessageCount: '0'  // Wake from 0 when at least 1 message is present
         namespace: '<servicebus-namespace>.servicebus.windows.net'
       }
     }
@@ -228,7 +228,7 @@ The Qdrant vector database service is currently configured **without persistent 
 
 **Service Bus Consumers**:
 - `messageCount`: Messages per replica (5 = process 5 messages per instance)
-- `activationMessageCount`: Threshold to wake from 0 (set to 1 for immediate activation)
+- `activationMessageCount`: Must be set to '0' to wake from 0 when at least 1 message is present. Note: '1' does NOT mean ">= 1" and would change the activation threshold.
 - `maxReplicas`: Cap based on Service Bus throughput limits
 
 **Example tuning scenarios**:

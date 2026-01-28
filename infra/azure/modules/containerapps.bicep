@@ -1053,6 +1053,10 @@ resource parsingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'parsing'
                 messageCount: '5'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to wake from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. This intentionally differs from older
+                // SCALE_TO_ZERO_CONFIGURATION.md text to avoid future misconfiguration/reverts.
                 activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
@@ -1232,6 +1236,10 @@ resource chunkingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'chunking'
                 messageCount: '5'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to wake from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. This intentionally differs from older
+                // SCALE_TO_ZERO_CONFIGURATION.md text to avoid future misconfiguration/reverts.
                 activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
@@ -1468,6 +1476,10 @@ resource embeddingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'embedding'
                 messageCount: '5'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to wake from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. This intentionally differs from older
+                // SCALE_TO_ZERO_CONFIGURATION.md text to avoid future misconfiguration/reverts.
                 activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
@@ -1704,6 +1716,10 @@ resource orchestratorApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'orchestrator'
                 messageCount: '5'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to wake from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. This intentionally differs from older
+                // SCALE_TO_ZERO_CONFIGURATION.md text to avoid future misconfiguration/reverts.
                 activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
@@ -1947,6 +1963,10 @@ resource summarizationApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'summarization'
                 messageCount: '5'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to wake from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. This intentionally differs from older
+                // SCALE_TO_ZERO_CONFIGURATION.md text to avoid future misconfiguration/reverts.
                 activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
