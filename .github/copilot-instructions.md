@@ -58,6 +58,36 @@ python adapters/scripts/install_adapters.py
 
 ---
 
+## Architecture Overview
+
+**Copilot-for-Consensus** is a microservice-based, event-driven system that ingests mailing list archives, processes them through a pipeline, and generates LLM-powered summaries with consensus detection.
+
+### Processing Pipeline
+
+```
+Ingestion → Parsing → Chunking → Embedding → Orchestrator → Summarization → Reporting
+    ↓           ↓          ↓          ↓            ↓              ↓
+ [Message bus (e.g., RabbitMQ in local dev, Azure Service Bus in production) connects all services via async events]
+```
+
+### Key Components
+
+| Layer | Components |
+|-------|-----------|
+| **Services** | `ingestion/`, `parsing/`, `chunking/`, `embedding/`, `orchestrator/`, `summarization/`, `reporting/`, `auth/`, `ui/` |
+| **Adapters** | `adapters/copilot_*` - Hexagonal architecture boundary layer (storage, messaging, config, etc.) |
+| **Infrastructure** | MongoDB (`documentdb`), Qdrant (`vectorstore`), RabbitMQ (`messagebus`), Ollama |
+| **Observability** | Prometheus, Grafana, Loki, Promtail |
+
+### Adapters (Hexagonal Architecture)
+
+Adapters abstract external dependencies and live in `adapters/copilot_*/`:
+- Use factory functions: `create_document_store()`, `create_logger()`, `create_metrics_collector()`
+- Each adapter has production and test implementations (e.g., `MongoDocumentStore` vs `InMemoryDocumentStore`)
+- Install order matters: `copilot_config` must be installed first
+
+---
+
 ## Canonical Docs (avoid duplication)
 
 Use these as the source of truth; this file should stay Copilot-specific and lightweight:
