@@ -75,6 +75,10 @@ class TestContainerRoutingHelpers:
         assert container_name == "summaries"
         assert partition_key == "/id"
 
+        container_name, partition_key = store._get_container_config_for_collection("sources")
+        assert container_name == "sources"
+        assert partition_key == "/id"
+
     def test_get_container_config_unknown_collection(self):
         """Test container config for unknown collections uses collection name."""
         store = AzureCosmosDocumentStore(

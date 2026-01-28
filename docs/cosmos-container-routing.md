@@ -7,6 +7,8 @@
 
 Each collection type (messages, chunks, reports, etc.) is stored in its own Cosmos DB container, enabling independent management of source and derived artifacts.
 
+Note: this document covers Cosmos DB *document store* containers. The system also uses a *vector store* (Qdrant by default) where the vector collection is commonly named `embeddings`.
+
 ## Container Mapping
 
 Collections map to containers as follows:
@@ -18,9 +20,14 @@ Collections map to containers as follows:
 | chunks     | chunks        | /id          | Derived |
 | reports    | reports       | /id          | Derived |
 | summaries  | summaries     | /id          | Derived |
-| embeddings | embeddings    | /id          | Derived |
 | threads    | threads       | /id          | Derived |
 | *unknown*  | {collection}  | /id          | Dynamic |
+
+Vector store note (not Cosmos DB):
+
+| Vector Store (Qdrant) Collection | Purpose |
+|----------------------------------|---------|
+| embeddings                        | Stores embedding vectors and metadata |
 
 ## Configuration
 
