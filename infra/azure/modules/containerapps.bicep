@@ -1051,7 +1051,6 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
-              identity: identityResourceIds.parsing
               // Authentication: KEDA uses the parsing service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
@@ -1230,7 +1229,6 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
-              identity: identityResourceIds.chunking
               // Authentication: KEDA uses the chunking service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
@@ -1466,7 +1464,6 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
-              identity: identityResourceIds.embedding
               // Authentication: KEDA uses the embedding service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
@@ -1702,7 +1699,6 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
-              identity: identityResourceIds.orchestrator
               // Authentication: KEDA uses the orchestrator service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
@@ -1945,7 +1941,6 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
                 activationMessageCount: '1'
                 namespace: serviceBusNamespace
               }
-              identity: identityResourceIds.summarization
               // Authentication: KEDA uses the summarization service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
