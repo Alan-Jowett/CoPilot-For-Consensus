@@ -109,6 +109,10 @@ var uniqueSuffix = uniqueString(resourceGroup().id)
 var projectPrefix = take(replace(projectName, '-', ''), 8)
 var caEnvName = '${projectPrefix}-env-${environment}-${take(uniqueSuffix, 5)}'
 
+// KEDA azure-servicebus scaler expects the Service Bus *namespace name* in rule metadata.
+// Our services use the fully qualified namespace (FQDN) for runtime connections.
+var serviceBusNamespaceNameForKeda = replace(serviceBusNamespace, '.servicebus.windows.net', '')
+
 // Logging options
 // We intentionally do NOT enable Log Analytics (cost).
 // To route logs to a Storage Account via Azure Monitor diagnostic settings, the environment must have
@@ -158,7 +162,7 @@ var servicePorts = {
 // Note: Gateway name is computed below before being assigned to resources
 
 // Container Apps Environment (VNet-integrated, consumption tier for dev)
-resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
+resource containerAppsEnv 'Microsoft.App/managedEnvironments@2025-01-01' = {
   name: caEnvName
   location: location
   tags: tags
@@ -171,7 +175,7 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
 // This enables scale-to-zero and ensures vector data persists across restarts/redeploys
 // Note: Uses storage account key for authentication (required for Azure Files with Container Apps)
 // Managed identity authentication for Azure Files mounts is not yet supported in Container Apps
-resource qdrantStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = if (vectorStoreBackend == 'qdrant' && qdrantStorageEnabled) {
+resource qdrantStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = if (vectorStoreBackend == 'qdrant' && qdrantStorageEnabled) {
   parent: containerAppsEnv
   name: 'qdrant-storage'
   properties: {
@@ -189,7 +193,7 @@ resource qdrantStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' =
 // Deployed before application services that depend on it (embedding, summarization)
 // Persistent storage: When qdrantStorageEnabled is true, Azure Files share is mounted to /qdrant/storage
 // This enables scale-to-zero and ensures vector data persists across restarts/redeploys
-resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBackend == 'qdrant') {
+resource qdrantApp 'Microsoft.App/containerApps@2025-01-01' = if (vectorStoreBackend == 'qdrant') {
   name: '${projectPrefix}-qdrant-${environment}'
   location: location
   tags: tags
@@ -274,7 +278,7 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
 }
 
 // Auth service (port 8090)
-resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource authApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-auth-${environment}'
   location: location
   tags: tags
@@ -477,7 +481,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Reporting service (port 8080)
-resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource reportingApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-reporting-${environment}'
   location: location
   tags: tags
@@ -674,7 +678,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Ingestion service (port 8001)
-resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource ingestionApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-ingestion-${environment}'
   location: location
   tags: tags
@@ -882,7 +886,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Parsing service (port 8000)
-resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource parsingApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-parsing-${environment}'
   location: location
   tags: tags
@@ -1044,14 +1048,14 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'servicebus-scaling'
             custom: {
               type: 'azure-servicebus'
+              identity: identityResourceIds.parsing
               metadata: {
                 topicName: 'copilot.events'
                 subscriptionName: 'parsing'
                 messageCount: '5'
                 activationMessageCount: '1'
-                namespace: serviceBusNamespace
+                namespace: serviceBusNamespaceNameForKeda
               }
-              identity: identityResourceIds.parsing
               // Authentication: KEDA uses the parsing service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
@@ -1064,7 +1068,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Chunking service (port 8000)
-resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource chunkingApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-chunking-${environment}'
   location: location
   tags: tags
@@ -1223,14 +1227,14 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'servicebus-scaling'
             custom: {
               type: 'azure-servicebus'
+              identity: identityResourceIds.chunking
               metadata: {
                 topicName: 'copilot.events'
                 subscriptionName: 'chunking'
                 messageCount: '5'
                 activationMessageCount: '1'
-                namespace: serviceBusNamespace
+                namespace: serviceBusNamespaceNameForKeda
               }
-              identity: identityResourceIds.chunking
               // Authentication: KEDA uses the chunking service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
@@ -1243,7 +1247,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Embedding service (port 8000)
-resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource embeddingApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-embedding-${environment}'
   location: location
   tags: tags
@@ -1459,14 +1463,14 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'servicebus-scaling'
             custom: {
               type: 'azure-servicebus'
+              identity: identityResourceIds.embedding
               metadata: {
                 topicName: 'copilot.events'
                 subscriptionName: 'embedding'
                 messageCount: '5'
                 activationMessageCount: '1'
-                namespace: serviceBusNamespace
+                namespace: serviceBusNamespaceNameForKeda
               }
-              identity: identityResourceIds.embedding
               // Authentication: KEDA uses the embedding service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
@@ -1479,7 +1483,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Orchestrator service (port 8000)
-resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource orchestratorApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-orchestrator-${environment}'
   location: location
   tags: tags
@@ -1695,14 +1699,14 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'servicebus-scaling'
             custom: {
               type: 'azure-servicebus'
+              identity: identityResourceIds.orchestrator
               metadata: {
                 topicName: 'copilot.events'
                 subscriptionName: 'orchestrator'
                 messageCount: '5'
                 activationMessageCount: '1'
-                namespace: serviceBusNamespace
+                namespace: serviceBusNamespaceNameForKeda
               }
-              identity: identityResourceIds.orchestrator
               // Authentication: KEDA uses the orchestrator service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
@@ -1715,7 +1719,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Summarization service (port 8000)
-resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource summarizationApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-summarization-${environment}'
   location: location
   tags: tags
@@ -1938,14 +1942,14 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'servicebus-scaling'
             custom: {
               type: 'azure-servicebus'
+              identity: identityResourceIds.summarization
               metadata: {
                 topicName: 'copilot.events'
                 subscriptionName: 'summarization'
                 messageCount: '5'
                 activationMessageCount: '1'
-                namespace: serviceBusNamespace
+                namespace: serviceBusNamespaceNameForKeda
               }
-              identity: identityResourceIds.summarization
               // Authentication: KEDA uses the summarization service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
             }
@@ -1958,7 +1962,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // UI service (port 3000)
-resource uiApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource uiApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-ui-${environment}'
   location: location
   tags: tags
@@ -2030,7 +2034,7 @@ resource uiApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Gateway service (port 443, external ingress only)
-resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource gatewayApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-gateway-${environment}'
   location: location
   tags: tags
