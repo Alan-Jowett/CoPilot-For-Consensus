@@ -31,6 +31,22 @@ var authDatabaseName = 'auth'
 var documentsDatabaseName = 'copilot'
 var containerName = 'documents'
 var partitionKeyPath = '/collection'
+// New per-collection container routing uses partition key /id.
+// These containers must exist because runtime managed-identity (AAD) tokens are not authorized
+// to create containers via the Cosmos data plane in many configurations.
+var perCollectionPartitionKeyPath = '/id'
+var authPerCollectionContainers = [
+  'user_roles'
+]
+var copilotPerCollectionContainers = [
+  'messages'
+  'archives'
+  'chunks'
+  'reports'
+  'summaries'
+  'embeddings'
+  'threads'
+]
 var autoscaleMaxRu = cosmosDbAutoscaleMaxRu >= cosmosDbAutoscaleMinRu ? cosmosDbAutoscaleMaxRu : cosmosDbAutoscaleMinRu
 var writeRegionNames = [
   for loc in failoverLocations: loc.locationName
@@ -143,6 +159,41 @@ resource authContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/conta
   }
 }
 
+// Auth per-collection containers (partitioned by /id)
+resource authPerCollectionContainerResources 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-11-15' = [
+  for c in authPerCollectionContainers: {
+    parent: authDatabase
+    name: c
+    properties: {
+      resource: {
+        id: c
+        partitionKey: {
+          paths: [
+            perCollectionPartitionKeyPath
+          ]
+          kind: 'Hash'
+          version: 2
+        }
+        indexingPolicy: {
+          indexingMode: 'consistent'
+          automatic: true
+          includedPaths: [
+            {
+              path: '/*'
+            }
+          ]
+          excludedPaths: [
+            {
+              path: '/"_etag"/?'
+            }
+          ]
+        }
+      }
+      options: {}
+    }
+  }
+]
+
 // Documents database with autoscale throughput (for archives, messages, chunks, threads, summaries)
 resource documentsDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023-11-15' = {
   parent: cosmosAccount
@@ -242,6 +293,41 @@ resource documentsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/
     options: {}
   }
 }
+
+// Copilot per-collection containers (partitioned by /id)
+resource copilotPerCollectionContainerResources 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-11-15' = [
+  for c in copilotPerCollectionContainers: {
+    parent: documentsDatabase
+    name: c
+    properties: {
+      resource: {
+        id: c
+        partitionKey: {
+          paths: [
+            perCollectionPartitionKeyPath
+          ]
+          kind: 'Hash'
+          version: 2
+        }
+        indexingPolicy: {
+          indexingMode: 'consistent'
+          automatic: true
+          includedPaths: [
+            {
+              path: '/*'
+            }
+          ]
+          excludedPaths: [
+            {
+              path: '/"_etag"/?'
+            }
+          ]
+        }
+      }
+      options: {}
+    }
+  }
+]
 
 @description('Cosmos DB account name')
 output accountName string = cosmosAccount.name
