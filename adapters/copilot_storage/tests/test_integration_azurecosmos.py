@@ -27,8 +27,6 @@ def get_azurecosmos_config():
             endpoint=os.getenv("COSMOS_ENDPOINT"),
             key=os.getenv("COSMOS_KEY"),
             database=os.getenv("COSMOS_DATABASE", "test_copilot"),
-            container=os.getenv("COSMOS_CONTAINER", "test_documents"),
-            partition_key=os.getenv("COSMOS_PARTITION_KEY", "/collection"),
         ),
     )
 
@@ -72,7 +70,7 @@ def clean_collection(azurecosmos_store):
     collection_name = "test_integration"
 
     # Clean up before test - delete all documents in this collection
-    if azurecosmos_store.container is not None:
+    if azurecosmos_store.database is not None:
         try:
             # Query and delete all documents in the test collection
             items = azurecosmos_store.query_documents(collection_name, {}, limit=1000)
@@ -85,7 +83,7 @@ def clean_collection(azurecosmos_store):
     yield collection_name
 
     # Clean up after test
-    if azurecosmos_store.container is not None:
+    if azurecosmos_store.database is not None:
         try:
             items = azurecosmos_store.query_documents(collection_name, {}, limit=1000)
             for item in items:
@@ -103,7 +101,6 @@ class TestAzureCosmosIntegration:
         """Test that we can connect to Azure Cosmos DB."""
         assert azurecosmos_store.client is not None
         assert azurecosmos_store.database is not None
-        assert azurecosmos_store.container is not None
 
     def test_insert_and_get_document(self, azurecosmos_store, clean_collection):
         """Test inserting and retrieving a document."""
@@ -121,7 +118,6 @@ class TestAzureCosmosIntegration:
         assert retrieved["name"] == "Integration Test User"
         assert retrieved["email"] == "integration@test.com"
         assert retrieved["age"] == 30
-        assert retrieved["collection"] == clean_collection
 
     def test_insert_multiple_documents(self, azurecosmos_store, clean_collection):
         """Test inserting multiple documents."""
@@ -275,7 +271,6 @@ class TestAzureCosmosIntegration:
         retrieved = azurecosmos_store.get_document(clean_collection, doc_id)
         assert retrieved is not None
         assert "id" in retrieved
-        assert "collection" in retrieved
 
 
 @pytest.mark.integration
