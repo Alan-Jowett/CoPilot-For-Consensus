@@ -544,8 +544,21 @@ class AzureCosmosDocumentStore(DocumentStore):
             if patch:
                 merged_doc.update(patch)
 
-            # Ensure the document ID cannot be changed via patch (partition key must remain stable)
+            # Ensure identifier fields cannot be changed via patch.
+            # - `id` is the Cosmos DB partition/primary key and must remain equal to `doc_id`.
+            # - `_id` and `collection` (when present) are treated as canonical metadata and are
+            #   restored from the existing document or removed if they did not previously exist.
             merged_doc["id"] = doc_id
+
+            if "_id" in existing_doc:
+                merged_doc["_id"] = existing_doc["_id"]
+            else:
+                merged_doc.pop("_id", None)
+
+            if "collection" in existing_doc:
+                merged_doc["collection"] = existing_doc["collection"]
+            else:
+                merged_doc.pop("collection", None)
 
             # Replace document with partition key for partitioned containers
             container.replace_item(item=doc_id, body=merged_doc, partition_key=partition_key_value)
