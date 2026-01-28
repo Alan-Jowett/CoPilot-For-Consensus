@@ -7,6 +7,8 @@
 
 ### Build & Run
 
+See [Local Development](../docs/LOCAL_DEVELOPMENT.md) (canonical) for the full flow.
+
 **Linux/macOS (bash):**
 ```bash
 # Start all services (Docker Compose)
@@ -27,23 +29,12 @@ docker compose down -v
 
 ### Test Commands
 
-**Run from service/adapter directory:**
+See [Testing Strategy](../docs/TESTING_STRATEGY.md) (canonical).
+
+**Typical (run from the service/adapter directory):**
 ```bash
-# Single test file
-cd chunking
-pytest tests/test_service.py -v
-
-# Single test function
-pytest tests/test_service.py::test_function_name -v
-
-# Unit tests only (exclude integration)
-pytest tests/ -m "not integration" -v
-
-# Integration tests only
-pytest tests/ -m integration -v
-
-# Full test suite with coverage
-pytest tests/ -v --cov=app --cov-report=term
+pytest tests/ -v -m "not integration"
+pytest tests/ -v -m integration
 ```
 
 ### Lint & Type Check
@@ -67,33 +58,14 @@ python adapters/scripts/install_adapters.py
 
 ---
 
-## Architecture Overview
+## Canonical Docs (avoid duplication)
 
-**Copilot-for-Consensus** is a microservice-based, event-driven system that ingests mailing list archives, processes them through a pipeline, and generates LLM-powered summaries with consensus detection.
+Use these as the source of truth; this file should stay Copilot-specific and lightweight:
 
-### Processing Pipeline
-
-```
-Ingestion → Parsing → Chunking → Embedding → Orchestrator → Summarization → Reporting
-    ↓           ↓          ↓          ↓            ↓              ↓
- [RabbitMQ message bus connects all services via async events]
-```
-
-### Key Components
-
-| Layer | Components |
-|-------|-----------|
-| **Services** | `ingestion/`, `parsing/`, `chunking/`, `embedding/`, `orchestrator/`, `summarization/`, `reporting/`, `auth/`, `ui/` |
-| **Adapters** | `adapters/copilot_*` - Hexagonal architecture boundary layer (storage, messaging, config, etc.) |
-| **Infrastructure** | MongoDB (`documentdb`), Qdrant (`vectorstore`), RabbitMQ (`messagebus`), Ollama |
-| **Observability** | Prometheus, Grafana, Loki, Promtail |
-
-### Adapters (Hexagonal Architecture)
-
-Adapters abstract external dependencies and live in `adapters/copilot_*/`:
-- Use factory functions: `create_document_store()`, `create_logger()`, `create_metrics_collector()`
-- Each adapter has production and test implementations (e.g., `MongoDocumentStore` vs `InMemoryDocumentStore`)
-- Install order matters: `copilot_config` must be installed first
+- Docs index: [docs/README.md](../docs/README.md)
+- Architecture overview: [docs/architecture/overview.md](../docs/architecture/overview.md)
+- Adapters overview: [adapters/README.md](../adapters/README.md)
+- Local development: [docs/LOCAL_DEVELOPMENT.md](../docs/LOCAL_DEVELOPMENT.md)
 
 ---
 
@@ -101,28 +73,23 @@ Adapters abstract external dependencies and live in `adapters/copilot_*/`:
 
 ### Configuration
 
-**Service code must NOT read environment variables directly.** Use the schema-driven config system:
+See:
+- [Schema-Driven Configuration](../docs/SCHEMA_DRIVEN_CONFIGURATION.md)
+- [copilot_config adapter README](../adapters/copilot_config/README.md)
 
-```python
-# ✅ Correct
-from copilot_config.runtime_loader import get_config
-config = get_config("myservice")
-retry_limit = config.service_settings.retry_limit
+Rule: service code should load typed config via `copilot_config` (avoid direct `os.environ` access).
 
-# ❌ Wrong - bypasses validation
-import os
-retry_limit = int(os.environ.get('RETRY_LIMIT', '3'))
-```
-
-Schemas live in `docs/schemas/configs/<service>.json`.
+Schema locations:
+- Services: `docs/schemas/configs/services/<service>.json`
+- Adapters: `docs/schemas/configs/adapters/<adapter>.json`
 
 ### Forward Progress Patterns
 
-All services must guarantee forward progress:
-- **Idempotency**: Process same input multiple times safely
-- **Binary status**: Use `pending`/`completed`, not intermediate states
-- **Requeue on failure**: Re-raise exceptions to trigger message requeue
-- **Retry policies**: Exponential backoff with configurable max retries
+See:
+- [Forward progress](../docs/operations/forward-progress.md)
+- [Retry policy](../docs/operations/retry-policy.md)
+
+Rule of thumb: keep processing idempotent and re-raise on failure so RabbitMQ can requeue safely.
 
 ### License Headers
 
