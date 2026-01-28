@@ -173,7 +173,7 @@ def test_jwks_fetch_no_retry_on_404_error():
 
 
 def test_jwks_fetch_exponential_backoff():
-    """Test JWKS fetch uses exponential backoff with jitter between retries."""
+    """Test JWKS fetch uses exponential backoff (with jitter disabled for determinism)."""
     app = FastAPI()
 
     with patch("copilot_auth.middleware.httpx.get") as mock_get:
@@ -242,6 +242,32 @@ def test_jwks_fetch_no_retry_on_unexpected_exception():
         # Verify only 1 attempt was made (no retries for unexpected errors)
         assert middleware.jwks == {"keys": []}
         assert mock_get.call_count == 1
+
+
+def test_jwks_fetch_config_validation():
+    """Test JWKS configuration parameters are validated and clamped to safe minimums."""
+    app = FastAPI()
+
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
+        mock_get.return_value.json.return_value = {"keys": []}
+
+        # Test with invalid values (should be clamped to minimums)
+        middleware = JWTMiddleware(
+            app=app.router,
+            auth_service_url="http://auth:8090",
+            audience="test-service",
+            jwks_cache_ttl=0,  # Should be clamped to 1
+            jwks_fetch_retries=0,  # Should be clamped to 1
+            jwks_fetch_retry_delay=0.0,  # Should be clamped to 0.1
+            jwks_fetch_timeout=0.5,  # Should be clamped to 1.0
+            defer_jwks_fetch=False,
+        )
+
+        # Verify values were clamped to safe minimums
+        assert middleware.jwks_cache_ttl == 1
+        assert middleware.jwks_fetch_retries == 1
+        assert middleware.jwks_fetch_retry_delay == 0.1
+        assert middleware.jwks_fetch_timeout == 1.0
 
 
 def test_jwks_fetch_jitter_applied():

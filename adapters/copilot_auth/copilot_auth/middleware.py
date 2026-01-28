@@ -95,10 +95,10 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self.audience = audience
         self.required_roles = required_roles or []
         self.public_paths = public_paths or ["/health", "/readyz", "/docs", "/openapi.json"]
-        self.jwks_cache_ttl = jwks_cache_ttl
-        self.jwks_fetch_retries = jwks_fetch_retries
-        self.jwks_fetch_retry_delay = jwks_fetch_retry_delay
-        self.jwks_fetch_timeout = jwks_fetch_timeout
+        self.jwks_cache_ttl = max(1, jwks_cache_ttl)  # Ensure at least 1 second
+        self.jwks_fetch_retries = max(1, jwks_fetch_retries)  # Ensure at least 1 attempt
+        self.jwks_fetch_retry_delay = max(0.1, jwks_fetch_retry_delay)  # Ensure positive delay
+        self.jwks_fetch_timeout = max(1.0, jwks_fetch_timeout)  # Ensure at least 1 second
         self.defer_jwks_fetch = defer_jwks_fetch
 
         # JWKS cache with timestamp
