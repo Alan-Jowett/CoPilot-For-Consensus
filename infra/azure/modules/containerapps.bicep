@@ -109,6 +109,10 @@ var uniqueSuffix = uniqueString(resourceGroup().id)
 var projectPrefix = take(replace(projectName, '-', ''), 8)
 var caEnvName = '${projectPrefix}-env-${environment}-${take(uniqueSuffix, 5)}'
 
+// KEDA azure-servicebus scaler expects the Service Bus *namespace name* in rule metadata.
+// Our services use the fully qualified namespace (FQDN) for runtime connections.
+var serviceBusNamespaceNameForKeda = replace(serviceBusNamespace, '.servicebus.windows.net', '')
+
 // Logging options
 // We intentionally do NOT enable Log Analytics (cost).
 // To route logs to a Storage Account via Azure Monitor diagnostic settings, the environment must have
@@ -1050,7 +1054,7 @@ resource parsingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 subscriptionName: 'parsing'
                 messageCount: '5'
                 activationMessageCount: '1'
-                namespace: serviceBusNamespace
+                namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the parsing service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
@@ -1229,7 +1233,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 subscriptionName: 'chunking'
                 messageCount: '5'
                 activationMessageCount: '1'
-                namespace: serviceBusNamespace
+                namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the chunking service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
@@ -1465,7 +1469,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 subscriptionName: 'embedding'
                 messageCount: '5'
                 activationMessageCount: '1'
-                namespace: serviceBusNamespace
+                namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the embedding service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
@@ -1701,7 +1705,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2025-01-01' = {
                 subscriptionName: 'orchestrator'
                 messageCount: '5'
                 activationMessageCount: '1'
-                namespace: serviceBusNamespace
+                namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the orchestrator service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
@@ -1944,7 +1948,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2025-01-01' = {
                 subscriptionName: 'summarization'
                 messageCount: '5'
                 activationMessageCount: '1'
-                namespace: serviceBusNamespace
+                namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the summarization service's user-assigned managed identity
               // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep

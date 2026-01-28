@@ -40,6 +40,11 @@ param receiverServices array = [
   'reporting'
 ]
 
+@description('Grant additional permissions needed for KEDA autoscaling to read Service Bus runtime properties')
+param enableKedaServiceBusScaling bool = true
+
+var kedaReceiverServices = enableKedaServiceBusScaling ? receiverServices : []
+
 @description('Shared topic name used for fan-out messaging')
 param eventsTopicName string = 'copilot.events'
 
@@ -113,6 +118,20 @@ resource receiverRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-0
     properties: {
       // Built-in role for listening to queues and topics
       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0') // Azure Service Bus Data Receiver
+      principalId: reference(identityResourceIds[service], '2023-01-31').principalId
+      principalType: 'ServicePrincipal'
+    }
+  }
+]
+
+// RBAC: KEDA Service Bus scaler needs to read topic/subscription runtime properties to compute backlog.
+// This typically requires the Azure Service Bus Data Owner role when using Azure AD / managed identity.
+resource receiverKedaRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for service in kedaReceiverServices: {
+    name: guid(serviceBusNamespace.id, service, 'keda-data-owner')
+    scope: serviceBusNamespace
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '090c5cfd-751d-490a-894a-3ce6f1109419') // Azure Service Bus Data Owner
       principalId: reference(identityResourceIds[service], '2023-01-31').principalId
       principalType: 'ServicePrincipal'
     }
