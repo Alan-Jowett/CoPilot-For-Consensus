@@ -157,6 +157,10 @@ pytest adapters/copilot_storage/tests/
 - ❌ `sed 's/old/new/g' file.txt` → Use PowerShell string replacement or a Python script instead
 - ❌ `awk '{print $1}' file.txt` → Use `Select-String` with regex and `ForEach-Object` instead
 
+### Maintainers
+
+Repository maintainers are responsible for reviewing Copilot-generated code and ensuring compliance with project standards.
+
 ### Repository Defaults
 
 - Default GitHub repository for MCP operations: `Alan-Jowett/CoPilot-For-Consensus`
