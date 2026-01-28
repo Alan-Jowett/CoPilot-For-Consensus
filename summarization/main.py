@@ -40,7 +40,7 @@ from copilot_schema_validation import create_schema_provider
 from copilot_storage import DocumentStoreConnectionError, create_document_store
 from copilot_summarization import create_llm_backend
 from copilot_vectorstore import create_vector_store
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 # Bootstrap logger before configuration is loaded
 bootstrap_logger = create_stdout_logger(level="INFO", name="summarization")
@@ -83,6 +83,25 @@ def health():
         "last_processing_time_seconds": stats.get("last_processing_time_seconds", 0),
         "subscriber_thread_alive": subscriber_alive,
     }
+
+
+@app.get("/readyz")
+async def readyz() -> dict[str, str]:
+    """Readiness check endpoint - indicates if service is ready to process requests."""
+    global summarization_service
+    global subscriber_thread
+
+    # Service is ready only when:
+    # 1. Service is initialized
+    # 2. Subscriber thread is running
+    if summarization_service is None:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    subscriber_alive = subscriber_thread is not None and subscriber_thread.is_alive()
+    if not subscriber_alive:
+        raise HTTPException(status_code=503, detail="Subscriber thread not running")
+
+    return {"status": "ready", "service": "summarization"}
 
 
 @app.get("/stats")

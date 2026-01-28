@@ -460,6 +460,30 @@ resource authApp 'Microsoft.App/containerApps@2025-01-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                path: '/health'
+                port: 8090
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 12
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/readyz'
+                port: 8090
+              }
+              initialDelaySeconds: 3
+              periodSeconds: 10
+              timeoutSeconds: 3
+              failureThreshold: 3
+            }
+          ]
         }
       ]
       scale: {
@@ -1217,6 +1241,30 @@ resource chunkingApp 'Microsoft.App/containerApps@2025-01-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                path: '/health'
+                port: 8000
+              }
+              initialDelaySeconds: 10
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 12
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/readyz'
+                port: 8000
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              timeoutSeconds: 3
+              failureThreshold: 3
+            }
+          ]
         }
       ]
       scale: {
@@ -1453,6 +1501,30 @@ resource embeddingApp 'Microsoft.App/containerApps@2025-01-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                path: '/health'
+                port: 8000
+              }
+              initialDelaySeconds: 30
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 24
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/readyz'
+                port: 8000
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              timeoutSeconds: 3
+              failureThreshold: 3
+            }
+          ]
         }
       ]
       scale: {
@@ -1689,6 +1761,30 @@ resource orchestratorApp 'Microsoft.App/containerApps@2025-01-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                path: '/health'
+                port: 8000
+              }
+              initialDelaySeconds: 10
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 12
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/readyz'
+                port: 8000
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              timeoutSeconds: 3
+              failureThreshold: 3
+            }
+          ]
         }
       ]
       scale: {
@@ -1932,6 +2028,30 @@ resource summarizationApp 'Microsoft.App/containerApps@2025-01-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                path: '/health'
+                port: 8000
+              }
+              initialDelaySeconds: 30
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 24
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/readyz'
+                port: 8000
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              timeoutSeconds: 3
+              failureThreshold: 3
+            }
+          ]
         }
       ]
       scale: {
