@@ -165,6 +165,8 @@ class AzureCosmosDocumentStore(DocumentStore):
             # Source containers
             "messages": ("messages", "/id"),
             "archives": ("archives", "/id"),
+            # Ingestion configuration
+            "sources": ("sources", "/id"),
             # Derived containers
             "chunks": ("chunks", "/id"),
             "reports": ("reports", "/id"),
