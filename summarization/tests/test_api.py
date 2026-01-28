@@ -37,10 +37,10 @@ def mock_subscriber():
 
 
 @pytest.fixture
-def mock_llm_backend():
-    """Create a mock LLM backend."""
-    backend = Mock()
-    return backend
+def mock_summarizer():
+    """Create a mock summarizer."""
+    summarizer = Mock()
+    return summarizer
 
 
 @pytest.fixture
@@ -51,22 +51,14 @@ def mock_vector_store():
 
 
 @pytest.fixture
-def mock_embedding_backend():
-    """Create a mock embedding backend."""
-    backend = Mock()
-    return backend
-
-
-@pytest.fixture
-def test_service(mock_document_store, mock_publisher, mock_subscriber, mock_llm_backend, mock_vector_store, mock_embedding_backend):
+def test_service(mock_document_store, mock_publisher, mock_subscriber, mock_summarizer, mock_vector_store):
     """Create a test summarization service instance."""
     return SummarizationService(
         document_store=mock_document_store,
+        vector_store=mock_vector_store,
         publisher=mock_publisher,
         subscriber=mock_subscriber,
-        llm_backend=mock_llm_backend,
-        vector_store=mock_vector_store,
-        embedding_backend=mock_embedding_backend,
+        summarizer=mock_summarizer,
     )
 
 

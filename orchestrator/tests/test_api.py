@@ -37,20 +37,26 @@ def mock_subscriber():
 
 
 @pytest.fixture
-def mock_context_selector():
-    """Create a mock context selector."""
-    selector = Mock()
-    return selector
+def mock_vector_store():
+    """Create a mock vector store."""
+    store = Mock()
+    return store
 
 
 @pytest.fixture
-def test_service(mock_document_store, mock_publisher, mock_subscriber, mock_context_selector):
+def test_service(mock_document_store, mock_publisher, mock_subscriber, mock_vector_store):
     """Create a test orchestration service instance."""
+    import os
+
+    # Use actual prompt files from the prompts directory
+    prompts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompts")
     return OrchestrationService(
         document_store=mock_document_store,
+        vector_store=mock_vector_store,
         publisher=mock_publisher,
         subscriber=mock_subscriber,
-        context_selector=mock_context_selector,
+        system_prompt_path=os.path.join(prompts_dir, "system.txt"),
+        user_prompt_path=os.path.join(prompts_dir, "user.txt"),
     )
 
 
