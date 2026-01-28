@@ -34,11 +34,11 @@ The following services scale based on Azure Service Bus message queue depth usin
 
 | Service | Topic | Subscription | Messages per Replica | Activation Threshold |
 |---------|-------|--------------|---------------------|---------------------|
-| **parsing** | copilot.events | parsing | 5 | 1 |
-| **chunking** | copilot.events | chunking | 5 | 1 |
-| **embedding** | copilot.events | embedding | 5 | 1 |
-| **orchestrator** | copilot.events | orchestrator | 5 | 1 |
-| **summarization** | copilot.events | summarization | 5 | 1 |
+| **parsing** | copilot.events | parsing | 5 | 0 |
+| **chunking** | copilot.events | chunking | 5 | 0 |
+| **embedding** | copilot.events | embedding | 5 | 0 |
+| **orchestrator** | copilot.events | orchestrator | 5 | 0 |
+| **summarization** | copilot.events | summarization | 5 | 0 |
 
 ## Configuration Details
 
@@ -85,7 +85,7 @@ rules: [
         topicName: 'copilot.events'
         subscriptionName: '<service-name>'
         messageCount: '5'  // Target: 5 messages per replica
-        activationMessageCount: '1'  // Wake from 0 when >=1 message
+        activationMessageCount: '0'  // Wake from 0 when at least 1 message is present
         namespace: '<servicebus-namespace>.servicebus.windows.net'
       }
     }
@@ -228,7 +228,7 @@ The Qdrant vector database service is currently configured **without persistent 
 
 **Service Bus Consumers**:
 - `messageCount`: Messages per replica (5 = process 5 messages per instance)
-- `activationMessageCount`: Threshold to wake from 0 (set to 1 for immediate activation)
+- `activationMessageCount`: Set to `0` if you want scale-from-zero to activate on a single message. Use higher values to intentionally raise the activation threshold (KEDA compares queue length against this threshold, e.g., `10` means "activate when there are at least 10 messages").
 - `maxReplicas`: Cap based on Service Bus throughput limits
 
 **Example tuning scenarios**:

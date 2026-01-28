@@ -1053,7 +1053,11 @@ resource parsingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'parsing'
                 messageCount: '5'
-                activationMessageCount: '1'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. See SCALE_TO_ZERO_CONFIGURATION.md for rationale
+                // and additional guidance on this configuration.
+                activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the parsing service's user-assigned managed identity
@@ -1232,7 +1236,11 @@ resource chunkingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'chunking'
                 messageCount: '5'
-                activationMessageCount: '1'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would instead change the activation threshold, breaking scale-from-zero behavior.
+                // See SCALE_TO_ZERO_CONFIGURATION.md for the full rationale and related guidance.
+                activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the chunking service's user-assigned managed identity
@@ -1468,7 +1476,11 @@ resource embeddingApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'embedding'
                 messageCount: '5'
-                activationMessageCount: '1'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. This setting matches the documented
+                // behavior in SCALE_TO_ZERO_CONFIGURATION.md and helps avoid misconfiguration/reverts.
+                activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the embedding service's user-assigned managed identity
@@ -1704,7 +1716,11 @@ resource orchestratorApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'orchestrator'
                 messageCount: '5'
-                activationMessageCount: '1'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. See SCALE_TO_ZERO_CONFIGURATION.md
+                // for the canonical scale-to-zero configuration details.
+                activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the orchestrator service's user-assigned managed identity
@@ -1947,7 +1963,11 @@ resource summarizationApp 'Microsoft.App/containerApps@2025-01-01' = {
                 topicName: 'copilot.events'
                 subscriptionName: 'summarization'
                 messageCount: '5'
-                activationMessageCount: '1'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. See SCALE_TO_ZERO_CONFIGURATION.md for
+                // the authoritative description of this setting; this configuration matches that doc.
+                activationMessageCount: '0'
                 namespace: serviceBusNamespaceNameForKeda
               }
               // Authentication: KEDA uses the summarization service's user-assigned managed identity
