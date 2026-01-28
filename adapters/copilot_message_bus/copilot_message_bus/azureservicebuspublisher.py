@@ -131,7 +131,6 @@ class AzureServiceBusPublisher(EventPublisher):
             logger.warning("WebSockets transport requested but TransportType not available in SDK")
 
         attempt = 0
-        last_exception = None
         
         while attempt <= self.retry_attempts:
             try:
@@ -179,8 +178,6 @@ class AzureServiceBusPublisher(EventPublisher):
                 return  # Success - exit retry loop
 
             except Exception as e:
-                last_exception = e
-                
                 # Check if this is a transient connection error worth retrying
                 is_transient = self._is_transient_error(e)
                 
@@ -336,7 +333,6 @@ class AzureServiceBusPublisher(EventPublisher):
         target_topic, target_queue = self._determine_publish_target(exchange, routing_key)
 
         attempt = 0
-        last_exception = None
         
         while attempt <= self.retry_attempts:
             try:
@@ -361,8 +357,6 @@ class AzureServiceBusPublisher(EventPublisher):
                 return  # Success - exit retry loop
 
             except Exception as e:
-                last_exception = e
-                
                 # Check if this is a transient error worth retrying
                 is_transient = self._is_transient_error(e)
                 
