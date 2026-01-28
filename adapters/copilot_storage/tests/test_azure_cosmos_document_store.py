@@ -48,28 +48,6 @@ class TestDocumentStoreFactoryAzureCosmos:
         assert store._store.database_name == "test_db"
 
 
-def _mock_connected_store(collection: str = "users") -> tuple[AzureCosmosDocumentStore, MagicMock]:
-    """Helper to create a connected store with mocked container for testing.
-    
-    The store's database is mocked to dynamically create containers on demand.
-    
-    Returns:
-        Tuple of (store, mock_container) - mock_container is shared for all collections
-    """
-    store = AzureCosmosDocumentStore(
-        endpoint="https://test.documents.azure.com:443/",
-        key="testkey",
-    )
-    mock_container = MagicMock()
-    mock_database = MagicMock()
-    # Make database.create_container_if_not_exists return the mock container
-    mock_database.create_container_if_not_exists.return_value = mock_container
-    store.database = mock_database
-    # Pre-cache the container for the specified collection
-    store.containers[collection] = mock_container
-    return store, mock_container
-
-
 class TestAzureCosmosDocumentStore:
     """Tests for AzureCosmosDocumentStore."""
 

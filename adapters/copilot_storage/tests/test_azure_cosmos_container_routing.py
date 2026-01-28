@@ -137,7 +137,7 @@ class TestContainerCreation:
         store.connect()
 
         # First access to messages collection should create container
-        container = store._get_container_for_collection("messages")
+        store._get_container_for_collection("messages")
 
         mock_database.create_container_if_not_exists.assert_called_once()
         call_args = mock_database.create_container_if_not_exists.call_args

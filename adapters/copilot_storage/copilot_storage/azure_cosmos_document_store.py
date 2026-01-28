@@ -227,7 +227,7 @@ class AzureCosmosDocumentStore(DocumentStore):
         """
         try:
             from azure.core.exceptions import AzureError
-            from azure.cosmos import CosmosClient, PartitionKey
+            from azure.cosmos import CosmosClient
         except ImportError as e:
             logger.error("AzureCosmosDocumentStore: azure-cosmos not installed")
             raise DocumentStoreConnectionError("azure-cosmos not installed") from e
