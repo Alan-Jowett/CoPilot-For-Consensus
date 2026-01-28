@@ -205,10 +205,10 @@ async def health():
 
 The middleware implements robust JWKS (JSON Web Key Set) fetching with several reliability features:
 
-1. **Jittered Exponential Backoff**: Retries use exponential backoff with ±20% random jitter to prevent thundering herd problems when multiple services start simultaneously
+1. **Jittered Exponential Backoff**: JWKS fetch attempts use exponential backoff with ±20% random jitter to prevent thundering herd problems when multiple services start simultaneously
 2. **Increased Default Timeout**: 30-second timeout (up from 10s) accommodates cold-start and network delays
-3. **More Retry Attempts**: 10 retries by default (up from 5) provide better resilience during startup
-4. **Consolidated Error Logging**: Instead of logging a warning for each retry, the middleware logs a single consolidated error with timing information after all retries fail
+3. **More Fetch Attempts**: Up to 10 total attempts by default (including the initial attempt; previously 5) provide better resilience during startup
+4. **Consolidated Error Logging**: Instead of logging a warning for each failed attempt, the middleware logs a single consolidated error with timing information after all attempts fail
 5. **Background Fetch**: By default, JWKS fetch happens in a background thread to avoid blocking service startup
 
 These improvements significantly reduce JWKS timeout/refusal errors observed in production environments with slow auth service startup or transient network issues.
