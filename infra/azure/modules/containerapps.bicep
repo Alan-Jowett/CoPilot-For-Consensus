@@ -686,7 +686,7 @@ resource reportingApp 'Microsoft.App/containerApps@2025-01-01' = {
               type: 'Startup'
               httpGet: {
                 path: '/health'
-                port: 8000
+                port: 8080
               }
               initialDelaySeconds: 30
               periodSeconds: 5
@@ -697,7 +697,7 @@ resource reportingApp 'Microsoft.App/containerApps@2025-01-01' = {
               type: 'Readiness'
               httpGet: {
                 path: '/readyz'
-                port: 8000
+                port: 8080
               }
               initialDelaySeconds: 5
               periodSeconds: 10

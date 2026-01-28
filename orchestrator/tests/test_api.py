@@ -6,7 +6,7 @@
 from unittest.mock import Mock
 
 import pytest
-from app.service import OrchestratorService
+from app.service import OrchestrationService
 from fastapi.testclient import TestClient
 from main import app
 
@@ -45,8 +45,8 @@ def mock_context_selector():
 
 @pytest.fixture
 def test_service(mock_document_store, mock_publisher, mock_subscriber, mock_context_selector):
-    """Create a test orchestrator service instance."""
-    return OrchestratorService(
+    """Create a test orchestration service instance."""
+    return OrchestrationService(
         document_store=mock_document_store,
         publisher=mock_publisher,
         subscriber=mock_subscriber,
@@ -60,7 +60,7 @@ def client(test_service, monkeypatch):
     # Monkey patch the global service
     import main
 
-    monkeypatch.setattr(main, "orchestrator_service", test_service)
+    monkeypatch.setattr(main, "orchestration_service", test_service)
 
     return TestClient(app)
 
@@ -90,7 +90,7 @@ def test_readyz_endpoint_service_not_initialized(client, monkeypatch):
     import main
 
     # Set service to None
-    monkeypatch.setattr(main, "orchestrator_service", None)
+    monkeypatch.setattr(main, "orchestration_service", None)
 
     response = client.get("/readyz")
 
