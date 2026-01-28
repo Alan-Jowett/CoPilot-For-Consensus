@@ -158,7 +158,7 @@ var servicePorts = {
 // Note: Gateway name is computed below before being assigned to resources
 
 // Container Apps Environment (VNet-integrated, consumption tier for dev)
-resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
+resource containerAppsEnv 'Microsoft.App/managedEnvironments@2025-01-01' = {
   name: caEnvName
   location: location
   tags: tags
@@ -171,7 +171,7 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
 // This enables scale-to-zero and ensures vector data persists across restarts/redeploys
 // Note: Uses storage account key for authentication (required for Azure Files with Container Apps)
 // Managed identity authentication for Azure Files mounts is not yet supported in Container Apps
-resource qdrantStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = if (vectorStoreBackend == 'qdrant' && qdrantStorageEnabled) {
+resource qdrantStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = if (vectorStoreBackend == 'qdrant' && qdrantStorageEnabled) {
   parent: containerAppsEnv
   name: 'qdrant-storage'
   properties: {
@@ -189,7 +189,7 @@ resource qdrantStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' =
 // Deployed before application services that depend on it (embedding, summarization)
 // Persistent storage: When qdrantStorageEnabled is true, Azure Files share is mounted to /qdrant/storage
 // This enables scale-to-zero and ensures vector data persists across restarts/redeploys
-resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBackend == 'qdrant') {
+resource qdrantApp 'Microsoft.App/containerApps@2025-01-01' = if (vectorStoreBackend == 'qdrant') {
   name: '${projectPrefix}-qdrant-${environment}'
   location: location
   tags: tags
@@ -274,7 +274,7 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
 }
 
 // Auth service (port 8090)
-resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource authApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-auth-${environment}'
   location: location
   tags: tags
@@ -477,7 +477,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Reporting service (port 8080)
-resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource reportingApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-reporting-${environment}'
   location: location
   tags: tags
@@ -674,7 +674,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Ingestion service (port 8001)
-resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource ingestionApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-ingestion-${environment}'
   location: location
   tags: tags
@@ -882,7 +882,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Parsing service (port 8000)
-resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource parsingApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-parsing-${environment}'
   location: location
   tags: tags
@@ -1044,6 +1044,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'servicebus-scaling'
             custom: {
               type: 'azure-servicebus'
+              identity: identityResourceIds.parsing
               metadata: {
                 topicName: 'copilot.events'
                 subscriptionName: 'parsing'
@@ -1063,7 +1064,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Chunking service (port 8000)
-resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource chunkingApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-chunking-${environment}'
   location: location
   tags: tags
@@ -1222,6 +1223,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'servicebus-scaling'
             custom: {
               type: 'azure-servicebus'
+              identity: identityResourceIds.chunking
               metadata: {
                 topicName: 'copilot.events'
                 subscriptionName: 'chunking'
@@ -1241,7 +1243,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Embedding service (port 8000)
-resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource embeddingApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-embedding-${environment}'
   location: location
   tags: tags
@@ -1457,6 +1459,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'servicebus-scaling'
             custom: {
               type: 'azure-servicebus'
+              identity: identityResourceIds.embedding
               metadata: {
                 topicName: 'copilot.events'
                 subscriptionName: 'embedding'
@@ -1476,7 +1479,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Orchestrator service (port 8000)
-resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource orchestratorApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-orchestrator-${environment}'
   location: location
   tags: tags
@@ -1692,6 +1695,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'servicebus-scaling'
             custom: {
               type: 'azure-servicebus'
+              identity: identityResourceIds.orchestrator
               metadata: {
                 topicName: 'copilot.events'
                 subscriptionName: 'orchestrator'
@@ -1711,7 +1715,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Summarization service (port 8000)
-resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource summarizationApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-summarization-${environment}'
   location: location
   tags: tags
@@ -1934,6 +1938,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'servicebus-scaling'
             custom: {
               type: 'azure-servicebus'
+              identity: identityResourceIds.summarization
               metadata: {
                 topicName: 'copilot.events'
                 subscriptionName: 'summarization'
@@ -1953,7 +1958,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // UI service (port 3000)
-resource uiApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource uiApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-ui-${environment}'
   location: location
   tags: tags
@@ -2025,7 +2030,7 @@ resource uiApp 'Microsoft.App/containerApps@2024-03-01' = {
 }
 
 // Gateway service (port 443, external ingress only)
-resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource gatewayApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-gateway-${environment}'
   location: location
   tags: tags
