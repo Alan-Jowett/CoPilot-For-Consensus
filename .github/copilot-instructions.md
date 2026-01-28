@@ -43,7 +43,8 @@ pytest tests/ -v -m integration
 ruff check .                                    # Fast linting
 mypy <module_path>                              # Type checking
 npx pyright <module_path>                       # Attribute error checking
-pylint <module_path> --disable=all --enable=E0602,E1101,E0611
+# Match CI “critical” checks (see .github/workflows/python-validation.yml)
+pylint <module_path> --disable=all --enable=E0602,E1101,E0611,E1102,E1120,E1121
 ```
 
 ### Install Adapters
