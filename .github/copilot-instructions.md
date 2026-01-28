@@ -1,27 +1,159 @@
 <!-- SPDX-License-Identifier: MIT
   Copyright (c) 2025 Copilot-for-Consensus contributors -->
 
-# .github/copilot-instructions.md
+# Copilot Instructions for CoPilot-For-Consensus
 
-## GitHub Copilot for Consensus
+## Quick Reference
 
-This repository uses GitHub Copilot to assist with code suggestions, documentation, and issue resolution. Copilot is configured to follow Open Source Software (OSS) norms for Python-based projects.
+### Build & Run
 
-### Guidelines for Copilot Contributions
+```bash
+# Start all services (Docker Compose)
+docker compose build --parallel && docker compose up -d
 
-- **Code Quality**: All code suggestions must adhere to PEP 8 and PEP 257 standards.
-- **Licensing**: Contributions must comply with the repository's LICENSE and respect third-party licenses.
-- **Documentation**: All new features and changes should be documented in code comments and, where appropriate, in the `README.md` or relevant documentation files.
-- **Testing**: Suggested code should include or update relevant unit tests.
-- **Security**: Avoid introducing security vulnerabilities. Follow best practices for handling secrets, dependencies, and user input.
-- **Community Standards**: Respect the CODE_OF_CONDUCT.md and contribute constructively.
+# Cleanup
+docker compose down -v
+```
 
-### How to Use Copilot
+### Test Commands
 
-- Use Copilot for code completion, documentation, and refactoring.
-- Review Copilot suggestions before committing.
-- When committing changes, use `git commit -sm "<message>"` to include the sign-off.
-- Report issues or unexpected behavior in the issues section.
+```bash
+# Single test file (run from service/adapter directory)
+cd chunking && pytest tests/test_service.py -v
+
+# Single test function
+pytest tests/test_service.py::test_function_name -v
+
+# Unit tests only (exclude integration)
+pytest tests/ -m "not integration" -v
+
+# Integration tests only
+pytest tests/ -m integration -v
+
+# Full test suite with coverage
+pytest tests/ -v --cov=app --cov-report=term
+```
+
+### Lint & Type Check
+
+```bash
+ruff check .                                    # Fast linting
+mypy <module_path>                              # Type checking
+npx pyright <module_path>                       # Attribute error checking
+pylint <module_path> --disable=all --enable=E0602,E1101,E0611
+```
+
+### Install Adapters
+
+```bash
+# Install specific adapters with dependencies
+python adapters/scripts/install_adapters.py copilot_config copilot_storage
+
+# Install all adapters
+python adapters/scripts/install_adapters.py
+```
+
+---
+
+## Architecture Overview
+
+**Copilot-for-Consensus** is a microservice-based, event-driven system that ingests mailing list archives, processes them through a pipeline, and generates LLM-powered summaries with consensus detection.
+
+### Processing Pipeline
+
+```
+Ingestion → Parsing → Chunking → Embedding → Orchestrator → Summarization → Reporting
+    ↓           ↓          ↓          ↓            ↓              ↓
+ [RabbitMQ message bus connects all services via async events]
+```
+
+### Key Components
+
+| Layer | Components |
+|-------|-----------|
+| **Services** | `ingestion/`, `parsing/`, `chunking/`, `embedding/`, `orchestrator/`, `summarization/`, `reporting/`, `auth/`, `ui/` |
+| **Adapters** | `adapters/copilot_*` - Hexagonal architecture boundary layer (storage, messaging, config, etc.) |
+| **Infrastructure** | MongoDB (`documentdb`), Qdrant (`vectorstore`), RabbitMQ (`messagebus`), Ollama |
+| **Observability** | Prometheus, Grafana, Loki, Promtail |
+
+### Adapters (Hexagonal Architecture)
+
+Adapters abstract external dependencies and live in `adapters/copilot_*/`:
+- Use factory functions: `create_document_store()`, `create_logger()`, `create_metrics_collector()`
+- Each adapter has production and test implementations (e.g., `MongoDocumentStore` vs `InMemoryDocumentStore`)
+- Install order matters: `copilot_config` must be installed first
+
+---
+
+## Key Conventions
+
+### Configuration
+
+**Service code must NOT read environment variables directly.** Use the schema-driven config system:
+
+```python
+# ✅ Correct
+from copilot_config.runtime_loader import get_config
+config = get_config("myservice")
+retry_limit = config.service_settings.retry_limit
+
+# ❌ Wrong - bypasses validation
+retry_limit = int(os.environ.get('RETRY_LIMIT', '3'))
+```
+
+Schemas live in `docs/schemas/configs/<service>.json`.
+
+### Forward Progress Patterns
+
+All services must guarantee forward progress:
+- **Idempotency**: Process same input multiple times safely
+- **Binary status**: Use `pending`/`completed`, not intermediate states
+- **Requeue on failure**: Re-raise exceptions to trigger message requeue
+- **Retry policies**: Exponential backoff with configurable max retries
+
+### License Headers
+
+All new files require the SPDX header:
+
+```python
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+```
+
+### Test Location
+
+Run pytest from the module's directory, not repo root:
+
+```bash
+# ✅ Works
+cd adapters/copilot_storage && pytest tests/
+
+# ❌ May fail with ModuleNotFoundError
+pytest adapters/copilot_storage/tests/
+```
+
+---
+
+## Guidelines
+
+### Code Quality
+
+- Follow PEP 8 and PEP 257 standards
+- Include type hints consistently
+- Use docstrings for public functions
+- Static analysis must pass: `ruff`, `mypy`, `pyright`, `pylint`
+
+### Testing
+
+- Unit tests for core logic, integration tests for pipeline components
+- Mark integration tests with `@pytest.mark.integration`
+- Include tests for new functionality
+
+### Security
+
+- Never commit secrets or credentials
+- Follow [SECURITY.md](../SECURITY.md) guidelines
+- Use `copilot_secrets` adapter for secret management
 
 ### Platform-Aware Command Suggestions
 
@@ -45,17 +177,12 @@ This repository uses GitHub Copilot to assist with code suggestions, documentati
 - ❌ `sed 's/old/new/g' file.txt` → Use PowerShell string replacement or a Python script instead
 - ❌ `awk '{print $1}' file.txt` → Use `Select-String` with regex and `ForEach-Object` instead
 
-### Maintainers
-
-Repository maintainers are responsible for reviewing Copilot-generated code and ensuring compliance with project standards.
-
 ### Repository Defaults
 
-- Default GitHub repository for MCP operations (issues/PRs/comments): Alan-Jowett/CoPilot-For-Consensus. Use this unless the user explicitly specifies a different repository.
+- Default GitHub repository for MCP operations: `Alan-Jowett/CoPilot-For-Consensus`
+- Use `git commit -sm "<message>"` to include sign-off
 
----
-
-For more information, see [CONTRIBUTING.md](documents/CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](documents/CODE_OF_CONDUCT.md).
+For detailed guidelines, see [CONTRIBUTING.md](../CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md).
 
 ### Natural Language Intents (Copilot Shortcuts)
 
