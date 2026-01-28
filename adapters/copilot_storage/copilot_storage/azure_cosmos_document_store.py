@@ -34,7 +34,7 @@ except ImportError:
 
 class AzureCosmosDocumentStore(DocumentStore):
     """Azure Cosmos DB document store implementation using Core (SQL) API.
-    
+
     Each collection type is stored in its own container with partition key /id.
     This enables independent management of source data (messages, archives) vs
     derived data (chunks, reports, summaries).
@@ -544,8 +544,11 @@ class AzureCosmosDocumentStore(DocumentStore):
             if patch:
                 merged_doc.update(patch)
 
-            # Replace document
-            container.replace_item(item=doc_id, body=merged_doc)
+            # Ensure the document ID cannot be changed via patch (partition key must remain stable)
+            merged_doc["id"] = doc_id
+
+            # Replace document with partition key for partitioned containers
+            container.replace_item(item=doc_id, body=merged_doc, partition_key=partition_key_value)
 
             logger.debug(f"AzureCosmosDocumentStore: updated document {doc_id} in {collection}")
 

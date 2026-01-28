@@ -455,12 +455,15 @@ class TestAzureCosmosDocumentStore:
 
         store.update_document("users", "user-123", {"age": 31})
 
-        # Verify replace was called
+        # Verify replace was called with correct partition key
         mock_container.replace_item.assert_called_once()
 
         # Check the updated document
         call_args = mock_container.replace_item.call_args
+        assert call_args.kwargs["item"] == "user-123"
+        assert call_args.kwargs["partition_key"] == "user-123"  # Partition key is doc_id
         updated_doc = call_args.kwargs["body"]
+        assert updated_doc["id"] == "user-123"  # ID remains unchanged
         assert updated_doc["age"] == 31
         assert updated_doc["name"] == "Alice"
         # collection field is NOT added in per-collection container mode
