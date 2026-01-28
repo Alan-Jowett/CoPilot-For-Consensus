@@ -34,7 +34,6 @@ class TestDocumentStoreFactoryAzureCosmos:
                 endpoint="https://test.documents.azure.com:443/",
                 key="test_key",
                 database="test_db",
-                container="test_container",
             ),
         )
         store = create_document_store(
@@ -47,7 +46,6 @@ class TestDocumentStoreFactoryAzureCosmos:
         assert store._store.endpoint == "https://test.documents.azure.com:443/"
         assert store._store.key == "test_key"
         assert store._store.database_name == "test_db"
-        assert store._store.container_name == "test_container"
 
 
 class TestAzureCosmosDocumentStore:
@@ -59,23 +57,17 @@ class TestAzureCosmosDocumentStore:
             endpoint="https://test.documents.azure.com:443/",
             key="testkey",
             database="testdb",
-            container="testcontainer",
-            partition_key="/collection",
         )
 
         assert store.endpoint == "https://test.documents.azure.com:443/"
         assert store.key == "testkey"
         assert store.database_name == "testdb"
-        assert store.container_name == "testcontainer"
-        assert store.partition_key == "/collection"
 
     def test_default_values(self):
         """Test default initialization values."""
         store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
         assert store.database_name == "copilot"
-        assert store.container_name == "documents"
-        assert store.partition_key == "/collection"
 
     def test_connect_azure_cosmos_not_installed(self, monkeypatch):
         """Test that connect() raises DocumentStoreConnectionError when azure-cosmos is not installed."""
@@ -134,23 +126,19 @@ class TestAzureCosmosDocumentStore:
             endpoint="https://test.documents.azure.com:443/",
             key="testkey",
             database="testdb",
-            container="testcontainer",
         )
 
-        # Mock the client and database/container operations
+        # Mock the client and database operations
         mock_client_instance = MagicMock()
         mock_database = MagicMock()
-        mock_container = MagicMock()
 
         mock_cosmos_client.return_value = mock_client_instance
         mock_client_instance.create_database_if_not_exists.return_value = mock_database
-        mock_database.create_container_if_not_exists.return_value = mock_container
 
         store.connect()
 
         assert store.client is not None
         assert store.database is not None
-        assert store.container is not None
         mock_cosmos_client.assert_called_once_with("https://test.documents.azure.com:443/", "testkey")
 
     @patch("azure.cosmos.CosmosClient")
@@ -177,13 +165,13 @@ class TestAzureCosmosDocumentStore:
         # Simulate connected state
         store.client = MagicMock()
         store.database = MagicMock()
-        store.container = MagicMock()
+        store.containers = {"users": MagicMock()}
 
         store.disconnect()
 
         assert store.client is None
         assert store.database is None
-        assert store.container is None
+        assert store.containers == {}
 
     def test_insert_document_not_connected(self):
         """Test that insert fails when not connected."""
@@ -199,7 +187,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Mock UUID generation
         mock_uuid.return_value = "test-uuid-123"
@@ -216,8 +208,9 @@ class TestAzureCosmosDocumentStore:
         call_args = mock_container.create_item.call_args
         inserted_doc = call_args.kwargs["body"]
         assert inserted_doc["id"] == "test-uuid-123"
-        assert inserted_doc["collection"] == "users"
         assert inserted_doc["name"] == "Alice"
+        # collection field is NOT added in per-collection container mode
+        assert "collection" not in inserted_doc
 
     def test_insert_document_with_existing_id(self):
         """Test inserting document with pre-existing ID."""
@@ -225,7 +218,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock successful insert
         mock_container.create_item.return_value = {"id": "user-123", "collection": "users", "name": "Bob"}
@@ -242,12 +238,14 @@ class TestAzureCosmosDocumentStore:
         )
 
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["archives"] = mock_container
 
         mock_container.create_item.return_value = {
             "id": "deadbeefdeadbeef",
             "_id": "deadbeefdeadbeef",
-            "collection": "archives",
             "status": "pending",
         }
 
@@ -258,7 +256,8 @@ class TestAzureCosmosDocumentStore:
         inserted_doc = mock_container.create_item.call_args.kwargs["body"]
         assert inserted_doc["id"] == "deadbeefdeadbeef"
         assert inserted_doc["_id"] == "deadbeefdeadbeef"
-        assert inserted_doc["collection"] == "archives"
+        # collection field is NOT added in per-collection container mode
+        assert "collection" not in inserted_doc
 
     def test_insert_document_resource_exists(self):
         """Test that insert raises DocumentAlreadyExistsError when document already exists."""
@@ -268,7 +267,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock resource exists error
         mock_container.create_item.side_effect = exceptions.CosmosResourceExistsError(
@@ -286,7 +288,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock throttling error
         mock_container.create_item.side_effect = exceptions.CosmosHttpResponseError(
@@ -312,7 +317,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock successful read
         mock_container.read_item.return_value = {"id": "user-123", "collection": "users", "name": "Alice"}
@@ -320,11 +328,11 @@ class TestAzureCosmosDocumentStore:
         doc = store.get_document("users", "user-123")
 
         assert doc is not None
-        # System fields (id, collection) are removed by sanitization
+        # System fields (id) are removed by sanitization
         assert "id" not in doc
-        assert "collection" not in doc
         assert doc["name"] == "Alice"
-        mock_container.read_item.assert_called_once_with(item="user-123", partition_key="users")
+        # Partition key is now the document ID
+        mock_container.read_item.assert_called_once_with(item="user-123", partition_key="user-123")
 
     def test_get_document_not_found(self):
         """Test retrieving non-existent document."""
@@ -334,7 +342,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock not found error
         mock_container.read_item.side_effect = exceptions.CosmosResourceNotFoundError(
@@ -358,7 +369,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock query results
         mock_container.query_items.return_value = [
@@ -377,7 +391,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock query results
         mock_container.query_items.return_value = [{"id": "user-1", "collection": "users", "age": 30, "city": "NYC"}]
@@ -398,7 +415,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Test with non-integer limit
         with pytest.raises(DocumentStoreError, match="Invalid limit value"):
@@ -425,22 +445,29 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock read and replace
         mock_container.read_item.return_value = {"id": "user-123", "collection": "users", "name": "Alice", "age": 30}
 
         store.update_document("users", "user-123", {"age": 31})
 
-        # Verify replace was called
+        # Verify replace was called with correct partition key
         mock_container.replace_item.assert_called_once()
 
         # Check the updated document
         call_args = mock_container.replace_item.call_args
+        assert call_args.kwargs["item"] == "user-123"
+        assert call_args.kwargs["partition_key"] == "user-123"  # Partition key is doc_id
         updated_doc = call_args.kwargs["body"]
+        assert updated_doc["id"] == "user-123"  # ID remains unchanged
         assert updated_doc["age"] == 31
         assert updated_doc["name"] == "Alice"
-        assert updated_doc["collection"] == "users"
+        # collection field is NOT added in per-collection container mode
+        assert "collection" not in updated_doc or updated_doc.get("collection") == "users"
 
     def test_update_document_not_found(self):
         """Test updating non-existent document."""
@@ -450,7 +477,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock not found error
         mock_container.read_item.side_effect = exceptions.CosmosResourceNotFoundError(
@@ -473,11 +503,15 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         store.delete_document("users", "user-123")
 
-        mock_container.delete_item.assert_called_once_with(item="user-123", partition_key="users")
+        # Partition key is now the document ID
+        mock_container.delete_item.assert_called_once_with(item="user-123", partition_key="user-123")
 
     def test_delete_document_not_found(self):
         """Test deleting non-existent document."""
@@ -487,7 +521,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock not found error
         mock_container.delete_item.side_effect = exceptions.CosmosResourceNotFoundError(
@@ -510,7 +547,10 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Mock query results
         mock_container.query_items.return_value = [{"id": "msg-1", "collection": "messages", "status": "pending"}]
@@ -531,7 +571,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Mock query results
         mock_container.query_items.return_value = []
@@ -550,7 +594,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Mock query results
         mock_container.query_items.return_value = []
@@ -569,7 +617,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Mock query results for messages and chunks
         # First call: messages collection
@@ -605,7 +657,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Mock query results
         # First call: messages collection with $match on _id
@@ -645,7 +701,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Test with non-integer limit
         pipeline = [{"$match": {"status": "pending"}}, {"$limit": "invalid"}]
@@ -668,7 +728,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Mock query results with nested fields
         messages = [
@@ -699,7 +763,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Test with missing 'from' field
         pipeline = [{"$lookup": {"localField": "_id", "foreignField": "message_id", "as": "chunks"}}]
@@ -717,7 +785,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Test with empty 'from' field
         pipeline = [{"$lookup": {"from": "", "localField": "_id", "foreignField": "message_id", "as": "chunks"}}]
@@ -735,7 +807,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Test with invalid localField (contains special characters)
         pipeline = [
@@ -762,7 +838,11 @@ class TestAzureCosmosDocumentStore:
 
         # Mock connected state
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["messages"] = mock_container
+        store.containers["users"] = mock_container
 
         # Mock the first query (main collection) to succeed
         mock_container.query_items.return_value = [{"id": "msg1", "collection": "messages", "_id": "msg1"}]
@@ -886,7 +966,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
             {"id": "1", "collection": "archives", "status": "pending"},
             {"id": "2", "collection": "archives", "status": "processing"},
         ]
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Query with $in operator
         result = store.query_documents(
@@ -920,7 +1003,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
         # Mock container (should not be called)
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Query with empty $in list
         result = store.query_documents(collection="archives", filter_dict={"status": {"$in": []}}, limit=100)
@@ -936,7 +1022,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Mock container
         mock_container = MagicMock()
         mock_container.query_items.return_value = [{"id": "1", "collection": "archives", "status": "pending"}]
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Query with $in operator with single value
         result = store.query_documents(collection="archives", filter_dict={"status": {"$in": ["pending"]}}, limit=100)
@@ -957,7 +1046,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Mock container
         mock_container = MagicMock()
         mock_container.query_items.return_value = [{"id": "1", "collection": "archives", "status": "completed"}]
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Query with $eq operator
         result = store.query_documents(collection="archives", filter_dict={"status": {"$eq": "completed"}}, limit=100)
@@ -979,7 +1071,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         mock_container.query_items.return_value = [
             {"id": "1", "collection": "archives", "status": "pending", "source": "ietf-announce"}
         ]
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Query with both simple equality and $in operator
         result = store.query_documents(
@@ -1008,7 +1103,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
             {"id": "1", "collection": "archives", "status": "pending"},
             {"id": "2", "collection": "archives", "status": "processing"},
         ]
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Aggregate with $in in $match
         result = store.aggregate_documents(
@@ -1032,7 +1130,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Mock container
         mock_container = MagicMock()
         mock_container.query_items.return_value = []
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Query with $in operator with non-list value (should be skipped)
         result = store.query_documents(collection="archives", filter_dict={"status": {"$in": "pending"}}, limit=100)
@@ -1043,7 +1144,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Should not contain IN clause since field was skipped
         assert "c.status IN" not in query
         # Should only have the collection filter
-        assert "c.collection = @collection" in query
+        assert "SELECT * FROM c WHERE 1=1" in query  # No collection filter in per-collection container mode
 
         # Verify result
         assert result == []
@@ -1055,7 +1156,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Mock container
         mock_container = MagicMock()
         mock_container.query_items.return_value = []
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Query with mixed operator and non-operator keys (should be skipped)
         result = store.query_documents(
@@ -1068,7 +1172,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Should not contain status filter since field was skipped
         assert "c.status" not in query
         # Should only have the collection filter
-        assert "c.collection = @collection" in query
+        assert "SELECT * FROM c WHERE 1=1" in query  # No collection filter in per-collection container mode
 
         # Verify result
         assert result == []
@@ -1080,7 +1184,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Mock container
         mock_container = MagicMock()
         mock_container.query_items.return_value = []
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Query with unsupported operator like $gt
         result = store.query_documents(collection="archives", filter_dict={"age": {"$gt": 30}}, limit=100)
@@ -1091,7 +1198,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Should not contain age filter since operator was unsupported
         assert "c.age" not in query
         # Should only have the collection filter
-        assert "c.collection = @collection" in query
+        assert "SELECT * FROM c WHERE 1=1" in query  # No collection filter in per-collection container mode
 
         # Verify result
         assert result == []
@@ -1102,7 +1209,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
         # Mock container (should not be called)
         mock_container = MagicMock()
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Aggregate with empty $in list
         result = store.aggregate_documents(
@@ -1120,7 +1230,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Mock container
         mock_container = MagicMock()
         mock_container.query_items.return_value = []
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Aggregate with $in operator with non-list value (should be skipped)
         result = store.aggregate_documents(
@@ -1133,7 +1246,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Should not contain IN clause since field was skipped
         assert "c.status IN" not in query
         # Should only have the collection filter
-        assert "c.collection = @collection" in query
+        assert "SELECT * FROM c WHERE 1=1" in query  # No collection filter in per-collection container mode
 
         # Verify result
         assert result == []
@@ -1145,7 +1258,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Mock container
         mock_container = MagicMock()
         mock_container.query_items.return_value = []
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Aggregate with mixed operator and non-operator keys (should be skipped)
         result = store.aggregate_documents(
@@ -1159,7 +1275,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Should not contain status filter since field was skipped
         assert "c.status" not in query
         # Should only have the collection filter
-        assert "c.collection = @collection" in query
+        assert "SELECT * FROM c WHERE 1=1" in query  # No collection filter in per-collection container mode
 
         # Verify result
         assert result == []
@@ -1171,7 +1287,10 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Mock container
         mock_container = MagicMock()
         mock_container.query_items.return_value = []
-        store.container = mock_container
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["users"] = mock_container
 
         # Aggregate with unsupported operator like $regex
         result = store.aggregate_documents(
@@ -1184,7 +1303,7 @@ class TestAzureCosmosDocumentStoreQueryOperators:
         # Should not contain name filter since operator was unsupported
         assert "c.name" not in query
         # Should only have the collection filter
-        assert "c.collection = @collection" in query
+        assert "SELECT * FROM c WHERE 1=1" in query  # No collection filter in per-collection container mode
 
         # Verify result
         assert result == []

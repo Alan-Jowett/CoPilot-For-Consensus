@@ -17,14 +17,10 @@ class DriverConfig_DocumentStore_AzureCosmosdb:
 
     endpoint: str
     # Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
-    container: str = "documents"
-    # Cosmos DB container name
     database: str = "copilot"
     # Cosmos DB database name
     key: str | None = None
     # Cosmos DB account key (optional if using managed identity)
-    partition_key: str = "/collection"
-    # Cosmos DB partition key path
 
 
 @dataclass

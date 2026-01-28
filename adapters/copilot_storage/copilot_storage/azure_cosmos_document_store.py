@@ -33,16 +33,20 @@ except ImportError:
 
 
 class AzureCosmosDocumentStore(DocumentStore):
-    """Azure Cosmos DB document store implementation using Core (SQL) API."""
+    """Azure Cosmos DB document store implementation using Core (SQL) API.
+
+    Each collection type is stored in its own container with partition key /id.
+    This enables independent management of source data (messages, archives) vs
+    derived data (chunks, reports, summaries).
+    """
 
     @classmethod
     def from_config(cls, config: DriverConfig_DocumentStore_AzureCosmosdb) -> "AzureCosmosDocumentStore":
         """Create an AzureCosmosDocumentStore from configuration.
 
         Args:
-            config: Configuration object with endpoint, key, database, container,
-                    and partition_key attributes. Database, container, and partition_key
-                    defaults are provided by the schema.
+            config: Configuration object with endpoint, key, and database attributes.
+                    Database default is provided by the schema.
 
         Returns:
             Configured AzureCosmosDocumentStore instance
@@ -61,12 +65,6 @@ class AzureCosmosDocumentStore(DocumentStore):
         if config.database is not None:
             kwargs["database"] = config.database
 
-        if config.container is not None:
-            kwargs["container"] = config.container
-
-        if config.partition_key is not None:
-            kwargs["partition_key"] = config.partition_key
-
         return cls(**kwargs)
 
     def __init__(
@@ -74,8 +72,6 @@ class AzureCosmosDocumentStore(DocumentStore):
         endpoint: str | None = None,
         key: str | None = None,
         database: str = "copilot",
-        container: str = "documents",
-        partition_key: str = "/collection",
         **kwargs,
     ):
         """Initialize Azure Cosmos DB document store.
@@ -86,8 +82,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             key: Cosmos DB account key (optional; if None, managed identity via DefaultAzureCredential will be used).
                  Either key or managed identity support required.
             database: Database name (default: "copilot")
-            container: Container name (default: "documents")
-            partition_key: Partition key path (default: /collection)
             **kwargs: Additional Cosmos client options (e.g., connection_timeout, request_timeout)
 
         Raises:
@@ -99,12 +93,11 @@ class AzureCosmosDocumentStore(DocumentStore):
         self.endpoint = endpoint
         self.key = key
         self.database_name = database
-        self.container_name = container
-        self.partition_key = partition_key
         self.client_options = kwargs
         self.client: Any | None = None
         self.database: Any | None = None
-        self.container: Any | None = None
+        # Cache for containers: {collection_name: container_client}
+        self.containers: dict[str, Any] = {}
 
     def _is_valid_field_name(self, field_name: str) -> bool:
         """Validate that a field name contains only safe characters.
@@ -156,6 +149,76 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         return True
 
+    def _get_container_config_for_collection(self, collection: str) -> tuple[str, str]:
+        """Get container name and partition key for a collection.
+
+        Each collection type gets its own container with partition key /id.
+
+        Args:
+            collection: Logical collection name (e.g., "messages", "chunks")
+
+        Returns:
+            Tuple of (container_name, partition_key)
+        """
+        # Known collection types with explicit container configs
+        container_configs = {
+            # Source containers
+            "messages": ("messages", "/id"),
+            "archives": ("archives", "/id"),
+            # Derived containers
+            "chunks": ("chunks", "/id"),
+            "reports": ("reports", "/id"),
+            "summaries": ("summaries", "/id"),
+            "embeddings": ("embeddings", "/id"),
+            "threads": ("threads", "/id"),
+        }
+
+        # Use collection-specific config if defined, otherwise use collection name as container
+        return container_configs.get(collection, (collection, "/id"))
+
+    def _get_container_for_collection(self, collection: str) -> Any:
+        """Get or create the Cosmos container for a collection.
+
+        Args:
+            collection: Logical collection name
+
+        Returns:
+            Cosmos container client
+
+        Raises:
+            DocumentStoreNotConnectedError: If not connected to Cosmos DB
+            DocumentStoreError: If container creation fails
+        """
+        if self.database is None:
+            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+
+        if collection in self.containers:
+            return self.containers[collection]
+
+        # Create container if not cached
+        container_name, partition_key = self._get_container_config_for_collection(collection)
+
+        try:
+            from azure.cosmos import PartitionKey
+            from azure.core.exceptions import AzureError
+
+            container_client = self.database.create_container_if_not_exists(
+                id=container_name, partition_key=PartitionKey(path=partition_key)
+            )
+            self.containers[collection] = container_client
+            logger.info(
+                f"AzureCosmosDocumentStore: initialized container '{container_name}' "
+                f"for collection '{collection}' with partition key '{partition_key}'"
+            )
+            return container_client
+
+        except cosmos_exceptions.CosmosHttpResponseError as e:
+            logger.error(f"AzureCosmosDocumentStore: failed to create/access container '{container_name}' - {e}")
+            raise DocumentStoreError(f"Failed to create/access container '{container_name}'") from e
+        except AzureError as e:
+            logger.error(f"AzureCosmosDocumentStore: Azure error during container creation for '{container_name}' - {e}")
+            raise DocumentStoreError(f"Azure error creating/accessing container '{container_name}'") from e
+
     def connect(self) -> None:
         """Connect to Azure Cosmos DB.
 
@@ -164,7 +227,7 @@ class AzureCosmosDocumentStore(DocumentStore):
         """
         try:
             from azure.core.exceptions import AzureError
-            from azure.cosmos import CosmosClient, PartitionKey
+            from azure.cosmos import CosmosClient
         except ImportError as e:
             logger.error("AzureCosmosDocumentStore: azure-cosmos not installed")
             raise DocumentStoreConnectionError("azure-cosmos not installed") from e
@@ -202,22 +265,8 @@ class AzureCosmosDocumentStore(DocumentStore):
                 logger.error(f"AzureCosmosDocumentStore: failed to create/access database - {e}")
                 raise DocumentStoreConnectionError(f"Failed to create/access database '{self.database_name}'") from e
 
-            # Get or create container with partition key
-            try:
-                self.container = database.create_container_if_not_exists(
-                    id=self.container_name, partition_key=PartitionKey(path=self.partition_key)
-                )
-                logger.info(
-                    f"AzureCosmosDocumentStore: using container '{self.container_name}' "
-                    f"with partition key '{self.partition_key}'"
-                )
-            except cosmos_exceptions.CosmosHttpResponseError as e:
-                logger.error(f"AzureCosmosDocumentStore: failed to create/access container - {e}")
-                raise DocumentStoreConnectionError(f"Failed to create/access container '{self.container_name}'") from e
-
-            logger.info(
-                f"AzureCosmosDocumentStore: connected to " f"{self.endpoint}/{self.database_name}/{self.container_name}"
-            )
+            # Containers are created on-demand when first accessed
+            logger.info(f"AzureCosmosDocumentStore: connected to {self.endpoint}/{self.database_name}")
 
         except (cosmos_exceptions.CosmosHttpResponseError, AzureError) as e:
             logger.error(f"AzureCosmosDocumentStore: connection failed - {e}", exc_info=True)
@@ -234,14 +283,13 @@ class AzureCosmosDocumentStore(DocumentStore):
         if self.client:
             self.client = None
             self.database = None
-            self.container = None
+            self.containers = {}
             logger.info("AzureCosmosDocumentStore: disconnected")
 
     def insert_document(self, collection: str, doc: dict[str, Any]) -> str:
         """Insert a document into the specified collection.
 
-        In Cosmos DB, we store all collections in a single container, using the
-        'collection' field as the logical collection name and partition key.
+        Each collection routes to its own container with partition key /id.
 
         Args:
             collection: Name of the logical collection
@@ -255,8 +303,8 @@ class AzureCosmosDocumentStore(DocumentStore):
             DocumentAlreadyExistsError: If document with same ID already exists
             DocumentStoreError: If insertion fails
         """
-        if self.container is None:
-            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+        # Get the target container for this collection
+        container = self._get_container_for_collection(collection)
 
         try:
             # Cosmos DB requires a native "id" field as the document key.
@@ -278,10 +326,9 @@ class AzureCosmosDocumentStore(DocumentStore):
             # Create a deep copy to avoid modifying the original (including nested structures)
             doc_copy = copy.deepcopy(doc)
             doc_copy["id"] = doc_id
-            doc_copy["collection"] = collection  # Add collection field for partitioning
 
             # Insert document
-            self.container.create_item(body=doc_copy)
+            container.create_item(body=doc_copy)
             logger.debug(f"AzureCosmosDocumentStore: inserted document {doc_id} into {collection}")
 
             return doc_id
@@ -316,12 +363,15 @@ class AzureCosmosDocumentStore(DocumentStore):
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentStoreError: If query operation fails
         """
-        if self.container is None:
-            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+        # Get the target container for this collection
+        container = self._get_container_for_collection(collection)
 
         try:
+            # Partition key is the document ID
+            partition_key_value = doc_id
+
             # Read document using partition key
-            doc = self.container.read_item(item=doc_id, partition_key=collection)
+            doc = container.read_item(item=doc_id, partition_key=partition_key_value)
 
             logger.debug(f"AzureCosmosDocumentStore: retrieved document {doc_id} from {collection}")
             return sanitize_document(doc, collection)
@@ -359,13 +409,15 @@ class AzureCosmosDocumentStore(DocumentStore):
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentStoreError: If query operation fails
         """
-        if self.container is None:
-            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+        # Get the target container for this collection
+        container = self._get_container_for_collection(collection)
 
         try:
             # Build SQL query for Cosmos DB
-            query = "SELECT * FROM c WHERE c.collection = @collection"
-            parameters: list[dict[str, object]] = [{"name": "@collection", "value": collection}]
+            # Each collection has its own container, so no collection filter needed
+            query = "SELECT * FROM c WHERE 1=1"
+            parameters: list[dict[str, object]] = []
+
             param_counter = 0
 
             # Add filter conditions
@@ -436,15 +488,9 @@ class AzureCosmosDocumentStore(DocumentStore):
                 raise DocumentStoreError(f"Invalid limit value '{limit}': must be a positive integer")
             query += f" OFFSET 0 LIMIT {limit}"
 
-            # Execute query
-            container = self.container
-            if container is None:
-                raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
-
+            # Execute query with cross-partition query (documents have different partition keys)
             items = list(
-                container.query_items(
-                    query=query, parameters=parameters, enable_cross_partition_query=False, partition_key=collection
-                )
+                container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True)
             )
 
             logger.debug(
@@ -479,13 +525,16 @@ class AzureCosmosDocumentStore(DocumentStore):
             DocumentNotFoundError: If document does not exist
             DocumentStoreError: If update operation fails
         """
-        if self.container is None:
-            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+        # Get the target container for this collection
+        container = self._get_container_for_collection(collection)
 
         try:
+            # Partition key is the document ID
+            partition_key_value = doc_id
+
             # Read the existing document
             try:
-                existing_doc = self.container.read_item(item=doc_id, partition_key=collection)
+                existing_doc = container.read_item(item=doc_id, partition_key=partition_key_value)
             except cosmos_exceptions.CosmosResourceNotFoundError:
                 logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
                 raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
@@ -495,11 +544,24 @@ class AzureCosmosDocumentStore(DocumentStore):
             if patch:
                 merged_doc.update(patch)
 
-            # Ensure collection field is not modified
-            merged_doc["collection"] = collection
+            # Ensure identifier fields cannot be changed via patch.
+            # - `id` is the Cosmos DB partition/primary key and must remain equal to `doc_id`.
+            # - `_id` and `collection` (when present) are treated as canonical metadata and are
+            #   restored from the existing document or removed if they did not previously exist.
+            merged_doc["id"] = doc_id
 
-            # Replace document
-            self.container.replace_item(item=doc_id, body=merged_doc)
+            if "_id" in existing_doc:
+                merged_doc["_id"] = existing_doc["_id"]
+            else:
+                merged_doc.pop("_id", None)
+
+            if "collection" in existing_doc:
+                merged_doc["collection"] = existing_doc["collection"]
+            else:
+                merged_doc.pop("collection", None)
+
+            # Replace document with partition key for partitioned containers
+            container.replace_item(item=doc_id, body=merged_doc, partition_key=partition_key_value)
 
             logger.debug(f"AzureCosmosDocumentStore: updated document {doc_id} in {collection}")
 
@@ -527,12 +589,15 @@ class AzureCosmosDocumentStore(DocumentStore):
             DocumentNotFoundError: If document does not exist
             DocumentStoreError: If delete operation fails
         """
-        if self.container is None:
-            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+        # Get the target container for this collection
+        container = self._get_container_for_collection(collection)
 
         try:
+            # Partition key is the document ID
+            partition_key_value = doc_id
+
             # Delete document
-            self.container.delete_item(item=doc_id, partition_key=collection)
+            container.delete_item(item=doc_id, partition_key=partition_key_value)
 
             logger.debug(f"AzureCosmosDocumentStore: deleted document {doc_id} from {collection}")
 
@@ -573,9 +638,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentStoreError: If aggregation operation fails
         """
-        if self.container is None:
-            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
-
         try:
             # Process pipeline stages sequentially
             # Start by querying the initial collection with $match stages before any $lookup
@@ -613,12 +675,13 @@ class AzureCosmosDocumentStore(DocumentStore):
         Returns:
             List of documents from initial query
         """
-        container = self.container
-        if container is None:
-            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+        # Get the target container for this collection
+        container = self._get_container_for_collection(collection)
 
-        query = "SELECT * FROM c WHERE c.collection = @collection"
-        parameters: list[dict[str, object]] = [{"name": "@collection", "value": collection}]
+        # Build SQL query - each collection has its own container
+        query = "SELECT * FROM c WHERE 1=1"
+        parameters: list[dict[str, object]] = []
+
         param_counter = 0
         has_lookup = any(list(stage.keys())[0] == "$lookup" for stage in pipeline)
 
@@ -708,12 +771,8 @@ class AzureCosmosDocumentStore(DocumentStore):
                     query += f" OFFSET 0 LIMIT {limit_value}"
                     break
 
-        # Execute query
-        items = list(
-            container.query_items(
-                query=query, parameters=parameters, enable_cross_partition_query=False, partition_key=collection
-            )
-        )
+        # Execute query with cross-partition query
+        items = list(container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True))
 
         return items
 
@@ -865,23 +924,57 @@ class AzureCosmosDocumentStore(DocumentStore):
             if not self._is_valid_field_name(field_value):
                 raise DocumentStoreError(f"Invalid {field_name} '{field_value}' in $lookup")
 
-        # Query all documents from the foreign collection
-        query = "SELECT * FROM c WHERE c.collection = @collection"
-        parameters: list[dict[str, object]] = [{"name": "@collection", "value": from_collection}]
+        # Get the target container for the foreign collection
+        foreign_container = self._get_container_for_collection(from_collection)
 
-        container = self.container
-        if container is None:
-            raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
+        # Collect all unique local field values from documents
+        # This allows us to query only the needed foreign documents instead of scanning the entire container
+        local_values = set()
+        for doc in documents:
+            local_value = self._get_nested_field(doc, local_field)
+            if local_value is not None:
+                local_values.add(local_value)
+
+        # If no documents have local values, return early with empty arrays
+        if not local_values:
+            results = []
+            for doc in documents:
+                doc_copy = dict(doc)
+                doc_copy[as_field] = []
+                results.append(doc_copy)
+            return results
+
+        # Query only the foreign documents that match the local field values
+        # Use IN operator to fetch only needed documents, avoiding full container scan
+        # Batch if there are too many values to avoid query size limits
+        foreign_docs = []
+        local_values_list = list(local_values)
+        batch_size = 100  # Cosmos DB can handle large IN clauses, but we batch to be safe
 
         try:
-            foreign_docs = list(
-                container.query_items(
-                    query=query,
-                    parameters=parameters,
-                    enable_cross_partition_query=False,
-                    partition_key=from_collection,
+            for i in range(0, len(local_values_list), batch_size):
+                batch = local_values_list[i : i + batch_size]
+
+                # Build parameterized query with IN clause
+                param_names = []
+                parameters: list[dict[str, object]] = []
+                for idx, val in enumerate(batch):
+                    param_name = f"@val{idx}"
+                    param_names.append(param_name)
+                    parameters.append({"name": param_name, "value": val})
+
+                # Validate foreignField to prevent SQL injection
+                if not self._is_valid_field_name(foreign_field):
+                    raise DocumentStoreError(f"Invalid foreignField '{foreign_field}' in $lookup")
+
+                query = f"SELECT * FROM c WHERE c.{foreign_field} IN ({', '.join(param_names)})"
+
+                # Use cross-partition query
+                batch_docs = list(
+                    foreign_container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True)
                 )
-            )
+                foreign_docs.extend(batch_docs)
+
         except cosmos_exceptions.CosmosHttpResponseError as e:
             logger.error(
                 f"AzureCosmosDocumentStore: failed to query foreign collection " f"'{from_collection}' in $lookup - {e}"
