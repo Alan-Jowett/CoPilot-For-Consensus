@@ -79,6 +79,25 @@ def health():
     }
 
 
+@app.get("/readyz")
+async def readyz() -> dict[str, str]:
+    """Readiness check endpoint - indicates if service is ready to process requests."""
+    global parsing_service
+    global subscriber_thread
+
+    # Service is ready only when:
+    # 1. Service is initialized
+    # 2. Subscriber thread is running
+    if parsing_service is None:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    subscriber_alive = subscriber_thread is not None and subscriber_thread.is_alive()
+    if not subscriber_alive:
+        raise HTTPException(status_code=503, detail="Subscriber thread not running")
+
+    return {"status": "ready", "service": "parsing"}
+
+
 @app.get("/stats")
 def stats():
     """Get parsing statistics."""
