@@ -40,7 +40,7 @@ from copilot_message_bus import create_publisher, create_subscriber
 from copilot_metrics import create_metrics_collector
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import create_document_store
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 # Bootstrap logger for early initialization (before config is loaded)
 logger = create_stdout_logger(level="INFO", name="chunking")
@@ -77,6 +77,25 @@ def health():
         "last_processing_time_seconds": stats.get("last_processing_time_seconds", 0),
         "subscriber_thread_alive": subscriber_alive,
     }
+
+
+@app.get("/readyz")
+async def readyz() -> dict[str, str]:
+    """Readiness check endpoint - indicates if service is ready to process requests."""
+    global chunking_service
+    global subscriber_thread
+
+    # Service is ready only when:
+    # 1. Service is initialized
+    # 2. Subscriber thread is running
+    if chunking_service is None:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    subscriber_alive = subscriber_thread is not None and subscriber_thread.is_alive()
+    if not subscriber_alive:
+        raise HTTPException(status_code=503, detail="Subscriber thread not running")
+
+    return {"status": "ready", "service": "chunking"}
 
 
 @app.get("/stats")
