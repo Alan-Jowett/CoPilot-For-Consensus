@@ -911,15 +911,54 @@ class AzureCosmosDocumentStore(DocumentStore):
         # Get the target container for the foreign collection
         foreign_container = self._get_container_for_collection(from_collection)
 
-        # Query all documents from the foreign collection
-        query = "SELECT * FROM c"
-        parameters: list[dict[str, object]] = []
+        # Collect all unique local field values from documents
+        # This allows us to query only the needed foreign documents instead of scanning the entire container
+        local_values = set()
+        for doc in documents:
+            local_value = self._get_nested_field(doc, local_field)
+            if local_value is not None:
+                local_values.add(local_value)
+
+        # If no documents have local values, return early with empty arrays
+        if not local_values:
+            results = []
+            for doc in documents:
+                doc_copy = dict(doc)
+                doc_copy[as_field] = []
+                results.append(doc_copy)
+            return results
+
+        # Query only the foreign documents that match the local field values
+        # Use IN operator to fetch only needed documents, avoiding full container scan
+        # Batch if there are too many values to avoid query size limits
+        foreign_docs = []
+        local_values_list = list(local_values)
+        batch_size = 100  # Cosmos DB can handle large IN clauses, but we batch to be safe
 
         try:
-            # Use cross-partition query
-            foreign_docs = list(
-                foreign_container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True)
-            )
+            for i in range(0, len(local_values_list), batch_size):
+                batch = local_values_list[i : i + batch_size]
+
+                # Build parameterized query with IN clause
+                param_names = []
+                parameters: list[dict[str, object]] = []
+                for idx, val in enumerate(batch):
+                    param_name = f"@val{idx}"
+                    param_names.append(param_name)
+                    parameters.append({"name": param_name, "value": val})
+
+                # Validate foreignField to prevent SQL injection
+                if not self._is_valid_field_name(foreign_field):
+                    raise DocumentStoreError(f"Invalid foreignField '{foreign_field}' in $lookup")
+
+                query = f"SELECT * FROM c WHERE c.{foreign_field} IN ({', '.join(param_names)})"
+
+                # Use cross-partition query
+                batch_docs = list(
+                    foreign_container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True)
+                )
+                foreign_docs.extend(batch_docs)
+
         except cosmos_exceptions.CosmosHttpResponseError as e:
             logger.error(
                 f"AzureCosmosDocumentStore: failed to query foreign collection " f"'{from_collection}' in $lookup - {e}"
