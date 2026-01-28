@@ -118,20 +118,6 @@ class JWTMiddleware(BaseHTTPMiddleware):
             # Legacy behavior: fetch synchronously during init
             self._fetch_jwks_with_retry()
 
-    def _sleep_with_jitter(self, delay: float) -> float:
-        """Sleep with jittered delay to prevent thundering herd.
-        
-        Args:
-            delay: Base delay in seconds
-            
-        Returns:
-            Actual delay used (after jitter applied)
-        """
-        jitter = delay * random.uniform(-0.2, 0.2)
-        actual_delay = max(0.1, delay + jitter)
-        time.sleep(actual_delay)
-        return actual_delay
-
     def _fetch_jwks_with_retry(self) -> None:
         """Fetch JWKS from auth service with retry logic on startup.
 
@@ -172,10 +158,13 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     )
                 
                 if attempt < self.jwks_fetch_retries:
-                    actual_delay = self._sleep_with_jitter(delay)
+                    # Calculate and log the delay before sleeping
+                    jitter = delay * random.uniform(-0.2, 0.2)
+                    actual_delay = max(0.1, delay + jitter)
                     logger.debug(
                         f"Retrying JWKS fetch in {actual_delay:.1f}s (attempt {attempt + 1}/{self.jwks_fetch_retries})"
                     )
+                    time.sleep(actual_delay)
                     delay *= 2  # Exponential backoff
             except httpx.HTTPStatusError as e:
                 last_error = e
@@ -191,10 +180,13 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 # For 5xx server errors (transient), retry; for other errors, fail immediately
                 if e.response.status_code >= 500:
                     if attempt < self.jwks_fetch_retries:
-                        actual_delay = self._sleep_with_jitter(delay)
+                        # Calculate and log the delay before sleeping
+                        jitter = delay * random.uniform(-0.2, 0.2)
+                        actual_delay = max(0.1, delay + jitter)
                         logger.debug(
                             f"Retrying JWKS fetch in {actual_delay:.1f}s (attempt {attempt + 1}/{self.jwks_fetch_retries})"
                         )
+                        time.sleep(actual_delay)
                         delay *= 2
                 else:
                     logger.error(
