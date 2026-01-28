@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Tests for Azure Cosmos DB container routing functionality."""
+"""Tests for Azure Cosmos DB per-collection container routing."""
 
 from unittest.mock import MagicMock, patch
 
@@ -12,86 +12,45 @@ from copilot_config.generated.adapters.document_store import (
 from copilot_storage.azure_cosmos_document_store import AzureCosmosDocumentStore
 
 
-class TestContainerRoutingConfiguration:
-    """Tests for container routing configuration."""
+class TestContainerConfiguration:
+    """Tests for container configuration."""
 
-    def test_initialization_with_legacy_mode(self):
-        """Test initialization with legacy routing mode."""
+    def test_initialization(self):
+        """Test basic initialization."""
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key="testkey",
-            container_routing_mode="legacy",
         )
 
-        assert store.container_routing_mode == "legacy"
         assert store.database_name == "copilot"
-        assert store.container_name == "documents"
-        assert store.partition_key == "/collection"
-
-    def test_initialization_with_per_type_mode(self):
-        """Test initialization with per-type routing mode."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="per_type",
-        )
-
-        assert store.container_routing_mode == "per_type"
         assert store.containers == {}  # Empty cache initially
 
-    def test_default_routing_mode_is_legacy(self):
-        """Test that default routing mode is legacy for backward compatibility."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-        )
-
-        assert store.container_routing_mode == "legacy"
-
-    def test_invalid_routing_mode_raises_error(self):
-        """Test that invalid routing mode raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid container_routing_mode"):
-            AzureCosmosDocumentStore(
-                endpoint="https://test.documents.azure.com:443/",
-                key="testkey",
-                container_routing_mode="invalid_mode",
-            )
-
-    def test_from_config_with_routing_mode(self):
-        """Test creating store from config with routing mode."""
+    def test_from_config(self):
+        """Test creating store from config."""
         config = DriverConfig_DocumentStore_AzureCosmosdb(
             endpoint="https://test.documents.azure.com:443/",
             key="test_key",
-            container_routing_mode="per_type",
         )
         store = AzureCosmosDocumentStore.from_config(config)
 
-        assert store.container_routing_mode == "per_type"
+        assert store.endpoint == "https://test.documents.azure.com:443/"
+        assert store.key == "test_key"
+        assert store.database_name == "copilot"
+
+    def test_endpoint_required(self):
+        """Test that endpoint is required."""
+        with pytest.raises(ValueError, match="endpoint is required"):
+            AzureCosmosDocumentStore(endpoint=None, key="testkey")
 
 
 class TestContainerRoutingHelpers:
     """Tests for container routing helper methods."""
 
-    def test_get_container_config_legacy_mode(self):
-        """Test container config in legacy mode."""
+    def test_get_container_config_known_collections(self):
+        """Test container config for known collections."""
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key="testkey",
-            container_routing_mode="legacy",
-        )
-
-        # All collections should route to the same container in legacy mode
-        for collection in ["messages", "chunks", "archives", "reports"]:
-            container_name, partition_key = store._get_container_config_for_collection(collection)
-            assert container_name == "documents"
-            assert partition_key == "/collection"
-
-    def test_get_container_config_per_type_mode_known_collections(self):
-        """Test container config in per-type mode for known collections."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="per_type",
         )
 
         # Test source collections
@@ -116,12 +75,11 @@ class TestContainerRoutingHelpers:
         assert container_name == "summaries"
         assert partition_key == "/id"
 
-    def test_get_container_config_per_type_mode_unknown_collection(self):
-        """Test container config in per-type mode for unknown collections."""
+    def test_get_container_config_unknown_collection(self):
+        """Test container config for unknown collections uses collection name."""
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key="testkey",
-            container_routing_mode="per_type",
         )
 
         # Unknown collections should use collection name as container name
@@ -130,46 +88,15 @@ class TestContainerRoutingHelpers:
         assert partition_key == "/id"
 
 
-class TestConnectWithContainerRouting:
-    """Tests for connect() with container routing."""
+class TestConnect:
+    """Tests for connect() behavior."""
 
     @patch("azure.cosmos.CosmosClient")
-    def test_connect_legacy_mode_creates_single_container(self, mock_cosmos_client_class):
-        """Test that legacy mode creates the single container on connect."""
+    def test_connect_does_not_create_containers(self, mock_cosmos_client_class):
+        """Test that connect only creates database, not containers."""
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key="testkey",
-            container_routing_mode="legacy",
-        )
-
-        # Mock Cosmos client
-        mock_client = MagicMock()
-        mock_database = MagicMock()
-        mock_container = MagicMock()
-        mock_cosmos_client_class.return_value = mock_client
-        mock_client.create_database_if_not_exists.return_value = mock_database
-        mock_database.create_container_if_not_exists.return_value = mock_container
-
-        store.connect()
-
-        # Verify database creation
-        mock_client.create_database_if_not_exists.assert_called_once_with(id="copilot")
-
-        # Verify container creation in legacy mode
-        mock_database.create_container_if_not_exists.assert_called_once()
-        call_args = mock_database.create_container_if_not_exists.call_args
-        assert call_args.kwargs["id"] == "documents"
-
-        # Verify container is set
-        assert store.container is not None
-
-    @patch("azure.cosmos.CosmosClient")
-    def test_connect_per_type_mode_does_not_create_containers(self, mock_cosmos_client_class):
-        """Test that per-type mode does not create containers upfront."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="per_type",
         )
 
         # Mock Cosmos client
@@ -183,342 +110,164 @@ class TestConnectWithContainerRouting:
         # Verify database creation
         mock_client.create_database_if_not_exists.assert_called_once_with(id="copilot")
 
-        # Verify NO container creation in per-type mode
+        # Verify no container creation at connect time (containers created on-demand)
         mock_database.create_container_if_not_exists.assert_not_called()
 
-        # Verify no legacy container is set
-        assert store.container is None
 
+class TestContainerCreation:
+    """Tests for on-demand container creation."""
 
-class TestInsertWithContainerRouting:
-    """Tests for insert_document() with container routing."""
-
-    def test_insert_legacy_mode_adds_collection_field(self):
-        """Test that legacy mode adds collection field to documents."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="legacy",
-        )
-
-        # Mock connected state
-        mock_container = MagicMock()
-        store.container = mock_container
-        store.database = MagicMock()
-
-        store.insert_document("messages", {"id": "msg-123", "text": "Hello"})
-
-        # Verify collection field was added
-        call_args = mock_container.create_item.call_args
-        inserted_doc = call_args.kwargs["body"]
-        assert inserted_doc["collection"] == "messages"
-        assert inserted_doc["id"] == "msg-123"
-        assert inserted_doc["text"] == "Hello"
-
+    @patch("azure.cosmos.CosmosClient")
     @patch("azure.cosmos.PartitionKey")
-    def test_insert_per_type_mode_does_not_add_collection_field(self, mock_partition_key):
-        """Test that per-type mode does not add collection field."""
+    def test_container_created_on_first_access(self, mock_partition_key_class, mock_cosmos_client_class):
+        """Test that containers are created on first access."""
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key="testkey",
-            container_routing_mode="per_type",
         )
 
-        # Mock connected state
+        # Mock Cosmos client
+        mock_client = MagicMock()
         mock_database = MagicMock()
         mock_container = MagicMock()
+        mock_cosmos_client_class.return_value = mock_client
+        mock_client.create_database_if_not_exists.return_value = mock_database
         mock_database.create_container_if_not_exists.return_value = mock_container
-        store.database = mock_database
 
-        store.insert_document("messages", {"id": "msg-123", "text": "Hello"})
+        store.connect()
 
-        # Verify container was created for messages collection
+        # First access to messages collection should create container
+        container = store._get_container_for_collection("messages")
+
         mock_database.create_container_if_not_exists.assert_called_once()
         call_args = mock_database.create_container_if_not_exists.call_args
         assert call_args.kwargs["id"] == "messages"
 
-        # Verify collection field was NOT added
-        call_args = mock_container.create_item.call_args
-        inserted_doc = call_args.kwargs["body"]
-        assert "collection" not in inserted_doc
-        assert inserted_doc["id"] == "msg-123"
-        assert inserted_doc["text"] == "Hello"
+        # Container should be cached
+        assert "messages" in store.containers
+        assert store.containers["messages"] == mock_container
 
+    @patch("azure.cosmos.CosmosClient")
     @patch("azure.cosmos.PartitionKey")
-    def test_insert_per_type_mode_caches_containers(self, mock_partition_key):
-        """Test that per-type mode caches containers after first access."""
+    def test_container_cached_after_creation(self, mock_partition_key_class, mock_cosmos_client_class):
+        """Test that containers are cached after first creation."""
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key="testkey",
-            container_routing_mode="per_type",
         )
 
-        # Mock connected state
+        # Mock Cosmos client
+        mock_client = MagicMock()
         mock_database = MagicMock()
         mock_container = MagicMock()
+        mock_cosmos_client_class.return_value = mock_client
+        mock_client.create_database_if_not_exists.return_value = mock_database
         mock_database.create_container_if_not_exists.return_value = mock_container
-        store.database = mock_database
 
-        # Insert first document
-        store.insert_document("messages", {"id": "msg-1", "text": "First"})
+        store.connect()
 
-        # Insert second document to same collection
-        store.insert_document("messages", {"id": "msg-2", "text": "Second"})
+        # Access container twice
+        store._get_container_for_collection("messages")
+        store._get_container_for_collection("messages")
 
-        # Verify container was only created once (cached)
+        # Container should only be created once
         assert mock_database.create_container_if_not_exists.call_count == 1
 
-        # Verify both documents were inserted to the same container
-        assert mock_container.create_item.call_count == 2
 
+class TestInsertDocument:
+    """Tests for insert_document with per-collection routing."""
 
-class TestGetWithContainerRouting:
-    """Tests for get_document() with container routing."""
-
-    def test_get_legacy_mode_uses_collection_as_partition_key(self):
-        """Test that legacy mode uses collection as partition key for get."""
+    @patch("azure.cosmos.CosmosClient")
+    @patch("azure.cosmos.PartitionKey")
+    def test_insert_routes_to_correct_container(self, mock_partition_key_class, mock_cosmos_client_class):
+        """Test that insert routes documents to collection-specific containers."""
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key="testkey",
-            container_routing_mode="legacy",
         )
 
-        # Mock connected state
+        # Mock Cosmos client
+        mock_client = MagicMock()
+        mock_database = MagicMock()
+        mock_messages_container = MagicMock()
+        mock_chunks_container = MagicMock()
+        mock_cosmos_client_class.return_value = mock_client
+        mock_client.create_database_if_not_exists.return_value = mock_database
+
+        # Return different containers for different collections
+        def get_container(id, partition_key):
+            if id == "messages":
+                return mock_messages_container
+            elif id == "chunks":
+                return mock_chunks_container
+            return MagicMock()
+
+        mock_database.create_container_if_not_exists.side_effect = get_container
+
+        store.connect()
+
+        # Insert into messages
+        store.insert_document("messages", {"id": "msg-123", "text": "Hello"})
+        mock_messages_container.create_item.assert_called_once()
+
+        # Insert into chunks
+        store.insert_document("chunks", {"id": "chunk-456", "content": "Chunk data"})
+        mock_chunks_container.create_item.assert_called_once()
+
+    @patch("azure.cosmos.CosmosClient")
+    @patch("azure.cosmos.PartitionKey")
+    def test_insert_does_not_add_collection_field(self, mock_partition_key_class, mock_cosmos_client_class):
+        """Test that insert does not add collection field to documents."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey",
+        )
+
+        # Mock Cosmos client
+        mock_client = MagicMock()
+        mock_database = MagicMock()
         mock_container = MagicMock()
-        mock_container.read_item.return_value = {"id": "msg-1", "collection": "messages", "text": "Test"}
-        store.container = mock_container
-        store.database = MagicMock()
+        mock_cosmos_client_class.return_value = mock_client
+        mock_client.create_database_if_not_exists.return_value = mock_database
+        mock_database.create_container_if_not_exists.return_value = mock_container
 
-        store.get_document("messages", "msg-1")
+        store.connect()
 
-        # Verify read used collection as partition key
+        store.insert_document("messages", {"id": "msg-123", "text": "Hello"})
+
+        # Check the document passed to create_item
+        call_args = mock_container.create_item.call_args
+        doc_body = call_args.kwargs["body"]
+
+        # Document should NOT have collection field
+        assert "collection" not in doc_body
+
+
+class TestGetDocument:
+    """Tests for get_document with per-collection routing."""
+
+    @patch("azure.cosmos.CosmosClient")
+    @patch("azure.cosmos.PartitionKey")
+    def test_get_uses_id_as_partition_key(self, mock_partition_key_class, mock_cosmos_client_class):
+        """Test that get uses document ID as partition key."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey",
+        )
+
+        # Mock Cosmos client
+        mock_client = MagicMock()
+        mock_database = MagicMock()
+        mock_container = MagicMock()
+        mock_cosmos_client_class.return_value = mock_client
+        mock_client.create_database_if_not_exists.return_value = mock_database
+        mock_database.create_container_if_not_exists.return_value = mock_container
+        mock_container.read_item.return_value = {"id": "msg-123", "text": "Hello"}
+
+        store.connect()
+
+        store.get_document("messages", "msg-123")
+
+        # Check partition key is document ID
         call_args = mock_container.read_item.call_args
-        assert call_args.kwargs["item"] == "msg-1"
-        assert call_args.kwargs["partition_key"] == "messages"
-
-    @patch("azure.cosmos.PartitionKey")
-    def test_get_per_type_mode_uses_id_as_partition_key(self, mock_partition_key):
-        """Test that per-type mode uses document ID as partition key for get."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="per_type",
-        )
-
-        # Mock connected state
-        mock_database = MagicMock()
-        mock_container = MagicMock()
-        mock_container.read_item.return_value = {"id": "msg-1", "text": "Test"}
-        mock_database.create_container_if_not_exists.return_value = mock_container
-        store.database = mock_database
-
-        store.get_document("messages", "msg-1")
-
-        # Verify container was created for messages collection
-        mock_database.create_container_if_not_exists.assert_called_once()
-        call_args = mock_database.create_container_if_not_exists.call_args
-        assert call_args.kwargs["id"] == "messages"
-
-        # Verify read used document ID as partition key
-        read_call_args = mock_container.read_item.call_args
-        assert read_call_args.kwargs["item"] == "msg-1"
-        assert read_call_args.kwargs["partition_key"] == "msg-1"
-
-
-class TestQueryWithContainerRouting:
-    """Tests for query_documents() with container routing."""
-
-    def test_query_legacy_mode_filters_by_collection(self):
-        """Test that legacy mode filters by collection field."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="legacy",
-        )
-
-        # Mock connected state
-        mock_container = MagicMock()
-        mock_container.query_items.return_value = []
-        store.container = mock_container
-        store.database = MagicMock()
-
-        store.query_documents("messages", {"status": "pending"}, limit=10)
-
-        # Verify query includes collection filter
-        call_args = mock_container.query_items.call_args
-        query = call_args.kwargs["query"]
-        assert "c.collection = @collection" in query
-        assert call_args.kwargs["partition_key"] == "messages"
-        assert call_args.kwargs["enable_cross_partition_query"] is False
-
-    @patch("azure.cosmos.PartitionKey")
-    def test_query_per_type_mode_no_collection_filter(self, mock_partition_key):
-        """Test that per-type mode does not filter by collection field."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="per_type",
-        )
-
-        # Mock connected state
-        mock_database = MagicMock()
-        mock_container = MagicMock()
-        mock_container.query_items.return_value = []
-        mock_database.create_container_if_not_exists.return_value = mock_container
-        store.database = mock_database
-
-        store.query_documents("messages", {"status": "pending"}, limit=10)
-
-        # Verify query does not include collection filter
-        call_args = mock_container.query_items.call_args
-        query = call_args.kwargs["query"]
-        assert "c.collection" not in query
-        assert "WHERE 1=1" in query
-        assert call_args.kwargs["enable_cross_partition_query"] is True
-
-
-class TestUpdateAndDeleteWithContainerRouting:
-    """Tests for update_document() and delete_document() with container routing."""
-
-    def test_update_legacy_mode_uses_collection_as_partition_key(self):
-        """Test that legacy mode uses collection as partition key for update."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="legacy",
-        )
-
-        # Mock connected state
-        mock_container = MagicMock()
-        mock_container.read_item.return_value = {"id": "msg-1", "collection": "messages", "text": "Old"}
-        store.container = mock_container
-        store.database = MagicMock()
-
-        store.update_document("messages", "msg-1", {"text": "New"})
-
-        # Verify read used collection as partition key
-        read_call_args = mock_container.read_item.call_args
-        assert read_call_args.kwargs["partition_key"] == "messages"
-
-        # Verify collection field preserved in update
-        replace_call_args = mock_container.replace_item.call_args
-        updated_doc = replace_call_args.kwargs["body"]
-        assert updated_doc["collection"] == "messages"
-
-    @patch("azure.cosmos.PartitionKey")
-    def test_update_per_type_mode_uses_id_as_partition_key(self, mock_partition_key):
-        """Test that per-type mode uses document ID as partition key for update."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="per_type",
-        )
-
-        # Mock connected state
-        mock_database = MagicMock()
-        mock_container = MagicMock()
-        mock_container.read_item.return_value = {"id": "msg-1", "text": "Old"}
-        mock_database.create_container_if_not_exists.return_value = mock_container
-        store.database = mock_database
-
-        store.update_document("messages", "msg-1", {"text": "New"})
-
-        # Verify read used document ID as partition key
-        read_call_args = mock_container.read_item.call_args
-        assert read_call_args.kwargs["partition_key"] == "msg-1"
-
-        # Verify collection field NOT added in update
-        replace_call_args = mock_container.replace_item.call_args
-        updated_doc = replace_call_args.kwargs["body"]
-        assert "collection" not in updated_doc
-
-    def test_delete_legacy_mode_uses_collection_as_partition_key(self):
-        """Test that legacy mode uses collection as partition key for delete."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="legacy",
-        )
-
-        # Mock connected state
-        mock_container = MagicMock()
-        store.container = mock_container
-        store.database = MagicMock()
-
-        store.delete_document("messages", "msg-1")
-
-        # Verify delete used collection as partition key
-        call_args = mock_container.delete_item.call_args
-        assert call_args.kwargs["partition_key"] == "messages"
-
-    @patch("azure.cosmos.PartitionKey")
-    def test_delete_per_type_mode_uses_id_as_partition_key(self, mock_partition_key):
-        """Test that per-type mode uses document ID as partition key for delete."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="per_type",
-        )
-
-        # Mock connected state
-        mock_database = MagicMock()
-        mock_container = MagicMock()
-        mock_database.create_container_if_not_exists.return_value = mock_container
-        store.database = mock_database
-
-        store.delete_document("messages", "msg-1")
-
-        # Verify delete used document ID as partition key
-        call_args = mock_container.delete_item.call_args
-        assert call_args.kwargs["partition_key"] == "msg-1"
-
-
-class TestAggregateWithContainerRouting:
-    """Tests for aggregate_documents() with container routing."""
-
-    def test_aggregate_legacy_mode_filters_by_collection(self):
-        """Test that legacy mode filters by collection in aggregation."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="legacy",
-        )
-
-        # Mock connected state
-        mock_container = MagicMock()
-        mock_container.query_items.return_value = []
-        store.container = mock_container
-        store.database = MagicMock()
-
-        store.aggregate_documents("messages", [{"$match": {"status": "pending"}}, {"$limit": 10}])
-
-        # Verify query includes collection filter
-        call_args = mock_container.query_items.call_args
-        query = call_args.kwargs["query"]
-        assert "c.collection = @collection" in query
-        assert call_args.kwargs["partition_key"] == "messages"
-
-    @patch("azure.cosmos.PartitionKey")
-    def test_aggregate_per_type_mode_no_collection_filter(self, mock_partition_key):
-        """Test that per-type mode does not filter by collection in aggregation."""
-        store = AzureCosmosDocumentStore(
-            endpoint="https://test.documents.azure.com:443/",
-            key="testkey",
-            container_routing_mode="per_type",
-        )
-
-        # Mock connected state
-        mock_database = MagicMock()
-        mock_container = MagicMock()
-        mock_container.query_items.return_value = []
-        mock_database.create_container_if_not_exists.return_value = mock_container
-        store.database = mock_database
-
-        store.aggregate_documents("messages", [{"$match": {"status": "pending"}}, {"$limit": 10}])
-
-        # Verify query does not include collection filter
-        call_args = mock_container.query_items.call_args
-        query = call_args.kwargs["query"]
-        assert "c.collection" not in query
-        assert "WHERE 1=1" in query
-        assert call_args.kwargs["enable_cross_partition_query"] is True
+        assert call_args.kwargs["partition_key"] == "msg-123"

@@ -33,17 +33,20 @@ except ImportError:
 
 
 class AzureCosmosDocumentStore(DocumentStore):
-    """Azure Cosmos DB document store implementation using Core (SQL) API."""
+    """Azure Cosmos DB document store implementation using Core (SQL) API.
+    
+    Each collection type is stored in its own container with partition key /id.
+    This enables independent management of source data (messages, archives) vs
+    derived data (chunks, reports, summaries).
+    """
 
     @classmethod
     def from_config(cls, config: DriverConfig_DocumentStore_AzureCosmosdb) -> "AzureCosmosDocumentStore":
         """Create an AzureCosmosDocumentStore from configuration.
 
         Args:
-            config: Configuration object with endpoint, key, database, container,
-                    partition_key, and container_routing_mode attributes. Database,
-                    container, partition_key, and container_routing_mode defaults
-                    are provided by the schema.
+            config: Configuration object with endpoint, key, and database attributes.
+                    Database default is provided by the schema.
 
         Returns:
             Configured AzureCosmosDocumentStore instance
@@ -62,15 +65,6 @@ class AzureCosmosDocumentStore(DocumentStore):
         if config.database is not None:
             kwargs["database"] = config.database
 
-        if config.container is not None:
-            kwargs["container"] = config.container
-
-        if config.partition_key is not None:
-            kwargs["partition_key"] = config.partition_key
-
-        if config.container_routing_mode is not None:
-            kwargs["container_routing_mode"] = config.container_routing_mode
-
         return cls(**kwargs)
 
     def __init__(
@@ -78,9 +72,6 @@ class AzureCosmosDocumentStore(DocumentStore):
         endpoint: str | None = None,
         key: str | None = None,
         database: str = "copilot",
-        container: str = "documents",
-        partition_key: str = "/collection",
-        container_routing_mode: str = "legacy",
         **kwargs,
     ):
         """Initialize Azure Cosmos DB document store.
@@ -91,32 +82,21 @@ class AzureCosmosDocumentStore(DocumentStore):
             key: Cosmos DB account key (optional; if None, managed identity via DefaultAzureCredential will be used).
                  Either key or managed identity support required.
             database: Database name (default: "copilot")
-            container: Container name (default: "documents")
-            partition_key: Partition key path (default: /collection)
-            container_routing_mode: Container routing mode - "legacy" for single container (default),
-                                   "per_type" for per-collection containers
             **kwargs: Additional Cosmos client options (e.g., connection_timeout, request_timeout)
 
         Raises:
-            ValueError: If endpoint is not provided or container_routing_mode is invalid
+            ValueError: If endpoint is not provided
         """
         if not endpoint:
             raise ValueError("endpoint is required for AzureCosmosDocumentStore")
 
-        if container_routing_mode not in ("legacy", "per_type"):
-            raise ValueError(f"Invalid container_routing_mode: {container_routing_mode}. Must be 'legacy' or 'per_type'")
-
         self.endpoint = endpoint
         self.key = key
         self.database_name = database
-        self.container_name = container
-        self.partition_key = partition_key
-        self.container_routing_mode = container_routing_mode
         self.client_options = kwargs
         self.client: Any | None = None
         self.database: Any | None = None
-        self.container: Any | None = None
-        # Cache for per-type mode containers: {collection_name: container_client}
+        # Cache for containers: {collection_name: container_client}
         self.containers: dict[str, Any] = {}
 
     def _is_valid_field_name(self, field_name: str) -> bool:
@@ -170,7 +150,9 @@ class AzureCosmosDocumentStore(DocumentStore):
         return True
 
     def _get_container_config_for_collection(self, collection: str) -> tuple[str, str]:
-        """Get container name and partition key for a collection based on routing mode.
+        """Get container name and partition key for a collection.
+
+        Each collection type gets its own container with partition key /id.
 
         Args:
             collection: Logical collection name (e.g., "messages", "chunks")
@@ -178,12 +160,7 @@ class AzureCosmosDocumentStore(DocumentStore):
         Returns:
             Tuple of (container_name, partition_key)
         """
-        if self.container_routing_mode == "legacy":
-            # Legacy mode: all collections go to the configured container
-            return (self.container_name, self.partition_key)
-
-        # Per-type mode: route to collection-specific containers
-        # Container naming strategy and partition keys per collection type
+        # Known collection types with explicit container configs
         container_configs = {
             # Source containers
             "messages": ("messages", "/id"),
@@ -212,16 +189,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentStoreError: If container creation fails
         """
-        if self.container_routing_mode == "legacy":
-            # Legacy mode: use single container
-            if self.container is None:
-                # Check database too, but be tolerant of test mocking patterns
-                if self.database is None:
-                    raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
-                raise DocumentStoreNotConnectedError("Container not initialized")
-            return self.container
-
-        # Per-type mode: get or create collection-specific container
         if self.database is None:
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
 
@@ -298,25 +265,8 @@ class AzureCosmosDocumentStore(DocumentStore):
                 logger.error(f"AzureCosmosDocumentStore: failed to create/access database - {e}")
                 raise DocumentStoreConnectionError(f"Failed to create/access database '{self.database_name}'") from e
 
-            # In legacy mode, create the single container upfront
-            # In per-type mode, containers are created on-demand
-            if self.container_routing_mode == "legacy":
-                try:
-                    self.container = database.create_container_if_not_exists(
-                        id=self.container_name, partition_key=PartitionKey(path=self.partition_key)
-                    )
-                    logger.info(
-                        f"AzureCosmosDocumentStore: using container '{self.container_name}' "
-                        f"with partition key '{self.partition_key}' (legacy mode)"
-                    )
-                except cosmos_exceptions.CosmosHttpResponseError as e:
-                    logger.error(f"AzureCosmosDocumentStore: failed to create/access container - {e}")
-                    raise DocumentStoreConnectionError(f"Failed to create/access container '{self.container_name}'") from e
-
-            logger.info(
-                f"AzureCosmosDocumentStore: connected to {self.endpoint}/{self.database_name} "
-                f"(mode: {self.container_routing_mode})"
-            )
+            # Containers are created on-demand when first accessed
+            logger.info(f"AzureCosmosDocumentStore: connected to {self.endpoint}/{self.database_name}")
 
         except (cosmos_exceptions.CosmosHttpResponseError, AzureError) as e:
             logger.error(f"AzureCosmosDocumentStore: connection failed - {e}", exc_info=True)
@@ -333,16 +283,13 @@ class AzureCosmosDocumentStore(DocumentStore):
         if self.client:
             self.client = None
             self.database = None
-            self.container = None
             self.containers = {}
             logger.info("AzureCosmosDocumentStore: disconnected")
 
     def insert_document(self, collection: str, doc: dict[str, Any]) -> str:
         """Insert a document into the specified collection.
 
-        Routes documents to appropriate containers based on container_routing_mode.
-        In legacy mode, all collections go to a single container with 'collection' as partition key.
-        In per_type mode, each collection routes to its own container.
+        Each collection routes to its own container with partition key /id.
 
         Args:
             collection: Name of the logical collection
@@ -379,11 +326,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             # Create a deep copy to avoid modifying the original (including nested structures)
             doc_copy = copy.deepcopy(doc)
             doc_copy["id"] = doc_id
-
-            # In legacy mode, add collection field for partitioning
-            # In per_type mode, this is not needed as each collection has its own container
-            if self.container_routing_mode == "legacy":
-                doc_copy["collection"] = collection
 
             # Insert document
             container.create_item(body=doc_copy)
@@ -425,14 +367,8 @@ class AzureCosmosDocumentStore(DocumentStore):
         container = self._get_container_for_collection(collection)
 
         try:
-            # Get partition key value for this document
-            # In legacy mode, partition key is the collection name
-            # In per_type mode, we need to use the document ID as partition key
-            if self.container_routing_mode == "legacy":
-                partition_key_value = collection
-            else:
-                # In per_type mode, partition key is typically the document ID
-                partition_key_value = doc_id
+            # Partition key is the document ID
+            partition_key_value = doc_id
 
             # Read document using partition key
             doc = container.read_item(item=doc_id, partition_key=partition_key_value)
@@ -478,14 +414,9 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         try:
             # Build SQL query for Cosmos DB
-            # In legacy mode, filter by collection field
-            # In per_type mode, collection field is not needed (each collection has its own container)
-            if self.container_routing_mode == "legacy":
-                query = "SELECT * FROM c WHERE c.collection = @collection"
-                parameters: list[dict[str, object]] = [{"name": "@collection", "value": collection}]
-            else:
-                query = "SELECT * FROM c WHERE 1=1"
-                parameters = []
+            # Each collection has its own container, so no collection filter needed
+            query = "SELECT * FROM c WHERE 1=1"
+            parameters: list[dict[str, object]] = []
 
             param_counter = 0
 
@@ -557,19 +488,10 @@ class AzureCosmosDocumentStore(DocumentStore):
                 raise DocumentStoreError(f"Invalid limit value '{limit}': must be a positive integer")
             query += f" OFFSET 0 LIMIT {limit}"
 
-            # Execute query
-            # In legacy mode, use partition key scoped to collection
-            # In per_type mode, use cross-partition query (each container has documents with different partition keys)
-            if self.container_routing_mode == "legacy":
-                items = list(
-                    container.query_items(
-                        query=query, parameters=parameters, enable_cross_partition_query=False, partition_key=collection
-                    )
-                )
-            else:
-                items = list(
-                    container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True)
-                )
+            # Execute query with cross-partition query (documents have different partition keys)
+            items = list(
+                container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True)
+            )
 
             logger.debug(
                 f"AzureCosmosDocumentStore: query on {collection} with {filter_dict} "
@@ -607,12 +529,8 @@ class AzureCosmosDocumentStore(DocumentStore):
         container = self._get_container_for_collection(collection)
 
         try:
-            # Get partition key value for this document
-            if self.container_routing_mode == "legacy":
-                partition_key_value = collection
-            else:
-                # In per_type mode, partition key is typically the document ID
-                partition_key_value = doc_id
+            # Partition key is the document ID
+            partition_key_value = doc_id
 
             # Read the existing document
             try:
@@ -625,10 +543,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             merged_doc = dict(existing_doc)
             if patch:
                 merged_doc.update(patch)
-
-            # In legacy mode, ensure collection field is not modified
-            if self.container_routing_mode == "legacy":
-                merged_doc["collection"] = collection
 
             # Replace document
             container.replace_item(item=doc_id, body=merged_doc)
@@ -663,12 +577,8 @@ class AzureCosmosDocumentStore(DocumentStore):
         container = self._get_container_for_collection(collection)
 
         try:
-            # Get partition key value for this document
-            if self.container_routing_mode == "legacy":
-                partition_key_value = collection
-            else:
-                # In per_type mode, partition key is typically the document ID
-                partition_key_value = doc_id
+            # Partition key is the document ID
+            partition_key_value = doc_id
 
             # Delete document
             container.delete_item(item=doc_id, partition_key=partition_key_value)
@@ -752,15 +662,9 @@ class AzureCosmosDocumentStore(DocumentStore):
         # Get the target container for this collection
         container = self._get_container_for_collection(collection)
 
-        # Build SQL query
-        # In legacy mode, filter by collection field
-        # In per_type mode, collection field is not needed
-        if self.container_routing_mode == "legacy":
-            query = "SELECT * FROM c WHERE c.collection = @collection"
-            parameters: list[dict[str, object]] = [{"name": "@collection", "value": collection}]
-        else:
-            query = "SELECT * FROM c WHERE 1=1"
-            parameters = []
+        # Build SQL query - each collection has its own container
+        query = "SELECT * FROM c WHERE 1=1"
+        parameters: list[dict[str, object]] = []
 
         param_counter = 0
         has_lookup = any(list(stage.keys())[0] == "$lookup" for stage in pipeline)
@@ -851,17 +755,8 @@ class AzureCosmosDocumentStore(DocumentStore):
                     query += f" OFFSET 0 LIMIT {limit_value}"
                     break
 
-        # Execute query
-        # In legacy mode, use partition key scoped to collection
-        # In per_type mode, use cross-partition query
-        if self.container_routing_mode == "legacy":
-            items = list(
-                container.query_items(
-                    query=query, parameters=parameters, enable_cross_partition_query=False, partition_key=collection
-                )
-            )
-        else:
-            items = list(container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True))
+        # Execute query with cross-partition query
+        items = list(container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True))
 
         return items
 
@@ -1017,31 +912,14 @@ class AzureCosmosDocumentStore(DocumentStore):
         foreign_container = self._get_container_for_collection(from_collection)
 
         # Query all documents from the foreign collection
-        # In legacy mode, filter by collection field
-        # In per_type mode, collection field is not needed
-        if self.container_routing_mode == "legacy":
-            query = "SELECT * FROM c WHERE c.collection = @collection"
-            parameters: list[dict[str, object]] = [{"name": "@collection", "value": from_collection}]
-        else:
-            query = "SELECT * FROM c"
-            parameters = []
+        query = "SELECT * FROM c"
+        parameters: list[dict[str, object]] = []
 
         try:
-            # In legacy mode, use partition key scoped to collection
-            # In per_type mode, use cross-partition query
-            if self.container_routing_mode == "legacy":
-                foreign_docs = list(
-                    foreign_container.query_items(
-                        query=query,
-                        parameters=parameters,
-                        enable_cross_partition_query=False,
-                        partition_key=from_collection,
-                    )
-                )
-            else:
-                foreign_docs = list(
-                    foreign_container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True)
-                )
+            # Use cross-partition query
+            foreign_docs = list(
+                foreign_container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True)
+            )
         except cosmos_exceptions.CosmosHttpResponseError as e:
             logger.error(
                 f"AzureCosmosDocumentStore: failed to query foreign collection " f"'{from_collection}' in $lookup - {e}"

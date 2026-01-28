@@ -1,60 +1,15 @@
 <!-- SPDX-License-Identifier: MIT
   Copyright (c) 2025 Copilot-for-Consensus contributors -->
 
-# Cosmos DB Container Routing Feature
+# Cosmos DB Per-Collection Container Routing
 
 ## Overview
 
-This feature adds support for routing different collection types to separate Cosmos DB containers, enabling better management of source and derived artifacts.
-
-## Motivation
-
-Previously, all collections (messages, archives, chunks, reports, summaries) were stored in a single Cosmos container named "documents" with partition key `/collection`. This created challenges for:
-
-1. **Experimentation**: Couldn't delete derived artifacts (chunks/reports) without deleting source data
-2. **Observability**: Azure Monitor metrics were container-wide, not per-artifact-type
-3. **Policy Management**: All artifacts shared the same retention/TTL/throughput settings
-
-## Solution
-
-Added `container_routing_mode` configuration with two modes:
-
-### Legacy Mode (Default)
-- **Behavior**: All collections go to single "documents" container
-- **Partition Key**: `/collection`
-- **Use Case**: Existing deployments, backward compatibility
-
-### Per-Type Mode
-- **Behavior**: Each collection type routes to its own container
-- **Partition Key**: `/id` (document ID)
-- **Use Case**: New deployments, flexible management
-
-## Configuration
-
-### Environment Variable
-```bash
-export COSMOS_CONTAINER_ROUTING_MODE=per_type
-```
-
-### Code Configuration
-```python
-from copilot_config.generated.adapters.document_store import (
-    DriverConfig_DocumentStore_AzureCosmosdb
-)
-from copilot_storage.azure_cosmos_document_store import AzureCosmosDocumentStore
-
-config = DriverConfig_DocumentStore_AzureCosmosdb(
-    endpoint="https://myaccount.documents.azure.com:443/",
-    key="your-key",
-    container_routing_mode="per_type"  # or "legacy" (default)
-)
-
-store = AzureCosmosDocumentStore.from_config(config)
-```
+Each collection type (messages, chunks, reports, etc.) is stored in its own Cosmos DB container, enabling independent management of source and derived artifacts.
 
 ## Container Mapping
 
-In per-type mode, collections map to containers as follows:
+Collections map to containers as follows:
 
 | Collection | Container Name | Partition Key | Type |
 |------------|---------------|---------------|------|
@@ -67,11 +22,27 @@ In per-type mode, collections map to containers as follows:
 | threads    | threads       | /id          | Derived |
 | *unknown*  | {collection}  | /id          | Dynamic |
 
+## Configuration
+
+```python
+from copilot_config.generated.adapters.document_store import (
+    DriverConfig_DocumentStore_AzureCosmosdb
+)
+from copilot_storage.azure_cosmos_document_store import AzureCosmosDocumentStore
+
+config = DriverConfig_DocumentStore_AzureCosmosdb(
+    endpoint="https://myaccount.documents.azure.com:443/",
+    key="your-key",  # or omit for managed identity
+)
+
+store = AzureCosmosDocumentStore.from_config(config)
+```
+
 ## Benefits
 
 1. **Clean Experimentation**
    ```bash
-   # Delete all chunks without affecting messages (SQL/Core API)
+   # Delete all chunks without affecting messages
    az cosmosdb sql container delete \
      --account-name <account-name> \
      --database-name copilot \
@@ -91,39 +62,21 @@ In per-type mode, collections map to containers as follows:
 ## Implementation Details
 
 ### Container Creation
-- **Legacy mode**: Container created during `connect()`
-- **Per-type mode**: Containers created on first access, cached thereafter
+Containers are created on-demand when first accessed, then cached for subsequent operations.
 
 ### Query Behavior
-- **Legacy mode**: Queries filtered by `c.collection = @collection`, partition-scoped
-- **Per-type mode**: Queries run cross-partition within container
+Queries run cross-partition within the collection's container (no collection field filtering needed).
 
-### Backward Compatibility
-- Default mode is "legacy"
-- Existing deployments continue working unchanged
-- Automated tests confirm no regressions
+### Partition Key
+All containers use `/id` (document ID) as the partition key.
 
 ## Testing
 
-Run the relevant tests:
 ```bash
 cd adapters/copilot_storage
-pytest tests/test_azure_cosmos_container_routing.py -v  # Container routing tests
-pytest tests/test_azure_cosmos_document_store.py -v     # Cosmos document store tests
+pytest tests/test_azure_cosmos_container_routing.py -v
+pytest tests/test_azure_cosmos_document_store.py -v
 ```
-
-## Migration Path
-
-1. **Phase 1 (This PR)**: Implement routing mode, keep legacy as default
-2. **Phase 2 (Future)**: Optional read-fallback/dual-write during migration
-3. **Phase 3 (Future)**: Backfill existing data into per-type containers
-4. **Phase 4 (Future)**: Cutover reads, deprecate legacy mode
-
-## Known Limitations
-
-- Per-type mode uses cross-partition queries (higher RU cost)
-- Migration from legacy to per-type requires data backfill
-- More containers increases IaC/ops surface area
 
 ## References
 
