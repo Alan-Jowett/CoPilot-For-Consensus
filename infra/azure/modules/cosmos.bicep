@@ -44,7 +44,6 @@ var copilotPerCollectionContainers = [
   'chunks'
   'reports'
   'summaries'
-  'embeddings'
   'threads'
   // Ingestion source configuration documents
   'sources'

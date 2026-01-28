@@ -171,7 +171,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             "chunks": ("chunks", "/id"),
             "reports": ("reports", "/id"),
             "summaries": ("summaries", "/id"),
-            "embeddings": ("embeddings", "/id"),
             "threads": ("threads", "/id"),
         }
 
