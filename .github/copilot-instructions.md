@@ -7,6 +7,7 @@
 
 ### Build & Run
 
+**Linux/macOS (bash):**
 ```bash
 # Start all services (Docker Compose)
 docker compose build --parallel && docker compose up -d
@@ -15,11 +16,22 @@ docker compose build --parallel && docker compose up -d
 docker compose down -v
 ```
 
+**Windows (PowerShell):**
+```powershell
+# Start all services (Docker Compose)
+docker compose build --parallel; if ($?) { docker compose up -d }
+
+# Cleanup
+docker compose down -v
+```
+
 ### Test Commands
 
+**Run from service/adapter directory:**
 ```bash
-# Single test file (run from service/adapter directory)
-cd chunking && pytest tests/test_service.py -v
+# Single test file
+cd chunking
+pytest tests/test_service.py -v
 
 # Single test function
 pytest tests/test_service.py::test_function_name -v
@@ -98,6 +110,7 @@ config = get_config("myservice")
 retry_limit = config.service_settings.retry_limit
 
 # ❌ Wrong - bypasses validation
+import os
 retry_limit = int(os.environ.get('RETRY_LIMIT', '3'))
 ```
 
