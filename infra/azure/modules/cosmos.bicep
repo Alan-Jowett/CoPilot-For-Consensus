@@ -46,6 +46,8 @@ var copilotPerCollectionContainers = [
   'summaries'
   'embeddings'
   'threads'
+  // Ingestion source configuration documents
+  'sources'
 ]
 var autoscaleMaxRu = cosmosDbAutoscaleMaxRu >= cosmosDbAutoscaleMinRu ? cosmosDbAutoscaleMaxRu : cosmosDbAutoscaleMinRu
 var writeRegionNames = [
