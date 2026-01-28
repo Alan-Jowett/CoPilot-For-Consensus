@@ -237,6 +237,33 @@ def test_create_jwt_middleware_with_overrides():
         assert instance.required_roles == ["reader"]
 
 
+def test_create_jwt_middleware_with_jwks_config():
+    """Test factory function respects JWKS configuration parameters."""
+    middleware_class = create_jwt_middleware(
+        auth_service_url="http://test-auth:8090",
+        audience="test-service",
+        jwks_cache_ttl=7200,
+        jwks_fetch_retries=15,
+        jwks_fetch_retry_delay=2.0,
+        jwks_fetch_timeout=45.0,
+        defer_jwks_fetch=False,
+    )
+
+    app = FastAPI()
+
+    with patch("httpx.get") as mock_get:
+        mock_get.return_value.json.return_value = {"keys": []}
+
+        instance = middleware_class(app.router)
+
+        assert instance.auth_service_url == "http://test-auth:8090"
+        assert instance.audience == "test-service"
+        assert instance.jwks_cache_ttl == 7200
+        assert instance.jwks_fetch_retries == 15
+        assert instance.jwks_fetch_retry_delay == 2.0
+        assert instance.jwks_fetch_timeout == 45.0
+
+
 @pytest.mark.skip(reason="Requires complex mock setup for JWT validation in middleware")
 def test_middleware_adds_claims_to_request_state(valid_token):
     """Test middleware adds JWT claims to request state on successful validation."""

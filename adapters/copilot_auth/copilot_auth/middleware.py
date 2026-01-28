@@ -557,6 +557,10 @@ def create_jwt_middleware(
     audience: str,
     required_roles: list[str] | None = None,
     public_paths: list[str] | None = None,
+    jwks_cache_ttl: int = 3600,
+    jwks_fetch_retries: int = 10,
+    jwks_fetch_retry_delay: float = 1.0,
+    jwks_fetch_timeout: float = 30.0,
     defer_jwks_fetch: bool = True,
 ) -> type[BaseHTTPMiddleware]:
     """Factory function to create JWT middleware with configuration.
@@ -566,6 +570,10 @@ def create_jwt_middleware(
         audience: Expected audience
         required_roles: Optional list of required roles
         public_paths: List of paths that don't require auth
+        jwks_cache_ttl: JWKS cache TTL in seconds (default: 3600 = 1 hour)
+        jwks_fetch_retries: Maximum number of attempts (including the initial attempt) to fetch JWKS during initial load (default: 10)
+        jwks_fetch_retry_delay: Initial delay between retries in seconds (default: 1.0)
+        jwks_fetch_timeout: Timeout for JWKS fetch requests in seconds (default: 30.0)
         defer_jwks_fetch: Defer JWKS fetch to background thread (default: True)
 
     Returns:
@@ -587,6 +595,10 @@ def create_jwt_middleware(
     aud = audience
     roles = required_roles
     paths = public_paths
+    cache_ttl = jwks_cache_ttl
+    fetch_retries = jwks_fetch_retries
+    fetch_retry_delay = jwks_fetch_retry_delay
+    fetch_timeout = jwks_fetch_timeout
     defer = defer_jwks_fetch
 
     # Create configured middleware class
@@ -598,6 +610,10 @@ def create_jwt_middleware(
                 audience=aud,
                 required_roles=roles,
                 public_paths=paths,
+                jwks_cache_ttl=cache_ttl,
+                jwks_fetch_retries=fetch_retries,
+                jwks_fetch_retry_delay=fetch_retry_delay,
+                jwks_fetch_timeout=fetch_timeout,
                 defer_jwks_fetch=defer,
             )
 
