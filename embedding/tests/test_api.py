@@ -37,10 +37,11 @@ def mock_subscriber():
 
 
 @pytest.fixture
-def mock_embedding_backend():
-    """Create a mock embedding backend."""
-    backend = Mock()
-    return backend
+def mock_embedding_provider():
+    """Create a mock embedding provider."""
+    provider = Mock()
+    provider.embed = Mock(return_value=[[0.0]])
+    return provider
 
 
 @pytest.fixture
@@ -51,14 +52,20 @@ def mock_vector_store():
 
 
 @pytest.fixture
-def test_service(mock_document_store, mock_publisher, mock_subscriber, mock_embedding_backend, mock_vector_store):
+def test_service(
+    mock_document_store,
+    mock_publisher,
+    mock_subscriber,
+    mock_embedding_provider,
+    mock_vector_store,
+):
     """Create a test embedding service instance."""
     return EmbeddingService(
         document_store=mock_document_store,
+        vector_store=mock_vector_store,
+        embedding_provider=mock_embedding_provider,
         publisher=mock_publisher,
         subscriber=mock_subscriber,
-        embedding_backend=mock_embedding_backend,
-        vector_store=mock_vector_store,
     )
 
 
