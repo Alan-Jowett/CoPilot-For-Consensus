@@ -85,7 +85,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
             required_roles: Optional list of required roles
             public_paths: List of paths that don't require auth
             jwks_cache_ttl: JWKS cache TTL in seconds (default: 3600 = 1 hour)
-            jwks_fetch_retries: Maximum number of attempts (including the initial attempt) to fetch JWKS during initial load (default: 10)
+            jwks_fetch_retries: Maximum number of attempts (including initial)
+                to fetch JWKS during initial load (default: 10)
             jwks_fetch_retry_delay: Initial delay between retries in seconds (default: 1.0)
             jwks_fetch_timeout: Timeout for JWKS fetch requests in seconds (default: 30.0)
             defer_jwks_fetch: Defer JWKS fetch to background thread to avoid blocking startup (default: True)
@@ -158,7 +159,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                         f"{type(e).__name__} - {e} "
                         f"(target: {self.auth_service_url}/keys, timeout: {self.jwks_fetch_timeout}s)"
                     )
-                
+
                 if attempt < self.jwks_fetch_retries:
                     # Calculate and log the delay before sleeping
                     jitter = delay * random.uniform(-0.2, 0.2)
@@ -179,7 +180,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                         f"HTTP {e.response.status_code} "
                         f"(target: {self.auth_service_url}/keys, timeout: {self.jwks_fetch_timeout}s)"
                     )
-                
+
                 # For 5xx server errors (transient), retry; for other errors, fail immediately
                 if e.response.status_code >= 500:
                     if attempt < self.jwks_fetch_retries:
@@ -187,7 +188,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
                         jitter = delay * random.uniform(-0.2, 0.2)
                         actual_delay = max(0.1, delay + jitter)
                         logger.debug(
-                            f"Retrying JWKS fetch in {actual_delay:.1f}s (attempt {attempt + 1}/{self.jwks_fetch_retries})"
+                            f"Retrying JWKS fetch in {actual_delay:.1f}s "
+                            f"(attempt {attempt + 1}/{self.jwks_fetch_retries})"
                         )
                         time.sleep(actual_delay)
                         delay *= 2
@@ -219,7 +221,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 f"Failed to fetch JWKS after {self.jwks_fetch_retries} attempts. "
                 f"Authentication will fail until JWKS is available."
             )
-        
+
         # Thread-safe update of JWKS cache
         with self._jwks_fetch_lock:
             self.jwks = {"keys": []}
@@ -600,7 +602,8 @@ def create_jwt_middleware(
         required_roles: Optional list of required roles
         public_paths: List of paths that don't require auth
         jwks_cache_ttl: JWKS cache TTL in seconds (default: 3600 = 1 hour)
-        jwks_fetch_retries: Maximum number of attempts (including the initial attempt) to fetch JWKS during initial load (default: 10)
+        jwks_fetch_retries: Maximum number of attempts (including initial)
+            to fetch JWKS during initial load (default: 10)
         jwks_fetch_retry_delay: Initial delay between retries in seconds (default: 1.0)
         jwks_fetch_timeout: Timeout for JWKS fetch requests in seconds (default: 30.0)
         defer_jwks_fetch: Defer JWKS fetch to background thread (default: True)
