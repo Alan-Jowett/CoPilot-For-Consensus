@@ -79,6 +79,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self._consuming = threading.Event()  # Thread-safe flag for consumption control
         self._last_error_log_time: float = 0  # Rate limiting for error logs
         self._error_log_interval: float = 60.0  # Log errors at most once per minute
+        self._rate_limit_lock = threading.Lock()  # Protect rate limiting state
 
     @classmethod
     def from_config(cls, driver_config: DriverConfig_MessageBus_AzureServiceBus) -> "AzureServiceBusSubscriber":
@@ -216,6 +217,10 @@ class AzureServiceBusSubscriber(EventSubscriber):
         calling the registered callbacks. If the handler is shut down,
         it will automatically reconnect with exponential backoff.
 
+        Note: This method is NOT thread-safe and must not be called
+        concurrently from multiple threads. Use a single consuming
+        thread per subscriber instance.
+
         Raises:
             RuntimeError: If not connected to Azure Service Bus
             Exception: For unexpected errors during message processing
@@ -237,55 +242,16 @@ class AzureServiceBusSubscriber(EventSubscriber):
         while self._consuming.is_set():
             # Check if we have a valid client before attempting to consume
             if not self.client:
-                # Client is None (connection failed), continue to retry logic
-                # This will be caught as a RuntimeError and trigger reconnection
-                try:
-                    raise RuntimeError("Client is not connected. Will attempt reconnection.")
-                except RuntimeError as e:
-                    # Let this flow to the handler shutdown recovery logic below
-                    error_str = str(e).lower()
-                    # Treat connection failures similarly to handler shutdown
-                    if True:  # Always trigger reconnection when client is None
-                        self._log_rate_limited(
-                            "Client not connected after previous reconnection failure. Will retry.",
-                            level="warning"
-                        )
-
-                        # Exponential backoff before reconnecting
-                        if retry_count < max_retries:
-                            backoff = base_backoff * (2 ** retry_count)
-                            logger.info(f"Reconnecting in {backoff:.1f}s (attempt {retry_count + 1}/{max_retries})")
-                            time.sleep(backoff)
-                            retry_count += 1
-                        else:
-                            logger.error(
-                                f"Failed to recover after {max_retries} attempts. "
-                                "Continuing with max backoff."
-                            )
-                            # Continue with max backoff to keep trying
-                            retry_count = max_retries  # Keep using max backoff
-                            backoff = base_backoff * (2 ** max_retries)
-                            time.sleep(backoff)
-
-                        # Attempt to reconnect
-                        try:
-                            self.connect()
-                            logger.info("Successfully reconnected")
-                            # Reset retry count on successful reconnection
-                            retry_count = 0
-                        except Exception as reconnect_error:
-                            self._log_rate_limited(
-                                f"Failed to reconnect: {reconnect_error}",
-                                level="error"
-                            )
-                            # Continue loop to retry - client is still None
-                    continue  # Skip to next iteration
+                # Client is None (connection failed), perform retry logic
+                self._log_rate_limited(
+                    "Client not connected after previous reconnection failure. Will retry.",
+                    level="warning",
+                )
+                retry_count = self._attempt_reconnection_with_backoff(retry_count, max_retries, base_backoff)
+                continue  # Skip to next iteration
 
             try:
                 self._consume_with_receiver()
-                # If we successfully processed messages, reset retry count
-                # Note: _consume_with_receiver has an infinite loop, so this is only
-                # reached if an exception is raised
             except KeyboardInterrupt:
                 logger.info("Received keyboard interrupt, stopping consumption")
                 break
@@ -313,33 +279,8 @@ class AzureServiceBusSubscriber(EventSubscriber):
                         # Ensure we don't keep a reference to a closed client
                         self.client = None
 
-                    # Exponential backoff before reconnecting
-                    if retry_count < max_retries:
-                        backoff = base_backoff * (2 ** retry_count)
-                        logger.info(f"Reconnecting in {backoff:.1f}s (attempt {retry_count + 1}/{max_retries})")
-                        time.sleep(backoff)
-                        retry_count += 1
-                    else:
-                        logger.error(f"Failed to recover after {max_retries} attempts. Continuing with max backoff.")
-                        # Continue with max backoff to keep trying
-                        retry_count = max_retries  # Keep using max backoff
-                        backoff = base_backoff * (2 ** max_retries)
-                        time.sleep(backoff)
-
-                    # Reconnect
-                    try:
-                        self.connect()
-                        logger.info("Successfully reconnected after handler shutdown")
-                        # Reset retry count on successful reconnection
-                        retry_count = 0
-                    except Exception as reconnect_error:
-                        self._log_rate_limited(
-                            f"Failed to reconnect: {reconnect_error}",
-                            level="error"
-                        )
-                        # Continue loop to retry
-                        # Client is None after failed reconnect, which will be caught
-                        # at the start of the next loop iteration
+                    # Reconnect with backoff
+                    retry_count = self._attempt_reconnection_with_backoff(retry_count, max_retries, base_backoff)
                 else:
                     # Non-recoverable error or unknown error type
                     logger.error(f"Error in start_consuming: {e}", exc_info=True)
@@ -347,6 +288,47 @@ class AzureServiceBusSubscriber(EventSubscriber):
 
         self._consuming.clear()
         logger.info("Stopped consuming events")
+
+    def _attempt_reconnection_with_backoff(self, retry_count: int, max_retries: int, base_backoff: float) -> int:
+        """Attempt reconnection with exponential backoff.
+
+        Args:
+            retry_count: Current retry count
+            max_retries: Maximum number of retries before using max backoff
+            base_backoff: Base backoff time in seconds
+
+        Returns:
+            Updated retry count (0 if reconnection succeeded, incremented otherwise)
+        """
+        # Exponential backoff before reconnecting
+        if retry_count < max_retries:
+            backoff = base_backoff * (2 ** retry_count)
+            logger.info(f"Reconnecting in {backoff:.1f}s (attempt {retry_count + 1}/{max_retries})")
+            time.sleep(backoff)
+            retry_count += 1
+        else:
+            # Cap at max backoff
+            logger.error(
+                f"Failed to recover after {max_retries} attempts. "
+                "Continuing with max backoff."
+            )
+            backoff = base_backoff * (2 ** max_retries)
+            time.sleep(backoff)
+            # Keep retry_count at max_retries to maintain max backoff
+
+        # Attempt to reconnect
+        try:
+            self.connect()
+            logger.info("Successfully reconnected")
+            # Reset retry count on successful reconnection
+            return 0
+        except Exception as reconnect_error:
+            self._log_rate_limited(
+                f"Failed to reconnect: {reconnect_error}",
+                level="error"
+            )
+            # Return current retry count (capped at max_retries)
+            return min(retry_count, max_retries)
 
     def _consume_with_receiver(self) -> None:
         """Consume messages with a receiver instance."""
@@ -479,16 +461,24 @@ class AzureServiceBusSubscriber(EventSubscriber):
     def _log_rate_limited(self, message: str, level: str = "error", exc_info: bool = False) -> None:
         """Log a message with rate limiting to prevent spam.
 
+        Thread-safe implementation using a lock to protect shared state.
+
         Args:
             message: The log message
             level: Log level (error, warning, info, debug)
             exc_info: Whether to include exception info
         """
         current_time = time.time()
-        if current_time - self._last_error_log_time >= self._error_log_interval:
+        should_log = False
+
+        with self._rate_limit_lock:
+            if current_time - self._last_error_log_time >= self._error_log_interval:
+                should_log = True
+                self._last_error_log_time = current_time
+
+        if should_log:
             log_func = getattr(logger, level, logger.error)
             log_func(message, exc_info=exc_info)
-            self._last_error_log_time = current_time
         else:
             # Log at debug level to avoid spam while still capturing for debugging
             logger.debug(f"[Rate-limited] {message}")

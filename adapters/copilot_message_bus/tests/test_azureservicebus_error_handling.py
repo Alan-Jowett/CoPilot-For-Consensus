@@ -375,8 +375,15 @@ class TestAzureServiceBusHandlerShutdownRecovery:
                         thread = threading.Thread(target=run_consumer, daemon=True)
                         thread.start()
 
-                        # Wait a bit for processing
-                        time.sleep(0.3)
+                        # Wait for processing using polling with timeout
+                        timeout = 5.0
+                        start_time = time.monotonic()
+                        while (
+                            connect_calls[0] < 1
+                            and thread.is_alive()
+                            and (time.monotonic() - start_time) < timeout
+                        ):
+                            time.sleep(0.05)
 
                         # Stop consumption
                         subscriber.stop_consuming()
@@ -442,8 +449,15 @@ class TestAzureServiceBusHandlerShutdownRecovery:
                         thread = threading.Thread(target=run_consumer, daemon=True)
                         thread.start()
 
-                        # Wait for multiple retry cycles
-                        time.sleep(0.5)
+                        # Wait for multiple retry cycles using polling with timeout
+                        timeout = 5.0
+                        start_time = time.monotonic()
+                        while (
+                            connect_calls[0] < 2
+                            and thread.is_alive()
+                            and (time.monotonic() - start_time) < timeout
+                        ):
+                            time.sleep(0.05)
 
                         subscriber.stop_consuming()
                         thread.join(timeout=2)
