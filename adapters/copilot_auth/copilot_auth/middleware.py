@@ -132,7 +132,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
         for attempt in range(1, self.jwks_fetch_retries + 1):
             try:
-                response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
+                jwks_url = f"{self.auth_service_url}/keys"
+                response = httpx.get(jwks_url, timeout=self.jwks_fetch_timeout)
                 response.raise_for_status()
                 jwks = response.json()
 
@@ -142,7 +143,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     self.jwks_last_fetched = time.time()
 
                 logger.info(
-                    f"Successfully fetched JWKS from {self.auth_service_url}/keys "
+                    f"Successfully fetched JWKS from {jwks_url} "
                     f"({len(jwks.get('keys', []))} keys) on attempt {attempt}/{self.jwks_fetch_retries}"
                 )
                 return
@@ -154,7 +155,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     # Log first failure as WARNING for visibility
                     logger.warning(
                         f"JWKS fetch attempt {attempt}/{self.jwks_fetch_retries} failed: "
-                        f"{type(e).__name__} - {e}"
+                        f"{type(e).__name__} - {e} "
+                        f"(target: {self.auth_service_url}/keys, timeout: {self.jwks_fetch_timeout}s)"
                     )
                 
                 if attempt < self.jwks_fetch_retries:
@@ -174,7 +176,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     # Log first failure as WARNING for visibility
                     logger.warning(
                         f"JWKS fetch attempt {attempt}/{self.jwks_fetch_retries} failed: "
-                        f"HTTP {e.response.status_code}"
+                        f"HTTP {e.response.status_code} "
+                        f"(target: {self.auth_service_url}/keys, timeout: {self.jwks_fetch_timeout}s)"
                     )
                 
                 # For 5xx server errors (transient), retry; for other errors, fail immediately
@@ -208,7 +211,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
             logger.error(
                 f"JWKS fetch failed after {failed_attempts} attempts over {duration:.1f}s. "
                 f"Authentication will fail until JWKS is available. "
-                f"Last error: {type(last_error).__name__} - {last_error}"
+                f"Last error: {type(last_error).__name__} - {last_error} "
+                f"(target: {self.auth_service_url}/keys, timeout: {self.jwks_fetch_timeout}s)"
             )
         else:
             logger.error(
@@ -242,15 +246,19 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     return
 
             try:
-                response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
+                jwks_url = f"{self.auth_service_url}/keys"
+                response = httpx.get(jwks_url, timeout=self.jwks_fetch_timeout)
                 response.raise_for_status()
                 jwks = response.json()
                 self.jwks = jwks
                 self.jwks_last_fetched = time.time()
-                logger.info(f"Fetched JWKS from {self.auth_service_url}/keys ({len(jwks.get('keys', []))} keys)")
+                logger.info(f"Fetched JWKS from {jwks_url} ({len(jwks.get('keys', []))} keys)")
 
             except Exception as e:
-                logger.error(f"Failed to fetch JWKS: {e}")
+                logger.error(
+                    f"Failed to fetch JWKS: {type(e).__name__} - {e} "
+                    f"(target: {self.auth_service_url}/keys, timeout: {self.jwks_fetch_timeout}s)"
+                )
                 # Only reset on first fetch, keep stale cache on refresh failures
                 if self.jwks is None:
                     self.jwks = {"keys": []}
@@ -277,9 +285,11 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 with self._jwks_fetch_lock:
                     if self.jwks is None:  # Double-check after acquiring lock
                         try:
+                            jwks_url = f"{self.auth_service_url}/keys"
+                            emergency_timeout = 5.0
                             response = httpx.get(
-                                f"{self.auth_service_url}/keys",
-                                timeout=5.0,  # Quick timeout for on-demand fetch
+                                jwks_url,
+                                timeout=emergency_timeout,  # Quick timeout for on-demand fetch
                             )
                             response.raise_for_status()
                             jwks = response.json()
@@ -289,7 +299,10 @@ class JWTMiddleware(BaseHTTPMiddleware):
                             self.jwks_last_fetched = time.time()
                             logger.info(f"Emergency JWKS fetch succeeded ({len(jwks.get('keys', []))} keys)")
                         except Exception as e:
-                            logger.error(f"Emergency JWKS fetch failed: {e}")
+                            logger.error(
+                                f"Emergency JWKS fetch failed: {type(e).__name__} - {e} "
+                                f"(target: {jwks_url}, timeout: {emergency_timeout}s)"
+                            )
                             self.jwks = {"keys": []}
 
         # Refresh cache if stale (periodic refresh for key rotation)
