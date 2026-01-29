@@ -130,10 +130,10 @@ class JWTMiddleware(BaseHTTPMiddleware):
         last_error: Exception | None = None
         first_error_time: float | None = None
         failed_attempts = 0
+        jwks_url = f"{self.auth_service_url}/keys"  # Define URL once for consistency
 
         for attempt in range(1, self.jwks_fetch_retries + 1):
             try:
-                jwks_url = f"{self.auth_service_url}/keys"
                 response = httpx.get(jwks_url, timeout=self.jwks_fetch_timeout)
                 response.raise_for_status()
                 jwks = response.json()
@@ -157,7 +157,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     logger.warning(
                         f"JWKS fetch attempt {attempt}/{self.jwks_fetch_retries} failed: "
                         f"{type(e).__name__} - {e} "
-                        f"(target: {self.auth_service_url}/keys, timeout: {self.jwks_fetch_timeout}s)"
+                        f"(target: {jwks_url}, timeout: {self.jwks_fetch_timeout}s)"
                     )
 
                 if attempt < self.jwks_fetch_retries:
@@ -178,7 +178,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     logger.warning(
                         f"JWKS fetch attempt {attempt}/{self.jwks_fetch_retries} failed: "
                         f"HTTP {e.response.status_code} "
-                        f"(target: {self.auth_service_url}/keys, timeout: {self.jwks_fetch_timeout}s)"
+                        f"(target: {jwks_url}, timeout: {self.jwks_fetch_timeout}s)"
                     )
 
                 # For 5xx server errors (transient), retry; for other errors, fail immediately
@@ -196,7 +196,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 else:
                     logger.error(
                         f"JWKS fetch failed with HTTP {e.response.status_code}: {e}. "
-                        f"Not retrying for this error type."
+                        f"Not retrying for this error type. "
+                        f"(target: {jwks_url}, timeout: {self.jwks_fetch_timeout}s)"
                     )
                     break
             except Exception as e:
@@ -214,7 +215,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 f"JWKS fetch failed after {failed_attempts} attempts over {duration:.1f}s. "
                 f"Authentication will fail until JWKS is available. "
                 f"Last error: {type(last_error).__name__} - {last_error} "
-                f"(target: {self.auth_service_url}/keys, timeout: {self.jwks_fetch_timeout}s)"
+                f"(target: {jwks_url}, timeout: {self.jwks_fetch_timeout}s)"
             )
         else:
             logger.error(
