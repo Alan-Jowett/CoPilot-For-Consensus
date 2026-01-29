@@ -235,6 +235,52 @@ class AzureServiceBusSubscriber(EventSubscriber):
 
         # Main consumption loop with recovery
         while self._consuming.is_set():
+            # Check if we have a valid client before attempting to consume
+            if not self.client:
+                # Client is None (connection failed), continue to retry logic
+                # This will be caught as a RuntimeError and trigger reconnection
+                try:
+                    raise RuntimeError("Client is not connected. Will attempt reconnection.")
+                except RuntimeError as e:
+                    # Let this flow to the handler shutdown recovery logic below
+                    error_str = str(e).lower()
+                    # Treat connection failures similarly to handler shutdown
+                    if True:  # Always trigger reconnection when client is None
+                        self._log_rate_limited(
+                            "Client not connected after previous reconnection failure. Will retry.",
+                            level="warning"
+                        )
+
+                        # Exponential backoff before reconnecting
+                        if retry_count < max_retries:
+                            backoff = base_backoff * (2 ** retry_count)
+                            logger.info(f"Reconnecting in {backoff:.1f}s (attempt {retry_count + 1}/{max_retries})")
+                            time.sleep(backoff)
+                            retry_count += 1
+                        else:
+                            logger.error(
+                                f"Failed to recover after {max_retries} attempts. "
+                                "Continuing with max backoff."
+                            )
+                            # Continue with max backoff to keep trying
+                            retry_count = max_retries  # Keep using max backoff
+                            backoff = base_backoff * (2 ** max_retries)
+                            time.sleep(backoff)
+
+                        # Attempt to reconnect
+                        try:
+                            self.connect()
+                            logger.info("Successfully reconnected")
+                            # Reset retry count on successful reconnection
+                            retry_count = 0
+                        except Exception as reconnect_error:
+                            self._log_rate_limited(
+                                f"Failed to reconnect: {reconnect_error}",
+                                level="error"
+                            )
+                            # Continue loop to retry - client is still None
+                    continue  # Skip to next iteration
+
             try:
                 self._consume_with_receiver()
                 # If we successfully processed messages, reset retry count
@@ -263,6 +309,9 @@ class AzureServiceBusSubscriber(EventSubscriber):
                             self.client.close()
                     except Exception as close_error:
                         logger.debug(f"Error closing client during recovery: {close_error}")
+                    finally:
+                        # Ensure we don't keep a reference to a closed client
+                        self.client = None
 
                     # Exponential backoff before reconnecting
                     if retry_count < max_retries:
@@ -289,8 +338,8 @@ class AzureServiceBusSubscriber(EventSubscriber):
                             level="error"
                         )
                         # Continue loop to retry
-                        # If client is None, next iteration will fail at _consume_with_receiver
-                        # but that's caught and we'll retry with backoff
+                        # Client is None after failed reconnect, which will be caught
+                        # at the start of the next loop iteration
                 else:
                     # Non-recoverable error or unknown error type
                     logger.error(f"Error in start_consuming: {e}", exc_info=True)

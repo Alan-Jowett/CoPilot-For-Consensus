@@ -369,6 +369,7 @@ class TestAzureServiceBusHandlerShutdownRecovery:
                             try:
                                 subscriber.start_consuming()
                             except Exception:
+                                # Expected - we're stopping the consumer, which may raise
                                 pass
 
                         thread = threading.Thread(target=run_consumer, daemon=True)
@@ -435,6 +436,7 @@ class TestAzureServiceBusHandlerShutdownRecovery:
                             try:
                                 subscriber.start_consuming()
                             except Exception:
+                                # Expected - we're stopping the consumer, which may raise
                                 pass
 
                         thread = threading.Thread(target=run_consumer, daemon=True)
