@@ -336,3 +336,45 @@ def test_jwks_fetch_consolidated_error_logging():
                 assert "attempts over" in error_message, f"Missing 'attempts over' in: {error_message}"
                 assert "3 attempts" in error_message, f"Missing '3 attempts' in: {error_message}"
                 assert "TimeoutException" in error_message, f"Missing error type in: {error_message}"
+
+
+def test_jwks_fetch_diagnostic_context_in_logs():
+    """Test JWKS fetch logs include diagnostic context (target URL and timeout)."""
+    app = FastAPI()
+    auth_service_url = "http://auth:8090"
+    timeout = 30.0
+
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
+        mock_get.side_effect = httpx.ConnectError("Connection refused")
+
+        with patch("copilot_auth.middleware.time.sleep"):
+            with patch("copilot_auth.middleware.logger") as mock_logger:
+                JWTMiddleware(
+                    app=app.router,
+                    auth_service_url=auth_service_url,
+                    audience="test-service",
+                    jwks_fetch_retries=2,
+                    jwks_fetch_retry_delay=0.1,
+                    jwks_fetch_timeout=timeout,
+                    defer_jwks_fetch=False,
+                )
+
+                # Verify warning log includes diagnostic context
+                assert mock_logger.warning.call_count >= 1, "Expected at least one warning log"
+                warning_message = mock_logger.warning.call_args[0][0]
+                assert f"target: {auth_service_url}/keys" in warning_message, \
+                    f"Missing target URL in warning: {warning_message}"
+                assert f"timeout: {timeout}s" in warning_message, \
+                    f"Missing timeout in warning: {warning_message}"
+                assert "ConnectError" in warning_message, \
+                    f"Missing error type in warning: {warning_message}"
+
+                # Verify error log includes diagnostic context
+                assert mock_logger.error.call_count == 1, "Expected one error log"
+                error_message = mock_logger.error.call_args[0][0]
+                assert f"target: {auth_service_url}/keys" in error_message, \
+                    f"Missing target URL in error: {error_message}"
+                assert f"timeout: {timeout}s" in error_message, \
+                    f"Missing timeout in error: {error_message}"
+                assert "ConnectError" in error_message, \
+                    f"Missing error type in error: {error_message}"
