@@ -244,21 +244,24 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 break
             except Exception as e:
                 error_str = str(e).lower()
-                
+
                 # Check if this is a handler shutdown error that requires reconnection
-                if "handler has already been shutdown" in error_str or "handler" in error_str and "shutdown" in error_str:
+                if (
+                    "handler has already been shutdown" in error_str
+                    or ("handler" in error_str and "shutdown" in error_str)
+                ):
                     self._log_rate_limited(
                         f"Handler shutdown detected: {e}. Will reconnect and retry.",
                         level="warning"
                     )
-                    
+
                     # Close and recreate the client
                     try:
                         if self.client:
                             self.client.close()
                     except Exception as close_error:
                         logger.debug(f"Error closing client during recovery: {close_error}")
-                    
+
                     # Exponential backoff before reconnecting
                     if retry_count < max_retries:
                         backoff = base_backoff * (2 ** retry_count)
@@ -271,7 +274,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
                         retry_count = max_retries  # Keep using max backoff
                         backoff = base_backoff * (2 ** max_retries)
                         time.sleep(backoff)
-                    
+
                     # Reconnect
                     try:
                         self.connect()
@@ -290,9 +293,9 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self._consuming.clear()
         logger.info("Stopped consuming events")
 
-    def _consume_with_receiver(self, retry_count: int) -> None:
+    def _consume_with_receiver(self, retry_count: int) -> None:  # noqa: ARG002
         """Consume messages with a receiver instance.
-        
+
         Args:
             retry_count: Current retry count for logging purposes
         """
@@ -393,10 +396,12 @@ class AzureServiceBusSubscriber(EventSubscriber):
                     except Exception as e:
                         # Check for handler shutdown error
                         error_str = str(e).lower()
-                        if "handler has already been shutdown" in error_str or ("handler" in error_str and "shutdown" in error_str):
+                        if "handler has already been shutdown" in error_str or (
+                            "handler" in error_str and "shutdown" in error_str
+                        ):
                             # Re-raise to trigger reconnection logic in start_consuming
                             raise
-                        
+
                         # For other exceptions during message receive, log and continue
                         # to maintain existing behavior for transient errors
                         if self._consuming.is_set():
@@ -420,7 +425,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
 
     def _log_rate_limited(self, message: str, level: str = "error", exc_info: bool = False) -> None:
         """Log a message with rate limiting to prevent spam.
-        
+
         Args:
             message: The log message
             level: Log level (error, warning, info, debug)

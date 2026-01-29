@@ -313,7 +313,7 @@ class TestAzureServiceBusAutoLockRenewerErrorHandling:
 
 class TestAzureServiceBusHandlerShutdownRecovery:
     """Test recovery from handler shutdown errors in Azure Service Bus.
-    
+
     These tests cover the issue where the service bus handler is shut down
     (e.g., "The handler has already been shutdown") and needs to reconnect.
     """
@@ -337,10 +337,10 @@ class TestAzureServiceBusHandlerShutdownRecovery:
         mock_receiver = Mock()
         mock_receiver.__enter__ = Mock(return_value=mock_receiver)
         mock_receiver.__exit__ = Mock(return_value=False)
-        
+
         # Track how many times receive_messages is called
         receive_call_count = [0]
-        
+
         def mock_receive_messages(*args, **kwargs):
             receive_call_count[0] += 1
             if receive_call_count[0] == 1:
@@ -349,7 +349,7 @@ class TestAzureServiceBusHandlerShutdownRecovery:
             else:
                 # After reconnect, return empty
                 return []
-        
+
         mock_receiver.receive_messages = Mock(side_effect=mock_receive_messages)
         mock_client.get_queue_receiver.return_value = mock_receiver
         mock_client.close = Mock()
@@ -359,7 +359,7 @@ class TestAzureServiceBusHandlerShutdownRecovery:
         def mock_connect():
             connect_calls[0] += 1
             subscriber.client = mock_client  # Re-assign mock client
-        
+
         with patch.object(subscriber, 'connect', side_effect=mock_connect):
             with patch("copilot_message_bus.azureservicebussubscriber.logger") as mock_logger:
                 with patch("copilot_message_bus.azureservicebussubscriber.ServiceBusReceiveMode", Mock()):
@@ -370,26 +370,26 @@ class TestAzureServiceBusHandlerShutdownRecovery:
                                 subscriber.start_consuming()
                             except Exception:
                                 pass
-                        
+
                         thread = threading.Thread(target=run_consumer, daemon=True)
                         thread.start()
-                        
+
                         # Wait a bit for processing
                         time.sleep(0.3)
-                        
+
                         # Stop consumption
                         subscriber.stop_consuming()
                         thread.join(timeout=2)
 
                     # Verify that connect was called (reconnection)
                     assert connect_calls[0] >= 1, f"Reconnect should have been called, got {connect_calls[0]}"
-                    
+
                     # Verify exponential backoff was used
                     assert mock_sleep.called, "Sleep should be called for backoff"
                     if mock_sleep.call_args_list:
                         backoff_call = mock_sleep.call_args_list[0][0][0]
                         assert backoff_call >= 1.0, f"Backoff should be at least 1.0s, got {backoff_call}"
-                    
+
                     # Verify warning was logged about handler shutdown or reconnect
                     all_calls = mock_logger.info.call_args_list + mock_logger.warning.call_args_list
                     warning_calls = [call for call in all_calls
@@ -406,9 +406,9 @@ class TestAzureServiceBusHandlerShutdownRecovery:
         mock_receiver = Mock()
         mock_receiver.__enter__ = Mock(return_value=mock_receiver)
         mock_receiver.__exit__ = Mock(return_value=False)
-        
+
         receive_call_count = [0]
-        
+
         def mock_receive_messages(*args, **kwargs):
             receive_call_count[0] += 1
             if receive_call_count[0] <= 3:
@@ -417,7 +417,7 @@ class TestAzureServiceBusHandlerShutdownRecovery:
             else:
                 # After reconnect, return empty
                 return []
-        
+
         mock_receiver.receive_messages = Mock(side_effect=mock_receive_messages)
         mock_client.get_queue_receiver.return_value = mock_receiver
         mock_client.close = Mock()
@@ -426,7 +426,7 @@ class TestAzureServiceBusHandlerShutdownRecovery:
         def mock_connect():
             connect_calls[0] += 1
             subscriber.client = mock_client
-        
+
         with patch.object(subscriber, 'connect', side_effect=mock_connect):
             with patch("copilot_message_bus.azureservicebussubscriber.logger"):
                 with patch("copilot_message_bus.azureservicebussubscriber.ServiceBusReceiveMode", Mock()):
@@ -436,19 +436,19 @@ class TestAzureServiceBusHandlerShutdownRecovery:
                                 subscriber.start_consuming()
                             except Exception:
                                 pass
-                        
+
                         thread = threading.Thread(target=run_consumer, daemon=True)
                         thread.start()
-                        
+
                         # Wait for multiple retry cycles
                         time.sleep(0.5)
-                        
+
                         subscriber.stop_consuming()
                         thread.join(timeout=2)
 
                     # Verify multiple reconnect attempts
                     assert connect_calls[0] >= 2, f"Should reconnect at least 2 times, got {connect_calls[0]}"
-                    
+
                     # Verify exponential backoff (1s, 2s, 4s, etc.)
                     if mock_sleep.call_args_list:
                         sleep_calls = [call[0][0] for call in mock_sleep.call_args_list]
@@ -464,12 +464,12 @@ class TestAzureServiceBusHandlerShutdownRecovery:
             # First log should go through
             subscriber._log_rate_limited("Test error 1", level="error")
             assert mock_logger.error.call_count == 1
-            
+
             # Second log immediately should be rate-limited (debug only)
             subscriber._log_rate_limited("Test error 2", level="error")
             assert mock_logger.error.call_count == 1  # Still 1
             assert mock_logger.debug.call_count == 1  # Debug called instead
-            
+
             # Fast-forward time and log again - should go through
             subscriber._last_error_log_time = time.time() - 61  # 61 seconds ago
             subscriber._log_rate_limited("Test error 3", level="error")
@@ -480,26 +480,26 @@ class TestAzureServiceBusHandlerShutdownRecovery:
         # Mock the client to raise a non-recoverable error during receiver creation
         mock_client = Mock()
         subscriber.client = mock_client
-        
+
         non_recoverable_error = ValueError("Invalid configuration")
         mock_client.get_queue_receiver.side_effect = non_recoverable_error
 
         with patch("copilot_message_bus.azureservicebussubscriber.ServiceBusReceiveMode", Mock()):
             # Non-recoverable errors should still be raised
             exception_raised = [None]
-            
+
             def run_consumer():
                 try:
                     subscriber.start_consuming()
                 except Exception as e:
                     exception_raised[0] = e
-            
+
             thread = threading.Thread(target=run_consumer, daemon=True)
             thread.start()
-            
+
             # Wait for the thread to process
             thread.join(timeout=1.0)
-            
+
             # Verify the correct exception was raised
             assert exception_raised[0] is not None, "Exception should have been raised"
             assert isinstance(exception_raised[0], ValueError), f"Expected ValueError, got {type(exception_raised[0])}"
