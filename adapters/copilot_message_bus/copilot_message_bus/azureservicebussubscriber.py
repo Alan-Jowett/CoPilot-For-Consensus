@@ -6,6 +6,7 @@
 import json
 import logging
 import threading
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -76,6 +77,9 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self._credential: Any = None  # DefaultAzureCredential if using managed identity
         self.callbacks: dict[str, Callable[[dict[str, Any]], None]] = {}
         self._consuming = threading.Event()  # Thread-safe flag for consumption control
+        self._last_error_log_time: float = 0  # Rate limiting for error logs
+        self._error_log_interval: float = 60.0  # Log errors at most once per minute
+        self._rate_limit_lock = threading.Lock()  # Protect rate limiting state
 
     @classmethod
     def from_config(cls, driver_config: DriverConfig_MessageBus_AzureServiceBus) -> "AzureServiceBusSubscriber":
@@ -210,7 +214,12 @@ class AzureServiceBusSubscriber(EventSubscriber):
         """Start consuming events from the queue or subscription.
 
         This method blocks and processes events as they arrive,
-        calling the registered callbacks.
+        calling the registered callbacks. If the handler is shut down,
+        it will automatically reconnect with exponential backoff.
+
+        Note: This method is NOT thread-safe and must not be called
+        concurrently from multiple threads. Use a single consuming
+        thread per subscriber instance.
 
         Raises:
             RuntimeError: If not connected to Azure Service Bus
@@ -225,8 +234,109 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self._consuming.set()
         logger.info("Started consuming events")
 
+        retry_count = 0
+        max_retries = 5
+        base_backoff = 1.0  # Start with 1 second
+
+        # Main consumption loop with recovery
+        while self._consuming.is_set():
+            # Check if we have a valid client before attempting to consume
+            if not self.client:
+                # Client is None (connection failed), perform retry logic
+                self._log_rate_limited(
+                    "Client not connected after previous reconnection failure. Will retry.",
+                    level="warning",
+                )
+                retry_count = self._attempt_reconnection_with_backoff(retry_count, max_retries, base_backoff)
+                continue  # Skip to next iteration
+
+            try:
+                self._consume_with_receiver()
+            except KeyboardInterrupt:
+                logger.info("Received keyboard interrupt, stopping consumption")
+                break
+            except Exception as e:
+                error_str = str(e).lower()
+
+                # Check if this is a handler shutdown error that requires reconnection
+                # Match the specific error message from Azure SDK
+                if (
+                    "handler has already been shutdown" in error_str
+                    or "handler already shutdown" in error_str
+                ):
+                    self._log_rate_limited(
+                        f"Handler shutdown detected: {e}. Will reconnect and retry.",
+                        level="warning"
+                    )
+
+                    # Close and recreate the client
+                    try:
+                        if self.client:
+                            self.client.close()
+                    except Exception as close_error:
+                        logger.debug(f"Error closing client during recovery: {close_error}")
+                    finally:
+                        # Ensure we don't keep a reference to a closed client
+                        self.client = None
+
+                    # Reconnect with backoff
+                    retry_count = self._attempt_reconnection_with_backoff(retry_count, max_retries, base_backoff)
+                else:
+                    # Non-recoverable error or unknown error type
+                    logger.error(f"Error in start_consuming: {e}", exc_info=True)
+                    raise
+
+        self._consuming.clear()
+        logger.info("Stopped consuming events")
+
+    def _attempt_reconnection_with_backoff(self, retry_count: int, max_retries: int, base_backoff: float) -> int:
+        """Attempt reconnection with exponential backoff.
+
+        Args:
+            retry_count: Current retry count
+            max_retries: Maximum number of retries before using max backoff
+            base_backoff: Base backoff time in seconds
+
+        Returns:
+            Updated retry count (0 if reconnection succeeded, incremented otherwise)
+        """
+        # Exponential backoff before reconnecting
+        if retry_count < max_retries:
+            backoff = base_backoff * (2 ** retry_count)
+            logger.info(f"Reconnecting in {backoff:.1f}s (attempt {retry_count + 1}/{max_retries})")
+            time.sleep(backoff)
+            retry_count += 1
+        else:
+            # Cap at max backoff
+            logger.error(
+                f"Failed to recover after {max_retries} attempts. "
+                "Continuing with max backoff."
+            )
+            backoff = base_backoff * (2 ** max_retries)
+            time.sleep(backoff)
+            # Keep retry_count at max_retries to maintain max backoff
+
+        # Attempt to reconnect
         try:
-            renewer: Any | None = None
+            self.connect()
+            logger.info("Successfully reconnected")
+            # Reset retry count on successful reconnection
+            return 0
+        except Exception as reconnect_error:
+            self._log_rate_limited(
+                f"Failed to reconnect: {reconnect_error}",
+                level="error"
+            )
+            # Return current retry count (capped at max_retries)
+            return min(retry_count, max_retries)
+
+    def _consume_with_receiver(self) -> None:
+        """Consume messages with a receiver instance."""
+        renewer: Any | None = None
+
+        try:
+            # ServiceBusReceiveMode is checked in start_consuming() before calling this method
+            assert ServiceBusReceiveMode is not None, "ServiceBusReceiveMode should be available"
 
             # Choose receive mode based on auto_complete setting
             receive_mode = (
@@ -310,24 +420,32 @@ class AzureServiceBusSubscriber(EventSubscriber):
                                     except Exception as abandon_error:
                                         logger.error(f"Error abandoning message: {abandon_error}")
 
-                    except KeyboardInterrupt:
-                        logger.info("Received keyboard interrupt, stopping consumption")
-                        break
                     except AttributeError as e:
                         # Known azure-servicebus SDK bug: receiver._handler can become None
                         if self._consuming.is_set():
-                            logger.error(
-                                f"Receiver AttributeError during message receive (likely SDK bug): {e}", exc_info=True
+                            self._log_rate_limited(
+                                f"Receiver AttributeError during message receive (likely SDK bug): {e}",
+                                level="error",
+                                exc_info=True
                             )
                         # Continue processing unless explicitly stopped
                     except Exception as e:
+                        # Check for handler shutdown error
+                        # Match the specific error message from Azure SDK
+                        error_str = str(e).lower()
+                        if (
+                            "handler has already been shutdown" in error_str
+                            or "handler already shutdown" in error_str
+                        ):
+                            # Re-raise to trigger reconnection logic in start_consuming
+                            raise
+
+                        # For other exceptions during message receive, log and continue
+                        # to maintain existing behavior for transient errors
                         if self._consuming.is_set():
-                            logger.error(f"Error receiving messages: {e}")
+                            self._log_rate_limited(f"Error receiving messages: {e}", level="error")
                         # Continue processing unless explicitly stopped
 
-        except Exception as e:
-            logger.error(f"Error in start_consuming: {e}", exc_info=True)
-            raise
         finally:
             try:
                 if renewer is not None:
@@ -336,14 +454,37 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 logger.debug(f"AutoLockRenewer AttributeError during close: {e}")
             except Exception as e:
                 logger.debug(f"Error closing auto-lock renewer: {e}")
-            self._consuming.clear()
-            logger.info("Stopped consuming events")
 
     def stop_consuming(self) -> None:
         """Stop consuming events gracefully."""
         if self._consuming.is_set():
             self._consuming.clear()
             logger.info("Stopping event consumption")
+
+    def _log_rate_limited(self, message: str, level: str = "error", exc_info: bool = False) -> None:
+        """Log a message with rate limiting to prevent spam.
+
+        Thread-safe implementation using a lock to protect shared state.
+
+        Args:
+            message: The log message
+            level: Log level (error, warning, info, debug)
+            exc_info: Whether to include exception info
+        """
+        current_time = time.time()
+        should_log = False
+
+        with self._rate_limit_lock:
+            if current_time - self._last_error_log_time >= self._error_log_interval:
+                should_log = True
+                self._last_error_log_time = current_time
+
+        if should_log:
+            log_func = getattr(logger, level, logger.error)
+            log_func(message, exc_info=exc_info)
+        else:
+            # Log at debug level to avoid spam while still capturing for debugging
+            logger.debug(f"[Rate-limited] {message}")
 
     def _process_message(self, msg: Any, receiver: Any) -> None:
         """Process a received message.

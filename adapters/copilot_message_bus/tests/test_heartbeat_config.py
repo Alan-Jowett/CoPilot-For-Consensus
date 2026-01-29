@@ -191,7 +191,7 @@ class TestRabbitMQSubscriberHeartbeat:
         # Import pika within the test since it's imported inside the connect method
         with mock.patch("pika.BlockingConnection") as mock_blocking_connection, mock.patch(
             "pika.ConnectionParameters"
-        ) as mock_connection_params, mock.patch("pika.PlainCredentials") as mock_credentials:
+        ) as mock_connection_params, mock.patch("pika.PlainCredentials"):
             mock_connection = mock.Mock()
             mock_channel = mock.Mock()
             mock_connection.channel.return_value = mock_channel

@@ -479,14 +479,14 @@ class TestRabbitMQSubscriberReconnection:
                 result2 = subscriber._reconnect()
                 assert result2 is False
                 assert subscriber.connect.call_count == 1  # Still only one call
-                
+
                 # Advance time by 5 seconds (past first backoff delay of ~4s with jitter)
                 mock_time.return_value = 15.0
                 result3 = subscriber._reconnect()
                 assert result3 is False
                 assert subscriber.connect.call_count == 2  # Second attempt now allowed
                 assert subscriber._reconnect_count == 2
-                
+
                 # Advance time by 10 seconds (past second backoff delay of ~8s with jitter)
                 mock_time.return_value = 25.0
                 result4 = subscriber._reconnect()
