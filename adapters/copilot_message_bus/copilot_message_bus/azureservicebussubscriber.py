@@ -236,9 +236,10 @@ class AzureServiceBusSubscriber(EventSubscriber):
         # Main consumption loop with recovery
         while self._consuming.is_set():
             try:
-                self._consume_with_receiver(retry_count)
+                self._consume_with_receiver()
                 # If we successfully processed messages, reset retry count
-                retry_count = 0
+                # Note: _consume_with_receiver has an infinite loop, so this is only
+                # reached if an exception is raised
             except KeyboardInterrupt:
                 logger.info("Received keyboard interrupt, stopping consumption")
                 break
@@ -246,9 +247,10 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 error_str = str(e).lower()
 
                 # Check if this is a handler shutdown error that requires reconnection
+                # Match the specific error message from Azure SDK
                 if (
                     "handler has already been shutdown" in error_str
-                    or ("handler" in error_str and "shutdown" in error_str)
+                    or "handler already shutdown" in error_str
                 ):
                     self._log_rate_limited(
                         f"Handler shutdown detected: {e}. Will reconnect and retry.",
@@ -269,8 +271,8 @@ class AzureServiceBusSubscriber(EventSubscriber):
                         time.sleep(backoff)
                         retry_count += 1
                     else:
-                        logger.error(f"Failed to recover after {max_retries} attempts. Resetting retry count.")
-                        # Reset retry count but continue trying with max backoff
+                        logger.error(f"Failed to recover after {max_retries} attempts. Continuing with max backoff.")
+                        # Continue with max backoff to keep trying
                         retry_count = max_retries  # Keep using max backoff
                         backoff = base_backoff * (2 ** max_retries)
                         time.sleep(backoff)
@@ -279,12 +281,16 @@ class AzureServiceBusSubscriber(EventSubscriber):
                     try:
                         self.connect()
                         logger.info("Successfully reconnected after handler shutdown")
+                        # Reset retry count on successful reconnection
+                        retry_count = 0
                     except Exception as reconnect_error:
                         self._log_rate_limited(
                             f"Failed to reconnect: {reconnect_error}",
                             level="error"
                         )
                         # Continue loop to retry
+                        # If client is None, next iteration will fail at _consume_with_receiver
+                        # but that's caught and we'll retry with backoff
                 else:
                     # Non-recoverable error or unknown error type
                     logger.error(f"Error in start_consuming: {e}", exc_info=True)
@@ -293,12 +299,8 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self._consuming.clear()
         logger.info("Stopped consuming events")
 
-    def _consume_with_receiver(self, retry_count: int) -> None:  # noqa: ARG002
-        """Consume messages with a receiver instance.
-
-        Args:
-            retry_count: Current retry count for logging purposes
-        """
+    def _consume_with_receiver(self) -> None:
+        """Consume messages with a receiver instance."""
         renewer: Any | None = None
 
         try:
@@ -395,9 +397,11 @@ class AzureServiceBusSubscriber(EventSubscriber):
                         # Continue processing unless explicitly stopped
                     except Exception as e:
                         # Check for handler shutdown error
+                        # Match the specific error message from Azure SDK
                         error_str = str(e).lower()
-                        if "handler has already been shutdown" in error_str or (
-                            "handler" in error_str and "shutdown" in error_str
+                        if (
+                            "handler has already been shutdown" in error_str
+                            or "handler already shutdown" in error_str
                         ):
                             # Re-raise to trigger reconnection logic in start_consuming
                             raise
