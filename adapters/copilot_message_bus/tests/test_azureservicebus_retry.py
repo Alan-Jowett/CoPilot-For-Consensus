@@ -32,7 +32,7 @@ class TestAzureServiceBusPublisherRetryLogic:
         # Mock the ServiceBusClient to raise SSL EOF error twice, then succeed
         with patch("copilot_message_bus.azureservicebuspublisher.ServiceBusClient") as MockClient:
             mock_client_instance = Mock()
-            
+
             # First two calls raise SSL EOF error, third succeeds
             ssl_error = ConnectionError("[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol")
             MockClient.from_connection_string.side_effect = [
@@ -51,7 +51,7 @@ class TestAzureServiceBusPublisherRetryLogic:
             assert mock_sleep.call_count == 2
             mock_sleep.assert_any_call(0.1)
             mock_sleep.assert_any_call(0.2)
-            
+
             # Verify connection succeeded
             assert publisher.client == mock_client_instance
 
@@ -85,34 +85,34 @@ class TestAzureServiceBusPublisherRetryLogic:
         # Setup connected publisher
         mock_client = Mock()
         publisher.client = mock_client
-        
+
         # Mock sender to raise connection error twice, then succeed
         mock_sender = Mock()
         mock_sender.__enter__ = Mock(return_value=mock_sender)
         mock_sender.__exit__ = Mock(return_value=False)
-        
+
         with patch("copilot_message_bus.azureservicebuspublisher.ServiceBusConnectionError") as MockConnectionError:
             # Create a mock exception class
             class MockServiceBusConnectionError(Exception):
                 pass
-            
+
             MockConnectionError.side_effect = lambda msg: MockServiceBusConnectionError(msg)
-            
+
             # Make isinstance return True for our mock exception
             def mock_isinstance(obj, cls):
                 if cls == MockConnectionError:
                     return isinstance(obj, MockServiceBusConnectionError)
                 return isinstance(obj, cls)
-            
+
             conn_error = MockServiceBusConnectionError("Connection lost due to SSL EOF")
-            
+
             # First two send_messages calls fail, third succeeds
             mock_sender.send_messages.side_effect = [
                 conn_error,
                 conn_error,
                 None,  # Success
             ]
-            
+
             mock_client.get_topic_sender.return_value = mock_sender
 
             event = {"event_type": "test.event", "data": {"test": "value"}}
@@ -129,11 +129,11 @@ class TestAzureServiceBusPublisherRetryLogic:
         """Test that publish fails after exhausting all retry attempts."""
         mock_client = Mock()
         publisher.client = mock_client
-        
+
         mock_sender = Mock()
         mock_sender.__enter__ = Mock(return_value=mock_sender)
         mock_sender.__exit__ = Mock(return_value=False)
-        
+
         # Always raise connection error
         conn_error = ConnectionError("[SSL: UNEXPECTED_EOF_WHILE_READING]")
         mock_sender.send_messages.side_effect = conn_error
@@ -152,11 +152,11 @@ class TestAzureServiceBusPublisherRetryLogic:
         """Test that publish does not retry non-transient errors."""
         mock_client = Mock()
         publisher.client = mock_client
-        
+
         mock_sender = Mock()
         mock_sender.__enter__ = Mock(return_value=mock_sender)
         mock_sender.__exit__ = Mock(return_value=False)
-        
+
         # ValueError is non-transient
         value_error = ValueError("Invalid message format")
         mock_sender.send_messages.side_effect = value_error
@@ -174,16 +174,16 @@ class TestAzureServiceBusPublisherRetryLogic:
         """Test that _is_transient_error correctly identifies SSL/connection errors."""
         # SSL EOF error
         assert publisher._is_transient_error(ConnectionError("[SSL: UNEXPECTED_EOF_WHILE_READING]"))
-        
+
         # Connection reset
         assert publisher._is_transient_error(ConnectionError("Connection reset by peer"))
-        
+
         # Socket errors
         assert publisher._is_transient_error(OSError("socket error"))
-        
+
         # Timeout
         assert publisher._is_transient_error(TimeoutError("Connection timeout"))
-        
+
         # Non-transient errors
         assert not publisher._is_transient_error(ValueError("Invalid input"))
         assert not publisher._is_transient_error(KeyError("Missing key"))
@@ -195,7 +195,7 @@ class TestAzureServiceBusPublisherRetryLogic:
             topic_name="test-topic",
             retry_attempts=0,  # Disable retry
         )
-        
+
         with patch("copilot_message_bus.azureservicebuspublisher.ServiceBusClient") as MockClient:
             ssl_error = ConnectionError("[SSL: UNEXPECTED_EOF_WHILE_READING]")
             MockClient.from_connection_string.side_effect = ssl_error
@@ -212,17 +212,17 @@ class TestAzureServiceBusPublisherRetryLogic:
             connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
             transport_type="websockets",
         )
-        
+
         assert publisher.transport_type == "websockets"
-        
+
         with patch("copilot_message_bus.azureservicebuspublisher.ServiceBusClient") as MockClient:
             with patch("copilot_message_bus.azureservicebuspublisher.TransportType") as MockTransportType:
                 MockTransportType.AmqpOverWebsocket = "websocket_transport"
                 mock_client = Mock()
                 MockClient.from_connection_string.return_value = mock_client
-                
+
                 publisher.connect()
-                
+
                 # Verify WebSockets transport was used
                 MockClient.from_connection_string.assert_called_once()
                 call_kwargs = MockClient.from_connection_string.call_args[1]
@@ -236,7 +236,7 @@ class TestAzureServiceBusPublisherConfig:
     def test_from_config_with_retry_settings(self):
         """Test creating publisher from config with retry settings."""
         from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_AzureServiceBus
-        
+
         config = DriverConfig_MessageBus_AzureServiceBus(
             connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
             topic_name="test-topic",
@@ -244,9 +244,9 @@ class TestAzureServiceBusPublisherConfig:
             retry_backoff_seconds=2.0,
             transport_type="websockets",
         )
-        
+
         publisher = AzureServiceBusPublisher.from_config(config)
-        
+
         assert publisher.retry_attempts == 5
         assert publisher.retry_backoff_seconds == 2.0
         assert publisher.transport_type == "websockets"
@@ -254,13 +254,13 @@ class TestAzureServiceBusPublisherConfig:
     def test_from_config_uses_defaults(self):
         """Test that from_config uses default retry values from schema."""
         from copilot_config.generated.adapters.message_bus import DriverConfig_MessageBus_AzureServiceBus
-        
+
         config = DriverConfig_MessageBus_AzureServiceBus(
             connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
         )
-        
+
         publisher = AzureServiceBusPublisher.from_config(config)
-        
+
         # Verify defaults from schema
         assert publisher.retry_attempts == 3
         assert publisher.retry_backoff_seconds == 1.0

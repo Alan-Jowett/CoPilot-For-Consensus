@@ -311,7 +311,7 @@ class TestRabbitMQSubscriber:
 
     def test_start_consuming_handles_transport_assertion_error(self):
         """Test that start_consuming handles pika transport state errors gracefully."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import MagicMock
 
         subscriber = RabbitMQSubscriber(host="localhost", port=5672, username="guest", password="guest")
 
@@ -324,13 +324,13 @@ class TestRabbitMQSubscriber:
         # Note: pika has a typo in the error message - "_initate" instead of "_initiate"
         # This is the actual error message from pika, reproduced exactly
         transport_error = AssertionError("_AsyncTransportBase._initate_abort() expected non-_STATE_COMPLETED", 4)
-        
+
         # Set up the error to trigger once, then request shutdown so the loop exits
         def side_effect_func(*args, **kwargs):
             # After raising the error once, request shutdown so the consuming loop exits
             subscriber._shutdown_requested = True
             raise transport_error
-        
+
         mock_channel.start_consuming.side_effect = side_effect_func
 
         # Should not raise - should handle the transport error gracefully and exit

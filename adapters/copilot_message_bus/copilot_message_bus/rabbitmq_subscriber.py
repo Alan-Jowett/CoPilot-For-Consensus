@@ -296,7 +296,7 @@ class RabbitMQSubscriber(EventSubscriber):
                 # Check if we need to handle exclusive queues
                 # Exclusive queues are deleted when the connection drops, so we need to create a new one
                 queue_name = self.queue_name
-                
+
                 if self._is_exclusive_queue:
                     try:
                         declare_result = channel.queue_declare(queue="", exclusive=True, auto_delete=True)

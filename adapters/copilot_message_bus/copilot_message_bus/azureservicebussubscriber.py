@@ -335,6 +335,9 @@ class AzureServiceBusSubscriber(EventSubscriber):
         renewer: Any | None = None
 
         try:
+            # ServiceBusReceiveMode is checked in start_consuming() before calling this method
+            assert ServiceBusReceiveMode is not None, "ServiceBusReceiveMode should be available"
+
             # Choose receive mode based on auto_complete setting
             receive_mode = (
                 ServiceBusReceiveMode.RECEIVE_AND_DELETE if self.auto_complete else ServiceBusReceiveMode.PEEK_LOCK

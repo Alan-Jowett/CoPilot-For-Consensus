@@ -131,7 +131,7 @@ class AzureServiceBusPublisher(EventPublisher):
             logger.warning("WebSockets transport requested but TransportType not available in SDK")
 
         attempt = 0
-        
+
         while attempt <= self.retry_attempts:
             try:
                 if self.use_managed_identity:
@@ -141,12 +141,13 @@ class AzureServiceBusPublisher(EventPublisher):
                         raise ImportError("azure-identity library is not installed")
 
                     logger.info(
-                        f"Connecting to Azure Service Bus using managed identity (attempt {attempt + 1}/{self.retry_attempts + 1})"
+                        f"Connecting to Azure Service Bus using managed identity "
+                        f"(attempt {attempt + 1}/{self.retry_attempts + 1})"
                     )
                     if self.fully_qualified_namespace is None:
                         raise ValueError("fully_qualified_namespace is required when using managed identity")
                     self._credential = DefaultAzureCredential()
-                    
+
                     if transport:
                         self.client = ServiceBusClient(
                             fully_qualified_namespace=self.fully_qualified_namespace,
@@ -163,9 +164,10 @@ class AzureServiceBusPublisher(EventPublisher):
                         raise ImportError("azure-servicebus library is not installed")
 
                     logger.info(
-                        f"Connecting to Azure Service Bus using connection string (attempt {attempt + 1}/{self.retry_attempts + 1})"
+                        f"Connecting to Azure Service Bus using connection string "
+                        f"(attempt {attempt + 1}/{self.retry_attempts + 1})"
                     )
-                    
+
                     if transport:
                         self.client = ServiceBusClient.from_connection_string(
                             conn_str=self.connection_string,
@@ -180,7 +182,7 @@ class AzureServiceBusPublisher(EventPublisher):
             except Exception as e:
                 # Check if this is a transient connection error worth retrying
                 is_transient = self._is_transient_error(e)
-                
+
                 if is_transient and attempt < self.retry_attempts:
                     backoff = self.retry_backoff_seconds * (2 ** attempt)  # Exponential backoff
                     logger.warning(
@@ -211,11 +213,11 @@ class AzureServiceBusPublisher(EventPublisher):
         # Check for ServiceBusConnectionError (includes SSL EOF errors)
         if ServiceBusConnectionError is not None and isinstance(error, ServiceBusConnectionError):
             return True
-        
+
         # Check for common transient exception types
         if isinstance(error, (TimeoutError, OSError, ConnectionError)):
             return True
-        
+
         # Check for SSL/connection-related error messages as a conservative fallback.
         # Use more specific phrases instead of broad substrings like "ssl", "eof", or "socket"
         # to avoid retrying on non-transient errors (e.g., "invalid socket parameter").
@@ -237,7 +239,7 @@ class AzureServiceBusPublisher(EventPublisher):
             "socket error",
             "connection aborted",
         ]
-        
+
         return any(pattern in error_str for pattern in transient_patterns)
 
     def disconnect(self) -> None:
@@ -321,7 +323,7 @@ class AzureServiceBusPublisher(EventPublisher):
             content_type="application/json",
             subject=routing_key,  # Use subject for message filtering in subscriptions
         )
-        
+
         # Add custom properties for compatibility with event-driven patterns
         message.application_properties = {
             "event_type": event.get("event_type", ""),
@@ -333,7 +335,7 @@ class AzureServiceBusPublisher(EventPublisher):
         target_topic, target_queue = self._determine_publish_target(exchange, routing_key)
 
         attempt = 0
-        
+
         while attempt <= self.retry_attempts:
             try:
                 if target_topic:
@@ -353,16 +355,16 @@ class AzureServiceBusPublisher(EventPublisher):
                     error_msg = "No topic or queue configured for publishing"
                     logger.error(error_msg)
                     raise ValueError(error_msg)
-                
+
                 return  # Success - exit retry loop
 
             except Exception as e:
                 # Check if this is a transient error worth retrying
                 is_transient = self._is_transient_error(e)
-                
+
                 if is_transient and attempt < self.retry_attempts:
                     backoff = self.retry_backoff_seconds * (2 ** attempt)  # Exponential backoff
-                    
+
                     # Log with appropriate level based on error type
                     if ServiceBusError is not None and isinstance(e, ServiceBusError):
                         logger.warning(
@@ -374,7 +376,7 @@ class AzureServiceBusPublisher(EventPublisher):
                             f"Transient error publishing event: {e}. "
                             f"Retrying in {backoff:.1f}s (attempt {attempt + 1}/{self.retry_attempts})"
                         )
-                    
+
                     time.sleep(backoff)
                     attempt += 1
                 else:
@@ -382,7 +384,8 @@ class AzureServiceBusPublisher(EventPublisher):
                     if ServiceBusError is not None and isinstance(e, ServiceBusError):
                         if is_transient:
                             logger.error(
-                                f"Azure Service Bus error while publishing after {self.retry_attempts + 1} attempts: {e}"
+                                f"Azure Service Bus error while publishing after "
+                                f"{self.retry_attempts + 1} attempts: {e}"
                             )
                         else:
                             logger.error(f"Azure Service Bus error while publishing (non-transient): {e}")
