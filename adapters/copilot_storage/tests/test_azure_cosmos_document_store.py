@@ -523,12 +523,14 @@ class TestAzureCosmosDocumentStore:
         # Ensure partition_key was explicitly passed (regression test for the bug)
         assert "partition_key" in call_args.kwargs
         assert call_args.kwargs["partition_key"] == "thread-456"
+        assert call_args.kwargs["item"] == "thread-456"
 
         # Verify the document was updated correctly
         updated_doc = call_args.kwargs["body"]
         assert updated_doc["id"] == "thread-456"
         assert updated_doc["summary_id"] == "summary-789"
         assert updated_doc["subject"] == "Test Thread"
+        assert updated_doc["collection"] == "threads"  # Collection field is preserved
 
     def test_delete_document_not_connected(self):
         """Test that delete fails when not connected."""
