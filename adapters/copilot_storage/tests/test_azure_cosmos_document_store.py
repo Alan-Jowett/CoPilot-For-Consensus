@@ -490,6 +490,48 @@ class TestAzureCosmosDocumentStore:
         with pytest.raises(DocumentNotFoundError):
             store.update_document("users", "nonexistent", {"age": 31})
 
+    def test_update_document_partition_key_parameter_compatibility(self):
+        """Regression test: Verify replace_item partition_key parameter doesn't cause TypeError.
+
+        This test ensures that the azure-cosmos SDK version is compatible and doesn't
+        raise 'Session.request() got an unexpected keyword argument partition_key'.
+        """
+        store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.database = MagicMock()
+
+        store.database.create_container_if_not_exists.return_value = mock_container
+        store.containers["threads"] = mock_container
+
+        # Mock read and replace - simulate the SummaryComplete scenario
+        mock_container.read_item.return_value = {
+            "id": "thread-456",
+            "collection": "threads",
+            "summary_id": None,
+            "subject": "Test Thread",
+        }
+
+        # This should NOT raise TypeError about Session.request() and partition_key
+        store.update_document("threads", "thread-456", {"summary_id": "summary-789"})
+
+        # Verify replace_item was called with partition_key parameter
+        mock_container.replace_item.assert_called_once()
+        call_args = mock_container.replace_item.call_args
+
+        # Ensure partition_key was explicitly passed (regression test for the bug)
+        assert "partition_key" in call_args.kwargs
+        assert call_args.kwargs["partition_key"] == "thread-456"
+        assert call_args.kwargs["item"] == "thread-456"
+
+        # Verify the document was updated correctly
+        updated_doc = call_args.kwargs["body"]
+        assert updated_doc["id"] == "thread-456"
+        assert updated_doc["summary_id"] == "summary-789"
+        assert updated_doc["subject"] == "Test Thread"
+        assert updated_doc["collection"] == "threads"  # Collection field is preserved
+
     def test_delete_document_not_connected(self):
         """Test that delete fails when not connected."""
         store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
