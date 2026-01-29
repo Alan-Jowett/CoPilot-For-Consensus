@@ -220,7 +220,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
         else:
             logger.error(
                 f"Failed to fetch JWKS after {self.jwks_fetch_retries} attempts. "
-                f"Authentication will fail until JWKS is available."
+                f"Authentication will fail until JWKS is available. "
+                f"(target: {jwks_url}, timeout: {self.jwks_fetch_timeout}s)"
             )
 
         # Thread-safe update of JWKS cache
@@ -260,7 +261,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             except Exception as e:
                 logger.error(
                     f"Failed to fetch JWKS: {type(e).__name__} - {e} "
-                    f"(target: {self.auth_service_url}/keys, timeout: {self.jwks_fetch_timeout}s)"
+                    f"(target: {jwks_url}, timeout: {self.jwks_fetch_timeout}s)"
                 )
                 # Only reset on first fetch, keep stale cache on refresh failures
                 if self.jwks is None:
