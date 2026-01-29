@@ -249,8 +249,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 if cache_age < self.jwks_cache_ttl:
                     return
 
+            jwks_url = f"{self.auth_service_url}/keys"
             try:
-                jwks_url = f"{self.auth_service_url}/keys"
                 response = httpx.get(jwks_url, timeout=self.jwks_fetch_timeout)
                 response.raise_for_status()
                 jwks = response.json()
