@@ -517,6 +517,9 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 return
 
             # Find and call registered callback
+            # Note: Server-side SQL filters on Azure Service Bus subscriptions should prevent
+            # delivery of unwanted events, but this client-side check serves as a defensive
+            # safeguard against misconfiguration and provides backward compatibility.
             callback = self.callbacks.get(event_type)
 
             if callback:
