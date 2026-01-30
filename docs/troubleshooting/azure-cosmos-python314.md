@@ -60,9 +60,15 @@ After deploying with Python 3.13:
 
 ## Prevention
 
-1. **Add Dependabot constraint**: Configure Dependabot to not auto-upgrade Python past 3.13 until azure-cosmos SDK officially supports 3.14
-2. **SDK compatibility testing**: Add CI test that validates azure-cosmos SDK works with the Docker base image Python version
-3. **Monitor azure-cosmos releases**: Track https://github.com/Azure/azure-sdk-for-python/releases for Python 3.14 support
+1. **Dependabot constraint for Docker Python base image**: Updated `.github/dependabot.yml` to prevent the Docker ecosystem from auto-upgrading Python base images beyond 3.13 until the azure-cosmos SDK officially supports Python 3.14:
+
+   ```yaml
+   ignore:
+     - dependency-name: "python"
+       versions: [">=3.14"]
+   ```
+2. **SDK compatibility testing**: Add a CI test that validates the azure-cosmos SDK works with the Docker base image Python version used in all Azure Dockerfiles.
+3. **Monitor azure-cosmos releases**: Track https://github.com/Azure/azure-sdk-for-python/releases for Python 3.14 support and update the Dependabot constraint once official support is available.
 
 ## References
 
