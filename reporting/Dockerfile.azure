@@ -3,7 +3,7 @@
 
 # Azure-optimized Dockerfile for reporting service
 # Uses Azure services instead of local equivalents
-FROM python:3.13-slim@sha256:fbc43b66207d7e2966b5f06e86f2bc46aa4b10f34bf97784f3a10da80b1d6f0b
+FROM python:3.13-slim@sha256:51e1a0a317fdb6e170dc791bbeae63fac5272c82f43958ef74a34e170c6f8b18
 
 WORKDIR /app
 
