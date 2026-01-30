@@ -14,6 +14,7 @@ Note: These tests require Azure CLI (az) with the bicep component installed.
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 try:
@@ -50,47 +51,52 @@ if pytest:
     pytestmark = pytest.mark.skipif(not _az_available, reason=_skip_reason)
 
 
+def _compile_bicep_to_json():
+    """Helper function to compile Bicep template to JSON.
+
+    Returns:
+        dict: Parsed JSON template from Bicep compilation
+
+    Raises:
+        AssertionError: If compilation fails or output is invalid
+    """
+    bicep_file = Path(__file__).parent / "servicebus.bicep"
+    if not bicep_file.exists():
+        raise RuntimeError(f"servicebus.bicep not found at {bicep_file}")
+
+    result = subprocess.run(
+        ["az", "bicep", "build", "--file", str(bicep_file), "--stdout"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"Bicep compilation failed: {result.stderr}")
+
+    if not result.stdout:
+        raise RuntimeError("Expected JSON output from Bicep compilation")
+
+    template = json.loads(result.stdout)
+    if not template:
+        raise RuntimeError("Failed to parse compiled Bicep template")
+
+    return template
+
+
 # Pytest fixture to compile Bicep once and reuse across tests
 if pytest:
     @pytest.fixture(scope="module")
     def compiled_template():
         """Compile the Bicep template once and return the parsed JSON."""
-        bicep_file = Path(__file__).parent / "servicebus.bicep"
-        assert bicep_file.exists(), f"servicebus.bicep not found at {bicep_file}"
-
-        result = subprocess.run(
-            ["az", "bicep", "build", "--file", str(bicep_file), "--stdout"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-
-        assert result.returncode == 0, f"Bicep compilation failed: {result.stderr}"
-        assert result.stdout, "Expected JSON output from Bicep compilation"
-
-        template = json.loads(result.stdout)
-        assert template, "Failed to parse compiled Bicep template"
-        return template
+        return _compile_bicep_to_json()
 
 
 def test_servicebus_bicep_compiles(compiled_template=None):
     """Test that the servicebus.bicep template compiles without errors."""
     if compiled_template is None:
         # Fallback for standalone execution
-        bicep_file = Path(__file__).parent / "servicebus.bicep"
-        assert bicep_file.exists(), f"servicebus.bicep not found at {bicep_file}"
-
-        result = subprocess.run(
-            ["az", "bicep", "build", "--file", str(bicep_file), "--stdout"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-
-        assert result.returncode == 0, f"Bicep compilation failed: {result.stderr}"
-        assert result.stdout, "Expected JSON output from Bicep compilation"
-
-        compiled_template = json.loads(result.stdout)
+        compiled_template = _compile_bicep_to_json()
 
     assert compiled_template, "Failed to parse compiled Bicep template"
 
@@ -99,17 +105,7 @@ def test_subscription_filters_are_generated(compiled_template=None):
     """Test that SQL filter rules are generated for each service subscription."""
     if compiled_template is None:
         # Fallback for standalone execution
-        bicep_file = Path(__file__).parent / "servicebus.bicep"
-
-        result = subprocess.run(
-            ["az", "bicep", "build", "--file", str(bicep_file), "--stdout"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-
-        assert result.returncode == 0, f"Bicep compilation failed: {result.stderr}"
-        compiled_template = json.loads(result.stdout)
+        compiled_template = _compile_bicep_to_json()
 
     # Find subscription filter resources
     filter_resources = [
@@ -128,8 +124,9 @@ def test_subscription_filters_are_generated(compiled_template=None):
 
     # Verify the copy count expression references receiverServices (one instance per receiver service)
     copy_count = filter_resource["copy"]["count"]
+    copy_count_str = str(copy_count)
     # The count is an expression like "[length(parameters('receiverServices'))]"
-    assert "receiverServices" in copy_count, f"Copy count should reference receiverServices: {copy_count}"
+    assert "receiverServices" in copy_count_str, f"Copy count should reference receiverServices: {copy_count_str}"
 
     # Verify the rule is named $Default (replaces the default TrueFilter)
     assert "$Default" in str(filter_resource.get("name")), "Filter not named $Default"
@@ -139,17 +136,7 @@ def test_event_type_filter_mappings(compiled_template=None):
     """Test that the event type filter mappings are correct for each service."""
     if compiled_template is None:
         # Fallback for standalone execution
-        bicep_file = Path(__file__).parent / "servicebus.bicep"
-
-        result = subprocess.run(
-            ["az", "bicep", "build", "--file", str(bicep_file), "--stdout"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-
-        assert result.returncode == 0, f"Bicep compilation failed: {result.stderr}"
-        compiled_template = json.loads(result.stdout)
+        compiled_template = _compile_bicep_to_json()
 
     # Verify the serviceEventTypeFilters variable exists
     variables = compiled_template.get("variables", {})
@@ -181,17 +168,7 @@ def test_subscription_filters_use_sql_filter_type(compiled_template=None):
     """Test that subscription filters use SqlFilter type."""
     if compiled_template is None:
         # Fallback for standalone execution
-        bicep_file = Path(__file__).parent / "servicebus.bicep"
-
-        result = subprocess.run(
-            ["az", "bicep", "build", "--file", str(bicep_file), "--stdout"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-
-        assert result.returncode == 0, f"Bicep compilation failed: {result.stderr}"
-        compiled_template = json.loads(result.stdout)
+        compiled_template = _compile_bicep_to_json()
 
     # Find subscription filter resources
     filter_resources = [
@@ -219,19 +196,30 @@ if __name__ == "__main__":
     # Check if Azure CLI is available
     if not _az_available:
         print(f"⚠ Skipping tests: {_skip_reason}")
-        import sys
         sys.exit(0)
-    # Run tests
-    test_servicebus_bicep_compiles()
-    print("✓ Bicep template compiles successfully")
 
-    test_subscription_filters_are_generated()
-    print("✓ Subscription filters are generated")
+    # Compile once for all tests
+    try:
+        compiled = _compile_bicep_to_json()
+    except RuntimeError as e:
+        print(f"❌ Failed to compile Bicep: {e}")
+        sys.exit(1)
 
-    test_event_type_filter_mappings()
-    print("✓ Event type filter mappings are correct")
+    # Run tests with the compiled template
+    try:
+        test_servicebus_bicep_compiles(compiled)
+        print("✓ Bicep template compiles successfully")
 
-    test_subscription_filters_use_sql_filter_type()
-    print("✓ Subscription filters use SqlFilter type")
+        test_subscription_filters_are_generated(compiled)
+        print("✓ Subscription filters are generated")
 
-    print("\nAll tests passed!")
+        test_event_type_filter_mappings(compiled)
+        print("✓ Event type filter mappings are correct")
+
+        test_subscription_filters_use_sql_filter_type(compiled)
+        print("✓ Subscription filters use SqlFilter type")
+
+        print("\nAll tests passed!")
+    except (AssertionError, RuntimeError) as e:
+        print(f"❌ Test failed: {e}")
+        sys.exit(1)
