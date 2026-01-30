@@ -7,11 +7,33 @@ This test validates that:
 1. The Bicep template compiles successfully
 2. SQL filter rules are created for each subscription
 3. Each filter expression matches the expected event types for that service
+
+Note: These tests require Azure CLI (az) with the bicep component installed.
 """
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
+
+try:
+    import pytest
+except ImportError:
+    pytest = None  # type: ignore
+
+
+# Check if Azure CLI is available
+def _check_az_available():
+    """Check if 'az' CLI is available on PATH."""
+    return shutil.which("az") is not None
+
+
+# Skip all tests if Azure CLI is not available
+_az_available = _check_az_available()
+_skip_reason = "Azure CLI (az) with bicep component not found on PATH. Install with: az bicep install"
+
+if pytest:
+    pytestmark = pytest.mark.skipif(not _az_available, reason=_skip_reason)
 
 
 def test_servicebus_bicep_compiles():
@@ -150,6 +172,12 @@ def test_subscription_filters_use_sql_filter_type():
 
 
 if __name__ == "__main__":
+    # Check if Azure CLI is available
+    if not _az_available:
+        print(f"⚠ Skipping tests: {_skip_reason}")
+        import sys
+        sys.exit(0)
+    
     # Run tests
     test_servicebus_bicep_compiles()
     print("✓ Bicep template compiles successfully")
