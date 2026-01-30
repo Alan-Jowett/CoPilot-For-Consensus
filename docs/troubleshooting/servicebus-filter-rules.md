@@ -67,11 +67,13 @@ Key insight: When at least one custom rule is defined during subscription creati
 
 - `infra/azure/modules/servicebus.bicep` - Changed rule name from `$Default` to `EventTypeFilter`
 - `tests/infra/azure/test_servicebus_filters.py` - Updated test assertion to check for `EventTypeFilter`
+- `docs/troubleshooting/servicebus-filter-rules.md` - Troubleshooting document describing the Service Bus subscription filter rules incident
 
 ## Deployment Steps
 
 After applying the fix, redeploy the Service Bus module:
 
+**Linux/macOS (bash):**
 ```bash
 # Delete existing subscriptions (they have no rules anyway)
 for sub in parsing chunking embedding orchestrator summarization reporting; do
@@ -86,6 +88,25 @@ done
 az deployment group create \
   --resource-group copilot-app-rg \
   --template-file infra/azure/modules/servicebus.bicep \
+  --parameters <your-params.json>
+```
+
+**Windows (PowerShell):**
+```powershell
+# Delete existing subscriptions (they have no rules anyway)
+$subs = @('parsing', 'chunking', 'embedding', 'orchestrator', 'summarization', 'reporting')
+foreach ($sub in $subs) {
+  az servicebus topic subscription delete `
+    --resource-group copilot-app-rg `
+    --namespace-name <namespace> `
+    --topic-name copilot.events `
+    --subscription-name $sub
+}
+
+# Redeploy the Bicep template
+az deployment group create `
+  --resource-group copilot-app-rg `
+  --template-file infra/azure/modules/servicebus.bicep `
   --parameters <your-params.json>
 ```
 

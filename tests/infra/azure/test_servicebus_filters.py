@@ -138,8 +138,9 @@ def test_subscription_filters_are_generated(compiled_template=None):
     # The count is an expression like "[length(parameters('receiverServices'))]"
     assert "receiverServices" in copy_count_str, f"Copy count should reference receiverServices: {copy_count_str}"
 
-    # Verify the rule is named $Default (replaces the default TrueFilter)
-    assert "$Default" in str(filter_resource.get("name")), "Filter not named $Default"
+    # Verify the rule is named EventTypeFilter to avoid using the special '$Default' rule name,
+    # which can cause deployment or behavior issues
+    assert "EventTypeFilter" in str(filter_resource.get("name")), "Filter not named EventTypeFilter"
 
 
 def test_event_type_filter_mappings(compiled_template=None):

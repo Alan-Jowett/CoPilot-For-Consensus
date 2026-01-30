@@ -114,14 +114,16 @@ resource eventsSubscriptions 'Microsoft.ServiceBus/namespaces/topics/subscriptio
 
 // SQL filter rules for server-side event filtering
 // Filters messages based on the event_type application property
-// Note: We name the rule "$Default" to replace the auto-created TrueFilter rule.
-// Azure Service Bus subscriptions automatically get a $Default rule that matches ALL messages.
-// By creating our rule with the name "$Default", we replace it with our SQL filter.
-// This ensures only messages matching the filter are delivered (server-side filtering).
+// NOTE: By default, if no custom rules are defined at creation time, Azure Service Bus creates a
+// $Default TrueFilter rule for each subscription. In this template we define a custom rule
+// (EventTypeFilter) during subscription creation, which prevents $Default from being created for
+// new subscriptions deployed by this module. If you have existing subscriptions that already
+// contain a $Default rule from earlier deployments, that rule must be removed separately for
+// EventTypeFilter to be the only rule applied.
 resource subscriptionFilters 'Microsoft.ServiceBus/namespaces/topics/subscriptions/rules@2022-10-01-preview' = [
   for (service, i) in receiverServices: {
     parent: eventsSubscriptions[i]
-    name: '$Default'
+    name: 'EventTypeFilter'
     properties: {
       filterType: 'SqlFilter'
       sqlFilter: {
