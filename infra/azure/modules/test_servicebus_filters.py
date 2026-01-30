@@ -193,33 +193,12 @@ def test_subscription_filters_use_sql_filter_type(compiled_template=None):
 
 
 if __name__ == "__main__":
-    # Check if Azure CLI is available
-    if not _az_available:
-        print(f"⚠ Skipping tests: {_skip_reason}")
-        sys.exit(0)
-
-    # Compile once for all tests
-    try:
-        compiled = _compile_bicep_to_json()
-    except RuntimeError as e:
-        print(f"❌ Failed to compile Bicep: {e}")
+    # Standalone execution should use pytest to ensure assertion checks work
+    # even under python -O (which strips assert statements)
+    if pytest is None:
+        print("❌ pytest is required to run these tests. Install with: pip install pytest")
         sys.exit(1)
 
-    # Run tests with the compiled template
-    try:
-        test_servicebus_bicep_compiles(compiled)
-        print("✓ Bicep template compiles successfully")
-
-        test_subscription_filters_are_generated(compiled)
-        print("✓ Subscription filters are generated")
-
-        test_event_type_filter_mappings(compiled)
-        print("✓ Event type filter mappings are correct")
-
-        test_subscription_filters_use_sql_filter_type(compiled)
-        print("✓ Subscription filters use SqlFilter type")
-
-        print("\nAll tests passed!")
-    except (AssertionError, RuntimeError) as e:
-        print(f"❌ Test failed: {e}")
-        sys.exit(1)
+    # Delegate to pytest so assertion rewriting works even under python -O
+    exit_code = pytest.main([str(Path(__file__)), "-v"])
+    sys.exit(exit_code)

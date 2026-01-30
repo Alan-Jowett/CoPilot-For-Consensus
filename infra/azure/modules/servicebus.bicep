@@ -54,6 +54,8 @@ param enablePublicNetworkAccess bool = true
 // Event type mappings for each service (which event types each service subscribes to)
 // This enables server-side filtering to reduce bandwidth and compute costs
 // SQL filter expressions are pre-computed for each service
+// Note: If receiverServices contains a service not in this map, it falls back to a deny-all filter (1=0)
+// to fail closed and prevent misconfiguration from delivering all messages
 var serviceEventTypeFilters = {
   parsing: 'event_type IN (\'ArchiveIngested\', \'SourceDeletionRequested\')'
   chunking: 'event_type IN (\'JSONParsed\', \'SourceDeletionRequested\')'
@@ -123,7 +125,8 @@ resource subscriptionFilters 'Microsoft.ServiceBus/namespaces/topics/subscriptio
     properties: {
       filterType: 'SqlFilter'
       sqlFilter: {
-        sqlExpression: serviceEventTypeFilters[service]
+        // Safe access with fallback: if service not in map, use deny-all filter (1=0) to fail closed
+        sqlExpression: serviceEventTypeFilters[?service] ?? '1=0'
         // Compatibility level 20 is the standard level for SQL 92 filters in Azure Service Bus
         compatibilityLevel: 20
       }
