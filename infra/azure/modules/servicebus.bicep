@@ -51,6 +51,18 @@ param eventsTopicName string = 'copilot.events'
 @description('Enable public network access (set to false for production with Private Link)')
 param enablePublicNetworkAccess bool = true
 
+// Event type mappings for each service (which event types each service subscribes to)
+// This enables server-side filtering to reduce bandwidth and compute costs
+// SQL filter expressions are pre-computed for each service
+var serviceEventTypeFilters = {
+  parsing: 'event_type IN (\'ArchiveIngested\', \'SourceDeletionRequested\')'
+  chunking: 'event_type IN (\'JSONParsed\', \'SourceDeletionRequested\')'
+  embedding: 'event_type IN (\'ChunksPrepared\', \'SourceDeletionRequested\')'
+  orchestrator: 'event_type = \'EmbeddingsGenerated\''
+  summarization: 'event_type = \'SummarizationRequested\''
+  reporting: 'event_type IN (\'SummaryComplete\', \'SourceDeletionRequested\')'
+}
+
 // Service Bus Namespace
 resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
   name: namespaceName
@@ -81,7 +93,8 @@ resource eventsTopic 'Microsoft.ServiceBus/namespaces/topics@2022-10-01-preview'
   }
 }
 
-// Per-service subscriptions (each service gets its own copy of all events)
+// Per-service subscriptions with server-side event type filtering
+// Each service only receives the events it needs (defined in serviceEventTypeFilters)
 resource eventsSubscriptions 'Microsoft.ServiceBus/namespaces/topics/subscriptions@2022-10-01-preview' = [
   for service in receiverServices: {
     parent: eventsTopic
@@ -93,6 +106,22 @@ resource eventsSubscriptions 'Microsoft.ServiceBus/namespaces/topics/subscriptio
       maxDeliveryCount: 10
       enableBatchedOperations: true
       requiresSession: false
+    }
+  }
+]
+
+// SQL filter rules for server-side event filtering
+// Filters messages based on the event_type application property
+resource subscriptionFilters 'Microsoft.ServiceBus/namespaces/topics/subscriptions/rules@2022-10-01-preview' = [
+  for (service, i) in receiverServices: {
+    parent: eventsSubscriptions[i]
+    name: 'EventTypeFilter'
+    properties: {
+      filterType: 'SqlFilter'
+      sqlFilter: {
+        sqlExpression: serviceEventTypeFilters[service]
+        compatibilityLevel: 20
+      }
     }
   }
 ]
