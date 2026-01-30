@@ -22,10 +22,24 @@ except ImportError:
     pytest = None  # type: ignore
 
 
-# Check if Azure CLI is available
+# Check if Azure CLI with Bicep is available
 def _check_az_available():
-    """Check if 'az' CLI is available on PATH."""
-    return shutil.which("az") is not None
+    """Check if 'az' CLI with Bicep component is available on PATH."""
+    if shutil.which("az") is None:
+        return False
+    
+    # Verify Bicep component is installed
+    try:
+        result = subprocess.run(
+            ["az", "bicep", "version"],
+            capture_output=True,
+            timeout=10,
+            text=True,
+        )
+        # Check for successful exit or output containing version info
+        return result.returncode == 0 or "Bicep CLI version" in result.stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return False
 
 
 # Skip all tests if Azure CLI is not available
@@ -85,8 +99,7 @@ def test_subscription_filters_are_generated():
     filter_resource = filter_resources[0]
     assert "copy" in filter_resource, "Filter resource should have a copy element for multiple instances"
     
-    # Verify it will create 6 instances (one per receiver service)
-    expected_count = 6  # parsing, chunking, embedding, orchestrator, summarization, reporting
+    # Verify the copy count expression references receiverServices (one instance per receiver service)
     copy_count = filter_resource["copy"]["count"]
     # The count is an expression like "[length(parameters('receiverServices'))]"
     assert "receiverServices" in copy_count, f"Copy count should reference receiverServices: {copy_count}"
