@@ -58,7 +58,7 @@ def _compile_bicep_to_json():
         dict: Parsed JSON template from Bicep compilation
 
     Raises:
-        RuntimeError: If compilation fails or output is invalid
+        RuntimeError: If compilation fails, output is invalid, or JSON parsing fails
     """
     bicep_file = Path(__file__).parent / "servicebus.bicep"
     if not bicep_file.exists():
@@ -77,7 +77,13 @@ def _compile_bicep_to_json():
     if not result.stdout:
         raise RuntimeError("Expected JSON output from Bicep compilation")
 
-    template = json.loads(result.stdout)
+    try:
+        template = json.loads(result.stdout)
+    except (json.JSONDecodeError, TypeError) as e:
+        # Show first 200 chars of output to help debug
+        output_snippet = result.stdout[:200] if result.stdout else "(empty)"
+        raise RuntimeError(f"Failed to parse Bicep output as JSON: {e}. Output: {output_snippet}")
+
     if not template:
         raise RuntimeError("Failed to parse compiled Bicep template")
 
