@@ -221,7 +221,6 @@ if __name__ == "__main__":
         print(f"⚠ Skipping tests: {_skip_reason}")
         import sys
         sys.exit(0)
-    
     # Run tests
     test_servicebus_bicep_compiles()
     print("✓ Bicep template compiles successfully")
