@@ -86,7 +86,7 @@ def _compile_bicep_to_json():
     except (json.JSONDecodeError, TypeError) as e:
         # Show first 200 chars of output to help debug
         output_snippet = result.stdout[:200] if result.stdout else "(empty)"
-        raise RuntimeError(f"Failed to parse Bicep output as JSON: {e}. Output: {output_snippet}")
+        raise RuntimeError(f"Failed to parse Bicep output as JSON: {e}. Output: {output_snippet}") from e
 
     if not template:
         raise RuntimeError("Failed to parse compiled Bicep template")
