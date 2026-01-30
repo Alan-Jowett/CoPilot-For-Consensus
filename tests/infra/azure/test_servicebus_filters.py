@@ -60,7 +60,11 @@ def _compile_bicep_to_json():
     Raises:
         RuntimeError: If compilation fails, output is invalid, or JSON parsing fails
     """
-    bicep_file = Path(__file__).parent / "servicebus.bicep"
+    # Path to servicebus.bicep relative to this test file
+    # Test is in tests/infra/azure/, Bicep is in infra/azure/modules/
+    # Go up 4 levels to repo root, then down to infra/azure/modules/
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    bicep_file = repo_root / "infra" / "azure" / "modules" / "servicebus.bicep"
     if not bicep_file.exists():
         raise RuntimeError(f"servicebus.bicep not found at {bicep_file}")
 
