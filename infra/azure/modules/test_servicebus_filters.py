@@ -58,7 +58,7 @@ def _compile_bicep_to_json():
         dict: Parsed JSON template from Bicep compilation
 
     Raises:
-        AssertionError: If compilation fails or output is invalid
+        RuntimeError: If compilation fails or output is invalid
     """
     bicep_file = Path(__file__).parent / "servicebus.bicep"
     if not bicep_file.exists():
@@ -190,6 +190,38 @@ def test_subscription_filters_use_sql_filter_type(compiled_template=None):
         assert "sqlExpression" in sql_filter, (
             f"Filter {resource.get('name')} has no sqlExpression in sqlFilter"
         )
+
+
+def test_subscription_filters_have_safe_fallback(compiled_template=None):
+    """Test that subscription filters use safe access with deny-all fallback.
+
+    The Bicep template should use safe access (?[]) with null-coalescing (??)
+    to fall back to a deny-all filter (1=0) if receiverServices contains an
+    unknown service. This ensures misconfiguration fails closed.
+    """
+    if compiled_template is None:
+        # Fallback for standalone execution
+        compiled_template = _compile_bicep_to_json()
+
+    # Find subscription filter resources
+    filter_resources = [
+        r
+        for r in compiled_template.get("resources", [])
+        if r.get("type") == "Microsoft.ServiceBus/namespaces/topics/subscriptions/rules"
+    ]
+
+    assert len(filter_resources) > 0, "No subscription filter resources found"
+
+    # The sqlExpression should be an ARM expression using coalesce for safe fallback
+    # When compiled from Bicep, ?[] ?? '1=0' becomes coalesce(..., '1=0')
+    filter_resource = filter_resources[0]
+    sql_expression = str(filter_resource.get("properties", {}).get("sqlFilter", {}).get("sqlExpression", ""))
+
+    # The expression should include the fallback value '1=0' for deny-all
+    assert "1=0" in sql_expression, (
+        f"sqlExpression should include deny-all fallback '1=0' for unknown services. "
+        f"Got: {sql_expression}"
+    )
 
 
 if __name__ == "__main__":
