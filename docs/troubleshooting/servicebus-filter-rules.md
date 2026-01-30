@@ -67,7 +67,7 @@ Key insight: When at least one custom rule is defined during subscription creati
 
 - `infra/azure/modules/servicebus.bicep` - Changed rule name from `$Default` to `EventTypeFilter`
 - `tests/infra/azure/test_servicebus_filters.py` - Updated test assertion to check for `EventTypeFilter`
-- `docs/troubleshooting/servicebus-filter-rules.md` - New troubleshooting document for Service Bus subscription filter rules incident
+- `docs/troubleshooting/servicebus-filter-rules.md` - Troubleshooting document describing the Service Bus subscription filter rules incident
 
 ## Deployment Steps
 
