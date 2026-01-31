@@ -1,0 +1,18 @@
+From nobody Mon Jan 01 00:00:00 2000
+From: test@example.com
+To: list@example.com
+Subject: Test Message
+Message-ID: <test001@example.com>
+Date: Mon, 01 Jan 2000 00:00:00 +0000
+
+This is a test message body.
+
+From nobody Mon Jan 01 00:01:00 2000
+From: test2@example.com
+To: list@example.com
+Subject: Re: Test Message
+Message-ID: <test002@example.com>
+In-Reply-To: <test001@example.com>
+Date: Mon, 01 Jan 2000 00:01:00 +0000
+
+This is a reply.
