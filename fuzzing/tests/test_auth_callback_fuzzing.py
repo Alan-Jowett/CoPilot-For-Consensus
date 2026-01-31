@@ -167,8 +167,9 @@ class TestCallbackPropertyBased:
         assert 100 <= response.status_code < 600
         
         # Should never return 500 (internal server error)
-        # Valid responses: 200 (success), 400 (bad request), 422 (validation error)
-        assert response.status_code in (200, 400, 422)
+        # Valid responses: 200 (success), 400 (bad request), 422 (validation error),
+        # 503 (service unavailable when not initialized - see auth/main.py)
+        assert response.status_code in (200, 400, 422, 503)
     
     @given(
         code=st.text(alphabet=st.characters(blacklist_categories=("Cs",)), min_size=1, max_size=1000),

@@ -94,7 +94,7 @@ Test Azure-specific code locally without Azure credentials using official emulat
 
 | Service | Emulator | Endpoint |
 |---------|----------|----------|
-| Cosmos DB | `mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview` | https://localhost:8081 |
+| Cosmos DB | `mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview` | http://localhost:8081 |
 | Blob Storage | Azurite | http://localhost:10000 |
 | Queue Storage | Azurite | http://localhost:10001 |
 | Table Storage | Azurite | http://localhost:10002 |
