@@ -70,6 +70,8 @@ services:
     image: mcr.microsoft.com/azure-sql-edge:latest
     environment:
       - ACCEPT_EULA=Y
+      # NOTE: This is the documented default SA password for the SQL Edge emulator.
+      # Only use for local emulator testing, never in production.
       - MSSQL_SA_PASSWORD=YourStrong!Passw0rd
     healthcheck:
       # Uses the same emulator password defined above
