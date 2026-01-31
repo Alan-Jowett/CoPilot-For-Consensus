@@ -85,6 +85,10 @@ jobs:
             dockerfile: ./summarization/Dockerfile.azure
             context: .
             has_python: true
+          - name: ui
+            dockerfile: ./ui/Dockerfile.azure
+            context: ./ui
+            has_python: false
           - name: gateway
             dockerfile: ./infra/nginx/Dockerfile.azure
             context: ./infra/nginx
@@ -95,7 +99,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -149,12 +153,15 @@ jobs:
 
       - name: Start Azure emulators
         run: |
+          # NOTE: Service Bus emulator is defined but not yet used - future work
+          # Currently only testing Cosmos DB and Azurite
           docker compose -f docker-compose.azure-emulators.yml up -d cosmos-emulator azurite
           echo "Waiting for emulators to start..."
 
       - name: Wait for Cosmos DB emulator
         run: |
           echo "Waiting for Cosmos DB emulator to be ready..."
+          READY=false
           for i in $(seq 1 60); do
             if curl -fsk https://localhost:8081/_explorer/emulator.pem > /dev/null 2>&1; then
               echo "✅ Cosmos DB emulator is ready!"
@@ -162,11 +169,16 @@ jobs:
               curl -fsk https://localhost:8081/_explorer/emulator.pem > ~/cosmos_emulator.pem
               sudo cp ~/cosmos_emulator.pem /usr/local/share/ca-certificates/cosmos_emulator.crt
               sudo update-ca-certificates
+              READY=true
               break
             fi
             echo "Attempt $i/60: Cosmos DB emulator not ready, waiting..."
             sleep 5
           done
+          if [ "$READY" != "true" ]; then
+            echo "❌ Cosmos DB emulator failed to start after 60 attempts"
+            exit 1
+          fi
 
       - name: Wait for Azurite
         run: |
@@ -186,6 +198,8 @@ jobs:
           pip install pytest pytest-timeout pytest-asyncio
           # Install adapters
           python adapters/scripts/install_adapters.py copilot_config copilot_storage
+          # Install archive store adapter with azure extras for blob tests
+          cd adapters/copilot_archive_store && pip install -e '.[azure]'
 
       - name: Run Cosmos DB integration tests
         env:
@@ -194,18 +208,13 @@ jobs:
         run: |
           cd adapters/copilot_storage
           # Run Cosmos DB integration tests (tests are in tests/, not tests/integration/)
-          pytest tests/test_integration_azurecosmos.py -v --timeout=120 \
-            || echo "::warning::Some Cosmos DB tests failed - review logs"
-        continue-on-error: true
+          pytest tests/test_integration_azurecosmos.py -v --timeout=120
 
       - name: Run Azure Blob integration tests
         run: |
           # Azure Blob tests are in copilot_archive_store adapter
           cd adapters/copilot_archive_store
-          python -m pip install -e .
-          pytest tests/test_integration_azure_blob.py -v --timeout=120 \
-            || echo "::warning::Some Blob storage tests failed - review logs"
-        continue-on-error: true
+          pytest tests/test_integration_azure_blob.py -v --timeout=120
 
       - name: Show emulator logs on failure
         if: failure()
