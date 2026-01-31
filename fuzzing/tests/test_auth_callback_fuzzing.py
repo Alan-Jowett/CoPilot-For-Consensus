@@ -5,7 +5,7 @@
 
 This module implements comprehensive fuzzing for the auth service OIDC callback
 endpoint to find security vulnerabilities and edge cases. This addresses
-security issue #1098 (test P0 priority).
+security issue #1100 (auth callback fuzzing).
 
 The tests use three complementary fuzzing approaches:
 
@@ -81,6 +81,8 @@ def mock_auth_service():
     service.config.service_settings.cookie_secure = False
     
     # Track used state values to simulate single-use CSRF tokens / replay protection
+    # Note: This set is scoped to the fixture instance, which is function-scoped,
+    # so each test gets a fresh set.
     used_states: set[str] = set()
     
     # Mock handle_callback with realistic behavior
@@ -165,8 +167,8 @@ class TestCallbackPropertyBased:
         assert 100 <= response.status_code < 600
         
         # Should never return 500 (internal server error)
-        # Valid responses: 200 (success), 400 (bad request)
-        assert response.status_code in (200, 400)
+        # Valid responses: 200 (success), 400 (bad request), 422 (validation error)
+        assert response.status_code in (200, 400, 422)
     
     @given(
         code=st.text(alphabet=st.characters(blacklist_categories=("Cs",)), min_size=1, max_size=1000),
@@ -281,8 +283,10 @@ class TestCallbackPropertyBased:
             # contain it without HTML encoding (check case-insensitively)
             if "<script>" in payload.lower():
                 lowered_response = response_text.lower()
-                # Response should NOT contain raw script tag unless it's escaped
-                assert "<script>" not in lowered_response or "&lt;script&gt;" in lowered_response
+                # Response should NOT contain raw script tag - must be escaped
+                if "<script>" in lowered_response:
+                    assert "&lt;script&gt;" in lowered_response, \
+                        f"XSS vulnerability: unescaped <script> in response"
 
 
 # ============================================================================
@@ -291,7 +295,12 @@ class TestCallbackPropertyBased:
 
 @pytest.mark.skipif(not SCHEMATHESIS_AVAILABLE, reason="schemathesis not installed")
 class TestCallbackSchemathesis:
-    """API fuzzing tests for callback endpoint using Schemathesis."""
+    """API fuzzing tests for callback endpoint using Schemathesis.
+    
+    Note: These tests validate that the OpenAPI schema is correctly defined
+    and can be parsed by Schemathesis. Full execution-based fuzzing requires
+    a running server and is handled separately in integration tests.
+    """
     
     def test_callback_openapi_schema_fuzzing(self):
         """Fuzz callback endpoint based on OpenAPI schema.
