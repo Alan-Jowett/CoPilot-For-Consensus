@@ -55,22 +55,31 @@ jobs:
         service:
           - name: auth
             dockerfile: ./auth/Dockerfile.azure
+            context: .
           - name: chunking
             dockerfile: ./chunking/Dockerfile.azure
+            context: .
           - name: embedding
             dockerfile: ./embedding/Dockerfile.azure
+            context: .
           - name: ingestion
             dockerfile: ./ingestion/Dockerfile.azure
+            context: .
           - name: orchestrator
             dockerfile: ./orchestrator/Dockerfile.azure
+            context: .
           - name: parsing
             dockerfile: ./parsing/Dockerfile.azure
+            context: .
           - name: reporting
             dockerfile: ./reporting/Dockerfile.azure
+            context: .
           - name: summarization
             dockerfile: ./summarization/Dockerfile.azure
+            context: .
           - name: gateway
             dockerfile: ./infra/nginx/Dockerfile.azure
+            context: ./infra/nginx
 
     steps:
       - name: Checkout repository
@@ -85,7 +94,7 @@ jobs:
       - name: Build Azure Dockerfile (no push)
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          context: .
+          context: ${{ matrix.service.context }}
           file: ${{ matrix.service.dockerfile }}
           platforms: linux/amd64
           push: false
