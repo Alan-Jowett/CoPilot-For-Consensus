@@ -62,7 +62,7 @@ After deploying with pinned SDK:
 
 1. **SDK version constraint**: azure-cosmos pinned to `<4.14.0` in setup.py
 2. **Monitor azure-cosmos releases**: Track [GitHub Issue #43662](https://github.com/Azure/azure-sdk-for-python/issues/43662) for fix
-3. **Dependabot constraint**: Keep Python 3.14+ ignore rule until azure-cosmos officially supports it
+3. **Dependabot constraint**: Keep the Python 3.14+ ignore rule in place until the azure-cosmos 4.14.x regression (Issue #43662) is fixed and the SDK is validated on Python 3.14+ (see `.github/dependabot.yml` and `scripts/update-dependabot.py`)
 
 ## Previous Attempts
 
@@ -79,4 +79,4 @@ After deploying with pinned SDK:
 
 - **Detection**: Service failed after Dependabot Python version bump
 - **RCA Duration**: ~30 minutes
-- **Fix Applied**: Python downgrade to 3.13
+- **Fix Applied**: Pinned azure-cosmos SDK to `<4.14.0` in `adapters/copilot_storage/setup.py` (see "Solution"; supersedes earlier Python downgrade to 3.13)
