@@ -541,10 +541,12 @@ class TestCallbackEdgeCases:
             
             # If the request goes through, should handle gracefully
             assert response.status_code in (400, 413, 414, 422)
-        except (ValueError, OSError):
-            # httpx.InvalidURL (ValueError subclass) or network-level exceptions
-            # are acceptable - the client library is protecting against DoS
-            pass
+        except Exception as e:
+            # httpx.InvalidURL or network-level exceptions are acceptable
+            # The client library is protecting against DoS attacks
+            # Verify it's the expected error type (URL/query too long)
+            assert "too long" in str(e).lower() or "invalid" in str(e).lower(), \
+                f"Unexpected exception: {e}"
     
     def test_unicode_in_parameters(self, test_client):
         """Test callback with Unicode characters in parameters."""
