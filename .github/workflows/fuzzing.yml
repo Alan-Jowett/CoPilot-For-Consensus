@@ -59,20 +59,23 @@ jobs:
 
       - name: Install adapters (for integration fuzzing)
         run: |
-          # Install adapters that might be needed for fuzzing tests
+          # Install adapters needed for fuzzing tests:
+          # - copilot_auth: Required for auth callback fuzzing
+          # - copilot_metrics: Required for testing auth service metrics collection
           python adapters/scripts/install_adapters.py \
             copilot_config \
             copilot_storage \
             copilot_schema_validation \
             copilot_logging \
-            copilot_auth
+            copilot_auth \
+            copilot_metrics
 
       - name: Run hypothesis property-based tests
         id: hypothesis
         run: |
           echo "::group::Running Hypothesis Tests"
           cd fuzzing
-          pytest tests/test_hypothesis_example.py -v --timeout=300 --junit-xml=hypothesis-results.xml
+          pytest tests/test_hypothesis_example.py tests/test_auth_callback_fuzzing.py::TestCallbackPropertyBased -v --timeout=300 --junit-xml=hypothesis-results.xml
           echo "::endgroup::"
         continue-on-error: true
 
@@ -90,7 +93,16 @@ jobs:
         run: |
           echo "::group::Running Schemathesis Tests"
           cd fuzzing
-          pytest tests/test_schemathesis_example.py -v --timeout=300 --junit-xml=schemathesis-results.xml
+          pytest tests/test_schemathesis_example.py tests/test_auth_callback_fuzzing.py::TestCallbackSchemathesis -v --timeout=300 --junit-xml=schemathesis-results.xml
+          echo "::endgroup::"
+        continue-on-error: true
+      
+      - name: Run auth callback edge case tests
+        id: auth_callback
+        run: |
+          echo "::group::Running Auth Callback Security Tests"
+          cd fuzzing
+          pytest tests/test_auth_callback_fuzzing.py::TestCallbackEdgeCases -v --timeout=300 --junit-xml=auth-callback-results.xml
           echo "::endgroup::"
         continue-on-error: true
 
@@ -132,6 +144,14 @@ jobs:
           name: schemathesis-test-results
           path: fuzzing/schemathesis-results.xml
         continue-on-error: true
+      
+      - name: Upload auth callback test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: auth-callback-test-results
+          path: fuzzing/auth-callback-results.xml
+        continue-on-error: true
 
       - name: Test Report - Hypothesis
         if: always()
@@ -157,6 +177,15 @@ jobs:
         with:
           name: Schemathesis Test Results
           path: 'fuzzing/schemathesis-results.xml'
+          reporter: 'java-junit'
+        continue-on-error: true
+      
+      - name: Test Report - Auth Callback
+        if: always()
+        uses: dorny/test-reporter@b082adf0eced0765477756c2a610396589b8c637 # v2
+        with:
+          name: Auth Callback Security Test Results
+          path: 'fuzzing/auth-callback-results.xml'
           reporter: 'java-junit'
         continue-on-error: true
 
@@ -194,6 +223,14 @@ jobs:
             echo "| Schemathesis | ✅ Passed | API schema fuzzing completed |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Schemathesis | ⚠️ Issues Found | Check logs for details |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Auth callback status
+          AUTH_CALLBACK_STATUS="${{ steps.auth_callback.outcome }}"
+          if [ "$AUTH_CALLBACK_STATUS" = "success" ]; then
+            echo "| Auth Callback | ✅ Passed | OIDC callback security tests passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Auth Callback | ⚠️ Issues Found | Check logs for details |" >> $GITHUB_STEP_SUMMARY
           fi
           
           # Atheris status

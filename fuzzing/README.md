@@ -143,6 +143,7 @@ def test_api(case):
 - **Validators**: All input validation and sanitization functions
 - **Data Pipelines**: Critical data transformation logic
 - **Authentication**: JWT token parsing, signature validation, and claims extraction
+- **Auth Service**: OIDC callback flow, state parameter validation, session management
 
 ## Fuzzing Tests
 
@@ -158,6 +159,34 @@ Comprehensive property-based fuzzing tests for JWT authentication in the auth se
 - **Payload Size**: Tests DoS via large payloads
 
 Priority: **P0** (Authentication bypass, privilege escalation risks)
+
+### Auth Service OIDC Callback Fuzzing (`test_auth_callback_fuzzing.py`)
+
+Comprehensive fuzzing for the auth service OIDC callback flow:
+
+- **Property-based tests** (Hypothesis):
+  - Callback endpoint never crashes with arbitrary input
+  - Always returns valid JSON responses
+  - Invalid states are rejected (CSRF protection)
+  - Bad authorization codes are rejected
+  - No injection vulnerabilities in parameters
+
+- **API schema tests** (Schemathesis):
+  - OpenAPI spec compliance for `/callback` endpoint
+  - Error handling for malformed requests
+  - Parameter validation edge cases
+
+- **Security-focused edge cases**:
+  - Missing/empty parameters
+  - Very long parameters (DoS protection)
+  - Unicode and special characters
+  - SQL injection, XSS, command injection attempts
+  - Path traversal attempts
+  - CSRF via state manipulation
+  - Session expiry handling
+  - Replay attack prevention (single-use states)
+
+Priority: **P0** (CSRF attacks, open redirect, injection vulnerabilities)
 
 ## Contributing
 
