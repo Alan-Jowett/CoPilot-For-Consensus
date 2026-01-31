@@ -116,8 +116,11 @@ export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=http;AccountNam
 
 # Run integration tests
 cd adapters/copilot_storage
-pytest tests/integration/test_integration_azurecosmos.py -v
-pytest tests/integration/test_integration_azure_blob.py -v
+pytest tests/test_integration_azurecosmos.py -v
+
+# For Azure Blob tests (in archive_store adapter)
+cd ../copilot_archive_store
+pytest tests/test_integration_azure_blob.py -v
 
 # Cleanup
 docker compose -f docker-compose.azure-emulators.yml down -v

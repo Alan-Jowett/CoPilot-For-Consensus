@@ -69,6 +69,8 @@ jobs:
             dockerfile: ./reporting/Dockerfile.azure
           - name: summarization
             dockerfile: ./summarization/Dockerfile.azure
+          - name: gateway
+            dockerfile: ./infra/nginx/Dockerfile.azure
 
     steps:
       - name: Checkout repository
@@ -168,21 +170,21 @@ jobs:
 
       - name: Run Cosmos DB integration tests
         env:
-          # Disable SSL verification for emulator's self-signed cert
+          # Emulator-only: disable SSL verification for Cosmos emulator's self-signed cert
           COSMOS_EMULATOR_DISABLE_SSL_VERIFICATION: "true"
         run: |
           cd adapters/copilot_storage
-          # Run only tests that work with the emulator
-          pytest tests/integration/test_integration_azurecosmos.py -v --timeout=120 \
-            -k "not requires_live_azure" \
+          # Run Cosmos DB integration tests (tests are in tests/, not tests/integration/)
+          pytest tests/test_integration_azurecosmos.py -v --timeout=120 \
             || echo "::warning::Some Cosmos DB tests failed - review logs"
         continue-on-error: true
 
       - name: Run Azure Blob integration tests
         run: |
-          cd adapters/copilot_storage
-          pytest tests/integration/test_integration_azure_blob.py -v --timeout=120 \
-            -k "not requires_live_azure" \
+          # Azure Blob tests are in copilot_archive_store adapter
+          cd adapters/copilot_archive_store
+          python -m pip install -e .
+          pytest tests/test_integration_azure_blob.py -v --timeout=120 \
             || echo "::warning::Some Blob storage tests failed - review logs"
         continue-on-error: true
 
@@ -231,5 +233,5 @@ jobs:
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "docker compose -f docker-compose.azure-emulators.yml up -d" >> $GITHUB_STEP_SUMMARY
           echo "export USE_AZURE_EMULATORS=true" >> $GITHUB_STEP_SUMMARY
-          echo "cd adapters/copilot_storage && pytest tests/integration/ -v" >> $GITHUB_STEP_SUMMARY
+          echo "cd adapters/copilot_storage && pytest tests/test_integration_azurecosmos.py -v" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
