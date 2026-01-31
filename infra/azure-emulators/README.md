@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Azure Emulators Configuration
 
 This directory contains configuration files for Azure service emulators.
