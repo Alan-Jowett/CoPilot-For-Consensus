@@ -9,7 +9,7 @@
 #   docker compose -f docker-compose.azure-emulators.yml up -d
 #
 # Then run integration tests:
-#   cd adapters/copilot_storage && pytest tests/integration/ -v -m azure_emulator
+#   cd adapters/copilot_storage && pytest tests/test_integration_azurecosmos.py -v
 #
 # See docs/LOCAL_DEVELOPMENT.md for detailed instructions.
 
@@ -49,7 +49,7 @@ services:
       sqledge:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5672 || exit 0"]  # Basic port check
+      test: ["CMD-SHELL", "nc -z localhost 5672 || exit 1"]  # Basic AMQP port check
       interval: 10s
       timeout: 5s
       retries: 30
@@ -61,6 +61,8 @@ services:
     image: mcr.microsoft.com/azure-sql-edge:latest
     environment:
       - ACCEPT_EULA=Y
+      # NOTE: This is the documented default SA password for the SQL Edge emulator.
+      # Only use for local emulator testing, never in production.
       - MSSQL_SA_PASSWORD=YourStrong!Passw0rd
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' || exit 1"]
@@ -112,5 +114,5 @@ services:
         echo ""
         echo "Run integration tests with:"
         echo "  export USE_AZURE_EMULATORS=true"
-        echo "  cd adapters/copilot_storage && pytest tests/integration/ -v"
+        echo "  cd adapters/copilot_storage && pytest tests/test_integration_azurecosmos.py -v"
     restart: "no"
