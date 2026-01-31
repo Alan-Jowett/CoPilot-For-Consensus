@@ -67,6 +67,9 @@ def delete_all_items_in_container(store, collection_name: str) -> None:
     """Delete all items in a Cosmos DB container using raw SDK.
 
     This bypasses the document store's sanitization to get the actual document IDs.
+    
+    Note: Accessing private method _get_container_for_collection is intentional
+    for test fixture cleanup. This is acceptable in test code for setup/teardown.
     """
     try:
         container = store._get_container_for_collection(collection_name)

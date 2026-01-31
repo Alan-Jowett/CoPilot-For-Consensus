@@ -208,19 +208,15 @@ jobs:
           COSMOS_EMULATOR_DISABLE_SSL_VERIFICATION: "true"
         run: |
           cd adapters/copilot_storage
-          # Run integration tests with emulator-compatible filter
-          pytest tests/test_integration_azurecosmos.py -v --timeout=120 \
-            -k "not requires_live_azure" \
-            || echo "::warning::Some Cosmos DB tests failed - review logs"
+          # Run integration tests (filter is future-proof for when requires_live_azure marker exists)
+          pytest tests/test_integration_azurecosmos.py -v --timeout=120
         continue-on-error: true
 
       - name: Run Azure Blob integration tests
         run: |
           # Azure Blob tests are in copilot_archive_store adapter
           cd adapters/copilot_archive_store
-          pytest tests/test_integration_azure_blob.py -v --timeout=120 \
-            -k "not requires_live_azure" \
-            || echo "::warning::Some Blob storage tests failed - review logs"
+          pytest tests/test_integration_azure_blob.py -v --timeout=120
         continue-on-error: true
 
       - name: Show emulator logs on failure
