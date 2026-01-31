@@ -14,6 +14,7 @@ The Service Bus emulator is available in `docker-compose.azure-emulators.yml`
 but integration tests for Service Bus are not yet implemented.
 
 **Future work**: Add Service Bus integration tests to `azure-integration-ci.yml`.
+See issue #1116 for Azure emulator CI tracking.
 
 ## Usage
 

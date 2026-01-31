@@ -109,6 +109,8 @@ jobs:
         with:
           context: ${{ matrix.service.context }}
           file: ${{ matrix.service.dockerfile }}
+          # CI builds only linux/amd64 for speed; multi-arch (amd64+arm64) builds are validated
+          # in publish-docker-images-azure.yml during the actual publish to ACR.
           platforms: linux/amd64
           push: false
           load: true  # Load image into local Docker daemon for smoke test
@@ -122,17 +124,19 @@ jobs:
           docker run --rm test/${{ matrix.service.name }}:azure-test python -c "
           import sys
           print(f'Python version: {sys.version}')
-          # Test azure SDK imports
+          # Test azure SDK imports - warnings only since not all services need Azure SDKs
+          # Services like 'parsing' or 'chunking' may have Azure Dockerfiles for deployment
+          # but don't directly use Azure SDKs themselves.
           try:
               from azure.cosmos import CosmosClient
               print('✅ azure-cosmos import OK')
           except ImportError as e:
-              print(f'⚠️ azure-cosmos not available: {e}')
+              print(f'ℹ️ azure-cosmos not installed (OK if service does not use Cosmos): {e}')
           try:
               from azure.identity import DefaultAzureCredential
               print('✅ azure-identity import OK')
           except ImportError as e:
-              print(f'⚠️ azure-identity not available: {e}')
+              print(f'ℹ️ azure-identity not installed (OK if service does not use Azure auth): {e}')
           print('Smoke test passed!')
           "
 
@@ -207,7 +211,6 @@ jobs:
           COSMOS_EMULATOR_DISABLE_SSL_VERIFICATION: "true"
         run: |
           cd adapters/copilot_storage
-          # Run Cosmos DB integration tests (tests are in tests/, not tests/integration/)
           pytest tests/test_integration_azurecosmos.py -v --timeout=120
 
       - name: Run Azure Blob integration tests
