@@ -64,7 +64,8 @@ jobs:
             copilot_config \
             copilot_storage \
             copilot_schema_validation \
-            copilot_logging
+            copilot_logging \
+            copilot_auth
 
       - name: Run hypothesis property-based tests
         id: hypothesis
@@ -72,6 +73,15 @@ jobs:
           echo "::group::Running Hypothesis Tests"
           cd fuzzing
           pytest tests/test_hypothesis_example.py -v --timeout=300 --junit-xml=hypothesis-results.xml
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Run JWT authentication fuzzing tests
+        id: jwt-fuzzing
+        run: |
+          echo "::group::Running JWT Fuzzing Tests"
+          cd fuzzing
+          pytest tests/test_jwt_fuzzing.py -v --timeout=300 --junit-xml=jwt-fuzzing-results.xml
           echo "::endgroup::"
         continue-on-error: true
 
@@ -107,6 +117,14 @@ jobs:
           path: fuzzing/hypothesis-results.xml
         continue-on-error: true
 
+      - name: Upload JWT fuzzing test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: jwt-fuzzing-test-results
+          path: fuzzing/jwt-fuzzing-results.xml
+        continue-on-error: true
+
       - name: Upload schemathesis test results
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -121,6 +139,15 @@ jobs:
         with:
           name: Hypothesis Test Results
           path: 'fuzzing/hypothesis-results.xml'
+          reporter: 'java-junit'
+        continue-on-error: true
+
+      - name: Test Report - JWT Fuzzing
+        if: always()
+        uses: dorny/test-reporter@b082adf0eced0765477756c2a610396589b8c637 # v2
+        with:
+          name: JWT Fuzzing Test Results
+          path: 'fuzzing/jwt-fuzzing-results.xml'
           reporter: 'java-junit'
         continue-on-error: true
 
@@ -153,6 +180,14 @@ jobs:
             echo "| Hypothesis | ⚠️ Issues Found | Check logs for details |" >> $GITHUB_STEP_SUMMARY
           fi
           
+          # JWT Fuzzing status
+          JWT_FUZZING_STATUS="${{ steps.jwt-fuzzing.outcome }}"
+          if [ "$JWT_FUZZING_STATUS" = "success" ]; then
+            echo "| JWT Fuzzing | ✅ Passed | Authentication security fuzzing completed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| JWT Fuzzing | ⚠️ Issues Found | Check logs for details |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
           # Schemathesis status
           SCHEMATHESIS_STATUS="${{ steps.schemathesis.outcome }}"
           if [ "$SCHEMATHESIS_STATUS" = "success" ]; then
@@ -173,6 +208,7 @@ jobs:
           echo "### About Fuzzing" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Hypothesis**: Tests properties and invariants across generated inputs" >> $GITHUB_STEP_SUMMARY
+          echo "- **JWT Fuzzing**: Tests JWT authentication security (header parsing, signature validation, claims extraction)" >> $GITHUB_STEP_SUMMARY
           echo "- **Schemathesis**: Fuzzes REST APIs based on OpenAPI specifications" >> $GITHUB_STEP_SUMMARY
           echo "- **Atheris**: Coverage-guided fuzzing for finding crashes and edge cases" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
