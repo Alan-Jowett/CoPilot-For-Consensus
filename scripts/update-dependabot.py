@@ -199,10 +199,10 @@ def generate_dependabot_config(packages: list[tuple[str, str]], dockerfile_dirs:
     content += "    labels:\n"
     content += '      - "dependencies"\n'
     content += '      - "docker"\n'
-    # Ignore Python 3.14+ until azure-cosmos SDK officially supports it
-    # See: docs/troubleshooting/azure-cosmos-python314.md
-    content += "    # Ignore Python 3.14+ until azure-cosmos SDK officially supports it\n"
-    content += "    # See: docs/troubleshooting/azure-cosmos-python314.md\n"
+    # Ignore Python 3.14+ until azure-cosmos SDK regression is fixed
+    # See: docs/troubleshooting/azure-cosmos-sdk-regression.md
+    content += "    # Ignore Python 3.14+ until azure-cosmos SDK regression is fixed\n"
+    content += "    # See: docs/troubleshooting/azure-cosmos-sdk-regression.md\n"
     content += "    ignore:\n"
     content += '      - dependency-name: "python"\n'
     content += '        versions: [">=3.14"]\n'

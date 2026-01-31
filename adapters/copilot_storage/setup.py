@@ -32,7 +32,7 @@ setup(
     install_requires=[
         "copilot-config>=0.1.0",  # For generated typed adapter configs + adapter factory
         "pymongo>=4.6.3",  # MongoDB client
-        "azure-cosmos>=4.9.0,<5.0.0",  # Azure Cosmos DB client - pinned to avoid Session.request() compatibility issues
+        "azure-cosmos>=4.9.0,<4.14.0",  # Azure Cosmos DB client - pinned <4.14 due to partition_key bug in 4.14.x (Issue #43662)
         "azure-identity>=1.16.1",  # Azure managed identity support
     ],
     extras_require={

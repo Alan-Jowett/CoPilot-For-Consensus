@@ -544,8 +544,8 @@ updates:
     labels:
       - "dependencies"
       - "docker"
-    # Ignore Python 3.14+ until azure-cosmos SDK officially supports it
-    # See: docs/troubleshooting/azure-cosmos-python314.md
+    # Ignore Python 3.14+ until azure-cosmos SDK regression is fixed
+    # See: docs/troubleshooting/azure-cosmos-sdk-regression.md
     ignore:
       - dependency-name: "python"
         versions: [">=3.14"]
