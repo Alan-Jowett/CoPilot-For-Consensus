@@ -283,63 +283,59 @@ def test_fuzz_jwt_header_parsing(header: dict[str, Any]) -> None:
     - Invalid key IDs
     - Type confusion in header fields
     """
-    # Setup JWT manager with temporary keys
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = Path(tmp_dir)
-        private_key_path = tmp_path / "private.pem"
-        public_key_path = tmp_path / "public.pem"
-        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+    # Use cached RSA keys for performance
+    private_key_path, public_key_path = _get_or_create_rsa_keys()
     
-        manager = JWTManager(
-            issuer="https://auth.example.com",
+    manager = JWTManager(
+        issuer="https://auth.example.com",
+        algorithm="RS256",
+        private_key_path=private_key_path,
+        public_key_path=public_key_path,
+    )
+    
+    # Create a token with the fuzzed header
+    try:
+        # Use jwt library directly to bypass JWTManager validation
+        user_claims = {
+            "iss": "https://auth.example.com",
+            "sub": "test:12345",
+            "aud": "https://api.example.com",
+            "exp": int(time.time()) + 3600,
+            "iat": int(time.time()),
+            "nbf": int(time.time()),
+            "jti": secrets.token_urlsafe(16),
+            "email": "test@example.com",
+            "name": "Test User",
+        }
+        
+        # Encode with fuzzed header
+        token = jwt.encode(
+            user_claims,
+            manager.private_key,
             algorithm="RS256",
-            private_key_path=private_key_path,
-            public_key_path=public_key_path,
+            headers=header,
         )
         
-        # Create a token with the fuzzed header
+        # Try to validate - should either succeed (if header is valid) or raise exception
         try:
-            # Use jwt library directly to bypass JWTManager validation
-            user_claims = {
-                "iss": "https://auth.example.com",
-                "sub": "test:12345",
-                "aud": "https://api.example.com",
-                "exp": int(time.time()) + 3600,
-                "iat": int(time.time()),
-                "nbf": int(time.time()),
-                "jti": secrets.token_urlsafe(16),
-                "email": "test@example.com",
-                "name": "Test User",
-            }
-            
-            # Encode with fuzzed header
-            token = jwt.encode(
-                user_claims,
-                manager.private_key,
-                algorithm="RS256",
-                headers=header,
-            )
-            
-            # Try to validate - should either succeed (if header is valid) or raise exception
-            try:
-                claims = manager.validate_token(token, audience="https://api.example.com")
-                # If validation succeeds, ensure it's legitimate
-                assert claims["sub"] == "test:12345", "Token validation succeeded but claims are wrong"
-            except (jwt.InvalidTokenError, ValueError, TypeError, KeyError) as e:
-                # Expected exceptions for invalid headers
-                pass
-                
-        except (
-            jwt.InvalidTokenError,
-            jwt.exceptions.InvalidKeyError,
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            NotImplementedError,  # For unsupported algorithms like "none" or "None"
-        ) as e:
-            # Expected exceptions during token creation with invalid headers
+            claims = manager.validate_token(token, audience="https://api.example.com")
+            # If validation succeeds, ensure it's legitimate
+            assert claims["sub"] == "test:12345", "Token validation succeeded but claims are wrong"
+        except (jwt.InvalidTokenError, ValueError, TypeError, KeyError):
+            # Expected exceptions for invalid headers
             pass
+            
+    except (
+        jwt.InvalidTokenError,
+        jwt.exceptions.InvalidKeyError,
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        NotImplementedError,  # For unsupported algorithms like "none" or "None"
+    ):
+        # Expected exceptions during token creation with invalid headers
+        pass
 
 
 @given(claims=jwt_claims())
@@ -360,48 +356,44 @@ def test_fuzz_jwt_claims_validation(claims: dict[str, Any]) -> None:
     - Invalid values (negative/zero timestamps)
     - Claim injection
     """
-    # Setup JWT manager with temporary keys
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = Path(tmp_dir)
-        private_key_path = tmp_path / "private.pem"
-        public_key_path = tmp_path / "public.pem"
-        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+    # Use cached RSA keys for performance
+    private_key_path, public_key_path = _get_or_create_rsa_keys()
     
-        manager = JWTManager(
-            issuer="https://auth.example.com",
+    manager = JWTManager(
+        issuer="https://auth.example.com",
+        algorithm="RS256",
+        private_key_path=private_key_path,
+        public_key_path=public_key_path,
+    )
+    
+    try:
+        # Create token with fuzzed claims using jwt library directly
+        token = jwt.encode(
+            claims,
+            manager.private_key,
             algorithm="RS256",
-            private_key_path=private_key_path,
-            public_key_path=public_key_path,
         )
         
+        # Try to validate - should fail for invalid claims
         try:
-            # Create token with fuzzed claims using jwt library directly
-            token = jwt.encode(
-                claims,
-                manager.private_key,
-                algorithm="RS256",
+            validated_claims = manager.validate_token(
+                token,
+                audience=claims.get("aud", "https://api.example.com"),
             )
             
-            # Try to validate - should fail for invalid claims
-            try:
-                validated_claims = manager.validate_token(
-                    token,
-                    audience=claims.get("aud", "https://api.example.com"),
-                )
-                
-                # If validation succeeds, claims must be valid
-                assert "iss" in validated_claims
-                assert "sub" in validated_claims
-                assert "aud" in validated_claims
-                assert "exp" in validated_claims
-                
-            except (jwt.InvalidTokenError, ValueError, TypeError, KeyError) as e:
-                # Expected for invalid claims
-                pass
-                
-        except (jwt.InvalidTokenError, ValueError, TypeError, KeyError, AttributeError) as e:
-            # Expected for severely malformed claims
+            # If validation succeeds, claims must be valid
+            assert "iss" in validated_claims
+            assert "sub" in validated_claims
+            assert "aud" in validated_claims
+            assert "exp" in validated_claims
+            
+        except (jwt.InvalidTokenError, ValueError, TypeError, KeyError):
+            # Expected for invalid claims
             pass
+            
+    except (jwt.InvalidTokenError, ValueError, TypeError, KeyError, AttributeError):
+        # Expected for severely malformed claims
+        pass
 
 
 @given(token_str=malformed_jwt_tokens())
@@ -422,28 +414,24 @@ def test_fuzz_malformed_jwt_tokens(token_str: str) -> None:
     - Empty segments
     - Extremely long tokens
     """
-    # Setup JWT manager with temporary keys
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = Path(tmp_dir)
-        private_key_path = tmp_path / "private.pem"
-        public_key_path = tmp_path / "public.pem"
-        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+    # Use cached RSA keys for performance
+    private_key_path, public_key_path = _get_or_create_rsa_keys()
     
-        manager = JWTManager(
-            issuer="https://auth.example.com",
-            algorithm="RS256",
-            private_key_path=private_key_path,
-            public_key_path=public_key_path,
-        )
-        
-        # Try to validate malformed token - should always fail gracefully
-        try:
-            claims = manager.validate_token(token_str, audience="https://api.example.com")
-            # If it somehow succeeds, claims must be valid
-            assert isinstance(claims, dict), "Malformed token validation should fail"
-        except (jwt.InvalidTokenError, ValueError, TypeError, AttributeError, UnicodeDecodeError) as e:
-            # Expected - malformed tokens should be rejected
-            pass
+    manager = JWTManager(
+        issuer="https://auth.example.com",
+        algorithm="RS256",
+        private_key_path=private_key_path,
+        public_key_path=public_key_path,
+    )
+    
+    # Try to validate malformed token - should always fail gracefully
+    try:
+        claims = manager.validate_token(token_str, audience="https://api.example.com")
+        # If it somehow succeeds, claims must be valid
+        assert isinstance(claims, dict), "Malformed token validation should fail"
+    except (jwt.InvalidTokenError, ValueError, TypeError, AttributeError, UnicodeDecodeError):
+        # Expected - malformed tokens should be rejected
+        pass
 
 
 @given(
@@ -472,72 +460,68 @@ def test_fuzz_jwt_timing_validation(
     - Clock skew edge cases
     - Negative/zero timestamps
     """
-    # Setup JWT manager with temporary keys
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = Path(tmp_dir)
-        private_key_path = tmp_path / "private.pem"
-        public_key_path = tmp_path / "public.pem"
-        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+    # Use cached RSA keys for performance
+    private_key_path, public_key_path = _get_or_create_rsa_keys()
     
-        manager = JWTManager(
-            issuer="https://auth.example.com",
+    manager = JWTManager(
+        issuer="https://auth.example.com",
+        algorithm="RS256",
+        private_key_path=private_key_path,
+        public_key_path=public_key_path,
+    )
+    
+    now = int(time.time())
+    
+    # Create token with fuzzed timing
+    try:
+        claims = {
+            "iss": "https://auth.example.com",
+            "sub": "test:12345",
+            "aud": "https://api.example.com",
+            "exp": now + exp_offset,
+            "iat": now,
+            "nbf": now + nbf_offset,
+            "jti": secrets.token_urlsafe(16),
+            "email": "test@example.com",
+            "name": "Test User",
+        }
+        
+        token = jwt.encode(
+            claims,
+            manager.private_key,
             algorithm="RS256",
-            private_key_path=private_key_path,
-            public_key_path=public_key_path,
         )
         
-        now = int(time.time())
-        
-        # Create token with fuzzed timing
+        # Try to validate with fuzzed skew
         try:
-            claims = {
-                "iss": "https://auth.example.com",
-                "sub": "test:12345",
-                "aud": "https://api.example.com",
-                "exp": now + exp_offset,
-                "iat": now,
-                "nbf": now + nbf_offset,
-                "jti": secrets.token_urlsafe(16),
-                "email": "test@example.com",
-                "name": "Test User",
-            }
-            
-            token = jwt.encode(
-                claims,
-                manager.private_key,
-                algorithm="RS256",
+            validated_claims = manager.validate_token(
+                token,
+                audience="https://api.example.com",
+                max_skew_seconds=skew,
             )
             
-            # Try to validate with fuzzed skew
-            try:
-                validated_claims = manager.validate_token(
-                    token,
-                    audience="https://api.example.com",
-                    max_skew_seconds=skew,
-                )
-                
-                # If validation succeeds, token must be within valid time window
-                # considering the skew
-                current_time = int(time.time())
-                
-                # Token should not be used before nbf - skew
-                assert validated_claims["nbf"] <= current_time + skew, \
-                    f"Token nbf {validated_claims['nbf']} is after current time {current_time} + skew {skew}"
-                
-                # Token should not be expired beyond exp + skew
-                assert validated_claims["exp"] >= current_time - skew, \
-                    f"Token exp {validated_claims['exp']} is before current time {current_time} - skew {skew}"
-                
-            except (jwt.ExpiredSignatureError, jwt.ImmatureSignatureError) as e:
-                # Expected for tokens outside valid time window
-                pass
-            except (jwt.InvalidTokenError, ValueError, TypeError) as e:
-                # Expected for invalid timing values
-                pass
-                
-        except (ValueError, TypeError, OverflowError) as e:
-            # Expected for extreme timing values
+            # If validation succeeds, token must be within valid time window
+            # considering the skew
+            current_time = int(time.time())
+            
+            # Token should not be used before nbf - skew
+            assert validated_claims["nbf"] <= current_time + skew, \
+                f"Token nbf {validated_claims['nbf']} is after current time {current_time} + skew {skew}"
+            
+            # Token should not be expired beyond exp + skew
+            assert validated_claims["exp"] >= current_time - skew, \
+                f"Token exp {validated_claims['exp']} is before current time {current_time} - skew {skew}"
+            
+        except (jwt.ExpiredSignatureError, jwt.ImmatureSignatureError):
+            # Expected for tokens outside valid time window
             pass
+        except (jwt.InvalidTokenError, ValueError, TypeError):
+            # Expected for invalid timing values
+            pass
+            
+    except (ValueError, TypeError, OverflowError):
+        # Expected for extreme timing values
+        pass
 
 
 @given(signature_bytes=st.binary(min_size=0, max_size=512))
@@ -558,48 +542,44 @@ def test_fuzz_jwt_signature_tampering(signature_bytes: bytes) -> None:
     - Truncated signature
     - Signature from different token
     """
-    # Setup JWT manager with temporary keys
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = Path(tmp_dir)
-        private_key_path = tmp_path / "private.pem"
-        public_key_path = tmp_path / "public.pem"
-        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+    # Use cached RSA keys for performance
+    private_key_path, public_key_path = _get_or_create_rsa_keys()
     
-        manager = JWTManager(
-            issuer="https://auth.example.com",
-            algorithm="RS256",
-            private_key_path=private_key_path,
-            public_key_path=public_key_path,
-        )
-        
-        # Create a valid token
-        user = User(
-            id="test:12345",
-            email="test@example.com",
-            name="Test User",
-        )
-        
-        valid_token = manager.mint_token(user, audience="https://api.example.com")
-        
-        # Split token into parts
-        parts = valid_token.split(".")
-        if len(parts) != 3:
-            return  # Invalid token structure from mint_token itself
-        
-        # Replace signature with fuzzed bytes
-        fuzzed_signature = base64.urlsafe_b64encode(signature_bytes).decode('ascii').rstrip('=')
-        tampered_token = f"{parts[0]}.{parts[1]}.{fuzzed_signature}"
-        
-        # Try to validate tampered token - should always fail
-        try:
-            claims = manager.validate_token(tampered_token, audience="https://api.example.com")
-            # If validation somehow succeeds with wrong signature, that's a critical bug
-            # The only way this should succeed is if the fuzzed signature happens to be valid
-            # (extremely unlikely but theoretically possible)
-            pytest.fail(f"CRITICAL: Token with tampered signature was validated! Claims: {claims}")
-        except (jwt.InvalidSignatureError, jwt.InvalidTokenError, jwt.DecodeError) as e:
-            # Expected - tampered signatures should be rejected
-            pass
+    manager = JWTManager(
+        issuer="https://auth.example.com",
+        algorithm="RS256",
+        private_key_path=private_key_path,
+        public_key_path=public_key_path,
+    )
+    
+    # Create a valid token
+    user = User(
+        id="test:12345",
+        email="test@example.com",
+        name="Test User",
+    )
+    
+    valid_token = manager.mint_token(user, audience="https://api.example.com")
+    
+    # Split token into parts
+    parts = valid_token.split(".")
+    if len(parts) != 3:
+        return  # Invalid token structure from mint_token itself
+    
+    # Replace signature with fuzzed bytes
+    fuzzed_signature = base64.urlsafe_b64encode(signature_bytes).decode('ascii').rstrip('=')
+    tampered_token = f"{parts[0]}.{parts[1]}.{fuzzed_signature}"
+    
+    # Try to validate tampered token - should always fail
+    try:
+        claims = manager.validate_token(tampered_token, audience="https://api.example.com")
+        # If validation somehow succeeds with wrong signature, that's a critical bug
+        # The only way this should succeed is if the fuzzed signature happens to be valid
+        # (extremely unlikely but theoretically possible)
+        pytest.fail(f"CRITICAL: Token with tampered signature was validated! Claims: {claims}")
+    except (jwt.InvalidSignatureError, jwt.InvalidTokenError, jwt.DecodeError):
+        # Expected - tampered signatures should be rejected
+        pass
 
 
 @given(
@@ -622,101 +602,97 @@ def test_fuzz_algorithm_confusion(algorithm1: str, algorithm2: str) -> None:
     - HS256 token validated as RS256
     - "none" algorithm bypass attempts
     """
-    # Setup managers with different algorithms
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = Path(tmp_dir)
-        private_key_path = tmp_path / "private.pem"
-        public_key_path = tmp_path / "public.pem"
-        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+    # Use cached RSA keys for performance
+    private_key_path, public_key_path = _get_or_create_rsa_keys()
     
-        # Special-case: test "none" algorithm bypass attempts explicitly
-        if algorithm2.lower() == "none":
-            validating_manager = JWTManager(
-                issuer="https://auth.example.com",
-                algorithm="HS256",
-                secret_key="test-secret-key-at-least-32-chars-long",
-            )
-
-            now = int(time.time())
-            payload = {
-                "sub": "test:12345",
-                "iss": "https://auth.example.com",
-                "aud": "https://api.example.com",
-                "iat": now,
-                "exp": now + 60,
-            }
-
-            # Create an unsigned token using the "none" algorithm.
-            none_token = jwt.encode(payload, key="", algorithm="none")
-
-            # The validator must reject tokens using the "none" algorithm.
-            with pytest.raises(
-                (jwt.InvalidSignatureError, jwt.InvalidTokenError, jwt.DecodeError, ValueError)
-            ):
-                validating_manager.validate_token(none_token, audience="https://api.example.com")
-
-            return
-
-        # Skip unsupported algorithm combinations for other algorithms
-        if algorithm1 not in ["RS256", "HS256"]:
-            return
-        
-        # Create signing manager
-        if algorithm1 == "RS256":
-            signing_manager = JWTManager(
-                issuer="https://auth.example.com",
-                algorithm="RS256",
-                private_key_path=private_key_path,
-                public_key_path=public_key_path,
-            )
-        else:  # HS256
-            signing_manager = JWTManager(
-                issuer="https://auth.example.com",
-                algorithm="HS256",
-                secret_key="test-secret-key-at-least-32-chars-long",
-            )
-        
-        # Create validation manager with potentially different algorithm
-        if algorithm2 == "RS256":
-            validating_manager = JWTManager(
-                issuer="https://auth.example.com",
-                algorithm="RS256",
-                private_key_path=private_key_path,
-                public_key_path=public_key_path,
-            )
-        else:  # HS256
-            validating_manager = JWTManager(
-                issuer="https://auth.example.com",
-                algorithm="HS256",
-                secret_key="test-secret-key-at-least-32-chars-long",
-            )
-        
-        # Create a token with algorithm1
-        user = User(
-            id="test:12345",
-            email="test@example.com",
-            name="Test User",
+    # Special-case: test "none" algorithm bypass attempts explicitly
+    if algorithm2.lower() == "none":
+        validating_manager = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="HS256",
+            secret_key="test-secret-key-at-least-32-chars-long",
         )
+
+        now = int(time.time())
+        payload = {
+            "sub": "test:12345",
+            "iss": "https://auth.example.com",
+            "aud": "https://api.example.com",
+            "iat": now,
+            "exp": now + 60,
+        }
+
+        # Create an unsigned token using the "none" algorithm.
+        none_token = jwt.encode(payload, key="", algorithm="none")
+
+        # The validator must reject tokens using the "none" algorithm.
+        with pytest.raises(
+            (jwt.InvalidSignatureError, jwt.InvalidTokenError, jwt.DecodeError, ValueError)
+        ):
+            validating_manager.validate_token(none_token, audience="https://api.example.com")
+
+        return
+
+    # Skip unsupported algorithm combinations for other algorithms
+    if algorithm1 not in ["RS256", "HS256"]:
+        return
+    
+    # Create signing manager
+    if algorithm1 == "RS256":
+        signing_manager = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="RS256",
+            private_key_path=private_key_path,
+            public_key_path=public_key_path,
+        )
+    else:  # HS256
+        signing_manager = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="HS256",
+            secret_key="test-secret-key-at-least-32-chars-long",
+        )
+    
+    # Create validation manager with potentially different algorithm
+    if algorithm2 == "RS256":
+        validating_manager = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="RS256",
+            private_key_path=private_key_path,
+            public_key_path=public_key_path,
+        )
+    else:  # HS256
+        validating_manager = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="HS256",
+            secret_key="test-secret-key-at-least-32-chars-long",
+        )
+    
+    # Create a token with algorithm1
+    user = User(
+        id="test:12345",
+        email="test@example.com",
+        name="Test User",
+    )
+    
+    token = signing_manager.mint_token(user, audience="https://api.example.com")
+    
+    # Try to validate with algorithm2
+    try:
+        claims = validating_manager.validate_token(token, audience="https://api.example.com")
         
-        token = signing_manager.mint_token(user, audience="https://api.example.com")
-        
-        # Try to validate with algorithm2
-        try:
-            claims = validating_manager.validate_token(token, audience="https://api.example.com")
-            
-            # If algorithms match, validation should succeed
-            if algorithm1 == algorithm2:
-                assert claims["sub"] == "test:12345", "Valid token should validate successfully"
-            else:
-                # If algorithms don't match, validation should fail
-                # If it succeeds, that's a potential vulnerability
-                pytest.fail(
-                    f"CRITICAL: Algorithm confusion attack succeeded! "
-                    f"Token signed with {algorithm1} validated with {algorithm2}. Claims: {claims}"
-                )
-        except (jwt.InvalidSignatureError, jwt.InvalidTokenError, jwt.DecodeError, ValueError) as e:
-            # Expected when algorithms don't match
-            pass
+        # If algorithms match, validation should succeed
+        if algorithm1 == algorithm2:
+            assert claims["sub"] == "test:12345", "Valid token should validate successfully"
+        else:
+            # If algorithms don't match, validation should fail
+            # If it succeeds, that's a potential vulnerability
+            pytest.fail(
+                f"CRITICAL: Algorithm confusion attack succeeded! "
+                f"Token signed with {algorithm1} validated with {algorithm2}. Claims: {claims}"
+            )
+    except (jwt.InvalidSignatureError, jwt.InvalidTokenError, jwt.DecodeError, ValueError):
+        # Expected when algorithms don't match
+        pass
 
 
 # ==================== Additional Edge Cases ====================
@@ -734,46 +710,42 @@ def test_fuzz_jwt_payload_size(payload: bytes) -> None:
     This test creates tokens with various payload sizes to ensure
     the system handles large payloads gracefully.
     """
-    # Setup JWT manager with temporary keys
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = Path(tmp_dir)
-        private_key_path = tmp_path / "private.pem"
-        public_key_path = tmp_path / "public.pem"
-        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+    # Use cached RSA keys for performance
+    private_key_path, public_key_path = _get_or_create_rsa_keys()
     
-        manager = JWTManager(
-            issuer="https://auth.example.com",
+    manager = JWTManager(
+        issuer="https://auth.example.com",
+        algorithm="RS256",
+        private_key_path=private_key_path,
+        public_key_path=public_key_path,
+    )
+    
+    try:
+        # Create claims with large payload
+        claims = {
+            "iss": "https://auth.example.com",
+            "sub": "test:12345",
+            "aud": "https://api.example.com",
+            "exp": int(time.time()) + 3600,
+            "iat": int(time.time()),
+            "nbf": int(time.time()),
+            "jti": secrets.token_urlsafe(16),
+            "large_payload": base64.b64encode(payload).decode('ascii'),
+        }
+        
+        token = jwt.encode(
+            claims,
+            manager.private_key,
             algorithm="RS256",
-            private_key_path=private_key_path,
-            public_key_path=public_key_path,
         )
         
-        try:
-            # Create claims with large payload
-            claims = {
-                "iss": "https://auth.example.com",
-                "sub": "test:12345",
-                "aud": "https://api.example.com",
-                "exp": int(time.time()) + 3600,
-                "iat": int(time.time()),
-                "nbf": int(time.time()),
-                "jti": secrets.token_urlsafe(16),
-                "large_payload": base64.b64encode(payload).decode('ascii'),
-            }
-            
-            token = jwt.encode(
-                claims,
-                manager.private_key,
-                algorithm="RS256",
-            )
-            
-            # Validate token with large payload
-            validated_claims = manager.validate_token(token, audience="https://api.example.com")
-            assert "large_payload" in validated_claims
-            
-        except (ValueError, MemoryError, OverflowError) as e:
-            # Expected for extremely large payloads
-            pass
+        # Validate token with large payload
+        validated_claims = manager.validate_token(token, audience="https://api.example.com")
+        assert "large_payload" in validated_claims
+        
+    except (ValueError, MemoryError, OverflowError):
+        # Expected for extremely large payloads
+        pass
 
 
 if __name__ == "__main__":
