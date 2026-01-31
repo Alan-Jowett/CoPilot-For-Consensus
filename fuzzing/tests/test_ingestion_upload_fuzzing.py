@@ -68,11 +68,13 @@ def fuzz_filename_sanitization(data: bytes) -> None:
                 assert '/' not in sanitized, f"Path separator in sanitized name: {sanitized}"
                 assert '\\' not in sanitized, f"Windows path separator in sanitized name: {sanitized}"
 
-                # 2. No absolute paths - colons are replaced by sanitization,
-                # so Windows paths like "C:\..." become "C_..." which is safe
+                # 2. No absolute paths
                 assert not sanitized.startswith('/'), f"Absolute path detected: {sanitized}"
-                # Note: colons are replaced with underscores, so checking for ':'
-                # post-sanitization is unnecessary (it will always pass)
+                # Verify that colons in the input are actually replaced (e.g., "C:\" -> "C_...")
+                if ':' in filename:
+                    assert ':' not in sanitized, (
+                        f"Colon not replaced during sanitization: {filename!r} -> {sanitized!r}"
+                    )
 
                 # 3. No null bytes
                 assert '\x00' not in sanitized, f"Null byte in sanitized name: {sanitized}"
@@ -81,11 +83,12 @@ def fuzz_filename_sanitization(data: bytes) -> None:
                 assert len(sanitized) <= 255, f"Filename too long: {len(sanitized)}"
 
                 # 5. Hidden files starting with '.' are prefixed with "upload_"
-                # so they're safe. Verify this behavior:
                 assert sanitized, "Sanitized filename is empty"
-                if sanitized.startswith('.'):
-                    # This shouldn't happen - sanitization prefixes hidden files
-                    assert False, f"Hidden file without upload_ prefix: {sanitized}"
+                # Verify hidden file handling: either doesn't start with dot, or has been
+                # prefixed with "upload_" (per api.py lines 91-92)
+                assert not sanitized.startswith('.') or sanitized.startswith('upload_.'), (
+                    f"Hidden file not properly prefixed: {sanitized}"
+                )
 
             except (UnicodeDecodeError, UnicodeError):
                 # Expected for invalid encodings
@@ -178,6 +181,8 @@ def fuzz_mbox_parsing(data: bytes) -> None:
     try:
         # Only process small inputs to avoid timeouts
         # Real-world mbox files are large, but fuzzing should be fast
+        # Note: Memory exhaustion testing with large files (50MB+) is deferred
+        # to integration tests. This fuzzer focuses on structural/encoding bugs.
         if len(data) > 10000:  # 10KB limit for fuzzing
             return
 
@@ -188,10 +193,11 @@ def fuzz_mbox_parsing(data: bytes) -> None:
                 f.write(data)
 
             try:
-                # Try to open and parse as mbox using Python's standard library.
-                # Note: This fuzzes the underlying mailbox module that the parsing
-                # service's MessageParser depends on. Application-level parsing
-                # (parsing/app/parser.py) is tested separately in service tests.
+                # Fuzz Python's standard mailbox module, which is the foundation
+                # for the parsing service's MessageParser (parsing/app/parser.py).
+                # This tests for crashes in the underlying library.
+                # Application-specific parsing logic (header extraction, threading,
+                # etc.) is covered by service integration tests, not fuzzing.
                 mbox = mailbox.mbox(temp_path)
 
                 # Try to iterate through messages (limited to prevent hangs)

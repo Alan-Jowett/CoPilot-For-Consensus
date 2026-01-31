@@ -182,15 +182,20 @@ class TestExtensionValidationProperties:
 
 
 class TestUploadSizeLimitProperties:
-    """Property-based tests for upload size limit validation."""
+    """Strategy validation tests for size limit constant.
+    
+    These tests validate the MAX_UPLOAD_SIZE constant and test data generation
+    strategies, not the actual upload endpoint behavior. Actual upload size
+    validation is tested in ingestion service integration tests.
+    """
 
     @given(st.integers(min_value=0, max_value=MAX_UPLOAD_SIZE))
     @settings(max_examples=100, deadline=None)
     def test_sizes_within_limit_should_pass(self, size: int):
         """File sizes within the limit should be accepted."""
-        # This tests the size limit constant value, not the API endpoint.
-        # The actual upload validation is tested in ingestion service tests.
-        # This property ensures the strategy generates valid sizes for other tests.
+        # This validates that the test strategy generates valid sizes correctly
+        # for use in other property tests. Actual upload validation is tested
+        # in ingestion service tests.
         assert size <= MAX_UPLOAD_SIZE, \
             f"Size {size} exceeds limit {MAX_UPLOAD_SIZE}"
 
@@ -198,8 +203,9 @@ class TestUploadSizeLimitProperties:
     @settings(max_examples=100, deadline=None)
     def test_sizes_over_limit_should_fail(self, size: int):
         """File sizes over the limit should be rejected."""
-        # This validates the test strategy generates invalid sizes correctly.
-        # Actual rejection behavior is tested in ingestion service tests.
+        # This validates the test strategy generates invalid sizes correctly
+        # for use in other property tests. Actual rejection behavior is tested
+        # in ingestion service tests.
         assert size > MAX_UPLOAD_SIZE, \
             f"Size {size} should exceed limit {MAX_UPLOAD_SIZE}"
 
@@ -232,11 +238,16 @@ class TestExtensionSplittingProperties:
     )
     @settings(max_examples=50, deadline=None)
     def test_compound_extensions_preserved(self, filename: str):
-        """Compound extensions should be kept together (normalized to lowercase)."""
+        """Compound extensions are kept together when split (case preserved in return).
+        
+        Note: _split_extension returns the extension with its original case.
+        This test verifies that when lowercased, it matches expected values.
+        """
         name, ext = _split_extension(filename)
 
         # For .tar.gz and .tgz, extension should be the full compound extension
-        # normalized to lowercase regardless of input case
+        # The function preserves case in the returned extension, so we lowercase
+        # for comparison to verify it's one of the allowed compound extensions
         filename_lower = filename.lower()
         if filename_lower.endswith('.tar.gz'):
             assert ext.lower() == '.tar.gz', f"Compound extension not preserved: {ext}"
