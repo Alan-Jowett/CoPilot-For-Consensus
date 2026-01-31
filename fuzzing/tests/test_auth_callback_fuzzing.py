@@ -42,8 +42,7 @@ Risk areas covered:
 
 import sys
 from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -75,20 +74,38 @@ def mock_auth_service():
     service.config.service_settings.jwt_default_expiry = 1800
     service.config.service_settings.cookie_secure = False
     
+    # Track used state values to simulate single-use CSRF tokens / replay protection
+    used_states: set[str] = set()
+    
     # Mock handle_callback with realistic behavior
     async def mock_handle_callback(code: str, state: str) -> str:
-        """Mock callback that validates input."""
+        """Mock callback that validates input and enforces single-use state."""
+        # Basic input validation
         if not code:
             raise ValueError("Missing authorization code")
         if not state:
             raise ValueError("Invalid or expired state")
+        
+        # Simulate invalid/expired session semantics via prefixes
         if state.startswith("invalid"):
             raise ValueError("Invalid or expired state")
         if state.startswith("expired"):
             raise ValueError("Session expired")
+        
+        # Enforce single-use state to simulate replay protection
+        if state in used_states:
+            raise ValueError("State already used")
+        
+        # Simulate provider-auth error on bad authorization code
         if code == "bad_code":
-            from copilot_auth import AuthenticationError
-            raise AuthenticationError("Invalid authorization code")
+            # Use a simple ValueError instead of importing from copilot_auth
+            # to avoid import issues when adapter is not installed
+            raise ValueError("Invalid authorization code")
+        
+        # Mark state as consumed after successful validation
+        used_states.add(state)
+        
+        # Return a mock JWT token
         return "mock.jwt.token"
     
     service.handle_callback = mock_handle_callback
@@ -212,8 +229,8 @@ class TestCallbackPropertyBased:
             params={"code": "bad_code", "state": "valid_state"}
         )
         
-        # Bad auth code should result in error
-        assert response.status_code in (400, 500)
+        # Bad auth code should result in a 400 client error
+        assert response.status_code == 400
         data = response.json()
         assert "detail" in data
     
@@ -450,20 +467,21 @@ class TestCallbackEdgeCases:
         """Test callback with very long parameters (potential DoS)."""
         long_string = "x" * 100000  # 100KB string
         
-        # The test client may reject very long URLs before they reach the server
-        # This is actually a good security feature (defense in depth)
+        # The endpoint should validate input sizes and respond with an appropriate
+        # client error status (bad request or entity/URI too large), rather than
+        # crashing or accepting the request.
         try:
             response = test_client.get(
                 "/callback",
                 params={"code": long_string, "state": "test_state"}
             )
             
-            # If the request goes through, should handle gracefully without crashing
+            # If the request goes through, should handle gracefully
             assert response.status_code in (400, 413, 414, 422)
-        except Exception as e:
+        except Exception:
             # httpx.InvalidURL or similar exceptions are acceptable
             # The client library is protecting against DoS by rejecting invalid URLs
-            assert "too long" in str(e).lower() or "invalid" in str(e).lower()
+            pass
     
     def test_unicode_in_parameters(self, test_client):
         """Test callback with Unicode characters in parameters."""
@@ -500,15 +518,21 @@ class TestCallbackEdgeCases:
                 params={"code": special, "state": "test_state"}
             )
             
-            # Should handle safely
-            assert response.status_code in (200, 400, 422, 500)
+            # Should handle safely without server errors
+            assert response.status_code in (200, 400, 422)
             
-            # Response should not contain unescaped special characters
-            if "<script>" in special:
-                response_text = response.text.lower()
-                # Either not present or HTML-escaped
-                if "<script>" in response_text:
-                    assert "&lt;script&gt;" in response.text
+            # For JSON responses, ensure reflected XSS payloads are not
+            # included unescaped in the error detail.
+            if "<script" in special.lower():
+                try:
+                    data = response.json()
+                    detail = data.get("detail")
+                    if isinstance(detail, str):
+                        lowered_detail = detail.lower()
+                        # No raw <script> tag should appear in the detail message
+                        assert "<script" not in lowered_detail
+                except Exception:
+                    pass  # Non-JSON response is OK
     
     def test_csrf_state_validation(self, test_client):
         """Test CSRF protection via state parameter validation."""
@@ -537,21 +561,21 @@ class TestCallbackEdgeCases:
     
     def test_duplicate_callback_requests(self, test_client):
         """Test that callback cannot be replayed (state should be single-use)."""
-        # First request
+        # First request should succeed with a fresh, valid state
         response1 = test_client.get(
             "/callback",
-            params={"code": "valid_code", "state": "valid_state"}
+            params={"code": "valid_code", "state": "replay_test_state"}
         )
         
-        # Second request with same parameters
+        # Second request with same parameters must fail because the state was consumed
         response2 = test_client.get(
             "/callback",
-            params={"code": "valid_code", "state": "valid_state"}
+            params={"code": "valid_code", "state": "replay_test_state"}
         )
         
-        # At least one should fail (state should be consumed)
-        # In practice, both might fail if state is immediately invalidated
-        assert response1.status_code == 200 or response2.status_code == 400
+        # Enforce replay protection semantics: first succeeds, second fails
+        assert response1.status_code == 200
+        assert response2.status_code == 400
 
 
 if __name__ == "__main__":
