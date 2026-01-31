@@ -55,7 +55,7 @@ pytest tests/test_hypothesis_example.py -v
 pytest tests/test_schemathesis_example.py -v
 
 # Run atheris fuzzing tests (requires special handling)
-python tests/test_atheris_example.py
+python tests/test_atheris_example.py -atheris_runs=1000
 ```
 
 ### In CI
@@ -117,7 +117,8 @@ schema = from_uri("http://localhost:8000/openapi.json")
 @schema.parametrize()
 def test_api(case):
     """Test API endpoint against OpenAPI spec."""
-    case.call_and_validate()
+    response = case.call()
+    case.validate_response(response)
 ```
 
 ## Best Practices
