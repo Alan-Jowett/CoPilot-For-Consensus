@@ -259,11 +259,11 @@ class TestCallbackPropertyBased:
         # Test common injection patterns
         injection_attempts = [
             text,  # Random text
-            f"'; DROP TABLE users; --",  # SQL injection
-            f"<script>alert('xss')</script>",  # XSS
-            f"$(rm -rf /)",  # Command injection
-            f"../../etc/passwd",  # Path traversal
-            f"%00",  # Null byte injection
+            "'; DROP TABLE users; --",  # SQL injection
+            "<script>alert('xss')</script>",  # XSS
+            "$(rm -rf /)",  # Command injection
+            "../../etc/passwd",  # Path traversal
+            "%00",  # Null byte injection
         ]
         
         for payload in injection_attempts:
