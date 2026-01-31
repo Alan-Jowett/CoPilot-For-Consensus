@@ -256,14 +256,14 @@ class TestCallbackPropertyBased:
         Tests that special characters, SQL injection attempts, XSS payloads,
         and command injection attempts are safely handled.
         """
-        # Test common injection patterns
+        # Test common injection patterns, incorporating fuzzed text into each
         injection_attempts = [
             text,  # Random text
-            f"'; DROP TABLE users; --",  # SQL injection
-            f"<script>alert('xss')</script>",  # XSS
-            f"$(rm -rf /)",  # Command injection
-            f"../../etc/passwd",  # Path traversal
-            f"%00",  # Null byte injection
+            f"'{text}'; DROP TABLE users; --",  # SQL injection
+            f"<script>alert({text!r})</script>",  # XSS
+            f"$(echo {text})",  # Command injection
+            f"../../{text}/passwd",  # Path traversal
+            f"{text}%00",  # Null byte injection
         ]
         
         for payload in injection_attempts:
@@ -598,9 +598,9 @@ class TestCallbackEdgeCases:
         # Successful callback should return 200
         assert response.status_code == 200
         
-        # Response should be valid JSON with a token
+        # Response should be valid JSON
         data = response.json()
-        assert "token" in data or "access_token" in data or "jwt" in data.get("detail", "").lower() or response.status_code == 200
+        assert isinstance(data, dict), "Response should be a JSON object"
 
 
 if __name__ == "__main__":

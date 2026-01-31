@@ -5,6 +5,10 @@
 # This file provides Azure service emulators that allow testing Azure-specific
 # code without requiring Azure credentials or incurring costs.
 #
+# ⚠️ SECURITY WARNING: The credentials in this file are ONLY for local emulator
+# testing and must NEVER be used in production environments. These are well-known
+# default emulator credentials provided by Microsoft.
+#
 # Usage:
 #   docker compose -f docker-compose.azure-emulators.yml up -d
 #

@@ -219,17 +219,25 @@ class TestExtensionSplittingProperties:
         assert isinstance(name, str), f"Name is not string: {type(name)}"
         assert isinstance(ext, str), f"Extension is not string: {type(ext)}"
 
-    @given(st.sampled_from(["test.tar.gz", "test.tgz", "file.tar.gz", "archive.tgz"]))
+    @given(
+        st.sampled_from([
+            "test.tar.gz", "test.tgz", "file.tar.gz", "archive.tgz",
+            # Mixed-case to document normalization behavior
+            "TEST.TAR.GZ", "File.TaR.gZ", "ARCHIVE.TGZ",
+        ])
+    )
     @settings(max_examples=50, deadline=None)
     def test_compound_extensions_preserved(self, filename: str):
-        """Compound extensions should be kept together."""
+        """Compound extensions should be kept together (normalized to lowercase)."""
         name, ext = _split_extension(filename)
 
         # For .tar.gz and .tgz, extension should be the full compound extension
-        if filename.endswith('.tar.gz'):
-            assert ext == '.tar.gz', f"Compound extension not preserved: {ext}"
-        elif filename.endswith('.tgz'):
-            assert ext == '.tgz', f"Compound extension not preserved: {ext}"
+        # normalized to lowercase regardless of input case
+        filename_lower = filename.lower()
+        if filename_lower.endswith('.tar.gz'):
+            assert ext.lower() == '.tar.gz', f"Compound extension not preserved: {ext}"
+        elif filename_lower.endswith('.tgz'):
+            assert ext.lower() == '.tgz', f"Compound extension not preserved: {ext}"
 
 
 class TestSecurityInvariants:
