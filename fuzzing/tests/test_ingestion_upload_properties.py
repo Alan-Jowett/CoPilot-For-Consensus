@@ -188,8 +188,9 @@ class TestUploadSizeLimitProperties:
     @settings(max_examples=100, deadline=None)
     def test_sizes_within_limit_should_pass(self, size: int):
         """File sizes within the limit should be accepted."""
-        # This is a property test for the size check logic
-        # The actual validation happens in the API endpoint
+        # This tests the size limit constant value, not the API endpoint.
+        # The actual upload validation is tested in ingestion service tests.
+        # This property ensures the strategy generates valid sizes for other tests.
         assert size <= MAX_UPLOAD_SIZE, \
             f"Size {size} exceeds limit {MAX_UPLOAD_SIZE}"
 
@@ -197,6 +198,8 @@ class TestUploadSizeLimitProperties:
     @settings(max_examples=100, deadline=None)
     def test_sizes_over_limit_should_fail(self, size: int):
         """File sizes over the limit should be rejected."""
+        # This validates the test strategy generates invalid sizes correctly.
+        # Actual rejection behavior is tested in ingestion service tests.
         assert size > MAX_UPLOAD_SIZE, \
             f"Size {size} should exceed limit {MAX_UPLOAD_SIZE}"
 

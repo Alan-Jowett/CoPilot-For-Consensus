@@ -188,8 +188,10 @@ def fuzz_mbox_parsing(data: bytes) -> None:
                 f.write(data)
 
             try:
-                # Try to open and parse as mbox
-                # This uses Python's mailbox module which is what the real code uses
+                # Try to open and parse as mbox using Python's standard library.
+                # Note: This fuzzes the underlying mailbox module that the parsing
+                # service's MessageParser depends on. Application-level parsing
+                # (parsing/app/parser.py) is tested separately in service tests.
                 mbox = mailbox.mbox(temp_path)
 
                 # Try to iterate through messages (limited to prevent hangs)

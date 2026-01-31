@@ -33,9 +33,13 @@ fuzzing/
 ├── __init__.py
 └── tests/
     ├── __init__.py
-    ├── test_atheris_example.py      # Example atheris fuzzing test
-    ├── test_hypothesis_example.py   # Example hypothesis property-based test
-    └── test_schemathesis_example.py # Example schemathesis API fuzzing test
+    ├── test_atheris_example.py          # Example atheris fuzzing test
+    ├── test_auth_callback_fuzzing.py    # Auth service OIDC callback fuzzing
+    ├── test_hypothesis_example.py       # Example hypothesis property-based test
+    ├── test_ingestion_upload_fuzzing.py # Ingestion upload fuzzing (atheris)
+    ├── test_ingestion_upload_properties.py # Ingestion upload properties (hypothesis)
+    ├── test_jwt_fuzzing.py              # JWT authentication fuzzing
+    └── test_schemathesis_example.py     # Example schemathesis API fuzzing test
 ```
 
 ## Running Fuzzing Tests
