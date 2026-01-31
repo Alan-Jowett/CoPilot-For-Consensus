@@ -69,7 +69,13 @@ def delete_all_items_in_container(store, collection_name: str) -> None:
     This bypasses the document store's sanitization to get the actual document IDs.
     
     Note: Accessing private method _get_container_for_collection is intentional
-    for test fixture cleanup. This is acceptable in test code for setup/teardown.
+    for test fixture cleanup. This pattern is acceptable in test code because:
+    1. Test cleanup needs direct SDK access to delete items by their raw IDs
+    2. The public API sanitizes IDs, which would prevent proper cleanup
+    3. This is isolated to test fixtures, not production code
+    
+    If the internal API changes, these tests will fail explicitly, signaling
+    the need to update the cleanup logic.
     """
     try:
         container = store._get_container_for_collection(collection_name)
