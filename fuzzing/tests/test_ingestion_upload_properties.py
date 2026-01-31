@@ -48,12 +48,7 @@ def _is_safe_filename(sanitized: str) -> bool:
     Returns:
         True if the filename is safe, False otherwise
     """
-    # Special case: os.path.basename('/') returns '/' which is acceptable
-    # as it's not a traversal pattern and would be renamed by upload logic
-    if sanitized == '/':
-        return True
-
-    # No forward slashes allowed in regular filenames
+    # No forward slashes allowed in filenames
     if '/' in sanitized:
         return False
 
@@ -126,12 +121,12 @@ class TestFilenameSanitizationProperties:
         """Sanitized filenames must not be absolute paths."""
         sanitized = _sanitize_filename(filename)
 
-        # Use the helper function which handles the '/' edge case
+        # Use the helper function to check
         assert _is_safe_filename(sanitized), \
             f"Unsafe filename (absolute path): {sanitized}"
 
         # Additionally check Windows absolute paths (C:, D:, etc.)
-        if len(sanitized) >= 2 and sanitized != '/':
+        if len(sanitized) >= 2:
             assert sanitized[1] != ':', \
                 f"Windows absolute path: {sanitized}"
 
