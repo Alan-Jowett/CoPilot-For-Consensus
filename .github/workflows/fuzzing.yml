@@ -72,7 +72,7 @@ jobs:
         run: |
           echo "::group::Running Hypothesis Tests"
           cd fuzzing
-          pytest tests/test_hypothesis_example.py tests/test_auth_callback_fuzzing.py::TestCallbackPropertyBased -v --timeout=300 --junit-xml=hypothesis-results.xml
+          pytest tests/test_hypothesis_example.py tests/test_auth_callback_fuzzing.py::TestCallbackPropertyBased tests/test_ingestion_upload_properties.py -v --timeout=300 --junit-xml=hypothesis-results.xml
           echo "::endgroup::"
         continue-on-error: true
 

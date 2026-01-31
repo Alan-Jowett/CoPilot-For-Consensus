@@ -174,38 +174,37 @@ def fuzz_mbox_parsing(data: bytes) -> None:
         if len(data) > 10000:  # 10KB limit for fuzzing
             return
 
-        # Create temporary mbox file
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.mbox', delete=False) as f:
-            temp_path = f.name
-            f.write(data)
+        # Create temporary directory for mbox files to ensure cleanup
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = os.path.join(temp_dir, "fuzz_test.mbox")
+            with open(temp_path, 'wb') as f:
+                f.write(data)
 
-        try:
-            # Try to open and parse as mbox
-            # This uses Python's mailbox module which is what the real code uses
-            mbox = mailbox.mbox(temp_path)
-
-            # Try to iterate through messages (limited to prevent hangs)
-            count = 0
-            max_messages = 10
-            for message in mbox:
-                count += 1
-                if count >= max_messages:
-                    break
-
-                # Try to access common headers
-                _ = message.get('From')
-                _ = message.get('To')
-                _ = message.get('Subject')
-                _ = message.get('Message-ID')
-                _ = message.get('Date')
-
-        finally:
-            # Cleanup
             try:
-                os.unlink(temp_path)
-            except Exception:
-                # Best-effort cleanup: failures deleting the temp file are non-fatal
-                # in fuzzing; ignore them so we don't hide the real parsing error.
+                # Try to open and parse as mbox
+                # This uses Python's mailbox module which is what the real code uses
+                mbox = mailbox.mbox(temp_path)
+
+                # Try to iterate through messages (limited to prevent hangs)
+                count = 0
+                max_messages = 10
+                for message in mbox:
+                    count += 1
+                    if count >= max_messages:
+                        break
+
+                    # Try to access common headers
+                    _ = message.get('From')
+                    _ = message.get('To')
+                    _ = message.get('Subject')
+                    _ = message.get('Message-ID')
+                    _ = message.get('Date')
+
+                # Close mbox before directory cleanup
+                mbox.close()
+
+            except (mailbox.Error, KeyError, ValueError, OSError):
+                # These are expected for malformed mbox files
                 pass
 
     except (mailbox.Error, KeyError, ValueError, OSError):
