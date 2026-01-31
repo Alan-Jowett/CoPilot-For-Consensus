@@ -17,7 +17,6 @@ Priority: P0
 """
 
 import base64
-import json
 import secrets
 import tempfile
 import time
@@ -35,6 +34,33 @@ try:
     from copilot_auth.models import User
 except ImportError:
     pytest.skip("copilot_auth not available", allow_module_level=True)
+
+
+# ==================== Module-level RSA Key Caching ====================
+# RSA key generation is expensive; generate once and reuse across tests
+# to improve fuzz test performance.
+
+_MODULE_TMP_DIR: tempfile.TemporaryDirectory[str] | None = None
+_MODULE_PRIVATE_KEY_PATH: Path | None = None
+_MODULE_PUBLIC_KEY_PATH: Path | None = None
+
+
+def _get_or_create_rsa_keys() -> tuple[Path, Path]:
+    """Get or create module-level RSA keys for testing.
+    
+    This caches RSA keys at the module level to avoid expensive key generation
+    on every test iteration. Keys are cleaned up when the module unloads.
+    """
+    global _MODULE_TMP_DIR, _MODULE_PRIVATE_KEY_PATH, _MODULE_PUBLIC_KEY_PATH
+    
+    if _MODULE_PRIVATE_KEY_PATH is None or _MODULE_PUBLIC_KEY_PATH is None:
+        _MODULE_TMP_DIR = tempfile.TemporaryDirectory()
+        tmp_path = Path(_MODULE_TMP_DIR.name)
+        _MODULE_PRIVATE_KEY_PATH = tmp_path / "private.pem"
+        _MODULE_PUBLIC_KEY_PATH = tmp_path / "public.pem"
+        JWTManager.generate_rsa_keys(_MODULE_PRIVATE_KEY_PATH, _MODULE_PUBLIC_KEY_PATH)
+    
+    return _MODULE_PRIVATE_KEY_PATH, _MODULE_PUBLIC_KEY_PATH
 
 
 # ==================== Custom JWT Strategies ====================
@@ -603,8 +629,36 @@ def test_fuzz_algorithm_confusion(algorithm1: str, algorithm2: str) -> None:
         public_key_path = tmp_path / "public.pem"
         JWTManager.generate_rsa_keys(private_key_path, public_key_path)
     
-        # Skip unsupported algorithm combinations
-        if algorithm1 not in ["RS256", "HS256"] or algorithm2 not in ["RS256", "HS256"]:
+        # Special-case: test "none" algorithm bypass attempts explicitly
+        if algorithm2.lower() == "none":
+            validating_manager = JWTManager(
+                issuer="https://auth.example.com",
+                algorithm="HS256",
+                secret_key="test-secret-key-at-least-32-chars-long",
+            )
+
+            now = int(time.time())
+            payload = {
+                "sub": "test:12345",
+                "iss": "https://auth.example.com",
+                "aud": "https://api.example.com",
+                "iat": now,
+                "exp": now + 60,
+            }
+
+            # Create an unsigned token using the "none" algorithm.
+            none_token = jwt.encode(payload, key="", algorithm="none")
+
+            # The validator must reject tokens using the "none" algorithm.
+            with pytest.raises(
+                (jwt.InvalidSignatureError, jwt.InvalidTokenError, jwt.DecodeError, ValueError)
+            ):
+                validating_manager.validate_token(none_token, audience="https://api.example.com")
+
+            return
+
+        # Skip unsupported algorithm combinations for other algorithms
+        if algorithm1 not in ["RS256", "HS256"]:
             return
         
         # Create signing manager
