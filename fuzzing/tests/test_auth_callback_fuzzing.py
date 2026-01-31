@@ -87,12 +87,19 @@ def mock_auth_service():
     
     # Mock handle_callback with realistic behavior
     async def mock_handle_callback(code: str, state: str) -> str:
-        """Mock callback that validates input and enforces single-use state."""
+        """Mock callback that validates input and enforces single-use state.
+        
+        Note: In the real auth service, missing code/state parameters are handled
+        by FastAPI's Query validation (returning 422). This mock simulates the
+        behavior AFTER FastAPI validation, when handle_callback receives the values.
+        Empty strings that pass FastAPI validation are rejected here.
+        """
         # Basic input validation - empty strings are invalid
+        # (FastAPI handles missing params with 422, this handles empty strings)
         if not code or code.strip() == "":
-            raise ValueError("Missing authorization code")
+            raise ValueError("Authorization code cannot be empty")
         if not state or state.strip() == "":
-            raise ValueError("Invalid or expired state")
+            raise ValueError("State parameter cannot be empty")
         
         # Simulate invalid/expired session semantics via prefixes
         if state.startswith("invalid"):
