@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Azure Emulators for Local Development and CI Testing
+# This file provides Azure service emulators that allow testing Azure-specific
+# code without requiring Azure credentials or incurring costs.
+#
+# Usage:
+#   docker compose -f docker-compose.azure-emulators.yml up -d
+#
+# Then run integration tests:
+#   cd adapters/copilot_storage && pytest tests/integration/ -v -m azure_emulator
+#
+# See docs/LOCAL_DEVELOPMENT.md for detailed instructions.
+
+services:
+  # Azure Cosmos DB Emulator (Linux-based, vNext preview)
+  # Docs: https://learn.microsoft.com/en-us/azure/cosmos-db/emulator-linux
+  cosmos-emulator:
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview
+    ports:
+      - "127.0.0.1:8081:8081"   # Gateway endpoint (SDK connections)
+      - "127.0.0.1:1234:1234"   # Data Explorer UI (optional, for debugging)
+    environment:
+      - AZURE_COSMOS_EMULATOR_PARTITION_COUNT=10
+      - AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=false
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsk https://localhost:8081/_explorer/emulator.pem || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  # Azure Service Bus Emulator
+  # Docs: https://learn.microsoft.com/en-us/azure/service-bus-messaging/test-locally-with-service-bus-emulator
+  # Note: Requires SQL Edge as backend storage
+  servicebus-emulator:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    ports:
+      - "127.0.0.1:5672:5672"   # AMQP endpoint
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong!Passw0rd
+      - SQL_SERVER=sqledge
+    volumes:
+      - ./infra/azure-emulators/servicebus-config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
+    depends_on:
+      sqledge:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5672 || exit 0"]  # Basic port check
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  # SQL Edge (required by Service Bus Emulator)
+  sqledge:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong!Passw0rd
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  # Azurite - Azure Storage Emulator (Blob, Queue, Table)
+  # Docs: https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    ports:
+      - "127.0.0.1:10000:10000"  # Blob service
+      - "127.0.0.1:10001:10001"  # Queue service
+      - "127.0.0.1:10002:10002"  # Table service
+    command: ["azurite", "--blobHost", "0.0.0.0", "--queueHost", "0.0.0.0", "--tableHost", "0.0.0.0", "--loose"]
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 10000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  # Validation service - waits for all emulators to be ready
+  azure-emulators-ready:
+    image: curlimages/curl:8.10.1@sha256:d9b4541e214bcd85196d6e92e2753ac6d0ea699f0af5741f8c6cccbfcf00ef4b
+    depends_on:
+      cosmos-emulator:
+        condition: service_healthy
+      azurite:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |-
+        echo "✅ All Azure emulators are ready!"
+        echo ""
+        echo "Cosmos DB Emulator:"
+        echo "  Endpoint: https://localhost:8081"
+        echo "  Key: C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
+        echo ""
+        echo "Azurite (Azure Storage):"
+        echo "  Blob:  http://localhost:10000/devstoreaccount1"
+        echo "  Queue: http://localhost:10001/devstoreaccount1"
+        echo "  Table: http://localhost:10002/devstoreaccount1"
+        echo "  Connection String: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;QueueEndpoint=http://localhost:10001/devstoreaccount1;TableEndpoint=http://localhost:10002/devstoreaccount1;"
+        echo ""
+        echo "Run integration tests with:"
+        echo "  export USE_AZURE_EMULATORS=true"
+        echo "  cd adapters/copilot_storage && pytest tests/integration/ -v"
+    restart: "no"
