@@ -76,6 +76,9 @@ def delete_all_items_in_container(store, collection_name: str) -> None:
     
     If the internal API changes, these tests will fail explicitly, signaling
     the need to update the cleanup logic.
+    
+    TODO: Consider adding a public `clear_collection()` method to the store
+    for testing purposes if this pattern is used frequently.
     """
     try:
         container = store._get_container_for_collection(collection_name)
@@ -87,8 +90,9 @@ def delete_all_items_in_container(store, collection_name: str) -> None:
         for item in items:
             try:
                 container.delete_item(item=item["id"], partition_key=item["id"])
-            except Exception:
-                pass  # Ignore individual deletion failures
+            except Exception as del_err:
+                # Log individual deletion failures at debug level for troubleshooting
+                logger.debug(f"Failed to delete item {item.get('id')}: {del_err}")
     except Exception as e:
         logger.debug(f"Cleanup failed (may be expected): {e}")
 
@@ -195,7 +199,8 @@ class TestAzureCosmosIntegration:
 
     @pytest.mark.skipif(
         os.getenv("USE_AZURE_EMULATORS") == "true",
-        reason="Cosmos DB vnext-preview emulator has SDK compatibility issue with replace_item"
+        reason="Cosmos DB vnext-preview emulator has SDK compatibility issue with replace_item. "
+               "See https://github.com/Azure/azure-cosmos-db-emulator-docker/issues - tracking emulator fixes."
     )
     def test_update_document(self, azurecosmos_store, clean_collection):
         """Test updating a document."""
@@ -290,9 +295,12 @@ class TestAzureCosmosIntegration:
 
         retrieved = azurecosmos_store.get_document(clean_collection, doc_id)
         # Retrieved document is sanitized (id is stripped as a system field)
-        # For an empty document, the result is an empty dict
+        # For an empty document, the result is an empty dict after sanitization
+        # removes the 'id' field. This is expected behavior.
         assert retrieved is not None
         assert isinstance(retrieved, dict)
+        # Empty dict is expected since the original doc was empty and id is stripped
+        assert retrieved == {} or "id" not in retrieved
 
 
 @pytest.mark.integration
