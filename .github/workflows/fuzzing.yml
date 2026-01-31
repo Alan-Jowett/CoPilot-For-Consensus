@@ -59,14 +59,13 @@ jobs:
 
       - name: Install adapters (for integration fuzzing)
         run: |
-          # Install adapters that might be needed for fuzzing tests
+          # Install minimal adapters needed for fuzzing tests
+          # copilot_config and copilot_logging are required by ingestion/app/api.py
+          # copilot_auth is required by auth callback fuzzing tests
           python adapters/scripts/install_adapters.py \
             copilot_config \
-            copilot_storage \
-            copilot_schema_validation \
             copilot_logging \
-            copilot_auth \
-            copilot_metrics
+            copilot_auth
 
       - name: Run hypothesis property-based tests
         id: hypothesis

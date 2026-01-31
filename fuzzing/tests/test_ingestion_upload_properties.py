@@ -33,14 +33,9 @@ def _is_safe_filename(sanitized: str) -> bool:
     """Check if a sanitized filename is safe from path traversal.
 
     A filename is safe if:
-    - It contains no forward slashes (except the edge case of '/' itself,
-      which can occur when os.path.basename('/') returns '/' - this would
-      be renamed by the upload logic to avoid conflicts)
+    - It contains no forward slashes
     - It contains no backslashes (Windows path separator)
     - It's just a simple filename without directory components
-
-    Note: In production, the ingestion API would handle the '/' edge case
-    by generating a unique filename (e.g., 'upload_/_1') if it collides.
 
     Args:
         sanitized: The sanitized filename to check

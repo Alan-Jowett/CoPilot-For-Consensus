@@ -61,10 +61,7 @@ def fuzz_filename_sanitization(data: bytes) -> None:
                 sanitized = _sanitize_filename(filename)
 
                 # Verify security properties
-                # 1. No path separators (except on Unix where basename might return '/')
-                # The single forward slash case is when os.path.basename('/') returns '/'
-                # which is then sanitized but remains as '/' - this is acceptable as it's
-                # 1. No path separators
+                # 1. No path separators (the regex replaces '/' with '_')
                 assert '/' not in sanitized, f"Path separator in sanitized name: {sanitized}"
                 assert '\\' not in sanitized, f"Windows path separator in sanitized name: {sanitized}"
 
