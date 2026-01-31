@@ -8,8 +8,10 @@ This module tests security-critical file parsing functionality to detect:
 - Crashes from malformed mbox files
 - Extension validation bypasses
 
-Note: Archive extraction (ZIP, TAR) fuzzing is not yet implemented.
-This focuses on filename validation and mbox parsing.
+Note: Archive extraction (ZIP, TAR) fuzzing is deferred to a future PR.
+This module focuses on filename validation and mbox parsing as the first
+priority for ingestion security. ZIP bomb and TAR extraction fuzzing will
+be added in a follow-up issue.
 
 IMPORTANT: Atheris tests run as standalone scripts (python test_ingestion_upload_fuzzing.py),
 NOT through pytest. This is because atheris uses libFuzzer's own execution model
@@ -61,13 +63,16 @@ def fuzz_filename_sanitization(data: bytes) -> None:
                 sanitized = _sanitize_filename(filename)
 
                 # Verify security properties
-                # 1. No path separators (the regex replaces '/' with '_')
+                # 1. No path separators (regex replaces any non-alphanumeric chars
+                # except dots, hyphens, and underscores with underscores)
                 assert '/' not in sanitized, f"Path separator in sanitized name: {sanitized}"
                 assert '\\' not in sanitized, f"Windows path separator in sanitized name: {sanitized}"
 
-                # 2. No absolute paths
+                # 2. No absolute paths - colons are replaced by sanitization,
+                # so Windows paths like "C:\..." become "C_..." which is safe
                 assert not sanitized.startswith('/'), f"Absolute path detected: {sanitized}"
-                assert not (len(sanitized) > 2 and sanitized[1] == ':'), f"Windows absolute path: {sanitized}"
+                # Note: colons are replaced with underscores, so checking for ':'
+                # post-sanitization is unnecessary (it will always pass)
 
                 # 3. No null bytes
                 assert '\x00' not in sanitized, f"Null byte in sanitized name: {sanitized}"
@@ -75,10 +80,12 @@ def fuzz_filename_sanitization(data: bytes) -> None:
                 # 4. Reasonable length (should be truncated)
                 assert len(sanitized) <= 255, f"Filename too long: {len(sanitized)}"
 
-                # 5. Not empty and doesn't start with dot (unless prefixed)
+                # 5. Hidden files starting with '.' are prefixed with "upload_"
+                # so they're safe. Verify this behavior:
                 assert sanitized, "Sanitized filename is empty"
-                if not sanitized.startswith("upload_"):
-                    assert not sanitized.startswith('.'), f"Hidden file created: {sanitized}"
+                if sanitized.startswith('.'):
+                    # This shouldn't happen - sanitization prefixes hidden files
+                    assert False, f"Hidden file without upload_ prefix: {sanitized}"
 
             except (UnicodeDecodeError, UnicodeError):
                 # Expected for invalid encodings

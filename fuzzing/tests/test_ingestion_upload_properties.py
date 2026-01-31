@@ -120,10 +120,11 @@ class TestFilenameSanitizationProperties:
         assert _is_safe_filename(sanitized), \
             f"Unsafe filename (absolute path): {sanitized}"
 
-        # Additionally check Windows absolute paths (C:, D:, etc.)
-        if len(sanitized) >= 2:
-            assert sanitized[1] != ':', \
-                f"Windows absolute path: {sanitized}"
+        # Note: Windows drive letters (C:, D:) have their colons replaced
+        # with underscores by the sanitization regex, so post-sanitization
+        # we verify the colon was removed, not that it's absent (it always is)
+        assert ':' not in sanitized, \
+            f"Colon not sanitized (potential Windows path): {sanitized}"
 
 
 class TestExtensionValidationProperties:
