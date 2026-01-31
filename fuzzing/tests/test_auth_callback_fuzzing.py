@@ -68,7 +68,13 @@ sys.path.insert(0, str(auth_dir))
 
 @pytest.fixture
 def mock_auth_service():
-    """Create a mock auth service with realistic behavior."""
+    """Create a mock auth service with realistic behavior.
+    
+    This mock simulates the real auth service's session-based state management:
+    - States are single-use (consumed after successful validation)
+    - Empty strings are treated as invalid input
+    - Special prefixes trigger specific error conditions for testing
+    """
     service = MagicMock()
     service.config.service_settings.audiences = "copilot-for-consensus"
     service.config.service_settings.jwt_default_expiry = 1800
@@ -80,10 +86,10 @@ def mock_auth_service():
     # Mock handle_callback with realistic behavior
     async def mock_handle_callback(code: str, state: str) -> str:
         """Mock callback that validates input and enforces single-use state."""
-        # Basic input validation
-        if not code:
+        # Basic input validation - empty strings are invalid
+        if not code or code.strip() == "":
             raise ValueError("Missing authorization code")
-        if not state:
+        if not state or state.strip() == "":
             raise ValueError("Invalid or expired state")
         
         # Simulate invalid/expired session semantics via prefixes
@@ -159,8 +165,8 @@ class TestCallbackPropertyBased:
         assert 100 <= response.status_code < 600
         
         # Should never return 500 (internal server error)
-        # Valid responses: 200 (success), 400 (bad request), 503 (not ready)
-        assert response.status_code in (200, 400, 503)
+        # Valid responses: 200 (success), 400 (bad request)
+        assert response.status_code in (200, 400)
     
     @given(
         code=st.text(alphabet=st.characters(blacklist_categories=("Cs",)), min_size=1, max_size=1000),
@@ -272,9 +278,11 @@ class TestCallbackPropertyBased:
             # Response should not echo back payload unescaped
             response_text = response.text
             # Basic check: if payload contains <script>, response shouldn't
-            # contain it without HTML encoding
-            if "<script>" in payload:
-                assert "<script>" not in response_text or "&lt;script&gt;" in response_text
+            # contain it without HTML encoding (check case-insensitively)
+            if "<script>" in payload.lower():
+                lowered_response = response_text.lower()
+                # Response should NOT contain raw script tag unless it's escaped
+                assert "<script>" not in lowered_response or "&lt;script&gt;" in lowered_response
 
 
 # ============================================================================
@@ -478,9 +486,9 @@ class TestCallbackEdgeCases:
             
             # If the request goes through, should handle gracefully
             assert response.status_code in (400, 413, 414, 422)
-        except Exception:
-            # httpx.InvalidURL or similar exceptions are acceptable
-            # The client library is protecting against DoS by rejecting invalid URLs
+        except (ValueError, OSError):
+            # httpx.InvalidURL (ValueError subclass) or network-level exceptions
+            # are acceptable - the client library is protecting against DoS
             pass
     
     def test_unicode_in_parameters(self, test_client):
@@ -531,8 +539,8 @@ class TestCallbackEdgeCases:
                         lowered_detail = detail.lower()
                         # No raw <script> tag should appear in the detail message
                         assert "<script" not in lowered_detail
-                except Exception:
-                    pass  # Non-JSON response is OK
+                except (ValueError, KeyError):
+                    pass  # Non-JSON response or missing detail field is OK
     
     def test_csrf_state_validation(self, test_client):
         """Test CSRF protection via state parameter validation."""
@@ -545,7 +553,9 @@ class TestCallbackEdgeCases:
         assert response.status_code == 400
         data = response.json()
         assert "detail" in data
-        assert "state" in data["detail"].lower() or "invalid" in data["detail"].lower()
+        # The mock returns "Invalid or expired state" for invalid prefix
+        detail_lower = data["detail"].lower()
+        assert "invalid" in detail_lower or "expired" in detail_lower or "state" in detail_lower
     
     def test_expired_session(self, test_client):
         """Test handling of expired session states."""
@@ -557,7 +567,9 @@ class TestCallbackEdgeCases:
         assert response.status_code == 400
         data = response.json()
         assert "detail" in data
-        assert "expired" in data["detail"].lower() or "invalid" in data["detail"].lower()
+        # The mock returns "Session expired" for expired prefix
+        detail_lower = data["detail"].lower()
+        assert "expired" in detail_lower or "session" in detail_lower
     
     def test_duplicate_callback_requests(self, test_client):
         """Test that callback cannot be replayed (state should be single-use)."""
@@ -576,6 +588,21 @@ class TestCallbackEdgeCases:
         # Enforce replay protection semantics: first succeeds, second fails
         assert response1.status_code == 200
         assert response2.status_code == 400
+    
+    def test_valid_callback_success(self, test_client):
+        """Test that a completely valid callback succeeds with proper response."""
+        # Use a unique state that won't trigger any mock error conditions
+        response = test_client.get(
+            "/callback",
+            params={"code": "valid_authorization_code", "state": "valid_unique_state_12345"}
+        )
+        
+        # Successful callback should return 200
+        assert response.status_code == 200
+        
+        # Response should be valid JSON
+        data = response.json()
+        assert isinstance(data, dict)
 
 
 if __name__ == "__main__":
