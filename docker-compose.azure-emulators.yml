@@ -60,12 +60,15 @@ services:
     restart: unless-stopped
 
   # SQL Edge (required by Service Bus Emulator)
+  # NOTE: Password 'YourStrong!Passw0rd' is the documented default for the SQL Edge emulator.
+  # This must only be used for local emulator testing, never in production.
   sqledge:
     image: mcr.microsoft.com/azure-sql-edge:latest
     environment:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=YourStrong!Passw0rd
     healthcheck:
+      # Uses the same emulator password defined above
       test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
@@ -93,6 +96,8 @@ services:
   # Validation service - waits for all emulators to be ready
   azure-emulators-ready:
     image: curlimages/curl:8.10.1@sha256:d9b4541e214bcd85196d6e92e2753ac6d0ea699f0af5741f8c6cccbfcf00ef4b
+    # NOTE: Only depends on actively-used emulators (Cosmos, Azurite).
+    # Service Bus and SQL Edge are defined for future use but not yet required.
     depends_on:
       cosmos-emulator:
         condition: service_healthy
