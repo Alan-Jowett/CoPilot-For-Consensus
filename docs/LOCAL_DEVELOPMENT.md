@@ -109,8 +109,9 @@ docker compose -f docker-compose.azure-emulators.yml up -d
 docker compose -f docker-compose.azure-emulators.yml ps
 
 # Set environment variables for tests
+# Note: vnext-preview emulator uses HTTP, not HTTPS
 export USE_AZURE_EMULATORS=true
-export COSMOS_ENDPOINT="https://localhost:8081"
+export COSMOS_ENDPOINT="http://localhost:8081"
 export COSMOS_KEY="C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
 export COSMOS_DATABASE="test_copilot"
 # Azurite connection string - matches docker-compose.azure-emulators.yml defaults
@@ -130,9 +131,9 @@ docker compose -f docker-compose.azure-emulators.yml down -v
 
 ### Cosmos DB Emulator Notes
 
-- The emulator uses a self-signed certificate; you may need to disable SSL verification
+- The vnext-preview emulator uses HTTP (not HTTPS) on port 8081
 - Well-known emulator key: `C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==`
-- Data Explorer UI available at https://localhost:1234 (when emulator is running)
+- Data Explorer UI available at http://localhost:1234 (when emulator is running)
 
 ### CI Integration
 
