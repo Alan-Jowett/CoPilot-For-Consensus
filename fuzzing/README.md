@@ -31,17 +31,11 @@ Fuzzing is an automated testing technique that provides invalid, unexpected, or 
 fuzzing/
 ├── README.md           # This file
 ├── __init__.py
-├── corpus/             # Seed inputs for fuzzing
-│   ├── filenames/      # Malicious filename samples
-│   └── mbox/           # Mbox file samples
 └── tests/
     ├── __init__.py
-    ├── test_atheris_example.py               # Example atheris fuzzing test
-    ├── test_hypothesis_example.py            # Example hypothesis property-based test
-    ├── test_jwt_fuzzing.py                   # JWT authentication fuzzing (auth service)
-    ├── test_schemathesis_example.py          # Example schemathesis API fuzzing test
-    ├── test_ingestion_upload_fuzzing.py      # Atheris fuzzing for ingestion uploads
-    └── test_ingestion_upload_properties.py   # Hypothesis tests for upload security
+    ├── test_atheris_example.py      # Example atheris fuzzing test
+    ├── test_hypothesis_example.py   # Example hypothesis property-based test
+    └── test_schemathesis_example.py # Example schemathesis API fuzzing test
 ```
 
 ## Running Fuzzing Tests
@@ -60,17 +54,8 @@ pytest tests/ -v --timeout=300
 pytest tests/test_hypothesis_example.py -v
 pytest tests/test_schemathesis_example.py -v
 
-# Run ingestion upload security tests
-pytest tests/test_ingestion_upload_properties.py -v
-
 # Run atheris fuzzing tests (requires special handling)
-# Note: Atheris may not be available on all platforms (requires compilation)
 python tests/test_atheris_example.py -atheris_runs=1000
-
-# Run ingestion upload atheris fuzzing with different targets
-python tests/test_ingestion_upload_fuzzing.py -target=sanitization -atheris_runs=10000
-python tests/test_ingestion_upload_fuzzing.py -target=extension -atheris_runs=10000
-python tests/test_ingestion_upload_fuzzing.py -target=mbox -atheris_runs=5000
 ```
 
 ### In CI
@@ -156,42 +141,33 @@ def test_api(case):
 - **APIs**: All public REST endpoints via schemathesis
 - **Validators**: All input validation and sanitization functions
 - **Data Pipelines**: Critical data transformation logic
-- **Authentication**: JWT token parsing, signature validation, and claims extraction
+- **Auth Service**: OIDC callback flow, state parameter validation, session management
 
-## Fuzzing Tests
+### Auth Service Fuzzing
 
-### JWT Authentication Fuzzing (`test_jwt_fuzzing.py`)
+The auth service OIDC callback flow has comprehensive fuzzing coverage via `tests/test_auth_callback_fuzzing.py`:
 
-Comprehensive property-based fuzzing tests for JWT authentication in the auth service:
+- **Property-based tests** (Hypothesis):
+  - Callback endpoint never crashes with arbitrary input
+  - Always returns valid JSON responses
+  - Invalid states are rejected (CSRF protection)
+  - Bad authorization codes are rejected
+  - No injection vulnerabilities in parameters
 
-- **Header Parsing**: Tests malformed headers, algorithm confusion ("none", HS256 vs RS256), invalid key IDs
-- **Signature Validation**: Tests signature bypass attempts, tampering, and mismatched keys
-- **Claims Extraction**: Tests malformed claims, type confusion, missing required claims, injection attempts
-- **Timing Validation**: Tests expired tokens, nbf edge cases, and clock skew boundary conditions
-- **Algorithm Confusion**: Tests RS256 vs HS256 confusion attacks
-- **Payload Size**: Tests DoS via large payloads
+- **API schema tests** (Schemathesis):
+  - OpenAPI spec compliance for `/callback` endpoint
+  - Error handling for malformed requests
+  - Parameter validation edge cases
 
-Priority: **P0** (Authentication bypass, privilege escalation risks)
-
-### Current Coverage
-
-#### Ingestion Upload Security (P0)
-- ✅ **Filename sanitization** - Atheris + Hypothesis testing for path traversal, null bytes, encoding attacks
-- ✅ **Extension validation** - Hypothesis property-based tests for bypass attempts
-- ✅ **Mbox parsing** - Atheris fuzzing for crash detection and malformed data handling
-- ✅ **Size limits** - Property tests for boundary conditions
-
-**Security Focus**: Protects against:
-- Path traversal attacks (../../../etc/passwd)
-- Null byte injection (filename\x00.exe)
-- Extension confusion (.mbox.exe)
-- Memory exhaustion from malformed mbox files
-- Unicode/homograph attacks
-
-**Test Files**:
-- `tests/test_ingestion_upload_fuzzing.py` - Atheris coverage-guided fuzzing
-- `tests/test_ingestion_upload_properties.py` - Hypothesis property-based tests
-- `corpus/` - Seed inputs for fuzzing
+- **Security-focused edge cases**:
+  - Missing/empty parameters
+  - Very long parameters (DoS protection)
+  - Unicode and special characters
+  - SQL injection, XSS, command injection attempts
+  - Path traversal attempts
+  - CSRF via state manipulation
+  - Session expiry handling
+  - Replay attack prevention (single-use states)
 
 ## Contributing
 
