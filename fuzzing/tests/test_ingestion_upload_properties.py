@@ -13,7 +13,6 @@ Usage:
 import sys
 from pathlib import Path
 
-import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
@@ -21,7 +20,7 @@ from hypothesis import strategies as st
 repo_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(repo_root / "ingestion"))
 
-from app.api import (
+from app.api import (  # noqa: E402
     ALLOWED_EXTENSIONS,
     MAX_UPLOAD_SIZE,
     _sanitize_filename,
@@ -32,20 +31,20 @@ from app.api import (
 
 def _is_safe_filename(sanitized: str) -> bool:
     """Check if a sanitized filename is safe from path traversal.
-    
+
     A filename is safe if:
     - It contains no forward slashes (except the edge case of '/' itself,
       which can occur when os.path.basename('/') returns '/' - this would
       be renamed by the upload logic to avoid conflicts)
     - It contains no backslashes (Windows path separator)
     - It's just a simple filename without directory components
-    
+
     Note: In production, the ingestion API would handle the '/' edge case
     by generating a unique filename (e.g., 'upload_/_1') if it collides.
-    
+
     Args:
         sanitized: The sanitized filename to check
-        
+
     Returns:
         True if the filename is safe, False otherwise
     """
@@ -53,15 +52,15 @@ def _is_safe_filename(sanitized: str) -> bool:
     # as it's not a traversal pattern and would be renamed by upload logic
     if sanitized == '/':
         return True
-    
+
     # No forward slashes allowed in regular filenames
     if '/' in sanitized:
         return False
-    
+
     # No backslashes (Windows paths)
     if '\\' in sanitized:
         return False
-    
+
     return True
 
 
@@ -112,7 +111,7 @@ class TestFilenameSanitizationProperties:
     @settings(max_examples=500, deadline=None)
     def test_sanitization_handles_path_traversal_attempts(self, filename: str):
         """Path traversal patterns must be sanitized.
-        
+
         Note: The current implementation prefixes problematic names with 'upload_'
         which makes them safe. For example, '..' becomes 'upload_..' which is
         not a special directory reference.
@@ -126,11 +125,11 @@ class TestFilenameSanitizationProperties:
     def test_sanitization_no_absolute_paths(self, filename: str):
         """Sanitized filenames must not be absolute paths."""
         sanitized = _sanitize_filename(filename)
-        
+
         # Use the helper function which handles the '/' edge case
         assert _is_safe_filename(sanitized), \
             f"Unsafe filename (absolute path): {sanitized}"
-        
+
         # Additionally check Windows absolute paths (C:, D:, etc.)
         if len(sanitized) >= 2 and sanitized != '/':
             assert sanitized[1] != ':', \
@@ -179,10 +178,10 @@ class TestExtensionValidationProperties:
         """Extensions not in the allowed list should be rejected."""
         # Skip if it happens to match an allowed extension
         assume(extension.lower() not in ALLOWED_EXTENSIONS)
-        
+
         filename = f"test.{extension}"
         result = _validate_file_extension(filename)
-        
+
         # Should reject unless the fuzzer happened to create a valid compound extension
         if result:
             # If it passed, it must be because it ends with an allowed extension
@@ -235,7 +234,7 @@ class TestExtensionSplittingProperties:
     def test_compound_extensions_preserved(self, filename: str):
         """Compound extensions should be kept together."""
         name, ext = _split_extension(filename)
-        
+
         # For .tar.gz and .tgz, extension should be the full compound extension
         if filename.endswith('.tar.gz'):
             assert ext == '.tar.gz', f"Compound extension not preserved: {ext}"
@@ -251,12 +250,12 @@ class TestSecurityInvariants:
     def test_sanitization_prevents_directory_traversal(self, filename: str):
         """Sanitized filenames must not enable directory traversal."""
         from pathlib import Path
-        
+
         sanitized = _sanitize_filename(filename)
-        
+
         # Create a Path object and verify it's just a filename
         p = Path(sanitized)
-        
+
         # Should have no parent directories
         assert str(p) == p.name, \
             f"Sanitized filename has directory components: {sanitized}"
@@ -267,7 +266,7 @@ class TestSecurityInvariants:
         """The size limit constant should be enforced."""
         size = len(data)
         should_reject = size > MAX_UPLOAD_SIZE
-        
+
         if should_reject:
             assert size > MAX_UPLOAD_SIZE, \
                 "Size check logic should reject this"
