@@ -144,7 +144,7 @@ def test_api(case):
 - **Data Pipelines**: Critical data transformation logic
 - **Authentication**: JWT token parsing, signature validation, and claims extraction
 
-## Current Fuzzing Tests
+## Fuzzing Tests
 
 ### JWT Authentication Fuzzing (`test_jwt_fuzzing.py`)
 
