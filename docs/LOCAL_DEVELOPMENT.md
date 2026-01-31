@@ -101,6 +101,7 @@ Test Azure-specific code locally without Azure credentials using official emulat
 
 ### Quick Start
 
+**Linux/macOS (bash):**
 ```bash
 # Start Azure emulators
 docker compose -f docker-compose.azure-emulators.yml up -d
@@ -123,6 +124,33 @@ pytest tests/test_integration_azurecosmos.py -v
 
 # For Azure Blob tests (in archive_store adapter)
 cd ../copilot_archive_store
+pytest tests/test_integration_azure_blob.py -v
+
+# Cleanup
+docker compose -f docker-compose.azure-emulators.yml down -v
+```
+
+**Windows (PowerShell):**
+```powershell
+# Start Azure emulators
+docker compose -f docker-compose.azure-emulators.yml up -d
+
+# Wait for emulators to be ready
+docker compose -f docker-compose.azure-emulators.yml ps
+
+# Set environment variables for tests
+$env:USE_AZURE_EMULATORS = "true"
+$env:COSMOS_ENDPOINT = "http://localhost:8081"
+$env:COSMOS_KEY = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
+$env:COSMOS_DATABASE = "test_copilot"
+$env:AZURE_STORAGE_CONNECTION_STRING = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;"
+
+# Run integration tests
+cd adapters\copilot_storage
+pytest tests/test_integration_azurecosmos.py -v
+
+# For Azure Blob tests (in archive_store adapter)
+cd ..\copilot_archive_store
 pytest tests/test_integration_azure_blob.py -v
 
 # Cleanup
