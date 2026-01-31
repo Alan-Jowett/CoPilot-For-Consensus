@@ -76,8 +76,12 @@ class TestAPIFuzzing:
         # Verify schema loaded
         assert schema is not None
         
-        # Get operations and unwrap Result type
-        operations = [op.ok() for op in schema.get_all_operations()]
+        # Get operations and unwrap Result type, asserting there are no errors
+        operations = []
+        for op_result in schema.get_all_operations():
+            operation = op_result.ok()
+            assert operation is not None, "Unexpected invalid operation in schema operations"
+            operations.append(operation)
         assert len(operations) > 0
         assert any(op.path == "/health" for op in operations)
     

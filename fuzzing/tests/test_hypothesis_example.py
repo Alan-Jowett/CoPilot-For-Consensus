@@ -59,8 +59,8 @@ def test_string_concatenation_contains_parts(prefix: str, suffix: str) -> None:
     This tests a basic property of string concatenation.
     """
     result = prefix + suffix
-    assert prefix in result or len(prefix) == 0
-    assert suffix in result or len(suffix) == 0
+    assert prefix in result
+    assert suffix in result
 
 
 # Example of testing idempotency (important for message processing)

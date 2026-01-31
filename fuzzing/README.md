@@ -48,7 +48,7 @@ pip install -r requirements-dev.txt
 
 # Run all fuzzing tests (with timeout to prevent infinite loops)
 cd fuzzing
-pytest tests/ -v --timeout=60
+pytest tests/ -v --timeout=300
 
 # Run specific fuzzing tool tests
 pytest tests/test_hypothesis_example.py -v
@@ -121,7 +121,7 @@ def test_api(case):
 
 ## Best Practices
 
-1. **Set Timeouts**: Always use pytest timeout (`--timeout=60`) to prevent infinite loops
+1. **Set Timeouts**: Always use pytest timeout (`--timeout=300`) to prevent infinite loops
 2. **Isolate Tests**: Each fuzzing test should be independent and not affect others
 3. **Handle Expected Exceptions**: Catch and ignore exceptions that are part of normal validation
 4. **Focus on Critical Paths**: Prioritize fuzzing for:
