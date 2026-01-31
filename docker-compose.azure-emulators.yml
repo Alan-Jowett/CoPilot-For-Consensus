@@ -29,7 +29,8 @@ services:
       - AZURE_COSMOS_EMULATOR_PARTITION_COUNT=10
       - AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=false
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsk https://localhost:8081/_explorer/emulator.pem || exit 1"]
+      # vnext-preview emulator uses HTTP, not HTTPS
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 30
