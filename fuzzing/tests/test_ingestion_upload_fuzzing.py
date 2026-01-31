@@ -5,9 +5,11 @@
 
 This module tests security-critical file parsing functionality to detect:
 - Path traversal vulnerabilities in filename sanitization
-- Memory exhaustion from malformed archives
 - Crashes from malformed mbox files
 - Extension validation bypasses
+
+Note: Archive extraction (ZIP, TAR) fuzzing is not yet implemented.
+This focuses on filename validation and mbox parsing.
 
 IMPORTANT: Atheris tests run as standalone scripts (python test_ingestion_upload_fuzzing.py),
 NOT through pytest. This is because atheris uses libFuzzer's own execution model
@@ -62,16 +64,13 @@ def fuzz_filename_sanitization(data: bytes) -> None:
                 # 1. No path separators (except on Unix where basename might return '/')
                 # The single forward slash case is when os.path.basename('/') returns '/'
                 # which is then sanitized but remains as '/' - this is acceptable as it's
-                # not a traversal pattern and would be renamed by the upload logic
-                if sanitized != '/':
-                    assert '/' not in sanitized, f"Path separator in sanitized name: {sanitized}"
+                # 1. No path separators
+                assert '/' not in sanitized, f"Path separator in sanitized name: {sanitized}"
                 assert '\\' not in sanitized, f"Windows path separator in sanitized name: {sanitized}"
 
                 # 2. No absolute paths
-                # Use the helper function to check, which handles edge cases
-                if sanitized != '/':  # Skip the edge case
-                    assert not sanitized.startswith('/'), f"Absolute path detected: {sanitized}"
-                    assert not (len(sanitized) > 2 and sanitized[1] == ':'), f"Windows absolute path: {sanitized}"
+                assert not sanitized.startswith('/'), f"Absolute path detected: {sanitized}"
+                assert not (len(sanitized) > 2 and sanitized[1] == ':'), f"Windows absolute path: {sanitized}"
 
                 # 3. No null bytes
                 assert '\x00' not in sanitized, f"Null byte in sanitized name: {sanitized}"
@@ -127,10 +126,10 @@ def fuzz_extension_validation(data: bytes) -> None:
         if filename:
             assert isinstance(name, str), "Name must be string"
             assert isinstance(ext, str), "Extension must be string"
-            # Name + ext should reconstruct the original (within reason)
+            # Verify that concatenation produces a string
             if ext:
-                name + ext
-                # Allow some differences due to case normalization in splitting logic
+                reconstructed = name + ext
+                assert isinstance(reconstructed, str), "Reconstructed filename must be string"
 
         # Test validation
         is_valid = _validate_file_extension(filename)
@@ -208,6 +207,8 @@ def fuzz_mbox_parsing(data: bytes) -> None:
             try:
                 os.unlink(temp_path)
             except Exception:
+                # Best-effort cleanup: failures deleting the temp file are non-fatal
+                # in fuzzing; ignore them so we don't hide the real parsing error.
                 pass
 
     except (mailbox.Error, KeyError, ValueError, OSError):
