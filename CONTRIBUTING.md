@@ -279,9 +279,9 @@ python tests/test_atheris_example.py           # Coverage-guided fuzzing
 ### CI Integration
 
 Fuzzing tests run automatically:
-- On every push to `main` and pull requests
-- Weekly on a schedule (Sundays at 00:00 UTC)
-- Via the `.github/workflows/fuzzing.yml` workflow
+- When fuzzing-related files or workflows change in a push to `main` or in a pull request (see `paths` filters in `.github/workflows/fuzzing.yml`)
+- Weekly on a schedule (Sundays at 00:00 UTC), regardless of file changes
+- Through the dedicated `.github/workflows/fuzzing.yml` workflow
 
 The fuzzing workflow:
 - Has a 30-minute timeout to prevent resource exhaustion

@@ -65,7 +65,6 @@ jobs:
             copilot_storage \
             copilot_schema_validation \
             copilot_logging
-        continue-on-error: true
 
       - name: Run hypothesis property-based tests
         id: hypothesis
@@ -90,8 +89,12 @@ jobs:
         run: |
           echo "::group::Running Atheris Tests"
           cd fuzzing
-          # Atheris may not be available on all platforms due to compilation requirements
-          # Run with timeout to prevent infinite loops
+          # Atheris uses libFuzzer's execution model and is run as a standalone harness,
+          # not as a regular pytest test. As a result, we cannot rely on pytest's
+          # --timeout option here and instead enforce a wall-clock limit via the
+          # shell `timeout` command to guard against infinite loops or long hangs.
+          # Atheris may also be unavailable on some platforms due to compilation
+          # requirements; in that case this command will fail quickly and we ignore it.
           timeout 60s python tests/test_atheris_example.py -atheris_runs=1000 || echo "Atheris test completed or unavailable"
           echo "::endgroup::"
         continue-on-error: true

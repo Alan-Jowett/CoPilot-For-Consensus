@@ -62,7 +62,8 @@ python tests/test_atheris_example.py
 
 Fuzzing tests run automatically in the CI pipeline via the `.github/workflows/fuzzing.yml` workflow. The workflow:
 
-- Runs on pushes to `main` and pull requests
+- Runs on pushes to `main` and pull requests when fuzzing-related files are modified (for example: `fuzzing/**`, `requirements-dev.txt`, or the workflow file itself)
+- Also runs on a scheduled weekly job
 - Has a conservative timeout to prevent resource exhaustion
 - Reports failures as test results
 - Runs in parallel with other validation checks

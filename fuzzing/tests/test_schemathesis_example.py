@@ -124,7 +124,8 @@ class TestAPIFuzzing:
         
         # Verify the schema can generate test cases
         assert schema is not None
-        assert len(list(schema.get_all_operations())) > 0
+        operations = list(schema.get_all_operations())
+        assert len(operations) > 0
 
 
 # Example of how to fuzz a real API endpoint (requires running service)

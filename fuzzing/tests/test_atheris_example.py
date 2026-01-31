@@ -6,9 +6,13 @@
 Atheris is a coverage-guided Python fuzzing engine. It uses libFuzzer to 
 generate inputs that maximize code coverage and find bugs.
 
-Note: Atheris tests typically run standalone (python test_atheris_example.py)
-rather than through pytest, though they can be integrated with pytest using
-special runners.
+IMPORTANT: Atheris tests run as standalone scripts (python test_atheris_example.py),
+NOT through pytest. This is because atheris uses libFuzzer's own execution model
+which is incompatible with pytest's test runner. The CI workflow runs this file
+directly with a shell timeout rather than using pytest --timeout.
+
+Usage:
+    python tests/test_atheris_example.py -atheris_runs=1000
 """
 
 import sys
