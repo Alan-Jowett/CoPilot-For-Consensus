@@ -140,6 +140,7 @@ def test_ingestion_api_fuzzing() -> None:
     '''
     # Load schema from running service
     from schemathesis.openapi import from_url
+    from schemathesis import Case
     schema = from_url("http://localhost:8001/openapi.json")
     
     @schema.parametrize()
