@@ -8,8 +8,10 @@ This module tests security-critical file parsing functionality to detect:
 - Crashes from malformed mbox files
 - Extension validation bypasses
 
-Note: Archive extraction (ZIP, TAR) fuzzing is not yet implemented.
-This focuses on filename validation and mbox parsing.
+Note: Archive extraction (ZIP, TAR) fuzzing is deferred to a future PR.
+This module focuses on filename validation and mbox parsing as the first
+priority for ingestion security. ZIP bomb and TAR extraction fuzzing will
+be added in a follow-up issue.
 
 IMPORTANT: Atheris tests run as standalone scripts (python test_ingestion_upload_fuzzing.py),
 NOT through pytest. This is because atheris uses libFuzzer's own execution model
@@ -61,16 +63,18 @@ def fuzz_filename_sanitization(data: bytes) -> None:
                 sanitized = _sanitize_filename(filename)
 
                 # Verify security properties
-                # 1. No path separators (except on Unix where basename might return '/')
-                # The single forward slash case is when os.path.basename('/') returns '/'
-                # which is then sanitized but remains as '/' - this is acceptable as it's
-                # 1. No path separators
+                # 1. No path separators (regex replaces any non-alphanumeric chars
+                # except dots, hyphens, and underscores with underscores)
                 assert '/' not in sanitized, f"Path separator in sanitized name: {sanitized}"
                 assert '\\' not in sanitized, f"Windows path separator in sanitized name: {sanitized}"
 
                 # 2. No absolute paths
                 assert not sanitized.startswith('/'), f"Absolute path detected: {sanitized}"
-                assert not (len(sanitized) > 2 and sanitized[1] == ':'), f"Windows absolute path: {sanitized}"
+                # Verify that colons in the input are actually replaced (e.g., "C:\" -> "C_...")
+                if ':' in filename:
+                    assert ':' not in sanitized, (
+                        f"Colon not replaced during sanitization: {filename!r} -> {sanitized!r}"
+                    )
 
                 # 3. No null bytes
                 assert '\x00' not in sanitized, f"Null byte in sanitized name: {sanitized}"
@@ -78,10 +82,13 @@ def fuzz_filename_sanitization(data: bytes) -> None:
                 # 4. Reasonable length (should be truncated)
                 assert len(sanitized) <= 255, f"Filename too long: {len(sanitized)}"
 
-                # 5. Not empty and doesn't start with dot (unless prefixed)
+                # 5. Hidden files starting with '.' are prefixed with "upload_"
                 assert sanitized, "Sanitized filename is empty"
-                if not sanitized.startswith("upload_"):
-                    assert not sanitized.startswith('.'), f"Hidden file created: {sanitized}"
+                # Verify hidden file handling: either doesn't start with dot, or has been
+                # prefixed with "upload_" (per api.py lines 91-92)
+                assert not sanitized.startswith('.') or sanitized.startswith('upload_.'), (
+                    f"Hidden file not properly prefixed: {sanitized}"
+                )
 
             except (UnicodeDecodeError, UnicodeError):
                 # Expected for invalid encodings
@@ -174,41 +181,45 @@ def fuzz_mbox_parsing(data: bytes) -> None:
     try:
         # Only process small inputs to avoid timeouts
         # Real-world mbox files are large, but fuzzing should be fast
+        # Note: Memory exhaustion testing with large files (50MB+) is deferred
+        # to integration tests. This fuzzer focuses on structural/encoding bugs.
         if len(data) > 10000:  # 10KB limit for fuzzing
             return
 
-        # Create temporary mbox file
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.mbox', delete=False) as f:
-            temp_path = f.name
-            f.write(data)
+        # Create temporary directory for mbox files to ensure cleanup
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = os.path.join(temp_dir, "fuzz_test.mbox")
+            with open(temp_path, 'wb') as f:
+                f.write(data)
 
-        try:
-            # Try to open and parse as mbox
-            # This uses Python's mailbox module which is what the real code uses
-            mbox = mailbox.mbox(temp_path)
-
-            # Try to iterate through messages (limited to prevent hangs)
-            count = 0
-            max_messages = 10
-            for message in mbox:
-                count += 1
-                if count >= max_messages:
-                    break
-
-                # Try to access common headers
-                _ = message.get('From')
-                _ = message.get('To')
-                _ = message.get('Subject')
-                _ = message.get('Message-ID')
-                _ = message.get('Date')
-
-        finally:
-            # Cleanup
             try:
-                os.unlink(temp_path)
-            except Exception:
-                # Best-effort cleanup: failures deleting the temp file are non-fatal
-                # in fuzzing; ignore them so we don't hide the real parsing error.
+                # Fuzz Python's standard mailbox module, which is the foundation
+                # for the parsing service's MessageParser (parsing/app/parser.py).
+                # This tests for crashes in the underlying library.
+                # Application-specific parsing logic (header extraction, threading,
+                # etc.) is covered by service integration tests, not fuzzing.
+                mbox = mailbox.mbox(temp_path)
+
+                # Try to iterate through messages (limited to prevent hangs)
+                count = 0
+                max_messages = 10
+                for message in mbox:
+                    count += 1
+                    if count >= max_messages:
+                        break
+
+                    # Try to access common headers
+                    _ = message.get('From')
+                    _ = message.get('To')
+                    _ = message.get('Subject')
+                    _ = message.get('Message-ID')
+                    _ = message.get('Date')
+
+                # Close mbox before directory cleanup
+                mbox.close()
+
+            except (mailbox.Error, KeyError, ValueError, OSError):
+                # These are expected for malformed mbox files
                 pass
 
     except (mailbox.Error, KeyError, ValueError, OSError):
