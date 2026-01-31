@@ -59,11 +59,11 @@ jobs:
 
       - name: Install adapters (for integration fuzzing)
         run: |
-          # Install adapters that might be needed for fuzzing tests
+          # Install minimal adapters needed for fuzzing tests
+          # copilot_config and copilot_logging are required by ingestion/app/api.py
+          # copilot_auth is required by auth callback fuzzing tests
           python adapters/scripts/install_adapters.py \
             copilot_config \
-            copilot_storage \
-            copilot_schema_validation \
             copilot_logging \
             copilot_auth
 
@@ -72,16 +72,7 @@ jobs:
         run: |
           echo "::group::Running Hypothesis Tests"
           cd fuzzing
-          pytest tests/test_hypothesis_example.py -v --timeout=300 --junit-xml=hypothesis-results.xml
-          echo "::endgroup::"
-        continue-on-error: true
-
-      - name: Run JWT authentication fuzzing tests
-        id: jwt-fuzzing
-        run: |
-          echo "::group::Running JWT Fuzzing Tests"
-          cd fuzzing
-          pytest tests/test_jwt_fuzzing.py -v --timeout=300 --junit-xml=jwt-fuzzing-results.xml
+          pytest tests/test_hypothesis_example.py tests/test_auth_callback_fuzzing.py::TestCallbackPropertyBased tests/test_ingestion_upload_properties.py -v --timeout=300 --junit-xml=hypothesis-results.xml
           echo "::endgroup::"
         continue-on-error: true
 
@@ -90,7 +81,16 @@ jobs:
         run: |
           echo "::group::Running Schemathesis Tests"
           cd fuzzing
-          pytest tests/test_schemathesis_example.py -v --timeout=300 --junit-xml=schemathesis-results.xml
+          pytest tests/test_schemathesis_example.py tests/test_auth_callback_fuzzing.py::TestCallbackSchemathesis -v --timeout=300 --junit-xml=schemathesis-results.xml
+          echo "::endgroup::"
+        continue-on-error: true
+      
+      - name: Run auth callback edge case tests
+        id: auth_callback
+        run: |
+          echo "::group::Running Auth Callback Security Tests"
+          cd fuzzing
+          pytest tests/test_auth_callback_fuzzing.py::TestCallbackEdgeCases -v --timeout=300 --junit-xml=auth-callback-results.xml
           echo "::endgroup::"
         continue-on-error: true
 
@@ -117,20 +117,20 @@ jobs:
           path: fuzzing/hypothesis-results.xml
         continue-on-error: true
 
-      - name: Upload JWT fuzzing test results
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: jwt-fuzzing-test-results
-          path: fuzzing/jwt-fuzzing-results.xml
-        continue-on-error: true
-
       - name: Upload schemathesis test results
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: schemathesis-test-results
           path: fuzzing/schemathesis-results.xml
+        continue-on-error: true
+      
+      - name: Upload auth callback test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: auth-callback-test-results
+          path: fuzzing/auth-callback-results.xml
         continue-on-error: true
 
       - name: Test Report - Hypothesis
@@ -142,21 +142,21 @@ jobs:
           reporter: 'java-junit'
         continue-on-error: true
 
-      - name: Test Report - JWT Fuzzing
-        if: always()
-        uses: dorny/test-reporter@b082adf0eced0765477756c2a610396589b8c637 # v2
-        with:
-          name: JWT Fuzzing Test Results
-          path: 'fuzzing/jwt-fuzzing-results.xml'
-          reporter: 'java-junit'
-        continue-on-error: true
-
       - name: Test Report - Schemathesis
         if: always()
         uses: dorny/test-reporter@b082adf0eced0765477756c2a610396589b8c637 # v2
         with:
           name: Schemathesis Test Results
           path: 'fuzzing/schemathesis-results.xml'
+          reporter: 'java-junit'
+        continue-on-error: true
+      
+      - name: Test Report - Auth Callback
+        if: always()
+        uses: dorny/test-reporter@b082adf0eced0765477756c2a610396589b8c637 # v2
+        with:
+          name: Auth Callback Security Test Results
+          path: 'fuzzing/auth-callback-results.xml'
           reporter: 'java-junit'
         continue-on-error: true
 
@@ -180,20 +180,20 @@ jobs:
             echo "| Hypothesis | ⚠️ Issues Found | Check logs for details |" >> $GITHUB_STEP_SUMMARY
           fi
           
-          # JWT Fuzzing status
-          JWT_FUZZING_STATUS="${{ steps.jwt-fuzzing.outcome }}"
-          if [ "$JWT_FUZZING_STATUS" = "success" ]; then
-            echo "| JWT Fuzzing | ✅ Passed | Authentication security fuzzing completed |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| JWT Fuzzing | ⚠️ Issues Found | Check logs for details |" >> $GITHUB_STEP_SUMMARY
-          fi
-          
           # Schemathesis status
           SCHEMATHESIS_STATUS="${{ steps.schemathesis.outcome }}"
           if [ "$SCHEMATHESIS_STATUS" = "success" ]; then
             echo "| Schemathesis | ✅ Passed | API schema fuzzing completed |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Schemathesis | ⚠️ Issues Found | Check logs for details |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Auth callback status
+          AUTH_CALLBACK_STATUS="${{ steps.auth_callback.outcome }}"
+          if [ "$AUTH_CALLBACK_STATUS" = "success" ]; then
+            echo "| Auth Callback | ✅ Passed | OIDC callback security tests passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Auth Callback | ⚠️ Issues Found | Check logs for details |" >> $GITHUB_STEP_SUMMARY
           fi
           
           # Atheris status
@@ -208,7 +208,6 @@ jobs:
           echo "### About Fuzzing" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Hypothesis**: Tests properties and invariants across generated inputs" >> $GITHUB_STEP_SUMMARY
-          echo "- **JWT Fuzzing**: Tests JWT authentication security (header parsing, signature validation, claims extraction)" >> $GITHUB_STEP_SUMMARY
           echo "- **Schemathesis**: Fuzzes REST APIs based on OpenAPI specifications" >> $GITHUB_STEP_SUMMARY
           echo "- **Atheris**: Coverage-guided fuzzing for finding crashes and edge cases" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

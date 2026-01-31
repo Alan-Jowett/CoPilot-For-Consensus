@@ -33,10 +33,13 @@ fuzzing/
 ├── __init__.py
 └── tests/
     ├── __init__.py
-    ├── test_atheris_example.py      # Example atheris fuzzing test
-    ├── test_hypothesis_example.py   # Example hypothesis property-based test
-    ├── test_jwt_fuzzing.py          # JWT authentication fuzzing (auth service)
-    └── test_schemathesis_example.py # Example schemathesis API fuzzing test
+    ├── test_atheris_example.py          # Example atheris fuzzing test
+    ├── test_auth_callback_fuzzing.py    # Auth service OIDC callback fuzzing
+    ├── test_hypothesis_example.py       # Example hypothesis property-based test
+    ├── test_ingestion_upload_fuzzing.py # Ingestion upload fuzzing (atheris)
+    ├── test_ingestion_upload_properties.py # Ingestion upload properties (hypothesis)
+    ├── test_jwt_fuzzing.py              # JWT authentication fuzzing
+    └── test_schemathesis_example.py     # Example schemathesis API fuzzing test
 ```
 
 ## Running Fuzzing Tests
@@ -142,22 +145,53 @@ def test_api(case):
 - **APIs**: All public REST endpoints via schemathesis
 - **Validators**: All input validation and sanitization functions
 - **Data Pipelines**: Critical data transformation logic
-- **Authentication**: JWT token parsing, signature validation, and claims extraction
+- **Auth Service**: OIDC callback flow, state parameter validation, session management
 
-## Fuzzing Tests
+### Auth Service Fuzzing
 
-### JWT Authentication Fuzzing (`test_jwt_fuzzing.py`)
+The auth service OIDC callback flow has comprehensive fuzzing coverage via `tests/test_auth_callback_fuzzing.py`:
 
-Comprehensive property-based fuzzing tests for JWT authentication in the auth service:
+- **Property-based tests** (Hypothesis):
+  - Callback endpoint never crashes with arbitrary input
+  - Always returns valid JSON responses
+  - Invalid states are rejected (CSRF protection)
+  - Bad authorization codes are rejected
+  - No injection vulnerabilities in parameters
 
-- **Header Parsing**: Tests malformed headers, algorithm confusion ("none", HS256 vs RS256), invalid key IDs
-- **Signature Validation**: Tests signature bypass attempts, tampering, and mismatched keys
-- **Claims Extraction**: Tests malformed claims, type confusion, missing required claims, injection attempts
-- **Timing Validation**: Tests expired tokens, nbf edge cases, and clock skew boundary conditions
-- **Algorithm Confusion**: Tests RS256 vs HS256 confusion attacks
-- **Payload Size**: Tests DoS via large payloads
+- **API schema tests** (Schemathesis):
+  - OpenAPI spec compliance for `/callback` endpoint
+  - Error handling for malformed requests
+  - Parameter validation edge cases
 
-Priority: **P0** (Authentication bypass, privilege escalation risks)
+- **Security-focused edge cases**:
+  - Missing/empty parameters
+  - Very long parameters (DoS protection)
+  - Unicode and special characters
+  - SQL injection, XSS, command injection attempts
+  - Path traversal attempts
+  - CSRF via state manipulation
+  - Session expiry handling
+  - Replay attack prevention (single-use states)
+
+### Ingestion Upload Fuzzing
+
+The ingestion file upload handling is fuzzed via:
+
+- **`tests/test_ingestion_upload_properties.py`** (Hypothesis property-based tests):
+  - Filename sanitization never produces path traversal
+  - Sanitized filenames contain no dangerous characters
+  - Extension validation returns consistent boolean results
+  - Allowed extensions are always accepted
+  - Split extension always returns valid tuple
+
+- **`tests/test_ingestion_upload_fuzzing.py`** (Atheris coverage-guided fuzzing):
+  - Filename sanitization with arbitrary byte sequences
+  - Extension validation with malformed inputs
+  - Mbox parsing with fuzzed content (malformed headers, encoding issues)
+
+Priority: **P0** (Path traversal, arbitrary file write, DoS via malformed archives)
+
+Note: Archive extraction (ZIP, TAR) fuzzing is deferred to a follow-up issue.
 
 ## Contributing
 
