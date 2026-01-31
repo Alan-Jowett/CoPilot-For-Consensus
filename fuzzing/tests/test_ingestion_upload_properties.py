@@ -30,6 +30,37 @@ from app.api import (
 )
 
 
+def _is_safe_filename(sanitized: str) -> bool:
+    """Check if a sanitized filename is safe from path traversal.
+    
+    A filename is safe if:
+    - It contains no forward slashes (except the edge case of '/' itself,
+      which can occur when os.path.basename('/') returns '/')
+    - It contains no backslashes (Windows path separator)
+    - It's just a simple filename without directory components
+    
+    Args:
+        sanitized: The sanitized filename to check
+        
+    Returns:
+        True if the filename is safe, False otherwise
+    """
+    # Special case: os.path.basename('/') returns '/' which is acceptable
+    # as it's not a traversal pattern and would be renamed by upload logic
+    if sanitized == '/':
+        return True
+    
+    # No forward slashes allowed in regular filenames
+    if '/' in sanitized:
+        return False
+    
+    # No backslashes (Windows paths)
+    if '\\' in sanitized:
+        return False
+    
+    return True
+
+
 class TestFilenameSanitizationProperties:
     """Property-based tests for filename sanitization."""
 
@@ -38,14 +69,8 @@ class TestFilenameSanitizationProperties:
     def test_sanitization_never_contains_path_separators(self, filename: str):
         """Sanitized filenames must never contain path separators."""
         sanitized = _sanitize_filename(filename)
-        
-        # No forward slashes except possibly a single one if somehow allowed
-        assert '/' not in sanitized or sanitized == '/', \
-            f"Path separator in sanitized filename: {sanitized}"
-        
-        # No backslashes (Windows paths)
-        assert '\\' not in sanitized, \
-            f"Windows path separator in sanitized filename: {sanitized}"
+        assert _is_safe_filename(sanitized), \
+            f"Unsafe filename: {sanitized}"
 
     @given(st.text(min_size=1))
     @settings(max_examples=1000, deadline=None)
@@ -89,14 +114,8 @@ class TestFilenameSanitizationProperties:
         not a special directory reference.
         """
         sanitized = _sanitize_filename(filename)
-        
-        # Path separators should be replaced
-        # Note: os.path.basename() handles most path traversal, and prefixing
-        # with 'upload_' makes edge cases like '..' safe as 'upload_..'
-        assert '/' not in sanitized or sanitized == '/', \
-            f"Path separator in sanitized: {sanitized}"
-        assert '\\' not in sanitized, \
-            f"Windows path separator in sanitized: {sanitized}"
+        assert _is_safe_filename(sanitized), \
+            f"Unsafe filename from path traversal attempt: {sanitized}"
 
     @given(st.text())
     @settings(max_examples=500, deadline=None)
