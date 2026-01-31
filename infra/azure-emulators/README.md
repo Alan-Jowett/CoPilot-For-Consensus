@@ -12,11 +12,13 @@ This directory contains configuration files for Azure service emulators.
 Configuration for the Azure Service Bus emulator. Defines queues and topics
 for local development and testing.
 
-**Status**: This configuration is defined but **not yet active in CI**.
+**Status**: This configuration is intended for **local development only** at this time.
 The Service Bus emulator is available in `docker-compose.azure-emulators.yml`
-but integration tests for Service Bus are not yet implemented.
+for developers who want to test Service Bus code locally. CI integration tests
+will be added in a follow-up PR once the messaging adapter supports Service Bus.
 
-**Future work**: Add Service Bus integration tests to `azure-integration-ci.yml`.
+**Why included**: Having the emulator configuration in place enables local
+development and testing without waiting for full CI integration.
 
 ## Usage
 

@@ -169,6 +169,26 @@ The auth service OIDC callback flow has comprehensive fuzzing coverage via `test
   - Session expiry handling
   - Replay attack prevention (single-use states)
 
+### Ingestion Upload Fuzzing
+
+The ingestion file upload handling is fuzzed via:
+
+- **`tests/test_ingestion_upload_properties.py`** (Hypothesis property-based tests):
+  - Filename sanitization never produces path traversal
+  - Sanitized filenames contain no dangerous characters
+  - Extension validation returns consistent boolean results
+  - Allowed extensions are always accepted
+  - Split extension always returns valid tuple
+
+- **`tests/test_ingestion_upload_fuzzing.py`** (Atheris coverage-guided fuzzing):
+  - Filename sanitization with arbitrary byte sequences
+  - Extension validation with malformed inputs
+  - Mbox parsing with fuzzed content (malformed headers, encoding issues)
+
+Priority: **P0** (Path traversal, arbitrary file write, DoS via malformed archives)
+
+Note: Archive extraction (ZIP, TAR) fuzzing is deferred to a follow-up issue.
+
 ## Contributing
 
 When adding new features that handle external input:

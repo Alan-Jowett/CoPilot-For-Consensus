@@ -36,9 +36,14 @@ concurrency:
 env:
   # Cosmos DB Emulator well-known credentials
   COSMOS_ENDPOINT: "https://localhost:8081"
+  # NOTE: This is the well-known Microsoft Cosmos DB emulator key, publicly documented at:
+  # https://learn.microsoft.com/en-us/azure/cosmos-db/emulator
+  # It is NOT a secret and is safe to commit. Security scanners may flag this as a false positive.
   COSMOS_KEY: "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
   COSMOS_DATABASE: "test_copilot"
-  # Azurite well-known credentials
+  # NOTE: Azurite well-known credentials, publicly documented at:
+  # https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite
+  # It is NOT a secret and is safe to commit.
   AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;"
   AZURE_STORAGE_CONTAINER: "test-archives"
   # Flag to enable emulator mode in tests
