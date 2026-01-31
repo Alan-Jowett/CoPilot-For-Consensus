@@ -14,12 +14,11 @@ API endpoints for various issues:
 import pytest
 
 try:
-    import schemathesis
-    from schemathesis import Case
     from schemathesis.openapi import from_dict
     SCHEMATHESIS_AVAILABLE = True
 except ImportError:
     SCHEMATHESIS_AVAILABLE = False
+    from_dict = None  # type: ignore[assignment, misc]
 
 
 @pytest.mark.skipif(
