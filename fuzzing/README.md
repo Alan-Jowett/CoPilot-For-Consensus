@@ -35,6 +35,7 @@ fuzzing/
     ├── __init__.py
     ├── test_atheris_example.py      # Example atheris fuzzing test
     ├── test_hypothesis_example.py   # Example hypothesis property-based test
+    ├── test_jwt_fuzzing.py          # JWT authentication fuzzing (auth service)
     └── test_schemathesis_example.py # Example schemathesis API fuzzing test
 ```
 
@@ -141,6 +142,22 @@ def test_api(case):
 - **APIs**: All public REST endpoints via schemathesis
 - **Validators**: All input validation and sanitization functions
 - **Data Pipelines**: Critical data transformation logic
+- **Authentication**: JWT token parsing, signature validation, and claims extraction
+
+## Current Fuzzing Tests
+
+### JWT Authentication Fuzzing (`test_jwt_fuzzing.py`)
+
+Comprehensive property-based fuzzing tests for JWT authentication in the auth service:
+
+- **Header Parsing**: Tests malformed headers, algorithm confusion ("none", HS256 vs RS256), invalid key IDs
+- **Signature Validation**: Tests signature bypass attempts, tampering, and mismatched keys
+- **Claims Extraction**: Tests malformed claims, type confusion, missing required claims, injection attempts
+- **Timing Validation**: Tests expired tokens, nbf edge cases, and clock skew boundary conditions
+- **Algorithm Confusion**: Tests RS256 vs HS256 confusion attacks
+- **Payload Size**: Tests DoS via large payloads
+
+Priority: **P0** (Authentication bypass, privilege escalation risks)
 
 ## Contributing
 
