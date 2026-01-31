@@ -1,0 +1,50 @@
+{
+  "UserConfig": {
+    "Namespaces": [
+      {
+        "Name": "copilot-local",
+        "Queues": [
+          {
+            "Name": "copilot-events",
+            "Properties": {
+              "MaxSizeInMegabytes": 1024,
+              "DefaultMessageTimeToLive": "PT1H",
+              "LockDuration": "PT1M",
+              "MaxDeliveryCount": 10
+            }
+          },
+          {
+            "Name": "copilot-events-test",
+            "Properties": {
+              "MaxSizeInMegabytes": 1024,
+              "DefaultMessageTimeToLive": "PT1H",
+              "LockDuration": "PT1M",
+              "MaxDeliveryCount": 10
+            }
+          }
+        ],
+        "Topics": [
+          {
+            "Name": "copilot-topic",
+            "Properties": {
+              "MaxSizeInMegabytes": 1024,
+              "DefaultMessageTimeToLive": "PT1H"
+            },
+            "Subscriptions": [
+              {
+                "Name": "copilot-subscription",
+                "Properties": {
+                  "LockDuration": "PT1M",
+                  "MaxDeliveryCount": 10
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "Logging": {
+      "Type": "Console"
+    }
+  }
+}
