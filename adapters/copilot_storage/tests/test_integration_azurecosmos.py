@@ -39,7 +39,9 @@ def azurecosmos_store():
     if not config.driver.endpoint or not config.driver.key:
         pytest.skip("Azure Cosmos DB not configured - set COSMOS_ENDPOINT and COSMOS_KEY")
 
-    # Disable validation for integration tests - we're testing the raw Cosmos DB store
+    # Disable validation for integration tests - we're testing the raw Cosmos DB store.
+    # ValidatingDocumentStore wrapper is tested separately in unit tests.
+    # Here we verify AzureCosmosDocumentStore works correctly with real Cosmos DB.
     store = create_document_store(config, enable_validation=False)
     assert isinstance(store, AzureCosmosDocumentStore)
 
@@ -67,6 +69,10 @@ def delete_all_items_in_container(store, collection_name: str) -> None:
     """Delete all items in a Cosmos DB container using raw SDK.
 
     This bypasses the document store's sanitization to get the actual document IDs.
+    
+    Note: This assumes the container uses document ID as the partition key,
+    which is the default configuration for this Cosmos DB setup. If the container
+    uses a different partition key path, this function would need to be updated.
     """
     try:
         container = store._get_container_for_collection(collection_name)
@@ -77,6 +83,7 @@ def delete_all_items_in_container(store, collection_name: str) -> None:
         ))
         for item in items:
             try:
+                # Uses id as partition key (default for this setup)
                 container.delete_item(item=item["id"], partition_key=item["id"])
             except Exception:
                 pass  # Ignore individual deletion failures
@@ -186,7 +193,9 @@ class TestAzureCosmosIntegration:
 
     @pytest.mark.skipif(
         os.getenv("USE_AZURE_EMULATORS") == "true",
-        reason="Cosmos DB vnext-preview emulator has SDK compatibility issue with replace_item"
+        reason="Cosmos DB vnext-preview emulator has SDK compatibility issue with replace_item - "
+               "raises BadRequest error when replacing items. This is a known emulator limitation, "
+               "not a code issue. Test passes against real Azure Cosmos DB."
     )
     def test_update_document(self, azurecosmos_store, clean_collection):
         """Test updating a document."""

@@ -59,7 +59,9 @@ jobs:
 
       - name: Install adapters (for integration fuzzing)
         run: |
-          # Install adapters that might be needed for fuzzing tests
+          # Install adapters needed for fuzzing tests:
+          # - copilot_auth: Required for auth callback fuzzing
+          # - copilot_metrics: Required for testing auth service metrics collection
           python adapters/scripts/install_adapters.py \
             copilot_config \
             copilot_storage \
