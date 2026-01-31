@@ -35,12 +35,15 @@ services:
   # Azure Service Bus Emulator
   # Docs: https://learn.microsoft.com/en-us/azure/service-bus-messaging/test-locally-with-service-bus-emulator
   # Note: Requires SQL Edge as backend storage
+  # STATUS: Defined but not yet used in CI - Service Bus integration tests are future work
   servicebus-emulator:
     image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
     ports:
       - "127.0.0.1:5672:5672"   # AMQP endpoint
     environment:
       - ACCEPT_EULA=Y
+      # NOTE: This is the documented default SA password for the SQL Edge emulator.
+      # Only use for local emulator testing, never in production.
       - MSSQL_SA_PASSWORD=YourStrong!Passw0rd
       - SQL_SERVER=sqledge
     volumes:
@@ -61,8 +64,6 @@ services:
     image: mcr.microsoft.com/azure-sql-edge:latest
     environment:
       - ACCEPT_EULA=Y
-      # NOTE: This is the documented default SA password for the SQL Edge emulator.
-      # Only use for local emulator testing, never in production.
       - MSSQL_SA_PASSWORD=YourStrong!Passw0rd
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' || exit 1"]
