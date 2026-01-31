@@ -134,7 +134,21 @@ def mock_auth_service():
 
 @pytest.fixture
 def test_client(mock_auth_service):
-    """Create test client with mocked auth service."""
+    """Create test client with mocked auth service.
+    
+    Uses importlib.reload to ensure fresh module state for each test,
+    avoiding test isolation issues from module caching. This pattern
+    is consistent with other auth tests (see test_cookie_sso.py).
+    
+    Note: importlib.reload can cause issues with module-level state and
+    side effects. For these fuzzing tests, it's acceptable because:
+    1. Tests run sequentially (not parallel) within this file
+    2. The auth service is fully mocked, avoiding real adapter initialization
+    3. The pattern is already established in the auth test suite
+    
+    Future improvement: Consider refactoring to directly instantiate the
+    FastAPI app without relying on module-level state.
+    """
     import importlib
     from fastapi.testclient import TestClient
     
