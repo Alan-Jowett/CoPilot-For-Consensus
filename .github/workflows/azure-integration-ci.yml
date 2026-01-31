@@ -87,6 +87,7 @@ jobs:
           file: ${{ matrix.service.dockerfile }}
           platforms: linux/amd64
           push: false
+          load: true  # Load image into local Docker daemon for smoke test
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: test/${{ matrix.service.name }}:azure-test
