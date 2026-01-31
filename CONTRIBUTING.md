@@ -309,9 +309,9 @@ def test_parser_handles_arbitrary_input(input_text):
 
 **For API endpoints:**
 ```python
-import schemathesis
+from schemathesis.openapi import from_uri
 
-schema = schemathesis.from_uri("http://localhost:8000/openapi.json")
+schema = from_uri("http://localhost:8000/openapi.json")
 
 @schema.parametrize()
 def test_api(case):

@@ -7,14 +7,12 @@ on:
   push:
     branches: [ main ]
     paths:
-      - '**.py'
       - 'fuzzing/**'
       - 'requirements-dev.txt'
       - '.github/workflows/fuzzing.yml'
   pull_request:
     branches: [ main ]
     paths:
-      - '**.py'
       - 'fuzzing/**'
       - 'requirements-dev.txt'
       - '.github/workflows/fuzzing.yml'
@@ -175,7 +173,7 @@ jobs:
           echo "- **Schemathesis**: Fuzzes REST APIs based on OpenAPI specifications" >> $GITHUB_STEP_SUMMARY
           echo "- **Atheris**: Coverage-guided fuzzing for finding crashes and edge cases" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "See [fuzzing/README.md](../fuzzing/README.md) for more information." >> $GITHUB_STEP_SUMMARY
+          echo "See [fuzzing/README.md](https://github.com/Alan-Jowett/CoPilot-For-Consensus/blob/main/fuzzing/README.md) for more information." >> $GITHUB_STEP_SUMMARY
 
       - name: Check for critical failures
         if: always()
