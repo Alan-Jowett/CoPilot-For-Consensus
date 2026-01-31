@@ -56,30 +56,39 @@ jobs:
           - name: auth
             dockerfile: ./auth/Dockerfile.azure
             context: .
+            has_python: true
           - name: chunking
             dockerfile: ./chunking/Dockerfile.azure
             context: .
+            has_python: true
           - name: embedding
             dockerfile: ./embedding/Dockerfile.azure
             context: .
+            has_python: true
           - name: ingestion
             dockerfile: ./ingestion/Dockerfile.azure
             context: .
+            has_python: true
           - name: orchestrator
             dockerfile: ./orchestrator/Dockerfile.azure
             context: .
+            has_python: true
           - name: parsing
             dockerfile: ./parsing/Dockerfile.azure
             context: .
+            has_python: true
           - name: reporting
             dockerfile: ./reporting/Dockerfile.azure
             context: .
+            has_python: true
           - name: summarization
             dockerfile: ./summarization/Dockerfile.azure
             context: .
+            has_python: true
           - name: gateway
             dockerfile: ./infra/nginx/Dockerfile.azure
             context: ./infra/nginx
+            has_python: false
 
     steps:
       - name: Checkout repository
@@ -104,6 +113,7 @@ jobs:
           tags: test/${{ matrix.service.name }}:azure-test
 
       - name: Smoke test - verify imports work
+        if: ${{ matrix.service.has_python }}
         run: |
           docker run --rm test/${{ matrix.service.name }}:azure-test python -c "
           import sys
