@@ -34,3 +34,9 @@ jsonschema>=4.0.0
 
 # Dependency management (for generating lockfiles)
 pip-tools==7.5.2
+
+# Fuzzing and property-based testing
+# Pinned to exact versions to mitigate supply-chain security risks
+atheris==2.3.0  # Coverage-guided fuzzing (may require compilation on some platforms)
+hypothesis==6.151.4  # Property-based testing
+schemathesis==4.9.5  # API schema-based fuzzing

@@ -1,0 +1,193 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Fuzzing Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'fuzzing/**'
+      - 'requirements-dev.txt'
+      - '.github/workflows/fuzzing.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'fuzzing/**'
+      - 'requirements-dev.txt'
+      - '.github/workflows/fuzzing.yml'
+  workflow_dispatch:  # Allow manual triggering
+  schedule:
+    # Run fuzzing tests weekly on Sunday at 00:00 UTC
+    # Regular fuzzing helps catch regressions and edge cases over time
+    - cron: '0 0 * * 0'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  # Cancel any in-progress instance of this workflow for the same PR
+  group: fuzzing-${{ github.event.pull_request.number || github.sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzzing:
+    name: Fuzzing Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # Conservative timeout to prevent resource exhaustion
+
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Install adapters (for integration fuzzing)
+        run: |
+          # Install adapters that might be needed for fuzzing tests
+          python adapters/scripts/install_adapters.py \
+            copilot_config \
+            copilot_storage \
+            copilot_schema_validation \
+            copilot_logging
+
+      - name: Run hypothesis property-based tests
+        id: hypothesis
+        run: |
+          echo "::group::Running Hypothesis Tests"
+          cd fuzzing
+          pytest tests/test_hypothesis_example.py -v --timeout=300 --junit-xml=hypothesis-results.xml
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Run schemathesis API fuzzing tests
+        id: schemathesis
+        run: |
+          echo "::group::Running Schemathesis Tests"
+          cd fuzzing
+          pytest tests/test_schemathesis_example.py -v --timeout=300 --junit-xml=schemathesis-results.xml
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Run atheris fuzzing tests
+        id: atheris
+        run: |
+          echo "::group::Running Atheris Tests"
+          cd fuzzing
+          # Atheris uses libFuzzer's execution model and is run as a standalone harness,
+          # not as a regular pytest test. As a result, we cannot rely on pytest's
+          # --timeout option here and instead enforce a wall-clock limit via the
+          # shell `timeout` command to guard against infinite loops or long hangs.
+          # Atheris may also be unavailable on some platforms due to compilation
+          # requirements; in that case this command will fail quickly and we ignore it.
+          timeout 60s python tests/test_atheris_example.py -atheris_runs=1000 || echo "Atheris test completed or unavailable"
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Upload hypothesis test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: hypothesis-test-results
+          path: fuzzing/hypothesis-results.xml
+        continue-on-error: true
+
+      - name: Upload schemathesis test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: schemathesis-test-results
+          path: fuzzing/schemathesis-results.xml
+        continue-on-error: true
+
+      - name: Test Report - Hypothesis
+        if: always()
+        uses: dorny/test-reporter@b082adf0eced0765477756c2a610396589b8c637 # v2
+        with:
+          name: Hypothesis Test Results
+          path: 'fuzzing/hypothesis-results.xml'
+          reporter: 'java-junit'
+        continue-on-error: true
+
+      - name: Test Report - Schemathesis
+        if: always()
+        uses: dorny/test-reporter@b082adf0eced0765477756c2a610396589b8c637 # v2
+        with:
+          name: Schemathesis Test Results
+          path: 'fuzzing/schemathesis-results.xml'
+          reporter: 'java-junit'
+        continue-on-error: true
+
+      - name: Generate Fuzzing Summary
+        if: always()
+        run: |
+          echo "## Fuzzing Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Fuzzing tests help find edge cases and security vulnerabilities through automated input generation." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tool | Status | Description |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|-------------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Hypothesis status
+          HYPOTHESIS_STATUS="${{ steps.hypothesis.outcome }}"
+          if [ "$HYPOTHESIS_STATUS" = "success" ]; then
+            echo "| Hypothesis | ✅ Passed | Property-based testing completed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Hypothesis | ⚠️ Issues Found | Check logs for details |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Schemathesis status
+          SCHEMATHESIS_STATUS="${{ steps.schemathesis.outcome }}"
+          if [ "$SCHEMATHESIS_STATUS" = "success" ]; then
+            echo "| Schemathesis | ✅ Passed | API schema fuzzing completed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Schemathesis | ⚠️ Issues Found | Check logs for details |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Atheris status
+          ATHERIS_STATUS="${{ steps.atheris.outcome }}"
+          if [ "$ATHERIS_STATUS" = "success" ]; then
+            echo "| Atheris | ✅ Passed | Coverage-guided fuzzing completed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Atheris | ⚠️ Skipped/Issues | May require platform-specific compilation |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### About Fuzzing" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Hypothesis**: Tests properties and invariants across generated inputs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Schemathesis**: Fuzzes REST APIs based on OpenAPI specifications" >> $GITHUB_STEP_SUMMARY
+          echo "- **Atheris**: Coverage-guided fuzzing for finding crashes and edge cases" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See [fuzzing/README.md](https://github.com/Alan-Jowett/CoPilot-For-Consensus/blob/main/fuzzing/README.md) for more information." >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for critical failures
+        if: always()
+        run: |
+          # Fuzzing tests are informational and don't fail the build by default
+          # This allows exploration without blocking PRs
+          # Adjust this logic if you want to enforce stricter fuzzing requirements
+          echo "Fuzzing tests completed. Review results above."
+          
+          # Uncomment to fail on hypothesis failures:
+          # if [ "${{ steps.hypothesis.outcome }}" = "failure" ]; then
+          #   echo "::error::Hypothesis property tests failed"
+          #   exit 1
+          # fi

@@ -237,6 +237,122 @@ For complete details, code examples, and testing patterns, see [documents/FORWAR
 
 ***
 
+## Fuzzing and Security Testing
+
+This project uses fuzzing to find edge cases, bugs, and security vulnerabilities through automated input generation. Fuzzing is a critical part of our security strategy and helps ensure robustness.
+
+### Fuzzing Tools
+
+We use three complementary fuzzing approaches:
+
+1. **Hypothesis** - Property-based testing
+   - Tests that functions satisfy specified properties across a wide range of inputs
+   - Excellent for testing business logic, data transformations, and invariants
+   - Example: Testing that message processing is idempotent
+
+2. **Schemathesis** - API schema-based fuzzing
+   - Automatically generates test cases from OpenAPI specifications
+   - Tests API endpoints for specification compliance and error handling
+   - Example: Fuzzing ingestion and reporting REST APIs
+
+3. **Atheris** - Coverage-guided fuzzing
+   - Uses libFuzzer to maximize code coverage and find crashes
+   - Best for testing parsers, validators, and low-level code
+   - Example: Fuzzing email parsing and mailbox handling
+
+### Running Fuzzing Tests
+
+```bash
+# Install fuzzing dependencies
+pip install -r requirements-dev.txt
+
+# Run all fuzzing tests
+cd fuzzing
+pytest tests/ -v --timeout=300
+
+# Run specific fuzzing tool tests
+pytest tests/test_hypothesis_example.py -v      # Property-based tests
+pytest tests/test_schemathesis_example.py -v   # API fuzzing tests
+python tests/test_atheris_example.py           # Coverage-guided fuzzing
+```
+
+### CI Integration
+
+Fuzzing tests run automatically:
+- When fuzzing-related files or workflows change in a push to `main` or in a pull request (see `paths` filters in `.github/workflows/fuzzing.yml`)
+- Weekly on a schedule (Sundays at 00:00 UTC), regardless of file changes
+- Through the dedicated `.github/workflows/fuzzing.yml` workflow
+
+The fuzzing workflow:
+- Has a 30-minute timeout to prevent resource exhaustion
+- Runs tests with generous timeouts (5 minutes per test suite)
+- Reports results but doesn't block PRs by default (informational)
+- Uploads test results as artifacts
+
+### Writing Fuzzing Tests
+
+When adding new features that handle external input, add corresponding fuzzing tests:
+
+**For parsers and validators:**
+```python
+from hypothesis import given, strategies as st
+
+@given(st.text())
+def test_parser_handles_arbitrary_input(input_text):
+    """Parser should handle any text input gracefully."""
+    try:
+        result = parse(input_text)
+        assert result is not None
+    except ValueError:
+        pass  # Expected for invalid input
+```
+
+**For API endpoints:**
+```python
+from schemathesis.openapi import from_uri
+
+schema = from_uri("http://localhost:8000/openapi.json")
+
+@schema.parametrize()
+def test_api(case):
+    """Test API against OpenAPI specification."""
+    response = case.call()
+    case.validate_response(response)
+```
+
+**For critical code paths:**
+```python
+import atheris
+import sys
+
+def fuzz_target(data):
+    """Fuzz target for coverage-guided testing."""
+    try:
+        process_data(data)
+    except ValueError:
+        pass  # Expected exception
+
+atheris.Setup(sys.argv, fuzz_target)
+atheris.Fuzz()
+```
+
+### Best Practices
+
+1. **Set timeouts**: Always use `--timeout` to prevent infinite loops
+2. **Handle expected exceptions**: Catch and ignore validation errors that are normal
+3. **Focus on critical paths**: Prioritize fuzzing for:
+   - Input parsers (email, mailbox files)
+   - Public-facing API endpoints
+   - Authentication and authorization logic
+   - Data validators and transformers
+
+4. **Document findings**: If fuzzing finds an issue, create a test case and fix
+5. **Review coverage**: Use fuzzing results to improve test coverage
+
+For more details, examples, and guidelines, see [fuzzing/README.md](./fuzzing/README.md).
+
+***
+
 ## Dependency Management
 
 This project uses **pip-tools** to manage Python dependencies with lockfiles for repeatable builds and better security.

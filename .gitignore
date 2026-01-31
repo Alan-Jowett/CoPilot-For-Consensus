@@ -36,3 +36,5 @@ infra/azure/parameters.test.json
 
 # Local logs / log mining artifacts
 logs/**
+# Hypothesis fuzzing cache
+**/.hypothesis/
