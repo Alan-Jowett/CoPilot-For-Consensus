@@ -213,9 +213,6 @@ jobs:
 
       - name: Run Cosmos DB integration tests
         id: cosmos-tests
-        env:
-          # Emulator-only: disable SSL verification for Cosmos emulator's self-signed cert
-          COSMOS_EMULATOR_DISABLE_SSL_VERIFICATION: "true"
         run: |
           cd adapters/copilot_storage
           pytest tests/test_integration_azurecosmos.py -v --timeout=120
