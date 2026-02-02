@@ -188,8 +188,9 @@ jobs:
           echo "Waiting for Azurite to be ready..."
           AZURITE_READY=false
           for i in $(seq 1 30); do
-            if curl -f http://localhost:10000/ > /dev/null 2>&1; then
-              echo "✅ Azurite is ready!"
+            # Azurite root returns 400; check if the port is listening instead
+            if nc -z localhost 10000 2>/dev/null; then
+              echo "✅ Azurite is ready (port 10000 is listening)!"
               AZURITE_READY=true
               break
             fi
