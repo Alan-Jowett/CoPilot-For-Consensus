@@ -31,12 +31,17 @@ Fuzzing is an automated testing technique that provides invalid, unexpected, or 
 fuzzing/
 ├── README.md           # This file
 ├── __init__.py
+├── corpus/             # Seed inputs for fuzzing
+│   ├── filenames/      # Malicious filename samples
+│   └── mbox/           # Mbox file samples
 └── tests/
     ├── __init__.py
-    ├── test_atheris_example.py      # Example atheris fuzzing test
-    ├── test_hypothesis_example.py   # Example hypothesis property-based test
-    ├── test_jwt_fuzzing.py          # JWT authentication fuzzing (auth service)
-    └── test_schemathesis_example.py # Example schemathesis API fuzzing test
+    ├── test_atheris_example.py               # Example atheris fuzzing test
+    ├── test_hypothesis_example.py            # Example hypothesis property-based test
+    ├── test_jwt_fuzzing.py                   # JWT authentication fuzzing (auth service)
+    ├── test_schemathesis_example.py          # Example schemathesis API fuzzing test
+    ├── test_ingestion_upload_fuzzing.py      # Atheris fuzzing for ingestion uploads
+    └── test_ingestion_upload_properties.py   # Hypothesis tests for upload security
 ```
 
 ## Running Fuzzing Tests
@@ -55,8 +60,17 @@ pytest tests/ -v --timeout=300
 pytest tests/test_hypothesis_example.py -v
 pytest tests/test_schemathesis_example.py -v
 
+# Run ingestion upload security tests
+pytest tests/test_ingestion_upload_properties.py -v
+
 # Run atheris fuzzing tests (requires special handling)
+# Note: Atheris may not be available on all platforms (requires compilation)
 python tests/test_atheris_example.py -atheris_runs=1000
+
+# Run ingestion upload atheris fuzzing with different targets
+python tests/test_ingestion_upload_fuzzing.py -target=sanitization -atheris_runs=10000
+python tests/test_ingestion_upload_fuzzing.py -target=extension -atheris_runs=10000
+python tests/test_ingestion_upload_fuzzing.py -target=mbox -atheris_runs=5000
 ```
 
 ### In CI
@@ -187,6 +201,26 @@ Comprehensive fuzzing for the auth service OIDC callback flow:
   - Replay attack prevention (single-use states)
 
 Priority: **P0** (CSRF attacks, open redirect, injection vulnerabilities)
+
+### Current Coverage
+
+#### Ingestion Upload Security (P0)
+- ✅ **Filename sanitization** - Atheris + Hypothesis testing for path traversal, null bytes, encoding attacks
+- ✅ **Extension validation** - Hypothesis property-based tests for bypass attempts
+- ✅ **Mbox parsing** - Atheris fuzzing for crash detection and malformed data handling
+- ✅ **Size limits** - Property tests for boundary conditions
+
+**Security Focus**: Protects against:
+- Path traversal attacks (../../../etc/passwd)
+- Null byte injection (filename\x00.exe)
+- Extension confusion (.mbox.exe)
+- Memory exhaustion from malformed mbox files
+- Unicode/homograph attacks
+
+**Test Files**:
+- `tests/test_ingestion_upload_fuzzing.py` - Atheris coverage-guided fuzzing
+- `tests/test_ingestion_upload_properties.py` - Hypothesis property-based tests
+- `corpus/` - Seed inputs for fuzzing
 
 ## Contributing
 
