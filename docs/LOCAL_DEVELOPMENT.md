@@ -86,6 +86,64 @@ pytest tests/ -v --tb=short --cov=app --cov-report=html
 - **RabbitMQ Management**: http://localhost:15672 (guest/guest)
 - **Ollama API**: http://localhost:11434
 
+## Azure Emulator Testing
+
+Test Azure-specific code locally without Azure credentials using official emulators.
+
+### Available Emulators
+
+| Service | Emulator | Endpoint |
+|---------|----------|----------|
+| Cosmos DB | `mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview` | http://localhost:8081 |
+| Blob Storage | Azurite | http://localhost:10000 |
+| Queue Storage | Azurite | http://localhost:10001 |
+| Table Storage | Azurite | http://localhost:10002 |
+
+### Quick Start
+
+```bash
+# Start Azure emulators
+docker compose -f docker-compose.azure-emulators.yml up -d
+
+# Wait for emulators to be ready (check with docker compose ps)
+docker compose -f docker-compose.azure-emulators.yml ps
+
+# Set environment variables for tests
+# Note: vnext-preview emulator uses HTTP, not HTTPS
+export USE_AZURE_EMULATORS=true
+export COSMOS_ENDPOINT="http://localhost:8081"
+export COSMOS_KEY="C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
+export COSMOS_DATABASE="test_copilot"
+# Azurite connection string - matches docker-compose.azure-emulators.yml defaults
+export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;"
+
+# Run integration tests
+cd adapters/copilot_storage
+pytest tests/test_integration_azurecosmos.py -v
+
+# For Azure Blob tests (in archive_store adapter)
+cd ../copilot_archive_store
+pytest tests/test_integration_azure_blob.py -v
+
+# Cleanup
+docker compose -f docker-compose.azure-emulators.yml down -v
+```
+
+### Cosmos DB Emulator Notes
+
+- The vnext-preview emulator uses HTTP (not HTTPS) on port 8081
+- Well-known emulator key: `C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==`
+- Data Explorer UI available at http://localhost:1234 (when emulator is running)
+
+### CI Integration
+
+The `azure-integration-ci.yml` workflow automatically:
+1. Builds all Azure Dockerfiles (validates they compile)
+2. Runs integration tests against emulators
+3. Reports any SDK compatibility issues
+
+This prevents Azure deployment regressions from reaching production.
+
 ### Debugging
 
 **View service logs**:

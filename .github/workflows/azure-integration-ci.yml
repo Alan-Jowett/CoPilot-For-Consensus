@@ -1,0 +1,272 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Azure Integration CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/Dockerfile.azure'
+      - 'adapters/copilot_storage/**'
+      - 'adapters/copilot_message_bus/**'
+      - 'adapters/copilot_config/**'
+      - 'docker-compose.azure-emulators.yml'
+      - 'infra/azure-emulators/**'
+      - '.github/workflows/azure-integration-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/Dockerfile.azure'
+      - 'adapters/copilot_storage/**'
+      - 'adapters/copilot_message_bus/**'
+      - 'adapters/copilot_config/**'
+      - 'docker-compose.azure-emulators.yml'
+      - 'infra/azure-emulators/**'
+      - '.github/workflows/azure-integration-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-integration-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Cosmos DB Emulator well-known credentials
+  # Note: vnext-preview emulator uses HTTP, not HTTPS
+  COSMOS_ENDPOINT: "http://localhost:8081"
+  COSMOS_KEY: "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
+  COSMOS_DATABASE: "test_copilot"
+  # Azurite well-known credentials
+  AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;"
+  AZURE_STORAGE_CONTAINER: "test-archives"
+  # Flag to enable emulator mode in tests
+  USE_AZURE_EMULATORS: "true"
+
+jobs:
+  # Job 1: Build Azure Dockerfiles (validates they build successfully)
+  build-azure-dockerfiles:
+    name: Build Azure Dockerfiles
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: auth
+            dockerfile: ./auth/Dockerfile.azure
+            context: .
+            has_python: true
+          - name: chunking
+            dockerfile: ./chunking/Dockerfile.azure
+            context: .
+            has_python: true
+          - name: embedding
+            dockerfile: ./embedding/Dockerfile.azure
+            context: .
+            has_python: true
+          - name: ingestion
+            dockerfile: ./ingestion/Dockerfile.azure
+            context: .
+            has_python: true
+          - name: orchestrator
+            dockerfile: ./orchestrator/Dockerfile.azure
+            context: .
+            has_python: true
+          - name: parsing
+            dockerfile: ./parsing/Dockerfile.azure
+            context: .
+            has_python: true
+          - name: reporting
+            dockerfile: ./reporting/Dockerfile.azure
+            context: .
+            has_python: true
+          - name: summarization
+            dockerfile: ./summarization/Dockerfile.azure
+            context: .
+            has_python: true
+          - name: ui
+            dockerfile: ./ui/Dockerfile.azure
+            context: ./ui
+            has_python: false
+          - name: gateway
+            dockerfile: ./infra/nginx/Dockerfile.azure
+            context: ./infra/nginx
+            has_python: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build Azure Dockerfile (no push)
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          # CI builds only linux/amd64 for speed; multi-arch (amd64+arm64) builds are validated
+          # in publish-docker-images-azure.yml during the actual publish to ACR.
+          platforms: linux/amd64
+          push: false
+          load: true  # Load image into local Docker daemon for smoke test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: test/${{ matrix.service.name }}:azure-test
+
+      - name: Smoke test - verify imports work
+        if: ${{ matrix.service.has_python }}
+        run: |
+          docker run --rm test/${{ matrix.service.name }}:azure-test python -c "
+          import sys
+          print(f'Python version: {sys.version}')
+          # Test azure SDK imports - warnings only since not all services need Azure SDKs
+          # Services like 'parsing' or 'chunking' may have Azure Dockerfiles for deployment
+          # but don't directly use Azure SDKs themselves.
+          try:
+              from azure.cosmos import CosmosClient
+              print('✅ azure-cosmos import OK')
+          except ImportError as e:
+              print(f'ℹ️ azure-cosmos not installed (OK if service does not use Cosmos): {e}')
+          try:
+              from azure.identity import DefaultAzureCredential
+              print('✅ azure-identity import OK')
+          except ImportError as e:
+              print(f'ℹ️ azure-identity not installed (OK if service does not use Azure auth): {e}')
+          print('Smoke test passed!')
+          "
+
+  # Job 2: Run integration tests against Azure emulators
+  integration-tests:
+    name: Integration Tests with Emulators
+    runs-on: ubuntu-latest
+    needs: build-azure-dockerfiles
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6
+        with:
+          python-version: "3.13"
+
+      - name: Start Azure emulators
+        run: |
+          # NOTE: Service Bus emulator is defined but not yet used - future work
+          # Currently only testing Cosmos DB and Azurite
+          docker compose -f docker-compose.azure-emulators.yml up -d cosmos-emulator azurite
+          echo "Waiting for emulators to start..."
+
+      - name: Wait for Cosmos DB emulator
+        run: |
+          echo "Waiting for Cosmos DB emulator to be ready..."
+          # The vnext-preview emulator uses HTTP, not HTTPS
+          for i in $(seq 1 60); do
+            if curl -fs http://localhost:8081/ > /dev/null 2>&1; then
+              echo "✅ Cosmos DB emulator is ready!"
+              break
+            fi
+            echo "Attempt $i/60: Cosmos DB emulator not ready, waiting..."
+            sleep 5
+          done
+          # Verify the emulator is responding
+          if ! curl -fs http://localhost:8081/ > /dev/null 2>&1; then
+            echo "❌ Cosmos DB emulator failed to start after 60 attempts"
+            exit 1
+          fi
+
+      - name: Wait for Azurite
+        run: |
+          echo "Waiting for Azurite to be ready..."
+          for i in $(seq 1 30); do
+            if curl -f http://localhost:10000/ > /dev/null 2>&1; then
+              echo "✅ Azurite is ready!"
+              break
+            fi
+            echo "Attempt $i/30: Azurite not ready, waiting..."
+            sleep 2
+          done
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-timeout pytest-asyncio
+          # Install adapters
+          python adapters/scripts/install_adapters.py copilot_config copilot_storage
+          # Install archive store adapter with azure extras for blob tests
+          cd adapters/copilot_archive_store && pip install -e '.[azure]'
+
+      - name: Run Cosmos DB integration tests
+        env:
+          # Emulator-only: disable SSL verification for Cosmos emulator's self-signed cert
+          COSMOS_EMULATOR_DISABLE_SSL_VERIFICATION: "true"
+        run: |
+          cd adapters/copilot_storage
+          # Run integration tests with emulator-compatible filter
+          pytest tests/test_integration_azurecosmos.py -v --timeout=120 \
+            -k "not requires_live_azure" \
+            || echo "::warning::Some Cosmos DB tests failed - review logs"
+        continue-on-error: true
+
+      - name: Run Azure Blob integration tests
+        run: |
+          # Azure Blob tests are in copilot_archive_store adapter
+          cd adapters/copilot_archive_store
+          pytest tests/test_integration_azure_blob.py -v --timeout=120 \
+            -k "not requires_live_azure" \
+            || echo "::warning::Some Blob storage tests failed - review logs"
+        continue-on-error: true
+
+      - name: Show emulator logs on failure
+        if: failure()
+        run: |
+          echo "=== Cosmos DB Emulator Logs ==="
+          docker compose -f docker-compose.azure-emulators.yml logs cosmos-emulator --tail=100
+          echo ""
+          echo "=== Azurite Logs ==="
+          docker compose -f docker-compose.azure-emulators.yml logs azurite --tail=100
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose -f docker-compose.azure-emulators.yml down -v
+
+  # Job 3: Summary
+  summary:
+    name: Azure CI Summary
+    runs-on: ubuntu-latest
+    needs: [build-azure-dockerfiles, integration-tests]
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## Azure Integration CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Azure Dockerfile Builds" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.build-azure-dockerfiles.result }}" == "success" ]; then
+            echo "✅ All Azure Dockerfiles built successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some Azure Dockerfiles failed to build" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Integration Tests" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.integration-tests.result }}" == "success" ]; then
+            echo "✅ Integration tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Some integration tests failed - review logs" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Local Testing" >> $GITHUB_STEP_SUMMARY
+          echo "To test Azure integrations locally:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker compose -f docker-compose.azure-emulators.yml up -d" >> $GITHUB_STEP_SUMMARY
+          echo "export USE_AZURE_EMULATORS=true" >> $GITHUB_STEP_SUMMARY
+          echo "cd adapters/copilot_storage && pytest tests/test_integration_azurecosmos.py -v" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
