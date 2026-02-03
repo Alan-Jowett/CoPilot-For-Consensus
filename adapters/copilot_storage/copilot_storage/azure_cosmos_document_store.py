@@ -220,22 +220,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             logger.error(f"AzureCosmosDocumentStore: Azure error during container creation for '{container_name}' - {e}")
             raise DocumentStoreError(f"Azure error creating/accessing container '{container_name}'") from e
 
-    def get_raw_container_for_testing(self, collection: str) -> Any:
-        """Get the raw Cosmos container for a collection (TEST USE ONLY).
-
-        This method provides direct access to the underlying Cosmos container
-        for test fixture cleanup. It bypasses document sanitization.
-
-        WARNING: This is intended for test code only. Do not use in production.
-
-        Args:
-            collection: Logical collection name
-
-        Returns:
-            Cosmos container client
-        """
-        return self._get_container_for_collection(collection)
-
     def connect(self) -> None:
         """Connect to Azure Cosmos DB.
 
