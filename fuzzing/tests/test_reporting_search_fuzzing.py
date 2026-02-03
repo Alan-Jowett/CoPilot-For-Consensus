@@ -139,7 +139,19 @@ def mock_reporting_service(
 
 @pytest.fixture
 def test_client(mock_reporting_service, monkeypatch):
-    """Create test client with mocked reporting service."""
+    """Create test client with mocked reporting service.
+    
+    Note: This function-scoped fixture is used with Hypothesis property-based tests.
+    Normally, Hypothesis raises a health check error when using function-scoped fixtures
+    because they're not reset between generated test cases. However, this is safe here
+    because:
+    1. The test client is stateless - it doesn't accumulate state between requests
+    2. The mock service underneath is also stateless
+    3. Each HTTP request is independent and doesn't affect others
+    
+    We suppress the HealthCheck.function_scoped_fixture warning in affected tests
+    because we've verified this pattern is safe for our use case.
+    """
     # Import after adding to path
     import main
     from fastapi.testclient import TestClient
@@ -457,7 +469,7 @@ def test_search_with_null_byte(test_client):
 def test_search_with_unicode_homograph(test_client):
     """Test search with Unicode homograph characters.
 
-    Unicode homograph: визually similar characters from different scripts
+    Unicode homograph: visually similar characters from different scripts
     Example: Latin 'a' vs Cyrillic 'а' (U+0430)
     """
     # "paypal" with Cyrillic characters that look like Latin
