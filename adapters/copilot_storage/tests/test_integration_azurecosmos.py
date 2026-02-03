@@ -70,9 +70,13 @@ def delete_all_items_in_container(store, collection_name: str) -> None:
 
     This bypasses the document store's sanitization to get the actual document IDs.
     
-    Note: This assumes the container uses document ID as the partition key,
-    which is the default configuration for this Cosmos DB setup. If the container
-    uses a different partition key path, this function would need to be updated.
+    Note: Accesses private method _get_container_for_collection() directly because:
+    1. This is test infrastructure, not production code
+    2. Integration tests may need internal access for proper cleanup
+    3. Adding a public wrapper would expose implementation details unnecessarily
+    
+    The container uses document ID as the partition key, which is the default
+    configuration for this Cosmos DB setup.
     """
     try:
         container = store._get_container_for_collection(collection_name)

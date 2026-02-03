@@ -10,7 +10,10 @@ on:
       - '**/Dockerfile.azure'
       - 'adapters/copilot_storage/**'
       - 'adapters/copilot_message_bus/**'
+      - 'adapters/copilot_archive_store/**'
       - 'adapters/copilot_config/**'
+      - '**/requirements*.txt'
+      - '**/setup.py'
       - 'docker-compose.azure-emulators.yml'
       - 'infra/azure-emulators/**'
       - '.github/workflows/azure-integration-ci.yml'
@@ -20,7 +23,10 @@ on:
       - '**/Dockerfile.azure'
       - 'adapters/copilot_storage/**'
       - 'adapters/copilot_message_bus/**'
+      - 'adapters/copilot_archive_store/**'
       - 'adapters/copilot_config/**'
+      - '**/requirements*.txt'
+      - '**/setup.py'
       - 'docker-compose.azure-emulators.yml'
       - 'infra/azure-emulators/**'
       - '.github/workflows/azure-integration-ci.yml'
@@ -184,14 +190,21 @@ jobs:
       - name: Wait for Azurite
         run: |
           echo "Waiting for Azurite to be ready..."
+          AZURITE_READY=false
           for i in $(seq 1 30); do
-            if curl -f http://localhost:10000/ > /dev/null 2>&1; then
-              echo "✅ Azurite is ready!"
+            # Azurite root returns 400; check if the port is listening instead
+            if nc -z localhost 10000 2>/dev/null; then
+              echo "✅ Azurite is ready (port 10000 is listening)!"
+              AZURITE_READY=true
               break
             fi
             echo "Attempt $i/30: Azurite not ready, waiting..."
             sleep 2
           done
+          if [ "$AZURITE_READY" != "true" ]; then
+            echo "❌ Azurite failed to start within timeout"
+            exit 1
+          fi
 
       - name: Install test dependencies
         run: |
@@ -203,25 +216,17 @@ jobs:
           cd adapters/copilot_archive_store && pip install -e '.[azure]'
 
       - name: Run Cosmos DB integration tests
-        env:
-          # Emulator-only: disable SSL verification for Cosmos emulator's self-signed cert
-          COSMOS_EMULATOR_DISABLE_SSL_VERIFICATION: "true"
+        id: cosmos-tests
         run: |
           cd adapters/copilot_storage
-          # Run integration tests with emulator-compatible filter
-          pytest tests/test_integration_azurecosmos.py -v --timeout=120 \
-            -k "not requires_live_azure" \
-            || echo "::warning::Some Cosmos DB tests failed - review logs"
-        continue-on-error: true
+          pytest tests/test_integration_azurecosmos.py -v --timeout=120
 
       - name: Run Azure Blob integration tests
+        id: blob-tests
         run: |
           # Azure Blob tests are in copilot_archive_store adapter
           cd adapters/copilot_archive_store
-          pytest tests/test_integration_azure_blob.py -v --timeout=120 \
-            -k "not requires_live_azure" \
-            || echo "::warning::Some Blob storage tests failed - review logs"
-        continue-on-error: true
+          pytest tests/test_integration_azure_blob.py -v --timeout=120
 
       - name: Show emulator logs on failure
         if: failure()
@@ -270,3 +275,16 @@ jobs:
           echo "export USE_AZURE_EMULATORS=true" >> $GITHUB_STEP_SUMMARY
           echo "cd adapters/copilot_storage && pytest tests/test_integration_azurecosmos.py -v" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for failures
+        run: |
+          # Fail the workflow if any required job failed
+          if [ "${{ needs.build-azure-dockerfiles.result }}" != "success" ]; then
+            echo "❌ Azure Dockerfile builds failed"
+            exit 1
+          fi
+          if [ "${{ needs.integration-tests.result }}" != "success" ]; then
+            echo "❌ Integration tests failed"
+            exit 1
+          fi
+          echo "✅ All checks passed"

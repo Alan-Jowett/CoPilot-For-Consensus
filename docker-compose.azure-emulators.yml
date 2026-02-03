@@ -16,6 +16,10 @@
 #   cd adapters/copilot_storage && pytest tests/test_integration_azurecosmos.py -v
 #
 # See docs/LOCAL_DEVELOPMENT.md for detailed instructions.
+#
+# SECURITY NOTE: The password 'YourStrong!Passw0rd' used below is the documented
+# default for Microsoft Azure emulators. It is NOT a secret and must ONLY be used
+# for local emulator testing, never in production environments.
 
 services:
   # Azure Cosmos DB Emulator (Linux-based, vNext preview)
@@ -29,7 +33,8 @@ services:
       - AZURE_COSMOS_EMULATOR_PARTITION_COUNT=10
       - AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=false
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsk https://localhost:8081/_explorer/emulator.pem || exit 1"]
+      # vnext-preview emulator uses HTTP, not HTTPS
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 30
@@ -45,11 +50,9 @@ services:
     ports:
       - "127.0.0.1:5672:5672"   # AMQP endpoint
     environment:
-      - ACCEPT_EULA=Y
-      # NOTE: This is the documented default SA password for the SQL Edge emulator.
-      # Only use for local emulator testing, never in production.
-      - MSSQL_SA_PASSWORD=YourStrong!Passw0rd
-      - SQL_SERVER=sqledge
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"  # Emulator default - see security note above
+      SQL_SERVER: sqledge
     volumes:
       - ./infra/azure-emulators/servicebus-config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
     depends_on:
@@ -64,15 +67,12 @@ services:
     restart: unless-stopped
 
   # SQL Edge (required by Service Bus Emulator)
-  # NOTE: Password 'YourStrong!Passw0rd' is the documented default for the SQL Edge emulator.
-  # This must only be used for local emulator testing, never in production.
   sqledge:
     image: mcr.microsoft.com/azure-sql-edge:latest
     environment:
-      - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=YourStrong!Passw0rd
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"  # Emulator default - see security note above
     healthcheck:
-      # Uses the same emulator password defined above
       test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
@@ -88,7 +88,7 @@ services:
       - "127.0.0.1:10000:10000"  # Blob service
       - "127.0.0.1:10001:10001"  # Queue service
       - "127.0.0.1:10002:10002"  # Table service
-    command: ["azurite", "--blobHost", "0.0.0.0", "--queueHost", "0.0.0.0", "--tableHost", "0.0.0.0", "--loose"]
+    command: ["azurite", "--blobHost", "0.0.0.0", "--queueHost", "0.0.0.0", "--tableHost", "0.0.0.0", "--loose", "--skipApiVersionCheck"]
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 10000 || exit 1"]
       interval: 10s
@@ -112,8 +112,8 @@ services:
       - |-
         echo "✅ All Azure emulators are ready!"
         echo ""
-        echo "Cosmos DB Emulator:"
-        echo "  Endpoint: https://localhost:8081"
+        echo "Cosmos DB Emulator (vnext-preview uses HTTP, not HTTPS):"
+        echo "  Endpoint: http://localhost:8081"
         echo "  Key: C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
         echo ""
         echo "Azurite (Azure Storage):"
