@@ -89,10 +89,14 @@ class TestAzureBlobArchiveStoreIntegration:
         try:
             from azure.storage.blob import BlobServiceClient
 
-            # Recreate connection to avoid using the store's potentially stale state
-            if os.getenv("AZURE_STORAGE_CONNECTION_STRING"):
-                service_client = BlobServiceClient.from_connection_string(os.environ["AZURE_STORAGE_CONNECTION_STRING"])
+            # Use connection string for cleanup - required for emulator tests (Azurite uses HTTP)
+            # and supported for production Azure Blob Storage
+            connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+            if connection_string:
+                service_client = BlobServiceClient.from_connection_string(connection_string)
             else:
+                # Fallback for production Azure without connection string
+                # Note: This path uses HTTPS and won't work with Azurite emulator
                 account_name = os.environ["AZURE_STORAGE_ACCOUNT"]
                 if os.getenv("AZURE_STORAGE_KEY"):
                     credential = os.environ["AZURE_STORAGE_KEY"]
@@ -103,7 +107,7 @@ class TestAzureBlobArchiveStoreIntegration:
                     credential=credential,
                 )
 
-            container_name = os.getenv("AZURE_STORAGE_CONTAINER", "archives")
+            container_name = os.getenv("AZURE_STORAGE_CONTAINER", "raw-archives")
             container_client = service_client.get_container_client(container_name)
 
             # Delete all blobs that start with the test prefix
@@ -176,9 +180,7 @@ class TestAzureBlobArchiveStoreIntegration:
         retrieved = store.get_archive(id1)
         assert retrieved == content
 
-        # Hash lookup should work
-        import hashlib
-
+        # Hash lookup should work (hashlib already imported at module level)
         content_hash = hashlib.sha256(content).hexdigest()
         found_id = store.get_archive_by_hash(content_hash)
         assert found_id == id1
