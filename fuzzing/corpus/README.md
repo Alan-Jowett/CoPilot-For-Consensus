@@ -8,6 +8,17 @@ This directory contains seed inputs for fuzzing tests. These files help guide th
 
 ```
 corpus/
+├── adversarial_text/   # Adversarial text inputs for semantic search
+│   ├── prompt_injection.txt
+│   ├── sql_injection.txt
+│   ├── xss_injection.txt
+│   ├── command_injection.txt
+│   ├── unicode_homograph.txt
+│   ├── zero_width.txt
+│   ├── rtl_override.txt
+│   ├── null_byte.txt
+│   ├── path_traversal.txt
+│   └── very_long.txt
 ├── filenames/          # Malicious and edge-case filenames
 │   ├── path_traversal_unix.txt
 │   ├── path_traversal_windows.txt
@@ -24,6 +35,21 @@ corpus/
     ├── malformed_from.mbox
     └── empty.mbox
 ```
+
+## Adversarial Text Corpus
+
+Test cases for semantic search API fuzzing:
+
+- **prompt_injection.txt**: Prompt injection attempt for LLM-based systems
+- **sql_injection.txt**: SQL injection attempt (`' OR '1'='1`)
+- **xss_injection.txt**: Cross-site scripting attempt (`<script>alert('XSS')</script>`)
+- **command_injection.txt**: Command injection attempt (`; rm -rf /`)
+- **unicode_homograph.txt**: Unicode homograph attack (visually similar characters)
+- **zero_width.txt**: Zero-width character exploitation
+- **rtl_override.txt**: Right-to-left override character attack
+- **null_byte.txt**: Embedded null byte
+- **path_traversal.txt**: Path traversal attempt (`../../../etc/passwd`)
+- **very_long.txt**: Very long input for DoS testing (1000+ characters)
 
 ## Filename Corpus
 
@@ -63,5 +89,8 @@ These files contain **intentionally malicious patterns** used for security testi
 - Path traversal attempts
 - Null byte injections
 - Malformed data structures
+- Injection attacks (SQL, XSS, command, prompt)
+- Unicode edge cases and attacks
+- DoS-inducing inputs
 
 **DO NOT** use these patterns in production code or treat them as safe inputs.

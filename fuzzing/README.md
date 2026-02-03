@@ -32,6 +32,7 @@ fuzzing/
 ├── README.md           # This file
 ├── __init__.py
 ├── corpus/             # Seed inputs for fuzzing
+│   ├── adversarial_text/  # Adversarial text inputs for semantic search
 │   ├── filenames/      # Malicious filename samples
 │   └── mbox/           # Mbox file samples
 └── tests/
@@ -39,9 +40,11 @@ fuzzing/
     ├── test_atheris_example.py               # Example atheris fuzzing test
     ├── test_hypothesis_example.py            # Example hypothesis property-based test
     ├── test_jwt_fuzzing.py                   # JWT authentication fuzzing (auth service)
+    ├── test_auth_callback_fuzzing.py         # OIDC callback fuzzing (auth service)
     ├── test_schemathesis_example.py          # Example schemathesis API fuzzing test
     ├── test_ingestion_upload_fuzzing.py      # Atheris fuzzing for ingestion uploads
-    └── test_ingestion_upload_properties.py   # Hypothesis tests for upload security
+    ├── test_ingestion_upload_properties.py   # Hypothesis tests for upload security
+    └── test_reporting_search_fuzzing.py      # Semantic search fuzzing (reporting service)
 ```
 
 ## Running Fuzzing Tests
@@ -201,6 +204,46 @@ Comprehensive fuzzing for the auth service OIDC callback flow:
   - Replay attack prevention (single-use states)
 
 Priority: **P0** (CSRF attacks, open redirect, injection vulnerabilities)
+
+### Reporting Semantic Search Fuzzing (`test_reporting_search_fuzzing.py`)
+
+Comprehensive fuzzing for the reporting service semantic search endpoint:
+
+- **Property-based tests** (Hypothesis):
+  - Endpoint never crashes with arbitrary text input
+  - Always returns valid JSON for successful responses
+  - Handles Unicode edge cases (homographs, RTL, zero-width)
+  - Handles very long inputs gracefully (DoS protection)
+  - Validates query parameters (limit, min_score)
+  - Handles empty and whitespace-only inputs
+
+- **Adversarial corpus tests**:
+  - Prompt injection attempts (LLM-specific)
+  - SQL injection patterns
+  - XSS injection attempts
+  - Command injection patterns
+  - Path traversal attempts
+  - Null bytes and control characters
+  - Unicode attacks (homographs, RTL override, zero-width)
+  - Very long inputs (>10KB)
+
+- **Security targets**:
+  - `/api/reports/search?topic=` parameter handling
+  - Embedding generation with malicious input
+  - Vector store query with pathological embeddings
+  - Response data sanitization
+
+**Risk areas covered**:
+- Prompt injection (if LLM-based embedding)
+- Embedding DoS via very long/pathological inputs
+- Unicode handling vulnerabilities
+- Injection attacks (SQL, XSS, command, path traversal)
+- Information disclosure via injection
+
+Priority: **P1** (Prompt injection, DoS, Unicode handling)
+
+**Test File**: `tests/test_reporting_search_fuzzing.py`
+**Corpus**: `corpus/adversarial_text/`
 
 ### Current Coverage
 
