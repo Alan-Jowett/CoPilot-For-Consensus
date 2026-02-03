@@ -92,7 +92,7 @@ def mock_reporting_service():
     ):
         """Mock get_reports that validates inputs and returns empty list."""
         # Validate limit and skip are within reasonable bounds
-        if limit < 0 or limit > 100:
+        if limit < 1 or limit > 100:
             raise ValueError(f"limit must be between 1 and 100, got {limit}")
         if skip < 0:
             raise ValueError(f"skip must be non-negative, got {skip}")
@@ -248,10 +248,9 @@ class TestReportingQueryParamsProperties:
         # Should return JSON (not HTML error page)
         assert response.headers.get("content-type", "").startswith("application/json")
         
-        # For invalid inputs, should return 4xx error
-        if limit < 1 or limit > 100:
-            assert 400 <= response.status_code < 500
-        if skip < 0:
+        # For invalid inputs, should return 4xx error (FastAPI validation)
+        # limit must be between 1 and 100, skip must be >= 0
+        if limit < 1 or limit > 100 or skip < 0:
             assert 400 <= response.status_code < 500
     
     @given(
@@ -684,9 +683,15 @@ class TestReportingSecurityEdgeCases:
         assert 400 <= response.status_code < 500
     
     def test_sql_injection_in_source_filter(self, test_client):
-        """Test that source filter rejects SQL injection attempts."""
+        """Test that source filter rejects SQL injection attempts.
+        
+        Note: The reporting service uses MongoDB (document store), not SQL,
+        but we still test for injection patterns as a defense-in-depth measure.
+        These payloads could be dangerous in other contexts or if the backend
+        storage changes.
+        """
         injection_payloads = [
-            "'; DROP TABLE summaries; --",
+            "'; DROP TABLE reports; --",
             "' OR '1'='1",
             "admin'--",
             "1' UNION SELECT * FROM users--",
