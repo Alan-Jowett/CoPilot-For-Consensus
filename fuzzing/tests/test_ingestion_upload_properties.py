@@ -148,15 +148,15 @@ class TestExtensionValidationProperties:
 
     @given(
         st.sampled_from([".mbox", ".zip", ".tar", ".tar.gz", ".tgz"]),
-        st.text(alphabet=st.characters(whitelist_categories=('Lu', 'Ll')), min_size=1, max_size=10)
+        st.randoms()
     )
     @settings(max_examples=100, deadline=None)
-    def test_validation_case_insensitive(self, extension: str, case_variation: str):
+    def test_validation_case_insensitive(self, extension: str, rnd):
         """Extension validation should be case-insensitive."""
-        # Create case variations of the extension
+        # Create case variations by randomly uppercasing/lowercasing each character
         varied = "".join(
-            c.upper() if i < len(case_variation) and case_variation[i].isupper() else c.lower()
-            for i, c in enumerate(extension)
+            c.upper() if rnd.choice([True, False]) else c.lower()
+            for c in extension
         )
         filename = f"test{varied}"
         result = _validate_file_extension(filename)
