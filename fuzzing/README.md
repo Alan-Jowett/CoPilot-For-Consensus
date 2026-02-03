@@ -36,12 +36,14 @@ fuzzing/
 │   └── mbox/           # Mbox file samples
 └── tests/
     ├── __init__.py
-    ├── test_atheris_example.py               # Example atheris fuzzing test
-    ├── test_hypothesis_example.py            # Example hypothesis property-based test
-    ├── test_jwt_fuzzing.py                   # JWT authentication fuzzing (auth service)
-    ├── test_schemathesis_example.py          # Example schemathesis API fuzzing test
-    ├── test_ingestion_upload_fuzzing.py      # Atheris fuzzing for ingestion uploads
-    └── test_ingestion_upload_properties.py   # Hypothesis tests for upload security
+    ├── test_atheris_example.py                   # Example atheris fuzzing test
+    ├── test_hypothesis_example.py                # Example hypothesis property-based test
+    ├── test_jwt_fuzzing.py                       # JWT authentication fuzzing (auth service)
+    ├── test_schemathesis_example.py              # Example schemathesis API fuzzing test
+    ├── test_auth_callback_fuzzing.py             # Auth service OIDC callback fuzzing
+    ├── test_ingestion_upload_fuzzing.py          # Atheris fuzzing for ingestion uploads
+    ├── test_ingestion_upload_properties.py       # Hypothesis tests for upload security
+    └── test_reporting_query_params_fuzzing.py    # Reporting service query parameter fuzzing
 ```
 
 ## Running Fuzzing Tests
@@ -201,6 +203,46 @@ Comprehensive fuzzing for the auth service OIDC callback flow:
   - Replay attack prevention (single-use states)
 
 Priority: **P0** (CSRF attacks, open redirect, injection vulnerabilities)
+
+### Reporting Service Query Parameters Fuzzing (`test_reporting_query_params_fuzzing.py`)
+
+Comprehensive fuzzing for the reporting service query parameter handling:
+
+- **Property-based tests** (Hypothesis):
+  - API never crashes with arbitrary query parameters
+  - Always returns valid JSON responses
+  - Pagination parameters (limit, skip) handle edge cases gracefully
+  - Date parsing never crashes (invalid formats, edge cases)
+  - Filter parameters reject injection attempts
+  - Sort parameters validate properly
+  - Multiple filters work correctly in combination
+
+- **API schema tests** (Schemathesis):
+  - OpenAPI spec compliance for `/api/reports` endpoint
+  - Parameter validation according to schema
+  - Response format compliance
+
+- **Security-focused edge cases**:
+  - DoS protection via large skip values
+  - Bounded limit parameter (max 100)
+  - SQL injection attempts in source filter
+  - Date range validation (start > end cases)
+  - Concurrent filter application correctness
+
+**Targets**:
+- Date range parsing (ISO8601): `message_start_date`, `message_end_date`
+- Pagination: `limit` (1-100), `skip` (≥0)
+- Filtering: `source`, `min_participants`, `max_participants`, `min_messages`, `max_messages`
+- Sorting: `sort_by` (thread_start_date|generated_at), `sort_order` (asc|desc)
+
+**Risk Coverage**:
+- DoS via expensive queries (large pagination, complex filters)
+- Injection vulnerabilities (SQL, XSS in filters)
+- Date parsing edge cases (timezones, invalid formats)
+- Integer overflow/underflow in pagination
+- Invalid sort parameters
+
+Priority: **P1** (DoS risk, potential injection vulnerabilities)
 
 ### Current Coverage
 
