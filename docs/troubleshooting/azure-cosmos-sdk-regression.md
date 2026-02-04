@@ -9,16 +9,16 @@ Embedding service (and potentially all Azure-deployed services) failing with `Ty
 
 ## Root Cause
 
-**The azure-cosmos SDK versions 4.14.x have a regression bug** where the `partition_key` parameter passed to methods like `replace_item()`, `read_item()`, and `delete_item()` leaks through to the underlying HTTP transport layer (`requests.Session.request()`).
+**The azure-cosmos SDK 4.9.0's `replace_item()` method does NOT have a `partition_key` parameter**, unlike `read_item()` and `delete_item()` which do. When `partition_key` is passed to `replace_item()`, it goes into `**kwargs` and leaks through to the underlying HTTP transport layer (`requests.Session.request()`).
 
-This is tracked as [GitHub Issue #43662](https://github.com/Azure/azure-sdk-for-python/issues/43662).
+This is an inconsistency in the SDK API design, not a regression.
 
 ### Technical Details
 
-1. **Error location**: `azure_cosmos_document_store.py` calling `container.replace_item(item=doc_id, body=merged_doc, partition_key=partition_key_value)`
+1. **Error location**: `azure_cosmos_document_store.py` calling `container.replace_item(..., partition_key=...)`
 2. **Error message**: `TypeError: Session.request() got an unexpected keyword argument 'partition_key'`
-3. **SDK version**: azure-cosmos 4.14.5 (broken), 4.13.x and earlier (working)
-4. **Python version**: 3.13.11 (issue is NOT Python version specific)
+3. **SDK version**: azure-cosmos 4.9.0 (and likely all 4.x before 4.14.0)
+4. **Solution**: Do NOT pass `partition_key` to `replace_item()` - the SDK infers it from the document body's `id` field
 
 ### History
 
@@ -38,18 +38,21 @@ All Azure-deployed services using Cosmos DB via `copilot_storage` adapter:
 
 ## Solution
 
-Pin azure-cosmos SDK to versions before 4.14.0 where the regression was introduced:
+Remove the `partition_key` parameter from `replace_item()` calls. The SDK infers the partition key from the document body's `id` field:
 
 ```python
-# In adapters/copilot_storage/setup.py
-"azure-cosmos>=4.9.0,<4.14.0",  # Pinned <4.14 due to partition_key bug (Issue #43662)
+# Before (broken):
+container.replace_item(item=doc_id, body=merged_doc, partition_key=partition_key_value)
+
+# After (working):
+container.replace_item(item=doc_id, body=merged_doc)  # SDK uses body["id"] as partition key
 ```
 
 ### Files Changed
 
 | File | Change |
 |------|--------|
-| `adapters/copilot_storage/setup.py` | azure-cosmos version pinned to `>=4.9.0,<4.14.0` |
+| `adapters/copilot_storage/copilot_storage/azure_cosmos_document_store.py` | Removed `partition_key` from `replace_item()` call |
 
 ## Verification
 
