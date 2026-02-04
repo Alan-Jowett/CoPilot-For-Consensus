@@ -195,14 +195,13 @@ class TestAzureCosmosIntegration:
         results = azurecosmos_store.query_documents(clean_collection, {"type": "test"}, limit=5)
         assert len(results) == 5
 
-    @pytest.mark.skipif(
-        os.getenv("USE_AZURE_EMULATORS") == "true",
-        reason="Cosmos DB vnext-preview emulator has SDK compatibility issue with replace_item - "
-               "raises BadRequest error when replacing items. This is a known emulator limitation, "
-               "not a code issue. Test passes against real Azure Cosmos DB."
-    )
     def test_update_document(self, azurecosmos_store, clean_collection):
-        """Test updating a document."""
+        """Test updating a document.
+
+        Note: This test was previously skipped on emulator due to a bug in our code
+        that passed partition_key to replace_item(). azure-cosmos 4.9.0's replace_item()
+        doesn't support partition_key parameter. Fixed in PR #1122.
+        """
         # Insert a document
         doc_id = azurecosmos_store.insert_document(clean_collection, {"name": "Update Test", "age": 25, "city": "NYC"})
 

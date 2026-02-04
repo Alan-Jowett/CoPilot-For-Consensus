@@ -561,8 +561,10 @@ class AzureCosmosDocumentStore(DocumentStore):
             else:
                 merged_doc.pop("collection", None)
 
-            # Replace document with partition key for partitioned containers
-            container.replace_item(item=doc_id, body=merged_doc, partition_key=partition_key_value)
+            # Replace document - partition key is inferred from body["id"]
+            # Note: azure-cosmos 4.9.0's replace_item doesn't accept partition_key parameter
+            # (unlike read_item and delete_item). The SDK uses the id from the body.
+            container.replace_item(item=doc_id, body=merged_doc)
 
             logger.debug(f"AzureCosmosDocumentStore: updated document {doc_id} in {collection}")
 

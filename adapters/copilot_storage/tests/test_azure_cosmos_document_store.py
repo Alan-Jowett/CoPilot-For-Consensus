@@ -455,15 +455,16 @@ class TestAzureCosmosDocumentStore:
 
         store.update_document("users", "user-123", {"age": 31})
 
-        # Verify replace was called with correct partition key
+        # Verify replace was called
         mock_container.replace_item.assert_called_once()
 
-        # Check the updated document
+        # Check the updated document - note: partition_key is NOT passed to replace_item
+        # (SDK 4.9.0 doesn't support it; it uses body["id"] as the partition key)
         call_args = mock_container.replace_item.call_args
         assert call_args.kwargs["item"] == "user-123"
-        assert call_args.kwargs["partition_key"] == "user-123"  # Partition key is doc_id
+        assert "partition_key" not in call_args.kwargs  # SDK 4.9.0 doesn't support this
         updated_doc = call_args.kwargs["body"]
-        assert updated_doc["id"] == "user-123"  # ID remains unchanged
+        assert updated_doc["id"] == "user-123"  # ID in body serves as partition key
         assert updated_doc["age"] == 31
         assert updated_doc["name"] == "Alice"
         # collection field is NOT added in per-collection container mode
@@ -491,10 +492,14 @@ class TestAzureCosmosDocumentStore:
             store.update_document("users", "nonexistent", {"age": 31})
 
     def test_update_document_partition_key_parameter_compatibility(self):
-        """Regression test: Verify replace_item partition_key parameter doesn't cause TypeError.
+        """Regression test: Verify replace_item does NOT receive partition_key.
 
-        This test ensures that the azure-cosmos SDK version is compatible and doesn't
-        raise 'Session.request() got an unexpected keyword argument partition_key'.
+        azure-cosmos 4.9.0's replace_item() doesn't have a partition_key parameter,
+        unlike read_item() and delete_item(). Passing partition_key to replace_item()
+        causes it to leak through **kwargs to Session.request(), raising:
+        'TypeError: Session.request() got an unexpected keyword argument partition_key'
+
+        The SDK infers the partition key from the document body's 'id' field.
         """
         store = AzureCosmosDocumentStore(endpoint="https://test.documents.azure.com:443/", key="testkey")
 
@@ -516,18 +521,18 @@ class TestAzureCosmosDocumentStore:
         # This should NOT raise TypeError about Session.request() and partition_key
         store.update_document("threads", "thread-456", {"summary_id": "summary-789"})
 
-        # Verify replace_item was called with partition_key parameter
+        # Verify replace_item was called WITHOUT partition_key parameter
         mock_container.replace_item.assert_called_once()
         call_args = mock_container.replace_item.call_args
 
-        # Ensure partition_key was explicitly passed (regression test for the bug)
-        assert "partition_key" in call_args.kwargs
-        assert call_args.kwargs["partition_key"] == "thread-456"
+        # Ensure partition_key is NOT passed (regression test for the bug fix)
+        assert "partition_key" not in call_args.kwargs, \
+            "partition_key should NOT be passed to replace_item (SDK 4.9.0 doesn't support it)"
         assert call_args.kwargs["item"] == "thread-456"
 
-        # Verify the document was updated correctly
+        # Verify the document was updated correctly (id in body serves as partition key)
         updated_doc = call_args.kwargs["body"]
-        assert updated_doc["id"] == "thread-456"
+        assert updated_doc["id"] == "thread-456"  # This is used by SDK as partition key
         assert updated_doc["summary_id"] == "summary-789"
         assert updated_doc["subject"] == "Test Thread"
         assert updated_doc["collection"] == "threads"  # Collection field is preserved
