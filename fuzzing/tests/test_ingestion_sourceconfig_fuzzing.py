@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from hypothesis import given, settings, assume, strategies as st
+from hypothesis import given, settings, strategies as st
 from pydantic import ValidationError
 
 # Add parent directories to path for imports
@@ -35,7 +35,7 @@ def source_name_strategy():
     """Generate source names including malicious patterns."""
     return st.one_of(
         # Normal names
-        st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")), min_size=1, max_size=100),
+        st.text(alphabet=st.characters(categories=("Lu", "Ll", "Nd")), min_size=1, max_size=100),
         # Path traversal
         st.just("../../../etc/passwd"),
         st.just("..\\..\\..\\windows\\system32"),
@@ -103,7 +103,7 @@ def url_strategy():
         # URL encoding confusion
         st.just("http://example.com/%2e%2e%2f%2e%2e%2fetc/passwd"),
         # Very long URLs
-        st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")), min_size=1000, max_size=10000),
+        st.text(alphabet=st.characters(categories=("Lu", "Ll", "Nd")), min_size=1000, max_size=10000),
         # Empty/invalid
         st.just(""),
         st.just("   "),
@@ -368,6 +368,7 @@ class TestSourceConfigInjectionResistance:
             # If accepted, should be stored as-is (sanitization happens at output)
             assert config.name == xss_payload
         except ValidationError:
+            # Rejection via validation error is also an acceptable outcome
             pass
 
     @given(st.sampled_from([
@@ -390,6 +391,7 @@ class TestSourceConfigInjectionResistance:
             # If accepted, verify it's stored as-is
             assert cmd_injection in config.url
         except ValidationError:
+            # Rejection via validation error is also an acceptable outcome
             pass
 
 
