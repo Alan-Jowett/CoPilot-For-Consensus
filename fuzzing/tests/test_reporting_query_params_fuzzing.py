@@ -37,17 +37,17 @@ Priority: P1
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 # Check if fuzzing tools are available
 try:
-    from hypothesis import given, strategies as st, settings, Phase, HealthCheck
+    from hypothesis import given, strategies as st, settings, HealthCheck
     HYPOTHESIS_AVAILABLE = True
 except ImportError:
     HYPOTHESIS_AVAILABLE = False
-    given = st = settings = Phase = HealthCheck = None  # type: ignore[assignment, misc]
+    given = st = settings = HealthCheck = None  # type: ignore[assignment, misc]
 
 try:
     from schemathesis.openapi import from_dict
@@ -167,10 +167,10 @@ def test_client(mock_reporting_service):
             max_messages: int = Query(None, ge=0, description="Maximum messages"),
             sort_by: str = Query(
                 None,
-                pattern="^(thread_start_date|generated_at)$",
+                regex="^(thread_start_date|generated_at)$",
                 description="Sort field",
             ),
-            sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
+            sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
         ):
             """Get list of reports with optional filters."""
             try:
@@ -550,6 +550,11 @@ class TestReportingSchemaFuzzing:
                     "get": {
                         "summary": "List reports",
                         "parameters": [
+                            {
+                                "name": "thread_id",
+                                "in": "query",
+                                "schema": {"type": "string"}
+                            },
                             {
                                 "name": "limit",
                                 "in": "query",
