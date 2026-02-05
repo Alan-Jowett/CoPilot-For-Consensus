@@ -33,19 +33,19 @@ Priority: P1
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
 # Check if fuzzing tools are available
 try:
-    from hypothesis import HealthCheck, Phase, given, settings, strategies as st
+    from hypothesis import HealthCheck, given, settings, strategies as st
     from hypothesis.strategies import composite
 
     HYPOTHESIS_AVAILABLE = True
 except ImportError:
     HYPOTHESIS_AVAILABLE = False
-    given = st = settings = Phase = HealthCheck = composite = None  # type: ignore[assignment, misc]
+    given = st = settings = HealthCheck = composite = None  # type: ignore[assignment, misc]
 
 # Add reporting directory to path for imports
 reporting_dir = Path(__file__).parent.parent.parent / "reporting"
@@ -444,10 +444,9 @@ def test_search_validates_query_parameters(test_client, topic: str, limit: int, 
     # Must not crash
     assert response.status_code in range(200, 600)
 
-    # If parameters are out of range, should return 422 (validation error)
-    if limit < 1 or limit > 50:
-        assert response.status_code == 422
-    if min_score < 0.0 or min_score > 1.0:
+    # If any parameter is out of range, should return 422 (validation error)
+    params_invalid = (limit < 1 or limit > 50) or (min_score < 0.0 or min_score > 1.0)
+    if params_invalid:
         assert response.status_code == 422
 
 
