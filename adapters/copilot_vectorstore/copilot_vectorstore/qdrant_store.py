@@ -224,21 +224,31 @@ class QdrantVectorStore(VectorStore):
                 )
             logger.info(f"Using existing collection '{self._collection_name}'")
         else:
-            # Create collection
+            # Create collection - handle race condition where another instance
+            # may have created it between our check and create attempt
             distance_map = {
                 "cosine": self._Distance.COSINE,
                 "euclid": self._Distance.EUCLID,
                 "euclidean": self._Distance.EUCLID,
             }
 
-            self._client.create_collection(
-                collection_name=self._collection_name,
-                vectors_config=self._VectorParams(
-                    size=self._vector_size,
-                    distance=distance_map[self._distance],
-                ),
-            )
-            logger.info(f"Created new collection '{self._collection_name}'")
+            try:
+                self._client.create_collection(
+                    collection_name=self._collection_name,
+                    vectors_config=self._VectorParams(
+                        size=self._vector_size,
+                        distance=distance_map[self._distance],
+                    ),
+                )
+                logger.info(f"Created new collection '{self._collection_name}'")
+            except Exception as e:
+                # Handle 409 Conflict - collection was created by another instance
+                if "409" in str(e) or "already exists" in str(e).lower():
+                    logger.info(
+                        f"Collection '{self._collection_name}' was created by another instance"
+                    )
+                else:
+                    raise
 
     def add_embedding(self, id: str, vector: list[float], metadata: dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
