@@ -254,6 +254,92 @@ class TestQdrantVectorStore:
         # Verify upsert was called twice
         assert mock_client.upsert.call_count == 2
 
+    @patch("qdrant_client.QdrantClient")
+    def test_collection_creation_handles_409_conflict(self, mock_client_class):
+        """Test that 409 Conflict during collection creation is handled gracefully.
+
+        This tests the race condition where another instance creates the collection
+        between our check and create attempt.
+        """
+        from qdrant_client.http.exceptions import UnexpectedResponse
+
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        # Collection doesn't exist on first check
+        mock_client.get_collections.return_value = Mock(collections=[])
+
+        # Simulate 409 Conflict when trying to create
+        conflict_error = UnexpectedResponse(
+            status_code=409, reason_phrase="Conflict", content=b"already exists", headers={}
+        )
+        mock_client.create_collection.side_effect = conflict_error
+
+        # Set up collection info for verification after 409
+        mock_collection_info = Mock()
+        mock_collection_info.config.params.vectors.size = 3
+        mock_client.get_collection.return_value = mock_collection_info
+
+        store = QdrantVectorStore(vector_size=3, collection_name="test_collection")
+
+        # Should not raise - 409 is handled gracefully
+        store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
+
+        # Verify create_collection was attempted
+        mock_client.create_collection.assert_called_once()
+        # Verify we checked the existing collection config after 409
+        mock_client.get_collection.assert_called_with("test_collection")
+
+    @patch("qdrant_client.QdrantClient")
+    def test_collection_creation_409_with_incompatible_config_raises(self, mock_client_class):
+        """Test that 409 Conflict with incompatible collection config raises ValueError.
+
+        When another instance creates a collection with different vector size,
+        we should fail with a clear error.
+        """
+        from qdrant_client.http.exceptions import UnexpectedResponse
+
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_collections.return_value = Mock(collections=[])
+
+        # Simulate 409 Conflict
+        conflict_error = UnexpectedResponse(
+            status_code=409, reason_phrase="Conflict", content=b"already exists", headers={}
+        )
+        mock_client.create_collection.side_effect = conflict_error
+
+        # Existing collection has different vector size
+        mock_collection_info = Mock()
+        mock_collection_info.config.params.vectors.size = 128  # Different from expected 3
+        mock_client.get_collection.return_value = mock_collection_info
+
+        store = QdrantVectorStore(vector_size=3, collection_name="test_collection")
+
+        # Should raise ValueError due to incompatible configuration
+        with pytest.raises(ValueError, match="different vector size"):
+            store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
+
+    @patch("qdrant_client.QdrantClient")
+    def test_collection_creation_non_409_error_propagates(self, mock_client_class):
+        """Test that non-409 errors during collection creation are propagated."""
+        from qdrant_client.http.exceptions import UnexpectedResponse
+
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_collections.return_value = Mock(collections=[])
+
+        # Simulate a different error (e.g., 500 Internal Server Error)
+        server_error = UnexpectedResponse(
+            status_code=500, reason_phrase="Internal Server Error", content=b"error", headers={}
+        )
+        mock_client.create_collection.side_effect = server_error
+
+        store = QdrantVectorStore(vector_size=3, collection_name="test_collection")
+
+        # Should propagate the original error
+        with pytest.raises(UnexpectedResponse):
+            store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
+
 
 @pytest.mark.skipif(QDRANT_AVAILABLE, reason="Test only runs when qdrant-client is not installed")
 def test_qdrant_not_available_raises_import_error():

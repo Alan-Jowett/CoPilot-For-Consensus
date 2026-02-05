@@ -120,12 +120,14 @@ class QdrantVectorStore(VectorStore):
         try:
             qdrant_client_module = importlib.import_module("qdrant_client")
             qdrant_models_module = importlib.import_module("qdrant_client.models")
+            qdrant_exceptions_module = importlib.import_module("qdrant_client.http.exceptions")
 
             QdrantClient = getattr(qdrant_client_module, "QdrantClient")
             Distance = getattr(qdrant_models_module, "Distance")
             PointIdsList = getattr(qdrant_models_module, "PointIdsList")
             PointStruct = getattr(qdrant_models_module, "PointStruct")
             VectorParams = getattr(qdrant_models_module, "VectorParams")
+            UnexpectedResponse = getattr(qdrant_exceptions_module, "UnexpectedResponse")
         except ImportError as e:
             raise ImportError("qdrant-client is not installed. Install it with: pip install qdrant-client") from e
 
@@ -148,6 +150,7 @@ class QdrantVectorStore(VectorStore):
         self._VectorParams: Any = VectorParams
         self._PointStruct: Any = PointStruct
         self._PointIdsList: Any = PointIdsList
+        self._UnexpectedResponse: Any = UnexpectedResponse
 
         # Initialize Qdrant client
         try:
@@ -198,6 +201,30 @@ class QdrantVectorStore(VectorStore):
             upsert_batch_size=config.upsert_batch_size,
         )
 
+    def _verify_collection_config(self) -> None:
+        """Verify that the existing collection configuration matches expected parameters.
+
+        Raises:
+            ValueError: If collection exists with incompatible vector size
+        """
+        collection_info: Any = self._client.get_collection(self._collection_name)
+
+        vectors: Any = collection_info.config.params.vectors
+        if vectors is None:
+            existing_size: Any = None
+        elif isinstance(vectors, dict):
+            first_params = next(iter(vectors.values()), None)
+            existing_size = getattr(first_params, "size", None)
+        else:
+            existing_size = getattr(vectors, "size", None)
+
+        if existing_size is not None and existing_size != self._vector_size:
+            raise ValueError(
+                f"Collection '{self._collection_name}' exists with different vector size: "
+                f"expected {self._vector_size}, found {existing_size}"
+            )
+        logger.info(f"Using existing collection '{self._collection_name}'")
+
     def _ensure_collection(self) -> None:
         """Ensure the collection exists, create it if not."""
         # Check if collection exists
@@ -206,23 +233,7 @@ class QdrantVectorStore(VectorStore):
 
         if collection_exists:
             # Verify collection configuration matches
-            collection_info: Any = self._client.get_collection(self._collection_name)
-
-            vectors: Any = collection_info.config.params.vectors
-            if vectors is None:
-                existing_size: Any = None
-            elif isinstance(vectors, dict):
-                first_params = next(iter(vectors.values()), None)
-                existing_size = getattr(first_params, "size", None)
-            else:
-                existing_size = getattr(vectors, "size", None)
-
-            if existing_size is not None and existing_size != self._vector_size:
-                raise ValueError(
-                    f"Collection '{self._collection_name}' exists with different vector size: "
-                    f"expected {self._vector_size}, found {existing_size}"
-                )
-            logger.info(f"Using existing collection '{self._collection_name}'")
+            self._verify_collection_config()
         else:
             # Create collection - handle race condition where another instance
             # may have created it between our check and create attempt
@@ -241,12 +252,14 @@ class QdrantVectorStore(VectorStore):
                     ),
                 )
                 logger.info(f"Created new collection '{self._collection_name}'")
-            except Exception as e:
+            except self._UnexpectedResponse as e:
                 # Handle 409 Conflict - collection was created by another instance
-                if "409" in str(e) or "already exists" in str(e).lower():
+                if e.status_code == 409:
                     logger.info(
                         f"Collection '{self._collection_name}' was created by another instance"
                     )
+                    # Verify the existing collection configuration matches
+                    self._verify_collection_config()
                 else:
                     raise
 
