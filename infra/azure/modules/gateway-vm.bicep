@@ -33,6 +33,9 @@ param serviceFqdns object
 @description('Enable public IP for the VM')
 param enablePublicIp bool = true
 
+@description('Allowed source IP addresses/ranges for SSH access (use * for any, or specify CIDR ranges)')
+param sshAllowedSourceAddresses array = ['*']
+
 param tags object = {}
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
@@ -82,10 +85,12 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
           protocol: 'Tcp'
           access: 'Allow'
           direction: 'Inbound'
-          sourceAddressPrefix: '*'
+          sourceAddressPrefixes: length(sshAllowedSourceAddresses) > 1 ? sshAllowedSourceAddresses : []
+          sourceAddressPrefix: length(sshAllowedSourceAddresses) == 1 ? sshAllowedSourceAddresses[0] : null
           sourcePortRange: '*'
           destinationAddressPrefix: '*'
           destinationPortRange: '22'
+          description: 'Allow SSH access from specified source addresses. Restrict in production.'
         }
       }
       {

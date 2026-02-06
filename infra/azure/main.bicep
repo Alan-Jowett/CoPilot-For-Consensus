@@ -89,6 +89,9 @@ param gatewayVmSshPublicKey string
 @description('Enable public IP for gateway VM (true for external access, false for private/VPN access only)')
 param gatewayVmEnablePublicIp bool = true
 
+@description('Allowed source IP addresses/ranges for SSH access to gateway VM (use ["*"] for any, or specify CIDR ranges like ["1.2.3.4/32", "10.0.0.0/8"])')
+param gatewayVmSshAllowedSourceAddresses array = ['*']
+
 @description('Whether to create Microsoft Entra app registration for OAuth')
 param deployEntraApp bool = false
 
@@ -733,6 +736,7 @@ module gatewayVmModule 'modules/gateway-vm.bicep' = if (deployContainerApps && d
     subnetId: vnetModule!.outputs.gatewaySubnetId
     serviceFqdns: containerAppsModule!.outputs.serviceFqdns
     enablePublicIp: gatewayVmEnablePublicIp
+    sshAllowedSourceAddresses: gatewayVmSshAllowedSourceAddresses
     tags: tags
   }
   dependsOn: [

@@ -119,9 +119,11 @@ location /reporting/ {
   proxy_pass https://reporting-internal.fqdn/;
   proxy_set_header Host reporting-internal.fqdn;
   proxy_ssl_server_name on;
-  proxy_ssl_verify off;
+  proxy_ssl_verify off;  # Disabled for internal Container Apps certificates
 }
 ```
+
+**Note on SSL Verification**: `proxy_ssl_verify off` is used because Container Apps internal endpoints use Azure-managed certificates that may not be in the default trust store. This is acceptable for internal VNet traffic but should be documented for security audits.
 
 Similar routes exist for all services:
 - `/reporting/` → reporting service
@@ -136,8 +138,12 @@ The VM has an NSG with the following rules:
 
 **Inbound**:
 - Port 80 (HTTP) - Allow from Internet
-- Port 443 (HTTPS) - Allow from Internet
-- Port 22 (SSH) - Allow from Internet (for admin access)
+- Port 443 (HTTPS) - Allow from Internet  
+- Port 22 (SSH) - **Configurable** (default: allow from Internet)
+  - ⚠️ **Security Recommendation**: Restrict SSH to specific IP ranges in production
+  - Use `gatewayVmSshAllowedSourceAddresses` parameter to limit access
+  - Example: `["YOUR_OFFICE_IP/32", "YOUR_VPN_RANGE/24"]`
+  - Or disable public SSH entirely and use Azure Bastion
 
 **Outbound**:
 - All ports - Allow to Container Apps subnet

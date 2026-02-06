@@ -77,6 +77,10 @@
     "gatewayVmEnablePublicIp": {
       "value": true
     },
+    "gatewayVmSshAllowedSourceAddresses": {
+      "value": ["*"],
+      "_comment": "SECURITY: Restrict SSH access in production to specific IP ranges, e.g., ['YOUR_IP/32', '10.0.0.0/8']"
+    },
     "deployEntraApp": {
       "value": false
     },
