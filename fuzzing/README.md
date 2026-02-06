@@ -331,6 +331,36 @@ Priority: **P1** (DoS risk, potential injection vulnerabilities)
 **Test Files**:
 - `tests/test_ingestion_sourceconfig_fuzzing.py` - Hypothesis property-based tests for SourceConfig validation
 
+#### Message Bus Event Payload Fuzzing (P2)
+- ✅ **Event JSON schema validation** - Hypothesis property-based fuzzing for event envelope and event-specific schemas
+- ✅ **Event type dispatch** - Tests for unknown event types, case variations, injection attempts
+- ✅ **Payload size limits** - Tests for DoS protection via very large payloads, deeply nested structures
+- ✅ **Missing/extra fields** - Tests for missing required fields, extra fields (additionalProperties: false)
+- ✅ **Type confusion** - Tests for invalid types in event envelope (event_id, timestamp, version)
+- ✅ **Malformed values** - Tests for malformed UUIDs, timestamps, event types
+
+**Security Focus**: Protects against:
+- Malformed events causing crashes or poison messages
+- DoS attacks via very large payloads (100KB+ strings, 10K+ arrays, deep nesting)
+- Schema validation bypasses (missing fields, extra fields, type confusion)
+- Event type injection (SQL injection, XSS, command injection in event_type)
+- UUID injection (malformed UUIDs, SQL injection in event_id)
+- Timestamp injection (invalid formats, SQL injection)
+- Null byte injection in event fields
+- Unicode normalization attacks (RTL override, homographs)
+
+**Test Files**:
+- `tests/test_message_bus_event_fuzzing.py` - Hypothesis property-based tests for message bus event validation
+
+**Risk Coverage**:
+- Crashes from malformed events (poison messages)
+- DoS via large payloads or deeply nested JSON
+- Schema bypass attempts (missing/extra fields)
+- Injection vulnerabilities in event metadata
+- Type confusion attacks
+
+Priority: **P2** (Message bus reliability, DoS risk)
+
 ## Contributing
 
 When adding new features that handle external input:

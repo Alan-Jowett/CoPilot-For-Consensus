@@ -90,6 +90,8 @@ jobs:
           pytest tests/test_ingestion_upload_properties.py -v --timeout=300 --junit-xml=ingestion-hypothesis-results.xml
           # Run reporting query params property tests
           pytest tests/test_reporting_query_params_fuzzing.py::TestReportingQueryParamsProperties -v --timeout=300 --junit-xml=reporting-hypothesis-results.xml
+          # Run message bus event payload fuzzing tests
+          pytest tests/test_message_bus_event_fuzzing.py -v --timeout=300 --junit-xml=message-bus-event-fuzzing-results.xml
           echo "::endgroup::"
         continue-on-error: true
 
