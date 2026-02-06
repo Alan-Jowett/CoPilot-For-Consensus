@@ -719,6 +719,26 @@ resource reportingApp 'Microsoft.App/containerApps@2025-01-01' = {
               }
             }
           }
+          {
+            name: 'servicebus-scaling'
+            custom: {
+              type: 'azure-servicebus'
+              identity: identityResourceIds.reporting
+              metadata: {
+                topicName: 'copilot.events'
+                subscriptionName: 'reporting'
+                messageCount: '5'
+                // NOTE: For the Azure Service Bus KEDA scaler, activationMessageCount **must** be '0'
+                // to allow scaling from 0 when there is at least 1 message. A value of '1' does not mean ">= 1"
+                // and would change the activation threshold. See SCALE_TO_ZERO_CONFIGURATION.md for
+                // the authoritative description of this setting.
+                activationMessageCount: '0'
+                namespace: serviceBusNamespaceNameForKeda
+              }
+              // Authentication: KEDA uses the reporting service's user-assigned managed identity
+              // The identity has Azure Service Bus Data Receiver role assigned via servicebus.bicep
+            }
+          }
         ]
       }
     }

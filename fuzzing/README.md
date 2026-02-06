@@ -44,7 +44,8 @@ fuzzing/
     ├── test_schemathesis_example.py          # Example schemathesis API fuzzing test
     ├── test_ingestion_upload_fuzzing.py      # Atheris fuzzing for ingestion uploads
     ├── test_ingestion_upload_properties.py   # Hypothesis tests for upload security
-    └── test_reporting_search_fuzzing.py      # Semantic search fuzzing (reporting service)
+    |── test_reporting_search_fuzzing.py      # Semantic search fuzzing (reporting service)
+    └── test_reporting_query_params_fuzzing.py    # Reporting service query parameter fuzzing
 ```
 
 ## Running Fuzzing Tests
@@ -65,6 +66,9 @@ pytest tests/test_schemathesis_example.py -v
 
 # Run ingestion upload security tests
 pytest tests/test_ingestion_upload_properties.py -v
+
+# Run ingestion SourceConfig JSON validation fuzzing tests
+pytest tests/test_ingestion_sourceconfig_fuzzing.py -v
 
 # Run atheris fuzzing tests (requires special handling)
 # Note: Atheris may not be available on all platforms (requires compilation)
@@ -245,6 +249,46 @@ Priority: **P1** (Prompt injection, DoS, Unicode handling)
 **Test File**: `tests/test_reporting_search_fuzzing.py`
 **Corpus**: `corpus/adversarial_text/`
 
+### Reporting Service Query Parameters Fuzzing (`test_reporting_query_params_fuzzing.py`)
+
+Comprehensive fuzzing for the reporting service query parameter handling:
+
+- **Property-based tests** (Hypothesis):
+  - API never crashes with arbitrary query parameters
+  - Always returns valid JSON responses
+  - Pagination parameters (limit, skip) handle edge cases gracefully
+  - Date parsing never crashes (invalid formats, edge cases)
+  - Filter parameters reject injection attempts
+  - Sort parameters validate properly
+  - Multiple filters work correctly in combination
+
+- **API schema tests** (Schemathesis):
+  - OpenAPI spec compliance for `/api/reports` endpoint
+  - Parameter validation according to schema
+  - Response format compliance
+
+- **Security-focused edge cases**:
+  - DoS protection via large skip values
+  - Bounded limit parameter (max 100)
+  - SQL injection attempts in source filter
+  - Date range validation (start > end cases)
+  - Concurrent filter application correctness
+
+**Targets**:
+- Date range parsing (ISO8601): `message_start_date`, `message_end_date`
+- Pagination: `limit` (1-100), `skip` (≥0)
+- Filtering: `source`, `min_participants`, `max_participants`, `min_messages`, `max_messages`
+- Sorting: `sort_by` (thread_start_date|generated_at), `sort_order` (asc|desc)
+
+**Risk Coverage**:
+- DoS via expensive queries (large pagination, complex filters)
+- Injection vulnerabilities (SQL, XSS in filters)
+- Date parsing edge cases (timezones, invalid formats)
+- Integer overflow/underflow in pagination
+- Invalid sort parameters
+
+Priority: **P1** (DoS risk, potential injection vulnerabilities)
+
 ### Current Coverage
 
 #### Ingestion Upload Security (P0)
@@ -264,6 +308,28 @@ Priority: **P1** (Prompt injection, DoS, Unicode handling)
 - `tests/test_ingestion_upload_fuzzing.py` - Atheris coverage-guided fuzzing
 - `tests/test_ingestion_upload_properties.py` - Hypothesis property-based tests
 - `corpus/` - Seed inputs for fuzzing
+
+#### Ingestion SourceConfig JSON Validation (P1)
+- ✅ **SourceConfig Pydantic model** - Hypothesis property-based fuzzing for JSON payload validation
+- ✅ **URL validation** - Tests for SSRF attempts, path traversal, command injection in URLs
+- ✅ **Source type enum handling** - Tests for type confusion and invalid values
+- ✅ **Nested config objects** - Tests for port, username, password, folder field validation
+- ✅ **Injection attacks** - Tests for SQL injection, XSS, command injection, LDAP injection
+- ✅ **Schema bypass** - Tests for type confusion, missing required fields, invalid types
+- ✅ **Serialization safety** - Tests for model_dump() and JSON serialization robustness
+
+**Security Focus**: Protects against:
+- SQL injection in source names and fields (admin' OR '1'='1)
+- XSS attacks in stored configuration (<script>alert('xss')</script>)
+- Command injection in URLs and fields (; rm -rf /)
+- SSRF attempts (http://169.254.169.254/latest/meta-data/)
+- Type confusion vulnerabilities (string as port, etc.)
+- Schema bypass attempts (missing required fields, invalid types)
+- LDAP injection (*)(uid=*))(|(uid=*)
+- Null byte injection (test\x00admin)
+
+**Test Files**:
+- `tests/test_ingestion_sourceconfig_fuzzing.py` - Hypothesis property-based tests for SourceConfig validation
 
 ## Contributing
 
