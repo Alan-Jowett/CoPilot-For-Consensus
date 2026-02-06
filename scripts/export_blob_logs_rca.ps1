@@ -121,7 +121,6 @@ $cutoffUtc = (Get-Date).ToUniversalTime().Add(-$duration)
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
 $rawDir = Join-Path $OutDir "raw"
-New-Item -ItemType Directory -Force -Path $rawDir | Out-Null
 
 $manifestPath = Join-Path $OutDir "blobs.json"
 
@@ -183,6 +182,13 @@ Write-Host "Selected $($selected.Count) blob(s). Manifest: $manifestPath" -Foreg
 
 # 3) Download
 if (-not $SkipDownload) {
+    # Clean previous raw data to avoid mixing stale logs from previous runs
+    if (Test-Path $rawDir) {
+        Write-Host "Cleaning previous raw data: $rawDir" -ForegroundColor Yellow
+        Remove-Item -Recurse -Force $rawDir
+    }
+    New-Item -ItemType Directory -Force -Path $rawDir | Out-Null
+
     Write-Host "Downloading blobs..." -ForegroundColor Cyan
 
     foreach ($blob in $selected) {
@@ -222,6 +228,10 @@ if (-not $SkipDownload) {
 if (-not $SkipMining) {
     $reportPath = Join-Path $OutDir "rca_mined.json"
     $markdownPath = Join-Path $OutDir "rca_mined_errors_warnings.md"
+
+    if (-not (Test-Path $rawDir)) {
+        throw "Raw directory not found: $rawDir. Use without -SkipDownload to download files first."
+    }
 
     $downloadedFiles = Get-ChildItem -Path $rawDir -File -Recurse
     if (-not $downloadedFiles -or $downloadedFiles.Count -eq 0) {
