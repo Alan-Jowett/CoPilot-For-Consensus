@@ -41,6 +41,7 @@ fuzzing/
     ├── test_hypothesis_example.py            # Example hypothesis property-based test
     ├── test_jwt_fuzzing.py                   # JWT authentication fuzzing (auth service)
     ├── test_auth_callback_fuzzing.py         # OIDC callback fuzzing (auth service)
+    ├── test_auth_admin_fuzzing.py            # Admin endpoints fuzzing (auth service)
     ├── test_schemathesis_example.py          # Example schemathesis API fuzzing test
     ├── test_ingestion_upload_fuzzing.py      # Atheris fuzzing for ingestion uploads
     ├── test_ingestion_upload_properties.py   # Hypothesis tests for upload security
@@ -208,6 +209,51 @@ Comprehensive fuzzing for the auth service OIDC callback flow:
   - Replay attack prevention (single-use states)
 
 Priority: **P0** (CSRF attacks, open redirect, injection vulnerabilities)
+
+### Auth Service Admin Endpoints Fuzzing (`test_auth_admin_fuzzing.py`)
+
+Comprehensive fuzzing for the auth service admin-only endpoints:
+
+- **Property-based tests** (Hypothesis):
+  - Role assignment endpoint handles arbitrary input gracefully
+  - User search endpoint not vulnerable to injection attacks
+  - Pagination parameters validated correctly (limit, skip)
+  - Role revocation validates all input properly
+
+- **API schema tests** (Schemathesis):
+  - OpenAPI spec compliance for role assignment endpoint
+  - User search endpoint schema validation
+  - Pending assignments endpoint schema validation
+
+- **Security-focused edge cases**:
+  - Missing authentication token rejected (401)
+  - Non-admin users forbidden from admin endpoints (403)
+  - Malformed JWT tokens rejected
+  - SQL injection attempts handled safely
+  - XSS payloads escaped in responses
+  - Path traversal attempts blocked
+  - Command injection neutralized
+  - DoS via large pagination values prevented
+  - Role assignment replay attacks detected
+  - Privilege escalation via self-assignment audited
+  - Empty role lists rejected
+  - Invalid role names rejected
+  - Empty search terms rejected
+  - Invalid search fields rejected
+
+**Endpoints tested**:
+- `POST /admin/users/{user_id}/roles` - Assign roles to users
+- `DELETE /admin/users/{user_id}/roles` - Revoke user roles
+- `GET /admin/users/search` - Search users by email/name/ID
+- `GET /admin/role-assignments/pending` - List pending approvals
+
+**Risk areas covered**:
+- Authorization bypass (accessing without admin role)
+- Privilege escalation (manipulating role assignments)
+- Data leakage (exposing sensitive user information)
+- Input validation failures (injection, DoS, malformed data)
+
+Priority: **P2** (Authorization bypass, data leakage, privilege escalation)
 
 ### Reporting Semantic Search Fuzzing (`test_reporting_search_fuzzing.py`)
 
