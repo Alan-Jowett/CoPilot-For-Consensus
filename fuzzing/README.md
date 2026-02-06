@@ -63,6 +63,9 @@ pytest tests/test_schemathesis_example.py -v
 # Run ingestion upload security tests
 pytest tests/test_ingestion_upload_properties.py -v
 
+# Run ingestion SourceConfig JSON validation fuzzing tests
+pytest tests/test_ingestion_sourceconfig_fuzzing.py -v
+
 # Run atheris fuzzing tests (requires special handling)
 # Note: Atheris may not be available on all platforms (requires compilation)
 python tests/test_atheris_example.py -atheris_runs=1000
@@ -221,6 +224,28 @@ Priority: **P0** (CSRF attacks, open redirect, injection vulnerabilities)
 - `tests/test_ingestion_upload_fuzzing.py` - Atheris coverage-guided fuzzing
 - `tests/test_ingestion_upload_properties.py` - Hypothesis property-based tests
 - `corpus/` - Seed inputs for fuzzing
+
+#### Ingestion SourceConfig JSON Validation (P1)
+- ✅ **SourceConfig Pydantic model** - Hypothesis property-based fuzzing for JSON payload validation
+- ✅ **URL validation** - Tests for SSRF attempts, path traversal, command injection in URLs
+- ✅ **Source type enum handling** - Tests for type confusion and invalid values
+- ✅ **Nested config objects** - Tests for port, username, password, folder field validation
+- ✅ **Injection attacks** - Tests for SQL injection, XSS, command injection, LDAP injection
+- ✅ **Schema bypass** - Tests for type confusion, missing required fields, invalid types
+- ✅ **Serialization safety** - Tests for model_dump() and JSON serialization robustness
+
+**Security Focus**: Protects against:
+- SQL injection in source names and fields (admin' OR '1'='1)
+- XSS attacks in stored configuration (<script>alert('xss')</script>)
+- Command injection in URLs and fields (; rm -rf /)
+- SSRF attempts (http://169.254.169.254/latest/meta-data/)
+- Type confusion vulnerabilities (string as port, etc.)
+- Schema bypass attempts (missing required fields, invalid types)
+- LDAP injection (*)(uid=*))(|(uid=*)
+- Null byte injection (test\x00admin)
+
+**Test Files**:
+- `tests/test_ingestion_sourceconfig_fuzzing.py` - Hypothesis property-based tests for SourceConfig validation
 
 ## Contributing
 
