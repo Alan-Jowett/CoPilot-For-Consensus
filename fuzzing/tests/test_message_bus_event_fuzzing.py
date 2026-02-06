@@ -196,9 +196,16 @@ def small_data_payloads() -> st.SearchStrategy[dict[str, Any]]:
 
 
 def large_data_payloads() -> st.SearchStrategy[dict[str, Any]]:
-    """Generate very large data payloads for DoS testing."""
+    """Generate very large data payloads for DoS testing.
+    
+    Note: Hypothesis has a BUFFER_SIZE limit (~8KB) for text generation.
+    These sizes are chosen to test payload handling within that constraint
+    while still being significantly larger than typical event payloads.
+    The system should validate and reject these at the schema or size limit layer.
+    For testing truly massive payloads (>100KB), see test_very_long_string_fields_handled.
+    """
     return st.one_of(
-        # Large string values (reduced to stay within Hypothesis buffer limits)
+        # Large string values (stay within Hypothesis buffer limits)
         st.fixed_dictionaries({
             "large_field": st.text(min_size=5_000, max_size=8_000),
         }),
