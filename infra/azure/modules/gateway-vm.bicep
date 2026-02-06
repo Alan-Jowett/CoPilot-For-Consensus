@@ -148,7 +148,8 @@ resource nic 'Microsoft.Network/networkInterfaces@2024-01-01' = {
 }
 
 // Cloud-init script for nginx installation and configuration
-var cloudInitScript = base64('''#cloud-config
+// Use string interpolation to inject FQDNs directly
+var cloudInitScript = '''#cloud-config
 package_update: true
 package_upgrade: true
 
@@ -163,39 +164,39 @@ write_files:
       # Routes traffic to internal Container Apps services
       
       upstream reporting {
-        server ${REPORTING_FQDN}:443;
+        server REPORTING_FQDN_PLACEHOLDER:443;
       }
       
       upstream ingestion {
-        server ${INGESTION_FQDN}:443;
+        server INGESTION_FQDN_PLACEHOLDER:443;
       }
       
       upstream auth {
-        server ${AUTH_FQDN}:443;
+        server AUTH_FQDN_PLACEHOLDER:443;
       }
       
       upstream ui {
-        server ${UI_FQDN}:443;
+        server UI_FQDN_PLACEHOLDER:443;
       }
       
       upstream orchestrator {
-        server ${ORCHESTRATOR_FQDN}:443;
+        server ORCHESTRATOR_FQDN_PLACEHOLDER:443;
       }
       
       upstream summarization {
-        server ${SUMMARIZATION_FQDN}:443;
+        server SUMMARIZATION_FQDN_PLACEHOLDER:443;
       }
       
       upstream parsing {
-        server ${PARSING_FQDN}:443;
+        server PARSING_FQDN_PLACEHOLDER:443;
       }
       
       upstream chunking {
-        server ${CHUNKING_FQDN}:443;
+        server CHUNKING_FQDN_PLACEHOLDER:443;
       }
       
       upstream embedding {
-        server ${EMBEDDING_FQDN}:443;
+        server EMBEDDING_FQDN_PLACEHOLDER:443;
       }
       
       server {
@@ -213,7 +214,7 @@ write_files:
         # Reporting service
         location /reporting/ {
           proxy_pass https://reporting/;
-          proxy_set_header Host ${REPORTING_FQDN};
+          proxy_set_header Host REPORTING_FQDN_PLACEHOLDER;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
@@ -224,7 +225,7 @@ write_files:
         # Ingestion service
         location /ingestion/ {
           proxy_pass https://ingestion/;
-          proxy_set_header Host ${INGESTION_FQDN};
+          proxy_set_header Host INGESTION_FQDN_PLACEHOLDER;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
@@ -235,7 +236,7 @@ write_files:
         # Auth service
         location /auth/ {
           proxy_pass https://auth/;
-          proxy_set_header Host ${AUTH_FQDN};
+          proxy_set_header Host AUTH_FQDN_PLACEHOLDER;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
@@ -246,7 +247,7 @@ write_files:
         # UI service
         location /ui/ {
           proxy_pass https://ui/;
-          proxy_set_header Host ${UI_FQDN};
+          proxy_set_header Host UI_FQDN_PLACEHOLDER;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
@@ -257,7 +258,7 @@ write_files:
         # Orchestrator service
         location /orchestrator/ {
           proxy_pass https://orchestrator/;
-          proxy_set_header Host ${ORCHESTRATOR_FQDN};
+          proxy_set_header Host ORCHESTRATOR_FQDN_PLACEHOLDER;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
@@ -268,7 +269,7 @@ write_files:
         # Summarization service
         location /summarization/ {
           proxy_pass https://summarization/;
-          proxy_set_header Host ${SUMMARIZATION_FQDN};
+          proxy_set_header Host SUMMARIZATION_FQDN_PLACEHOLDER;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
@@ -279,7 +280,7 @@ write_files:
         # Parsing service
         location /parsing/ {
           proxy_pass https://parsing/;
-          proxy_set_header Host ${PARSING_FQDN};
+          proxy_set_header Host PARSING_FQDN_PLACEHOLDER;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
@@ -290,7 +291,7 @@ write_files:
         # Chunking service
         location /chunking/ {
           proxy_pass https://chunking/;
-          proxy_set_header Host ${CHUNKING_FQDN};
+          proxy_set_header Host CHUNKING_FQDN_PLACEHOLDER;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
@@ -301,7 +302,7 @@ write_files:
         # Embedding service
         location /embedding/ {
           proxy_pass https://embedding/;
-          proxy_set_header Host ${EMBEDDING_FQDN};
+          proxy_set_header Host EMBEDDING_FQDN_PLACEHOLDER;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
@@ -321,17 +322,7 @@ write_files:
       #!/bin/bash
       set -e
       
-      # Replace placeholders with actual FQDNs from environment
-      sed -i "s/\${REPORTING_FQDN}/${REPORTING_FQDN}/g" /etc/nginx/sites-available/copilot-gateway
-      sed -i "s/\${INGESTION_FQDN}/${INGESTION_FQDN}/g" /etc/nginx/sites-available/copilot-gateway
-      sed -i "s/\${AUTH_FQDN}/${AUTH_FQDN}/g" /etc/nginx/sites-available/copilot-gateway
-      sed -i "s/\${UI_FQDN}/${UI_FQDN}/g" /etc/nginx/sites-available/copilot-gateway
-      sed -i "s/\${ORCHESTRATOR_FQDN}/${ORCHESTRATOR_FQDN}/g" /etc/nginx/sites-available/copilot-gateway
-      sed -i "s/\${SUMMARIZATION_FQDN}/${SUMMARIZATION_FQDN}/g" /etc/nginx/sites-available/copilot-gateway
-      sed -i "s/\${PARSING_FQDN}/${PARSING_FQDN}/g" /etc/nginx/sites-available/copilot-gateway
-      sed -i "s/\${CHUNKING_FQDN}/${CHUNKING_FQDN}/g" /etc/nginx/sites-available/copilot-gateway
-      sed -i "s/\${EMBEDDING_FQDN}/${EMBEDDING_FQDN}/g" /etc/nginx/sites-available/copilot-gateway
-      
+      # Nginx config is already populated with FQDNs at deployment time
       # Enable the site
       ln -sf /etc/nginx/sites-available/copilot-gateway /etc/nginx/sites-enabled/
       rm -f /etc/nginx/sites-enabled/default
@@ -343,30 +334,21 @@ write_files:
 runcmd:
   - systemctl enable nginx
   - systemctl start nginx
-  - export REPORTING_FQDN="${REPORTING_FQDN}"
-  - export INGESTION_FQDN="${INGESTION_FQDN}"
-  - export AUTH_FQDN="${AUTH_FQDN}"
-  - export UI_FQDN="${UI_FQDN}"
-  - export ORCHESTRATOR_FQDN="${ORCHESTRATOR_FQDN}"
-  - export SUMMARIZATION_FQDN="${SUMMARIZATION_FQDN}"
-  - export PARSING_FQDN="${PARSING_FQDN}"
-  - export CHUNKING_FQDN="${CHUNKING_FQDN}"
-  - export EMBEDDING_FQDN="${EMBEDDING_FQDN}"
   - /usr/local/bin/configure-gateway.sh
 
 final_message: "Gateway VM is ready. Nginx configured to route to Container Apps internal endpoints."
-''')
+'''
 
 // Substitute FQDNs in cloud-init script
-var cloudInitWithFqdns = replace(cloudInitScript, '${REPORTING_FQDN}', serviceFqdns.reporting)
-var cloudInitWithFqdns2 = replace(cloudInitWithFqdns, '${INGESTION_FQDN}', serviceFqdns.ingestion)
-var cloudInitWithFqdns3 = replace(cloudInitWithFqdns2, '${AUTH_FQDN}', serviceFqdns.auth)
-var cloudInitWithFqdns4 = replace(cloudInitWithFqdns3, '${UI_FQDN}', serviceFqdns.ui)
-var cloudInitWithFqdns5 = replace(cloudInitWithFqdns4, '${ORCHESTRATOR_FQDN}', serviceFqdns.orchestrator)
-var cloudInitWithFqdns6 = replace(cloudInitWithFqdns5, '${SUMMARIZATION_FQDN}', serviceFqdns.summarization)
-var cloudInitWithFqdns7 = replace(cloudInitWithFqdns6, '${PARSING_FQDN}', serviceFqdns.parsing)
-var cloudInitWithFqdns8 = replace(cloudInitWithFqdns7, '${CHUNKING_FQDN}', serviceFqdns.chunking)
-var cloudInitFinal = replace(cloudInitWithFqdns8, '${EMBEDDING_FQDN}', serviceFqdns.embedding)
+var cloudInitWithFqdns = replace(cloudInitScript, 'REPORTING_FQDN_PLACEHOLDER', serviceFqdns.reporting)
+var cloudInitWithFqdns2 = replace(cloudInitWithFqdns, 'INGESTION_FQDN_PLACEHOLDER', serviceFqdns.ingestion)
+var cloudInitWithFqdns3 = replace(cloudInitWithFqdns2, 'AUTH_FQDN_PLACEHOLDER', serviceFqdns.auth)
+var cloudInitWithFqdns4 = replace(cloudInitWithFqdns3, 'UI_FQDN_PLACEHOLDER', serviceFqdns.ui)
+var cloudInitWithFqdns5 = replace(cloudInitWithFqdns4, 'ORCHESTRATOR_FQDN_PLACEHOLDER', serviceFqdns.orchestrator)
+var cloudInitWithFqdns6 = replace(cloudInitWithFqdns5, 'SUMMARIZATION_FQDN_PLACEHOLDER', serviceFqdns.summarization)
+var cloudInitWithFqdns7 = replace(cloudInitWithFqdns6, 'PARSING_FQDN_PLACEHOLDER', serviceFqdns.parsing)
+var cloudInitWithFqdns8 = replace(cloudInitWithFqdns7, 'CHUNKING_FQDN_PLACEHOLDER', serviceFqdns.chunking)
+var cloudInitFinal = base64(replace(cloudInitWithFqdns8, 'EMBEDDING_FQDN_PLACEHOLDER', serviceFqdns.embedding))
 
 // Virtual Machine
 resource vm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
@@ -429,10 +411,10 @@ output vmId string = vm.id
 output privateIpAddress string = nic.properties.ipConfigurations[0].properties.privateIPAddress
 
 @description('Gateway VM public IP address')
-output publicIpAddress string = enablePublicIp ? publicIp.properties.ipAddress : ''
+output publicIpAddress string = enablePublicIp ? publicIp!.properties.ipAddress : ''
 
 @description('Gateway VM public FQDN')
-output publicFqdn string = enablePublicIp ? publicIp.properties.dnsSettings.fqdn : ''
+output publicFqdn string = enablePublicIp ? publicIp!.properties.dnsSettings.fqdn : ''
 
 @description('Gateway health endpoint URL')
-output healthEndpoint string = enablePublicIp ? 'http://${publicIp.properties.dnsSettings.fqdn}/health' : 'http://${nic.properties.ipConfigurations[0].properties.privateIPAddress}/health'
+output healthEndpoint string = enablePublicIp ? 'http://${publicIp!.properties.dnsSettings.fqdn}/health' : 'http://${nic.properties.ipConfigurations[0].properties.privateIPAddress}/health'
