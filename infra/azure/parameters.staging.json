@@ -59,6 +59,24 @@
     "subnetAddressPrefix": {
       "value": "10.1.0.0/23"
     },
+    "gatewaySubnetPrefix": {
+      "value": "10.1.3.0/24"
+    },
+    "deployGatewayVm": {
+      "value": true
+    },
+    "gatewayVmSize": {
+      "value": "Standard_B1ls"
+    },
+    "gatewayVmAdminUsername": {
+      "value": "azureuser"
+    },
+    "gatewayVmSshPublicKey": {
+      "value": "ssh-rsa REPLACE-WITH-YOUR-SSH-PUBLIC-KEY"
+    },
+    "gatewayVmEnablePublicIp": {
+      "value": true
+    },
     "deployEntraApp": {
       "value": false
     },

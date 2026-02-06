@@ -69,6 +69,26 @@ param subnetAddressPrefix string = '10.0.0.0/23'
 @description('Private Endpoints subnet address prefix (CIDR notation)')
 param privateEndpointSubnetPrefix string = '10.0.2.0/24'
 
+@description('Gateway VM subnet address prefix (CIDR notation)')
+param gatewaySubnetPrefix string = '10.0.3.0/24'
+
+@description('Whether to deploy gateway VM (replaces ACA external ingress to eliminate Load Balancer costs)')
+param deployGatewayVm bool = true
+
+@description('Gateway VM size (Standard_B1ls recommended for cost optimization)')
+@allowed(['Standard_B1ls', 'Standard_B1s', 'Standard_B2s'])
+param gatewayVmSize string = 'Standard_B1ls'
+
+@description('Admin username for gateway VM')
+param gatewayVmAdminUsername string = 'azureuser'
+
+@description('SSH public key for gateway VM admin access')
+@secure()
+param gatewayVmSshPublicKey string
+
+@description('Enable public IP for gateway VM (true for external access, false for private/VPN access only)')
+param gatewayVmEnablePublicIp bool = true
+
 @description('Whether to create Microsoft Entra app registration for OAuth')
 param deployEntraApp bool = false
 
@@ -531,7 +551,9 @@ module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
     vnetAddressSpace: vnetAddressSpace
     subnetAddressPrefix: subnetAddressPrefix
     privateEndpointSubnetPrefix: privateEndpointSubnetPrefix
+    gatewaySubnetPrefix: gatewaySubnetPrefix
     enablePrivateEndpointSubnet: enablePrivateAccess
+    enableGatewaySubnet: deployGatewayVm
     tags: tags
   }
 }
@@ -696,6 +718,29 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
   ]
 }
 
+// Module: Gateway VM (replaces ACA external ingress to eliminate Load Balancer costs)
+// Deploys a small Linux VM running nginx as reverse proxy to internal Container Apps services
+// Non-null assertions (!) are safe because this module has the same conditional guard (deployContainerApps)
+module gatewayVmModule 'modules/gateway-vm.bicep' = if (deployContainerApps && deployGatewayVm) {
+  name: 'gatewayVmDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    vmSize: gatewayVmSize
+    adminUsername: gatewayVmAdminUsername
+    sshPublicKey: gatewayVmSshPublicKey
+    subnetId: vnetModule!.outputs.gatewaySubnetId
+    serviceFqdns: containerAppsModule!.outputs.serviceFqdns
+    enablePublicIp: gatewayVmEnablePublicIp
+    tags: tags
+  }
+  dependsOn: [
+    containerAppsModule
+    vnetModule
+  ]
+}
+
 // Module: Microsoft Entra App Registration (for OAuth authentication)
 // Requires deployment identity to have Application.ReadWrite.All and Directory.ReadWrite.All
 // Graph API permissions. See ENTRA_APP_AUTOMATION.md for setup instructions.
@@ -762,10 +807,15 @@ output qdrantInternalEndpoint string = (deployContainerApps && vectorStoreBacken
 // output dashboardName string = deployContainerApps ? dashboardModule!.outputs.dashboardName : ''
 // output dashboardUrl string = deployContainerApps ? dashboardModule!.outputs.dashboardUrl : ''
 output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.outputs.containerAppsEnvId : ''
-output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
+output gatewayFqdn string = deployContainerApps ? (deployGatewayVm ? gatewayVmModule!.outputs.publicFqdn : containerAppsModule!.outputs.gatewayFqdn) : ''
 output githubOAuthRedirectUri string = deployContainerApps ? containerAppsModule!.outputs.githubOAuthRedirectUri : ''
 output containerAppIds object = deployContainerApps ? containerAppsModule!.outputs.appIds : {}
 output vnetId string = deployContainerApps ? vnetModule!.outputs.vnetId : ''
+// Gateway VM outputs
+output gatewayVmName string = (deployContainerApps && deployGatewayVm) ? gatewayVmModule!.outputs.vmName : ''
+output gatewayVmPublicIp string = (deployContainerApps && deployGatewayVm) ? gatewayVmModule!.outputs.publicIpAddress : ''
+output gatewayVmPublicFqdn string = (deployContainerApps && deployGatewayVm) ? gatewayVmModule!.outputs.publicFqdn : ''
+output gatewayVmHealthEndpoint string = (deployContainerApps && deployGatewayVm) ? gatewayVmModule!.outputs.healthEndpoint : ''
 output entraAppClientId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.clientId : ''
 output entraAppTenantId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.tenantId : ''
 output entraAppObjectId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.objectId : ''
