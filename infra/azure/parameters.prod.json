@@ -56,6 +56,28 @@
     "subnetAddressPrefix": {
       "value": "10.2.0.0/23"
     },
+    "gatewaySubnetPrefix": {
+      "value": "10.2.3.0/24"
+    },
+    "deployGatewayVm": {
+      "value": true
+    },
+    "gatewayVmSize": {
+      "value": "Standard_B1s"
+    },
+    "gatewayVmAdminUsername": {
+      "value": "azureuser"
+    },
+    "gatewayVmSshPublicKey": {
+      "value": "ssh-rsa REPLACE-WITH-YOUR-SSH-PUBLIC-KEY"
+    },
+    "gatewayVmEnablePublicIp": {
+      "value": true
+    },
+    "gatewayVmSshAllowedSourceAddresses": {
+      "value": ["*"],
+      "_comment": "SECURITY: In production, ALWAYS restrict SSH to specific IP ranges, e.g., ['YOUR_OFFICE_IP/32']"
+    },
     "enablePublicNetworkAccess": {
       "value": false
     },
