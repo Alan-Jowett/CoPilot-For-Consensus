@@ -152,6 +152,17 @@ def admin_auth_service_mock():
     role_storage.get_user_roles = get_user_roles_impl
     
     svc.role_store = role_storage
+    
+    # Provide a robust default for admin authentication.
+    # Tests can override this as needed (e.g., non-admin or invalid tokens).
+    svc.validate_token = MagicMock(
+        return_value={
+            "sub": "provider:admin",
+            "email": "admin@example.com",
+            "roles": ["admin"],
+        }
+    )
+    
     return svc
 
 
@@ -177,8 +188,11 @@ class TestAdminEndpointsPropertyFuzzing:
     """Property-based fuzzing using Hypothesis for admin endpoints."""
     
     @given(
-        uid=st.text(alphabet=st.characters(blacklist_categories=("Cc", "Cs")), 
-                   min_size=1, max_size=200),
+        uid=st.text(
+            alphabet=st.characters(categories=["L", "M", "N", "P", "S", "Z"]),
+            min_size=1,
+            max_size=200,
+        ),
         role_list=st.lists(st.text(min_size=1, max_size=50), min_size=1, max_size=10)
     )
     @settings(
@@ -189,12 +203,9 @@ class TestAdminEndpointsPropertyFuzzing:
                                                        uid, role_list):
         """Property: Role assignment endpoint must handle arbitrary input gracefully.
         
-        NOTE: Blacklists control characters (Cc) and surrogates (Cs) to avoid URL
+        NOTE: Excludes control characters (Cc) and surrogates (Cs) to avoid URL
         encoding issues, as these would be rejected at the HTTP client level.
         """
-        # Mock admin token validation
-        admin_test_client.app.dependency_overrides = {}
-        
         resp = admin_test_client.post(
             f"/admin/users/{uid}/roles",
             headers={"Authorization": "Bearer admin.token.here"},
@@ -203,8 +214,8 @@ class TestAdminEndpointsPropertyFuzzing:
         
         # Must return valid HTTP status (no crashes)
         assert 100 <= resp.status_code < 600
-        # Only valid statuses: 200 (success), 400 (validation), 401/403 (auth), 404 (not found), 422 (validation)
-        assert resp.status_code in (200, 400, 401, 403, 404, 422, 500, 503)
+        # Graceful handling means no server errors (500/503)
+        assert resp.status_code in (200, 400, 401, 403, 404, 422)
     
     @given(
         query=st.text(alphabet=st.characters(categories=["L", "N", "P", "S"]), 
@@ -230,10 +241,13 @@ class TestAdminEndpointsPropertyFuzzing:
             data = resp.json()
             assert isinstance(data, dict)
             
-            # Check for XSS vulnerability: script tags should be escaped
-            resp_text = resp.text.lower()
-            if "<script" in query.lower() and "<script" in resp_text:
-                assert "&lt;script" in resp_text, "Potential XSS: script tag not escaped"
+            # Check for XSS vulnerability in JSON responses
+            # JSON APIs with Content-Type: application/json are safe from browser XSS
+            # but we verify the Content-Type header is set correctly
+            if "<script" in query.lower():
+                content_type = resp.headers.get("content-type", "")
+                assert "application/json" in content_type, \
+                    "XSS protection: JSON responses must have application/json Content-Type"
     
     @given(
         lim=st.integers(min_value=-1000, max_value=1000),
@@ -255,9 +269,9 @@ class TestAdminEndpointsPropertyFuzzing:
         # Must handle edge cases gracefully
         assert 100 <= resp.status_code < 600
         
-        # Out of range values should result in validation error
+        # FastAPI Query validators return 422 for out-of-range values
         if lim < 1 or lim > 100 or skip_val < 0:
-            assert resp.status_code in (400, 422), f"Expected validation error for limit={lim}, skip={skip_val}"
+            assert resp.status_code == 422, f"Expected FastAPI validation error (422) for limit={lim}, skip={skip_val}"
     
     @given(
         role_names=st.lists(
@@ -282,9 +296,9 @@ class TestAdminEndpointsPropertyFuzzing:
             json={"roles": role_names}
         )
         
-        # Must respond with valid status
+        # Must respond with valid status (no server errors)
         assert 100 <= resp.status_code < 600
-        assert resp.status_code in (200, 400, 401, 403, 404, 422, 500, 503)
+        assert resp.status_code in (200, 400, 401, 403, 404, 422)
 
 
 # =============================================================================
@@ -516,8 +530,11 @@ class TestAdminAuthorizationSecurity:
         assert resp.status_code == 403, "Non-admin should be forbidden"
         assert "Admin role required" in resp.json().get("detail", "")
     
-    def test_malformed_jwt_rejected(self, admin_test_client):
+    def test_malformed_jwt_rejected(self, admin_test_client, admin_auth_service_mock):
         """Security: Malformed tokens must be rejected."""
+        # Configure mock to raise exception for malformed tokens
+        admin_auth_service_mock.validate_token.side_effect = Exception("Invalid token format")
+        
         invalid_tokens = [
             "not.a.jwt",
             "onlyonepart",
@@ -560,12 +577,12 @@ class TestAdminAuthorizationSecurity:
             # Must handle safely without errors
             assert resp.status_code in (200, 400, 422), f"SQL injection payload caused unexpected status: {payload}"
     
-    def test_xss_attempts_escaped(self, admin_test_client, admin_auth_service_mock):
-        """Security: XSS payloads must be escaped in responses.
+    def test_xss_attempts_handled_safely(self, admin_test_client, admin_auth_service_mock):
+        """Security: XSS payloads must be handled safely by JSON APIs.
         
-        NOTE: This test documents a potential XSS vulnerability where script tags
-        are not escaped in JSON responses. JSON responses are generally safe when
-        consumed by JSON.parse(), but may be vulnerable if directly embedded in HTML.
+        JSON APIs are protected from XSS by the Content-Type: application/json header,
+        which prevents browsers from treating the response as HTML. This test verifies
+        that the header is set correctly.
         """
         admin_auth_service_mock.validate_token.return_value = {
             "sub": "provider:admin",
@@ -590,16 +607,11 @@ class TestAdminAuthorizationSecurity:
             # Verify response is received successfully
             assert resp.status_code in (200, 400, 422), f"Should handle XSS payload: {payload}"
             
-            # Document XSS finding: JSON responses contain unescaped HTML
-            # This is generally safe when consumed via JSON.parse() but could be
-            # vulnerable if the JSON is directly embedded in HTML without proper
-            # Content-Type headers or if consumed by vulnerable parsers.
-            if "<script" in payload.lower() and resp.status_code == 200:
-                resp_text = resp.text.lower()
-                if "<script" in resp_text:
-                    # Log finding but don't fail - this is expected for JSON APIs
-                    # The Content-Type: application/json header protects against browser XSS
-                    pass
+            # Verify Content-Type header provides XSS protection
+            if resp.status_code == 200:
+                content_type = resp.headers.get("content-type", "")
+                assert "application/json" in content_type, \
+                    "JSON responses must have application/json Content-Type for XSS protection"
     
     def test_path_traversal_blocked(self, admin_test_client, admin_auth_service_mock):
         """Security: Path traversal attempts must be blocked."""
@@ -686,15 +698,16 @@ class TestAdminAuthorizationSecurity:
             json=roles_payload
         )
         
-        # Second identical assignment
+        # Second identical assignment - test idempotency/replay detection
         resp2 = admin_test_client.post(
             f"/admin/users/{target_user}/roles",
             headers={"Authorization": "Bearer admin.token.here"},
             json=roles_payload
         )
         
-        # At least one should succeed, duplicate might be rejected or idempotent
+        # First should succeed, second might be rejected (replay) or succeed (idempotent)
         assert resp1.status_code in (200, 400, 404), "First assignment should process"
+        assert resp2.status_code in (200, 400, 404), "Second assignment should be handled consistently"
     
     def test_privilege_escalation_via_self_assignment(self, admin_test_client, admin_auth_service_mock):
         """Security: Users should not escalate their own privileges without proper auth."""
@@ -754,8 +767,9 @@ class TestAdminAuthorizationSecurity:
                 json={"roles": role_list}
             )
             
-            # Should validate and reject invalid roles
-            assert resp.status_code in (400, 404, 422), f"Invalid role should be rejected: {role_list}"
+            # Invalid role names are validation errors, but endpoint returns 404 per auth/main.py:1010
+            # This documents current API behavior (ValueError → 404)
+            assert resp.status_code in (404, 400, 422), f"Invalid role should be rejected: {role_list}"
     
     def test_search_with_empty_term_rejected(self, admin_test_client, admin_auth_service_mock):
         """Security: Empty search terms should be rejected."""
