@@ -340,13 +340,19 @@ class TestAdminEndpointsSchemaFuzzing:
             }
         }
         
+        # Load schema
         schema_obj = from_dict(schema_spec)
         assert schema_obj is not None
         
-        # Verify schema parsing
-        ops = list(schema_obj.get_all_operations())
+        # Verify schema loaded correctly
+        ops = []
+        for op_result in schema_obj.get_all_operations():
+            op = op_result.ok()
+            if op is not None:
+                ops.append(op)
+        
         assert len(ops) > 0
-        assert any(op.ok().path == "/admin/users/{user_id}/roles" for op in ops)
+        assert any(op.path == "/admin/users/{user_id}/roles" for op in ops)
     
     def test_user_search_openapi_compliance(self):
         """Validate user search endpoint against OpenAPI schema."""
@@ -397,7 +403,13 @@ class TestAdminEndpointsSchemaFuzzing:
         schema_obj = from_dict(schema_spec)
         assert schema_obj is not None
         
-        ops = list(schema_obj.get_all_operations())
+        # Verify schema loaded correctly
+        ops = []
+        for op_result in schema_obj.get_all_operations():
+            op = op_result.ok()
+            if op is not None:
+                ops.append(op)
+        
         assert len(ops) > 0
     
     def test_pending_assignments_openapi_compliance(self):
@@ -450,7 +462,13 @@ class TestAdminEndpointsSchemaFuzzing:
         schema_obj = from_dict(schema_spec)
         assert schema_obj is not None
         
-        ops = list(schema_obj.get_all_operations())
+        # Verify schema loaded correctly
+        ops = []
+        for op_result in schema_obj.get_all_operations():
+            op = op_result.ok()
+            if op is not None:
+                ops.append(op)
+        
         assert len(ops) > 0
 
 
