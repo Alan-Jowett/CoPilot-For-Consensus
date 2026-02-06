@@ -90,6 +90,8 @@ jobs:
           pytest tests/test_ingestion_upload_properties.py -v --timeout=300 --junit-xml=ingestion-hypothesis-results.xml
           # Run reporting query params property tests
           pytest tests/test_reporting_query_params_fuzzing.py::TestReportingQueryParamsProperties -v --timeout=300 --junit-xml=reporting-hypothesis-results.xml
+          # Run auth admin endpoints property tests
+          pytest tests/test_auth_admin_fuzzing.py::TestAdminEndpointsPropertyFuzzing -v --timeout=300 --junit-xml=auth-admin-hypothesis-results.xml
           echo "::endgroup::"
         continue-on-error: true
 
@@ -110,6 +112,8 @@ jobs:
           pytest tests/test_schemathesis_example.py tests/test_auth_callback_fuzzing.py::TestCallbackSchemathesis -v --timeout=300 --junit-xml=schemathesis-results.xml
           # Run reporting query params schema tests
           pytest tests/test_reporting_query_params_fuzzing.py::TestReportingSchemaFuzzing -v --timeout=300 --junit-xml=reporting-schema-results.xml
+          # Run auth admin endpoints schema tests
+          pytest tests/test_auth_admin_fuzzing.py::TestAdminEndpointsSchemaFuzzing -v --timeout=300 --junit-xml=auth-admin-schema-results.xml
           echo "::endgroup::"
         continue-on-error: true
       
@@ -128,6 +132,15 @@ jobs:
           echo "::group::Running Reporting Query Params Security Tests"
           cd fuzzing
           pytest tests/test_reporting_query_params_fuzzing.py::TestReportingSecurityEdgeCases -v --timeout=300 --junit-xml=reporting-edge-cases-results.xml
+          echo "::endgroup::"
+        continue-on-error: true
+      
+      - name: Run auth admin endpoints security tests
+        id: auth_admin_security
+        run: |
+          echo "::group::Running Auth Admin Endpoints Security Tests"
+          cd fuzzing
+          pytest tests/test_auth_admin_fuzzing.py::TestAdminAuthorizationSecurity -v --timeout=300 --junit-xml=auth-admin-security-results.xml
           echo "::endgroup::"
         continue-on-error: true
 
