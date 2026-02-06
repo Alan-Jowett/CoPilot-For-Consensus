@@ -341,7 +341,7 @@ Priority: **P1** (DoS risk, potential injection vulnerabilities)
 
 **Security Focus**: Protects against:
 - Malformed events causing crashes or poison messages
-- DoS attacks via very large payloads (100KB+ strings, 10K+ arrays, deep nesting)
+- DoS attacks via large payloads (tested up to ~8KB strings and 2K-element arrays within Hypothesis constraints, representative of larger attack payloads)
 - Schema validation bypasses (missing fields, extra fields, type confusion)
 - Event type injection (SQL injection, XSS, command injection in event_type)
 - UUID injection (malformed UUIDs, SQL injection in event_id)

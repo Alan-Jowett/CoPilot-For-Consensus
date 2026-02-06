@@ -24,7 +24,6 @@ Usage:
     pytest tests/test_message_bus_event_fuzzing.py -v
 """
 
-import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -44,7 +43,6 @@ from copilot_message_bus.validating_publisher import (  # noqa: E402
     ValidatingEventPublisher,
 )
 from copilot_message_bus.validating_subscriber import (  # noqa: E402
-    SubscriberValidationError,
     ValidatingEventSubscriber,
 )
 from copilot_message_bus.noop_publisher import NoopPublisher  # noqa: E402
@@ -187,7 +185,7 @@ def small_data_payloads() -> st.SearchStrategy[dict[str, Any]]:
     """Generate small valid data payloads."""
     return st.fixed_dictionaries({
         "archive_id": st.text(
-            alphabet=st.characters(min_codepoint=48, max_codepoint=102),  # 0-9, a-f
+            alphabet="0123456789abcdef",  # hex chars matching ^[0-9a-f]{16,64}$
             min_size=16,
             max_size=64,
         ),
