@@ -3,7 +3,7 @@
 
 # Azure-optimized Dockerfile for gateway service
 # Already optimized with nginx:alpine base image
-FROM nginx:1.29.4-alpine@sha256:7d7a15b8a280c661051955f14c2b91fed3e23724ddba18d2f53e8b44e74ab37a
+FROM nginx:1.29.5-alpine@sha256:1d13701a5f9f3fb01aaa88cef2344d65b6b5bf6b7d9fa4cf0dca557a8d7702ba
 
 # Copy the nginx configuration template
 # This will be processed by 30-substitute-env.sh entrypoint to inject backend URLs

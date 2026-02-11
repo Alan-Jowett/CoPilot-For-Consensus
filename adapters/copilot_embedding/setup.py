@@ -51,6 +51,8 @@ setup(
             "openai>=1.0.0",
         ],
         "huggingface": [
+            # transformers 5.0.0 has a bug: NameError: name 'nn' is not defined
+            # See: https://github.com/huggingface/transformers/issues/43784
             "transformers>=4.0.0,<5.0.0",
             "torch>=2.0.0",
         ],
@@ -58,6 +60,7 @@ setup(
         "all": [
             "sentence-transformers>=2.0.0",
             "openai>=1.0.0",
+            # transformers 5.0.0 has a bug: NameError: name 'nn' is not defined
             "transformers>=4.0.0,<5.0.0",
             "torch>=2.0.0",
         ],
@@ -67,6 +70,7 @@ setup(
             "pytest-cov>=4.0.0",
             "sentence-transformers>=2.0.0",
             "openai>=1.0.0",
+            # transformers 5.0.0 has a bug: NameError: name 'nn' is not defined
             "transformers>=4.0.0,<5.0.0",
             "torch>=2.0.0",
         ],
