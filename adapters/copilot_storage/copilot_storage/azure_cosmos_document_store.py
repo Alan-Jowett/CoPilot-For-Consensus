@@ -493,7 +493,9 @@ class AzureCosmosDocumentStore(DocumentStore):
                     parameters.append({"name": param_name, "value": value})
 
             # Add sorting if requested
-            if sort_by and self._is_valid_field_name(sort_by):
+            if sort_by:
+                if not self._is_valid_field_name(sort_by):
+                    raise DocumentStoreError(f"Invalid sort_by field name '{sort_by}'")
                 order = "DESC" if sort_order == "desc" else "ASC"
                 query += f" ORDER BY c.{sort_by} {order}"
 

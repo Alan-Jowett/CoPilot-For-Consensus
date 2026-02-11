@@ -51,7 +51,8 @@
       "indexes": [
         { "keys": { "thread_id": 1 }, "options": { "name": "thread_id_idx" } },
         { "keys": { "summary_type": 1 }, "options": { "name": "summary_type_idx" } },
-        { "keys": { "generated_at": 1 }, "options": { "name": "generated_at_idx" } }
+        { "keys": { "generated_at": 1 }, "options": { "name": "generated_at_idx" } },
+        { "keys": { "first_message_date": 1 }, "options": { "name": "first_message_date_idx" } }
       ]
     },
     {

@@ -253,11 +253,21 @@ class ReportingService:
             if thread_docs:
                 first_message_date = thread_docs[0].get("first_message_date")
                 last_message_date = thread_docs[0].get("last_message_date")
+        except StorageDocumentNotFoundError:
+            # Thread not found — proceed without denormalized dates
+            logger.warning(
+                "Thread %s not found when fetching dates for summary denormalization",
+                thread_id,
+            )
         except Exception as e:
-            logger.debug(
-                f"Could not fetch thread {thread_id} dates for summary denormalization: {e}",
+            # Transient/unexpected error — re-raise so the event can be retried
+            logger.error(
+                "Error fetching thread %s dates for summary denormalization: %s",
+                thread_id,
+                e,
                 exc_info=True,
             )
+            raise
 
         summary_doc = {
             "_id": report_id,

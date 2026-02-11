@@ -135,6 +135,10 @@ class InMemoryDocumentStore(DocumentStore):
                 # Use deep copy to prevent external mutations affecting stored data
                 results.append(copy.deepcopy(doc))
 
+                # When no sort is requested, stop once we have enough results
+                if sort_by is None and len(results) >= limit:
+                    break
+
         if sort_by:
             reverse = sort_order == "desc"
             results.sort(
