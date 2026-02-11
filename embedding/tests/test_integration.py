@@ -41,7 +41,7 @@ def _add_in_operator_support(store):
                 for doc_id in doc_ids:
                     results.extend(original_query(collection, {"_id": doc_id}, limit))
                 return results[:limit]
-        return original_query(collection, filter_dict, limit)
+        return original_query(collection, filter_dict, limit, sort_by=sort_by, sort_order=sort_order)
 
     return query_with_in_support
 

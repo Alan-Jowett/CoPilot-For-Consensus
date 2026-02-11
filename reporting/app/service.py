@@ -298,13 +298,33 @@ class ReportingService:
         # Store summary
         # Idempotency: if the summary already exists, skip insert to avoid retries
         try:
-            existing = self.document_store.query_documents(
-                "summaries",
-                filter_dict={"_id": report_id},
-                limit=1,
+            existing = list(
+                self.document_store.query_documents(
+                    "summaries",
+                    filter_dict={"_id": report_id},
+                    limit=1,
+                )
             )
             if existing:
                 logger.info(f"Summary {report_id} already stored; skipping insert")
+                # Backfill denormalized date fields if a prior attempt persisted
+                # the summary without them (e.g. thread didn't exist yet).
+                existing_doc = existing[0]
+                if (
+                    first_message_date is not None
+                    and existing_doc.get("first_message_date") is None
+                ):
+                    logger.info(
+                        f"Backfilling date fields on summary {report_id}"
+                    )
+                    self.document_store.update_document(
+                        "summaries",
+                        report_id,
+                        {
+                            "first_message_date": first_message_date,
+                            "last_message_date": last_message_date,
+                        },
+                    )
             else:
                 logger.info(f"Storing summary {report_id} for thread {thread_id}")
                 self.document_store.insert_document("summaries", summary_doc)

@@ -140,13 +140,30 @@ class InMemoryDocumentStore(DocumentStore):
                     break
 
         if sort_by:
+            if sort_order not in ("asc", "desc"):
+                from copilot_storage.document_store import DocumentStoreError
+
+                raise DocumentStoreError(
+                    f"Invalid sort_order '{sort_order}': must be 'asc' or 'desc'"
+                )
+
             reverse = sort_order == "desc"
-            # Use tuple key (is_none, value) so None values sort to the end
-            # regardless of the value type, avoiding TypeError on mixed types.
-            results.sort(
-                key=lambda d: (d.get(sort_by) is None, d.get(sort_by, "")),
+
+            # Two-phase stable sort: documents with None/missing sort_by
+            # values are always placed at the end, independent of direction.
+            non_none_results: list[dict[str, Any]] = []
+            none_results: list[dict[str, Any]] = []
+            for _doc in results:
+                if _doc.get(sort_by) is None:
+                    none_results.append(_doc)
+                else:
+                    non_none_results.append(_doc)
+
+            non_none_results.sort(
+                key=lambda d: str(d.get(sort_by, "")),
                 reverse=reverse,
             )
+            results = non_none_results + none_results
 
         results = results[:limit]
 

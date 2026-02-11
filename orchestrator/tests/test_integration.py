@@ -53,7 +53,7 @@ def create_query_with_in_support(original_query):
                 results.extend(msg_results)
             return results[:limit]  # Respect limit
         else:
-            return original_query(collection, filter_dict, limit)
+            return original_query(collection, filter_dict, limit, sort_by=sort_by, sort_order=sort_order)
 
     return custom_query
 
