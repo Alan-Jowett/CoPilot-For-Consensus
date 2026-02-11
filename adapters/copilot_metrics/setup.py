@@ -44,15 +44,15 @@ setup(
         ],
         "azure": [
             # Pin to the current beta until a stable 1.x release is available
-            # azure-monitor-opentelemetry-exporter==1.0.0b47 requires opentelemetry==1.39
-            "azure-monitor-opentelemetry-exporter==1.0.0b47",
+            # azure-monitor-opentelemetry-exporter==1.0.0b48 requires opentelemetry==1.39
+            "azure-monitor-opentelemetry-exporter==1.0.0b48",
             "opentelemetry-api==1.39.1",
             "opentelemetry-sdk==1.39.1",
         ],
         # All optional backends
         "all": [
             "prometheus-client>=0.19.0",
-            "azure-monitor-opentelemetry-exporter==1.0.0b47",
+            "azure-monitor-opentelemetry-exporter==1.0.0b48",
             "opentelemetry-api==1.39.1",
             "opentelemetry-sdk==1.39.1",
         ],
@@ -61,7 +61,7 @@ setup(
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
             "prometheus-client>=0.19.0",
-            "azure-monitor-opentelemetry-exporter==1.0.0b47",
+            "azure-monitor-opentelemetry-exporter==1.0.0b48",
             "opentelemetry-api==1.39.1",
             "opentelemetry-sdk==1.39.1",
         ],
