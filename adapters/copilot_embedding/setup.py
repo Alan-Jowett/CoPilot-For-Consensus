@@ -51,14 +51,14 @@ setup(
             "openai>=1.0.0",
         ],
         "huggingface": [
-            "transformers>=4.0.0,<5.0.0",
+            "transformers>=4.0.0,<6.0.0",
             "torch>=2.0.0",
         ],
         # All optional backends
         "all": [
             "sentence-transformers>=2.0.0",
             "openai>=1.0.0",
-            "transformers>=4.0.0,<5.0.0",
+            "transformers>=4.0.0,<6.0.0",
             "torch>=2.0.0",
         ],
         # Test extra includes all drivers for factory tests
@@ -67,7 +67,7 @@ setup(
             "pytest-cov>=4.0.0",
             "sentence-transformers>=2.0.0",
             "openai>=1.0.0",
-            "transformers>=4.0.0,<5.0.0",
+            "transformers>=4.0.0,<6.0.0",
             "torch>=2.0.0",
         ],
     },
