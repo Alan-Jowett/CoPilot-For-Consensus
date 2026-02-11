@@ -257,9 +257,7 @@ class ReportingService:
             # Transient/unexpected error — re-raise so the event can be retried.
             # Persisting a summary with null dates would cause it to sort incorrectly.
             logger.error(
-                "Error fetching thread %s dates for summary denormalization: %s",
-                thread_id,
-                e,
+                f"Error fetching thread {thread_id} dates for summary denormalization: {e}",
                 exc_info=True,
             )
             raise
