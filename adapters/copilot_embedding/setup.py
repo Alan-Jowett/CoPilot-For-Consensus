@@ -53,7 +53,7 @@ setup(
         "huggingface": [
             # transformers 5.0.0 has a bug: NameError: name 'nn' is not defined
             # See: https://github.com/huggingface/transformers/issues/43784
-            "transformers>=4.0.0,<5.0.0",
+            "transformers>=4.0.0,<6.0.0",
             "torch>=2.0.0",
         ],
         # All optional backends
@@ -61,7 +61,7 @@ setup(
             "sentence-transformers>=2.0.0",
             "openai>=1.0.0",
             # transformers 5.0.0 has a bug: NameError: name 'nn' is not defined
-            "transformers>=4.0.0,<5.0.0",
+            "transformers>=4.0.0,<6.0.0",
             "torch>=2.0.0",
         ],
         # Test extra includes all drivers for factory tests
@@ -71,7 +71,7 @@ setup(
             "sentence-transformers>=2.0.0",
             "openai>=1.0.0",
             # transformers 5.0.0 has a bug: NameError: name 'nn' is not defined
-            "transformers>=4.0.0,<5.0.0",
+            "transformers>=4.0.0,<6.0.0",
             "torch>=2.0.0",
         ],
     },
