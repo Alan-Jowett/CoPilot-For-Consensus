@@ -267,9 +267,9 @@ class ValidatingDocumentStore(DocumentStore):
             >>>
             >>> # Set up wrapper at initialization time, BEFORE any queries
             >>> def custom_query_wrapper(original_query):
-            ...     def wrapped_query(collection, filter_dict, limit=100):
+            ...     def wrapped_query(collection, filter_dict, limit=100, sort_by=None, sort_order="desc"):
             ...         # Custom validation logic here
-            ...         return original_query(collection, filter_dict, limit)
+            ...         return original_query(collection, filter_dict, limit, sort_by=sort_by, sort_order=sort_order)
             ...     return wrapped_query
             >>>
             >>> store.set_query_wrapper(custom_query_wrapper)

@@ -160,7 +160,7 @@ class InMemoryDocumentStore(DocumentStore):
                     non_none_results.append(_doc)
 
             non_none_results.sort(
-                key=lambda d: str(d.get(sort_by, "")),
+                key=lambda d: d.get(sort_by),
                 reverse=reverse,
             )
             results = non_none_results + none_results

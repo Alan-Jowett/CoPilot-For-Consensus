@@ -577,6 +577,8 @@ class ReportingService:
         # from their thread, so we can sort at the DB level directly.
         db_sort_by = None
         db_sort_order = sort_order or "desc"
+        if db_sort_order not in ("asc", "desc"):
+            db_sort_order = "desc"
         if sort_by == "generated_at":
             db_sort_by = "generated_at"
         elif sort_by == "thread_start_date":

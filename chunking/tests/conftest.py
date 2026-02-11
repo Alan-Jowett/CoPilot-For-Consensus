@@ -117,7 +117,7 @@ def document_store():
                 return results[:limit]
 
         # Default: use original query
-        return original_query(collection, filter_dict, limit)
+        return original_query(collection, filter_dict, limit, sort_by=sort_by, sort_order=sort_order)
 
     # Replace the query method on the document store
     document_store.query_documents = enhanced_query
