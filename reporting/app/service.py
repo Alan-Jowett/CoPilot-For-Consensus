@@ -256,9 +256,8 @@ class ReportingService:
                 raise RetryDocumentNotFoundError(
                     f"Thread {thread_id} not found for denormalization; will retry"
                 )
-            if thread_docs:
-                first_message_date = thread_docs[0].get("first_message_date")
-                last_message_date = thread_docs[0].get("last_message_date")
+            first_message_date = thread_docs[0].get("first_message_date")
+            last_message_date = thread_docs[0].get("last_message_date")
         except RetryDocumentNotFoundError:
             raise
         except Exception as e:
@@ -347,19 +346,8 @@ class ReportingService:
         # Update thread document with summary_id to mark as complete
         logger.info(f"Updating thread {thread_id} with summary_id {report_id}")
         # Threads use thread_id as document _id; update by ID.
-        # Reuse the thread lookup from above if available; otherwise re-fetch.
+        # thread_docs is guaranteed non-empty (we raise RetryDocumentNotFoundError above if not).
         try:
-            if not thread_docs:
-                thread_docs = list(
-                    self.document_store.query_documents(
-                        "threads",
-                        filter_dict={"_id": thread_id},
-                        limit=1,
-                    )
-                )
-            if not thread_docs:
-                raise RetryDocumentNotFoundError(f"Thread {thread_id} not found in database")
-
             self.document_store.update_document(
                 "threads",
                 thread_id,
