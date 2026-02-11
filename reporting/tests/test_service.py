@@ -644,6 +644,34 @@ def test_query_documents_uses_filter_dict_parameter(reporting_service, mock_docu
     assert "query" not in call_args[1], "query_documents should not use deprecated 'query' parameter"
 
 
+def test_get_reports_passes_sort_by_to_query_documents(reporting_service, mock_document_store):
+    """Test that sort_by=thread_start_date maps to first_message_date at DB level."""
+    mock_document_store.query_documents.return_value = []
+
+    # sort_by=thread_start_date should map to sort_by=first_message_date
+    reporting_service.get_reports(sort_by="thread_start_date", sort_order="desc")
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["sort_by"] == "first_message_date"
+    assert call_args[1]["sort_order"] == "desc"
+
+    mock_document_store.query_documents.reset_mock()
+    mock_document_store.query_documents.return_value = []
+
+    # sort_by=generated_at should pass through as-is
+    reporting_service.get_reports(sort_by="generated_at", sort_order="asc")
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["sort_by"] == "generated_at"
+    assert call_args[1]["sort_order"] == "asc"
+
+    mock_document_store.query_documents.reset_mock()
+    mock_document_store.query_documents.return_value = []
+
+    # No sort_by should pass None
+    reporting_service.get_reports()
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["sort_by"] is None
+
+
 def test_get_reports_with_message_date_filters_inclusive_overlap(reporting_service, mock_document_store):
     """Test that get_reports supports message date filtering with inclusive overlap."""
 

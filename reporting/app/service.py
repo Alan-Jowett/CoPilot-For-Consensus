@@ -241,6 +241,7 @@ class ReportingService:
         # This enables efficient DB-level sorting by thread date in get_reports().
         first_message_date = None
         last_message_date = None
+        thread_docs: list[dict[str, Any]] = []
         try:
             thread_docs = list(
                 self.document_store.query_documents(
@@ -252,8 +253,11 @@ class ReportingService:
             if thread_docs:
                 first_message_date = thread_docs[0].get("first_message_date")
                 last_message_date = thread_docs[0].get("last_message_date")
-        except Exception:
-            logger.debug(f"Could not fetch thread {thread_id} dates for summary denormalization")
+        except Exception as e:
+            logger.debug(
+                f"Could not fetch thread {thread_id} dates for summary denormalization: {e}",
+                exc_info=True,
+            )
 
         summary_doc = {
             "_id": report_id,

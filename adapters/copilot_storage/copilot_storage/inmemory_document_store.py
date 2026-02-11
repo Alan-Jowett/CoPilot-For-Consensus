@@ -137,7 +137,10 @@ class InMemoryDocumentStore(DocumentStore):
 
         if sort_by:
             reverse = sort_order == "desc"
-            results.sort(key=lambda d: d.get(sort_by, ""), reverse=reverse)
+            results.sort(
+                key=lambda d: "" if d.get(sort_by) is None else d.get(sort_by, ""),
+                reverse=reverse,
+            )
 
         results = results[:limit]
 
