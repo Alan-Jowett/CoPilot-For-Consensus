@@ -11,7 +11,7 @@ from typing import Any
 
 from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_Inmemory
 
-from .document_store import DocumentAlreadyExistsError, DocumentNotFoundError, DocumentStore
+from .document_store import DocumentAlreadyExistsError, DocumentNotFoundError, DocumentStore, DocumentStoreError
 from .schema_registry import sanitize_document, sanitize_documents
 
 logger = logging.getLogger(__name__)
@@ -141,8 +141,6 @@ class InMemoryDocumentStore(DocumentStore):
 
         if sort_by:
             if sort_order not in ("asc", "desc"):
-                from copilot_storage.document_store import DocumentStoreError
-
                 raise DocumentStoreError(
                     f"Invalid sort_order '{sort_order}': must be 'asc' or 'desc'"
                 )

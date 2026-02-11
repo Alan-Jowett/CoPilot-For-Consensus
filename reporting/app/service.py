@@ -317,9 +317,9 @@ class ReportingService:
                 # Backfill denormalized date fields if a prior attempt persisted
                 # the summary without them (e.g. thread didn't exist yet).
                 existing_doc = existing[0]
-                if (
-                    first_message_date is not None
-                    and existing_doc.get("first_message_date") is None
+                if first_message_date is not None and (
+                    existing_doc.get("first_message_date") is None
+                    or existing_doc.get("last_message_date") is None
                 ):
                     logger.info(
                         f"Backfilling date fields on summary {report_id}"

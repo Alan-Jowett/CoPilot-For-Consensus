@@ -568,7 +568,7 @@ def test_handle_summary_complete_error_handling(
 
     def query_side_effect(collection, filter_dict, limit=100, sort_by=None, sort_order="desc"):
         if collection == "threads":
-            return [{"_id": thread_id, "first_message_date": "2025-01-01", "last_message_date": "2025-01-02"}]
+            return [{"_id": thread_id, "first_message_date": "2025-01-01T00:00:00Z", "last_message_date": "2025-01-02T00:00:00Z"}]
         if collection == "summaries":
             return []
         return []
