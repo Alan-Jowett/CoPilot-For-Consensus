@@ -339,6 +339,18 @@ module azureMonitorModule 'modules/azuremonitor.bicep' = if (deployContainerApps
   }
 }
 
+// Module: Azure Portal Dashboard for OpenTelemetry metrics visualization
+module dashboardModule 'modules/dashboard.bicep' = if (deployContainerApps) {
+  name: 'dashboardDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    appInsightsResourceId: azureMonitorModule!.outputs.appInsightsId
+    tags: tags
+  }
+}
+
 // ========================================
 // Cross-RG RBAC: Grant Env identities access to Core Key Vault
 // ========================================
@@ -757,10 +769,10 @@ output qdrantAppName string = (deployContainerApps && vectorStoreBackend == 'qdr
 output qdrantInternalEndpoint string = (deployContainerApps && vectorStoreBackend == 'qdrant') ? containerAppsModule!.outputs.qdrantInternalEndpoint : ''
 // Application Insights outputs disabled - Log Analytics workspace removed for cost savings
 // output appInsightsId string = deployContainerApps ? appInsightsModule!.outputs.appInsightsId : ''
-// Dashboard outputs disabled - depends on Log Analytics workspace
-// output dashboardId string = deployContainerApps ? dashboardModule!.outputs.dashboardId : ''
-// output dashboardName string = deployContainerApps ? dashboardModule!.outputs.dashboardName : ''
-// output dashboardUrl string = deployContainerApps ? dashboardModule!.outputs.dashboardUrl : ''
+// Dashboard outputs
+output dashboardId string = deployContainerApps ? dashboardModule!.outputs.dashboardId : ''
+output dashboardName string = deployContainerApps ? dashboardModule!.outputs.dashboardName : ''
+output dashboardUrl string = deployContainerApps ? dashboardModule!.outputs.dashboardUrl : ''
 output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.outputs.containerAppsEnvId : ''
 output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
 output githubOAuthRedirectUri string = deployContainerApps ? containerAppsModule!.outputs.githubOAuthRedirectUri : ''

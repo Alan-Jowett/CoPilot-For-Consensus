@@ -41,9 +41,9 @@ The dashboard includes the following tiles:
 
 ### 5. Custom Metrics - Service Processing Rates
 - **Type**: Line chart
-- **Data**: Service-specific counters (e.g., `ingestion_files_total`, `parsing_messages_parsed_total`)
+- **Data**: Service-specific counters (e.g., `parsing.parsing_messages_parsed_total`, `chunking.chunking_chunks_created_total`)
 - **Source**: Application Insights `customMetrics` table
-- **Filter**: Metrics ending with `_total` or `_processed_total`
+- **Filter**: Metrics ending with `_total` or `_processed_total` (excludes retry and transition metrics)
 
 ### 6. Custom Metrics - Service Durations
 - **Type**: Line chart
@@ -55,7 +55,27 @@ The dashboard includes the following tiles:
 - **Type**: Stacked area chart
 - **Data**: Service-specific failure counters
 - **Source**: Application Insights `customMetrics` table
-- **Filter**: Metrics ending with `_failures_total`, `_failed_total`, or `_errors_total`
+- **Filter**: Metrics ending with `_failures_total`, `_failed_total`, `_errors_total`, or `_non_retryable_errors_total`
+
+### 8. Pipeline Throughput
+- **Type**: Line chart
+- **Data**: Per-stage processing rates showing flow through the pipeline
+- **Source**: Application Insights `customMetrics` table
+- **Metrics**: `parsing_archives_processed_total`, `chunking_messages_processed_total`, `embedding_chunks_processed_total`, `orchestrator_summary_triggered_total`, `summarization_llm_calls_total`, `reporting_events_total`
+- **Split by**: Pipeline stage (numbered 1-6 for ordering)
+
+### 9. LLM Token Usage
+- **Type**: Line chart
+- **Data**: Summarization token consumption and LLM call count over time
+- **Source**: Application Insights `customMetrics` table
+- **Metrics**: `summarization_tokens_total`, `summarization_llm_calls_total`
+
+### 10. Retry Rates
+- **Type**: Stacked area chart
+- **Data**: Event retry attempts per service
+- **Source**: Application Insights `customMetrics` table
+- **Filter**: Metrics ending with `_event_retry_attempts_total`
+- **Split by**: Service name
 
 ## Deployment
 
@@ -127,7 +147,7 @@ To add a new metric tile to the dashboard:
         Query: '''
 customMetrics
 | where timestamp > ago(1h)
-| where name == "copilot.ingestion_files_total"
+| where name == "ingestion.ingestion_files_total"
 | summarize FileCount = sum(value) by bin(timestamp, 5m)
 | render timechart
 '''
@@ -157,7 +177,7 @@ customMetrics
     {
       name: 'ComponentId'
       value: {
-        ResourceId: logAnalyticsWorkspaceResourceId
+        ResourceId: appInsightsResourceId
       }
     }
     {
@@ -202,7 +222,7 @@ See [metrics-catalog.md](../../docs/observability/metrics-catalog.md) for the co
 ### Metric Naming Convention
 
 - **Prometheus/Pushgateway**: `copilot_<metric_name>` (e.g., `copilot_parsing_duration_seconds`)
-- **Azure Monitor/OpenTelemetry**: `copilot.<metric_name>` (e.g., `copilot.parsing_duration_seconds`)
+- **Azure Monitor/OpenTelemetry**: `<service>.<metric_name>` (e.g., `parsing.parsing_duration_seconds`, `embedding.embedding_chunks_processed_total`)
 
 ### Data Sources
 
