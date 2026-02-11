@@ -618,7 +618,9 @@ customMetrics
     "summarization.summarization_llm_calls_total"
   )
 | extend MetricLabel = case(
-    name == "summarization.summarization_tokens_total", "Tokens",
+    name == "summarization.summarization_tokens_total" and tostring(customDimensions.type) == "prompt", "Prompt Tokens",
+    name == "summarization.summarization_tokens_total" and tostring(customDimensions.type) == "completion", "Completion Tokens",
+    name == "summarization.summarization_tokens_total", "Tokens (unknown type)",
     name == "summarization.summarization_llm_calls_total", "LLM Calls",
     name)
 | summarize Total = sum(value) by bin(timestamp, 5m), MetricLabel

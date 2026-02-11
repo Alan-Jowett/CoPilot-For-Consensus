@@ -61,14 +61,14 @@ The dashboard includes the following tiles:
 - **Type**: Line chart
 - **Data**: Per-stage processing rates showing flow through the pipeline
 - **Source**: Application Insights `customMetrics` table
-- **Metrics**: `parsing_archives_processed_total`, `chunking_messages_processed_total`, `embedding_chunks_processed_total`, `orchestrator_summary_triggered_total`, `summarization_llm_calls_total`, `reporting_events_total`
+- **Metrics**: `parsing.parsing_archives_processed_total`, `chunking.chunking_messages_processed_total`, `embedding.embedding_chunks_processed_total`, `orchestrator.orchestrator_summary_triggered_total`, `summarization.summarization_llm_calls_total`, `reporting.reporting_events_total`
 - **Split by**: Pipeline stage (numbered 1-6 for ordering)
 
 ### 9. LLM Token Usage
 - **Type**: Line chart
 - **Data**: Summarization token consumption and LLM call count over time
 - **Source**: Application Insights `customMetrics` table
-- **Metrics**: `summarization_tokens_total`, `summarization_llm_calls_total`
+- **Metrics**: `summarization.summarization_tokens_total`, `summarization.summarization_llm_calls_total`
 
 ### 10. Retry Rates
 - **Type**: Stacked area chart
@@ -172,7 +172,7 @@ customMetrics
   inputs: [
     {
       name: 'resourceTypeMode'
-      value: 'workspace'
+      value: 'components'
     }
     {
       name: 'ComponentId'
