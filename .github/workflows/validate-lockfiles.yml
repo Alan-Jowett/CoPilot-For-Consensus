@@ -40,7 +40,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install pip-tools
-        run: pip install pip-tools==7.5.2
+        run: pip install "pip<25" pip-tools==7.5.2
 
       - name: Check if requirements.in exists
         id: check-in-file
