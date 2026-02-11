@@ -496,6 +496,10 @@ class AzureCosmosDocumentStore(DocumentStore):
             if sort_by:
                 if not self._is_valid_field_name(sort_by):
                     raise DocumentStoreError(f"Invalid sort_by field name '{sort_by}'")
+                if sort_order not in ("asc", "desc"):
+                    raise DocumentStoreError(
+                        f"Invalid sort_order '{sort_order}': must be 'asc' or 'desc'"
+                    )
                 order = "DESC" if sort_order == "desc" else "ASC"
                 query += f" ORDER BY c.{sort_by} {order}"
 

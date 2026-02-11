@@ -276,6 +276,10 @@ class MongoDocumentStore(DocumentStore):
             if sort_by:
                 import pymongo
 
+                if sort_order not in ("asc", "desc"):
+                    raise DocumentStoreError(
+                        f"Invalid sort_order '{sort_order}': must be 'asc' or 'desc'"
+                    )
                 direction = pymongo.DESCENDING if sort_order == "desc" else pymongo.ASCENDING
                 cursor = cursor.sort(sort_by, direction)
             cursor = cursor.limit(limit)

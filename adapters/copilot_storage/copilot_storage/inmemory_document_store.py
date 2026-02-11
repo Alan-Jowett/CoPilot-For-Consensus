@@ -141,8 +141,10 @@ class InMemoryDocumentStore(DocumentStore):
 
         if sort_by:
             reverse = sort_order == "desc"
+            # Use tuple key (is_none, value) so None values sort to the end
+            # regardless of the value type, avoiding TypeError on mixed types.
             results.sort(
-                key=lambda d: "" if d.get(sort_by) is None else d.get(sort_by, ""),
+                key=lambda d: (d.get(sort_by) is None, d.get(sort_by, "")),
                 reverse=reverse,
             )
 
