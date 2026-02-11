@@ -563,6 +563,17 @@ def test_handle_summary_complete_error_handling(
     sample_summary_complete_event,
 ):
     """Test that _handle_summary_complete handles errors properly."""
+    # Thread lookup must return a doc so the code proceeds to insert_document
+    thread_id = sample_summary_complete_event["data"]["thread_id"]
+
+    def query_side_effect(collection, filter_dict, limit=100, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [{"_id": thread_id, "first_message_date": "2025-01-01", "last_message_date": "2025-01-02"}]
+        if collection == "summaries":
+            return []
+        return []
+
+    mock_document_store.query_documents.side_effect = query_side_effect
     # Make insert_document raise an exception
     mock_document_store.insert_document.side_effect = Exception("DB Error")
 

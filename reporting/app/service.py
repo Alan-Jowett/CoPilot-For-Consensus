@@ -250,9 +250,17 @@ class ReportingService:
                     limit=1,
                 )
             )
+            if not thread_docs:
+                # Thread document not yet available; raise a retryable error so we don't
+                # persist a summary with null dates, which would sort incorrectly.
+                raise RetryDocumentNotFoundError(
+                    f"Thread {thread_id} not found for denormalization; will retry"
+                )
             if thread_docs:
                 first_message_date = thread_docs[0].get("first_message_date")
                 last_message_date = thread_docs[0].get("last_message_date")
+        except RetryDocumentNotFoundError:
+            raise
         except Exception as e:
             # Transient/unexpected error — re-raise so the event can be retried.
             # Persisting a summary with null dates would cause it to sort incorrectly.

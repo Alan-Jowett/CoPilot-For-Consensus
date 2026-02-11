@@ -218,6 +218,81 @@ class TestInMemoryDocumentStore:
 
         assert len(results) == 5
 
+    def test_query_documents_sort_asc(self):
+        """Test sorting documents in ascending order."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        store.insert_document("items", {"name": "Charlie", "date": "2025-03-01"})
+        store.insert_document("items", {"name": "Alice", "date": "2025-01-01"})
+        store.insert_document("items", {"name": "Bob", "date": "2025-02-01"})
+
+        results = store.query_documents("items", {}, sort_by="date", sort_order="asc")
+
+        assert [r["name"] for r in results] == ["Alice", "Bob", "Charlie"]
+
+    def test_query_documents_sort_desc(self):
+        """Test sorting documents in descending order."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        store.insert_document("items", {"name": "Alice", "date": "2025-01-01"})
+        store.insert_document("items", {"name": "Charlie", "date": "2025-03-01"})
+        store.insert_document("items", {"name": "Bob", "date": "2025-02-01"})
+
+        results = store.query_documents("items", {}, sort_by="date", sort_order="desc")
+
+        assert [r["name"] for r in results] == ["Charlie", "Bob", "Alice"]
+
+    def test_query_documents_sort_none_values_at_end(self):
+        """Test that None/missing sort values are placed at the end regardless of order."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        store.insert_document("items", {"name": "Alice", "date": "2025-01-01"})
+        store.insert_document("items", {"name": "NoDate"})
+        store.insert_document("items", {"name": "Bob", "date": "2025-02-01"})
+
+        # Ascending: None at end
+        results_asc = store.query_documents("items", {}, sort_by="date", sort_order="asc")
+        assert results_asc[-1]["name"] == "NoDate"
+        assert [r["name"] for r in results_asc[:2]] == ["Alice", "Bob"]
+
+        # Descending: None still at end
+        results_desc = store.query_documents("items", {}, sort_by="date", sort_order="desc")
+        assert results_desc[-1]["name"] == "NoDate"
+        assert [r["name"] for r in results_desc[:2]] == ["Bob", "Alice"]
+
+    def test_query_documents_sort_invalid_sort_order(self):
+        """Test that invalid sort_order raises DocumentStoreError."""
+        from copilot_storage import DocumentStoreError
+
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        store.insert_document("items", {"name": "Alice"})
+
+        with pytest.raises(DocumentStoreError, match="Invalid sort_order"):
+            store.query_documents("items", {}, sort_by="name", sort_order="invalid")
+
+    def test_query_documents_sort_with_filter_and_limit(self):
+        """Test sorting combined with filters and limits."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        store.insert_document("items", {"type": "a", "date": "2025-03-01"})
+        store.insert_document("items", {"type": "b", "date": "2025-01-01"})
+        store.insert_document("items", {"type": "a", "date": "2025-01-01"})
+        store.insert_document("items", {"type": "a", "date": "2025-02-01"})
+
+        results = store.query_documents(
+            "items", {"type": "a"}, limit=2, sort_by="date", sort_order="asc"
+        )
+
+        assert len(results) == 2
+        assert results[0]["date"] == "2025-01-01"
+        assert results[1]["date"] == "2025-02-01"
+
     def test_update_document(self):
         """Test updating a document."""
         store = InMemoryDocumentStore()
