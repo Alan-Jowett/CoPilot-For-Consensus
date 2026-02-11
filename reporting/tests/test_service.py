@@ -648,7 +648,7 @@ def test_get_reports_with_message_date_filters_inclusive_overlap(reporting_servi
     """Test that get_reports supports message date filtering with inclusive overlap."""
 
     # Setup mocks - need to return thread data
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1"},
@@ -706,7 +706,7 @@ def test_get_reports_with_message_date_filters_no_overlap(reporting_service, moc
     """Test that get_reports correctly excludes threads with no date overlap."""
 
     # Setup mocks
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1"},
@@ -748,7 +748,7 @@ def test_get_reports_with_message_date_filters_thread_without_dates(reporting_se
     """Test that get_reports skips threads without date information when using message date filters."""
 
     # Setup mocks
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1"},
@@ -789,7 +789,7 @@ def test_get_reports_with_message_date_filters_start_only(reporting_service, moc
     """Test that get_reports supports message_start_date without message_end_date."""
 
     # Setup mocks
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1"},
@@ -831,7 +831,7 @@ def test_get_reports_with_message_date_filters_end_only(reporting_service, mock_
     """Test that get_reports supports message_end_date without message_start_date."""
 
     # Setup mocks
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1"},
@@ -873,7 +873,7 @@ def test_get_reports_with_metadata_filters(reporting_service, mock_document_stor
     """Test that get_reports supports metadata filtering."""
 
     # Setup mocks - need to return thread and archive data
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T12:00:00Z"},
@@ -959,7 +959,7 @@ def test_search_reports_by_topic_with_vector_store():
     mock_vector_store.query.return_value = [mock_search_result]
 
     # Setup document store to return thread summary
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries" and filter_dict.get("thread_id") == "thread1":
             return [
                 {

@@ -102,7 +102,14 @@ class InMemoryDocumentStore(DocumentStore):
         logger.debug(f"InMemoryDocumentStore: document {doc_id} not found in {collection}")
         return None
 
-    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
+    def query_documents(
+        self,
+        collection: str,
+        filter_dict: dict[str, Any],
+        limit: int = 100,
+        sort_by: str | None = None,
+        sort_order: str = "desc",
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Returns sanitized documents without backend system fields or
@@ -112,6 +119,8 @@ class InMemoryDocumentStore(DocumentStore):
             collection: Name of the collection
             filter_dict: Filter criteria as dictionary (simple equality checks)
             limit: Maximum number of documents to return
+            sort_by: Optional field name to sort results by
+            sort_order: Sort order ('asc' or 'desc', default 'desc')
 
         Returns:
             List of sanitized matching documents
@@ -125,8 +134,12 @@ class InMemoryDocumentStore(DocumentStore):
             if matches:
                 # Use deep copy to prevent external mutations affecting stored data
                 results.append(copy.deepcopy(doc))
-                if len(results) >= limit:
-                    break
+
+        if sort_by:
+            reverse = sort_order == "desc"
+            results.sort(key=lambda d: d.get(sort_by, ""), reverse=reverse)
+
+        results = results[:limit]
 
         logger.debug(
             f"InMemoryDocumentStore: query on {collection} with {filter_dict} " f"returned {len(results)} documents"

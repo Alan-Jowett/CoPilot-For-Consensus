@@ -44,6 +44,16 @@
     },
     "generated_by": { "type": "string" },
     "generated_at": { "type": "string", "format": "date-time" },
+    "first_message_date": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Denormalized from thread: date of the first message in the thread"
+    },
+    "last_message_date": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Denormalized from thread: date of the last message in the thread"
+    },
     "metadata": { "type": "object" }
   },
   "required": ["_id", "summary_type", "generated_at", "content_markdown"]

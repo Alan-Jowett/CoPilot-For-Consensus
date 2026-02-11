@@ -240,7 +240,14 @@ class MongoDocumentStore(DocumentStore):
             logger.error(f"MongoDocumentStore: get_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to retrieve document {doc_id} from {collection}") from e
 
-    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
+    def query_documents(
+        self,
+        collection: str,
+        filter_dict: dict[str, Any],
+        limit: int = 100,
+        sort_by: str | None = None,
+        sort_order: str = "desc",
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Returns sanitized documents without backend system fields or
@@ -250,6 +257,8 @@ class MongoDocumentStore(DocumentStore):
             collection: Name of the collection
             filter_dict: Filter criteria as dictionary (MongoDB query format)
             limit: Maximum number of documents to return
+            sort_by: Optional field name to sort results by
+            sort_order: Sort order ('asc' or 'desc', default 'desc')
 
         Returns:
             List of sanitized matching documents (empty list if no matches)
@@ -263,7 +272,13 @@ class MongoDocumentStore(DocumentStore):
 
         try:
             coll = self.database[collection]
-            cursor = coll.find(filter_dict).limit(limit)
+            cursor = coll.find(filter_dict)
+            if sort_by:
+                import pymongo
+
+                direction = pymongo.DESCENDING if sort_order == "desc" else pymongo.ASCENDING
+                cursor = cursor.sort(sort_by, direction)
+            cursor = cursor.limit(limit)
 
             results = []
             for doc in cursor:

@@ -299,19 +299,28 @@ class ValidatingDocumentStore(DocumentStore):
         store_any = cast(Any, self._store)
         store_any.query_documents = wrapper_fn(original_query)
 
-    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
+    def query_documents(
+        self,
+        collection: str,
+        filter_dict: dict[str, Any],
+        limit: int = 100,
+        sort_by: str | None = None,
+        sort_order: str = "desc",
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Args:
             collection: Name of the collection/table
             filter_dict: Filter criteria as dictionary
             limit: Maximum number of documents to return
+            sort_by: Optional field name to sort results by
+            sort_order: Sort order ('asc' or 'desc', default 'desc')
 
         Returns:
             List of matching documents
         """
         # Delegate to underlying store
-        return self._store.query_documents(collection, filter_dict, limit)
+        return self._store.query_documents(collection, filter_dict, limit, sort_by, sort_order)
 
     def update_document(self, collection: str, doc_id: str, patch: dict[str, Any]) -> None:
         """Update a document with the provided patch.
