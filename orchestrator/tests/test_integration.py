@@ -27,7 +27,7 @@ def create_query_with_in_support(original_query):
         A custom query function that supports $in operator
     """
 
-    def custom_query(collection, filter_dict, limit=100):
+    def custom_query(collection, filter_dict, limit=100, sort_by=None, sort_order="desc"):
         # Handle $in operator for chunk_ids
         if "chunk_id" in filter_dict and isinstance(filter_dict["chunk_id"], dict):
             chunk_ids = filter_dict["chunk_id"].get("$in", [])

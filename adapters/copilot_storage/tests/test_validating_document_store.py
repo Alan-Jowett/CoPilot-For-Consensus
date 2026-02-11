@@ -97,7 +97,7 @@ class TestValidatingDocumentStore:
                 # Simulate "miss" when asked by canonical id
                 return None
 
-            def query_documents(self, collection: str, filter_dict: dict, limit: int = 100):
+            def query_documents(self, collection: str, filter_dict: dict, limit: int = 100, sort_by=None, sort_order="desc"):
                 if collection == "archives" and filter_dict == {"_id": "9b548dcbf26aec88"}:
                     return [{"id": "cosmos-generated-id", "_id": "9b548dcbf26aec88", "status": "pending"}]
                 return []
@@ -380,8 +380,8 @@ class TestValidatingDocumentStore:
             def delete_document(self, collection, doc_id):
                 return self._inner.delete_document(collection, doc_id)
 
-            def query_documents(self, collection, filter_dict, limit=100):
-                return self._inner.query_documents(collection, filter_dict, limit)
+            def query_documents(self, collection, filter_dict, limit=100, sort_by=None, sort_order="desc"):
+                return self._inner.query_documents(collection, filter_dict, limit, sort_by, sort_order)
 
         base = _create_base_inmemory_store()
         base.connect()

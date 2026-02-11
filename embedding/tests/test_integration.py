@@ -27,7 +27,13 @@ pytestmark = pytest.mark.integration
 def _add_in_operator_support(store):
     original_query = store.query_documents
 
-    def query_with_in_support(collection: str, filter_dict: dict[str, object], limit: int = 100):
+    def query_with_in_support(
+        collection: str,
+        filter_dict: dict[str, object],
+        limit: int = 100,
+        sort_by: str | None = None,
+        sort_order: str = "desc",
+    ):
         if isinstance(filter_dict, dict):
             if "_id" in filter_dict and isinstance(filter_dict["_id"], dict):
                 doc_ids = filter_dict["_id"].get("$in", [])
