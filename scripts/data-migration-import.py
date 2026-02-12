@@ -32,6 +32,9 @@ import sys
 import time
 from pathlib import Path
 
+MAX_RETRIES = 5
+INITIAL_BACKOFF_SECONDS = 1.0
+
 # Partition key paths per container (must match infra/azure/modules/cosmos.bicep).
 # The Bicep deploys both a shared "documents" container (partition key /collection)
 # and individual per-collection containers (partition key /id).
@@ -76,7 +79,7 @@ def import_cosmos(endpoint: str, key: str | None, use_rbac: bool,
                   mode: str, batch_size: int) -> dict[str, int]:
     """Import into Azure Cosmos DB SQL API."""
     from azure.cosmos import CosmosClient, PartitionKey
-    from azure.cosmos.exceptions import CosmosResourceExistsError
+    from azure.cosmos.exceptions import CosmosHttpResponseError, CosmosResourceExistsError
 
     if use_rbac:
         from azure.identity import DefaultAzureCredential
@@ -135,20 +138,36 @@ def import_cosmos(endpoint: str, key: str | None, use_rbac: bool,
                 if "id" not in item and "_id" in item:
                     item["id"] = item["_id"]
 
-                try:
-                    if mode == "upsert":
-                        container.upsert_item(item)
-                        imported += 1
-                    else:
-                        try:
-                            container.create_item(item)
+                # Retry with exponential backoff for 429 (throttling)
+                for attempt in range(MAX_RETRIES + 1):
+                    try:
+                        if mode == "upsert":
+                            container.upsert_item(item)
                             imported += 1
-                        except CosmosResourceExistsError:
-                            skipped += 1
-                except Exception as e:
-                    errors += 1
-                    if errors <= 3:
-                        print(f"\n    Error on doc {i}: {e}", end="")
+                        else:
+                            try:
+                                container.create_item(item)
+                                imported += 1
+                            except CosmosResourceExistsError:
+                                skipped += 1
+                        break  # success
+                    except CosmosHttpResponseError as e:
+                        if e.status_code == 429 and attempt < MAX_RETRIES:
+                            wait = INITIAL_BACKOFF_SECONDS * (2 ** attempt)
+                            retry_after = getattr(e, "retry_after", None)
+                            if retry_after:
+                                wait = max(wait, retry_after / 1000.0)
+                            time.sleep(wait)
+                            continue
+                        errors += 1
+                        if errors <= 3:
+                            print(f"\n    Error on doc {i}: {e}", end="")
+                        break
+                    except Exception as e:
+                        errors += 1
+                        if errors <= 3:
+                            print(f"\n    Error on doc {i}: {e}", end="")
+                        break
 
                 # Progress indicator
                 if (i + 1) % batch_size == 0:

@@ -160,10 +160,10 @@ function Get-MongoDBConnectionString {
         return $env:SRC_MONGO_URI
     }
 
-    # Build from individual env vars (matching factory.py defaults)
+    # Build from individual env vars (support both MONGODB_USERNAME and MONGODB_USER)
     $host_ = if ($env:MONGODB_HOST) { $env:MONGODB_HOST } else { "localhost" }
     $port = if ($env:MONGODB_PORT) { $env:MONGODB_PORT } else { "27017" }
-    $user = if ($env:MONGODB_USER) { $env:MONGODB_USER } else { "" }
+    $user = if ($env:MONGODB_USERNAME) { $env:MONGODB_USERNAME } elseif ($env:MONGODB_USER) { $env:MONGODB_USER } else { "" }
     $pass = if ($env:MONGODB_PASSWORD) { $env:MONGODB_PASSWORD } else { "" }
 
     if ($user -and $pass) {
@@ -183,9 +183,12 @@ elseif ($SourceType -eq "cosmos") {
         $connString = Get-CosmosConnectionString -RG $ResourceGroup -Account $CosmosAccountName -RBAC $true
     }
     elseif ($env:SRC_COSMOS_ENDPOINT -and $env:SRC_COSMOS_KEY) {
-        # Build Cosmos MongoDB-compatible connection string from env vars
-        $endpoint = $env:SRC_COSMOS_ENDPOINT -replace "https://", "" -replace ":443/", "" -replace "/$", ""
-        $connString = "mongodb://${endpoint}:$([uri]::EscapeDataString($env:SRC_COSMOS_KEY))@${endpoint}:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@${endpoint}@"
+        # Derive Cosmos DB MongoDB API connection string from SQL API endpoint + key
+        $endpointUri = [Uri]$env:SRC_COSMOS_ENDPOINT
+        $accountName = $endpointUri.Host.Split('.')[0]
+        $mongoHost = "${accountName}.mongo.cosmos.azure.com"
+        $escapedKey = [uri]::EscapeDataString($env:SRC_COSMOS_KEY)
+        $connString = "mongodb://${accountName}:${escapedKey}@${mongoHost}:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@${accountName}@"
     }
     elseif ($ResourceGroup -and $CosmosAccountName) {
         $connString = Get-CosmosConnectionString -RG $ResourceGroup -Account $CosmosAccountName
@@ -240,13 +243,12 @@ foreach ($db in $DatabaseCollections.Keys) {
 
         Write-Host "Exporting $db.$collection ... " -NoNewline
 
-        # Build mongoexport args
+        # Build mongoexport args (NDJSON output by default, no --jsonArray)
         $exportArgs = @(
             "--uri=$connString"
             "--db=$db"
             "--collection=$collection"
             "--out=$outFile"
-            "--jsonArray"
             "--quiet"
         )
 
@@ -262,25 +264,11 @@ foreach ($db in $DatabaseCollections.Keys) {
                 Write-Host "WARNING: mongoexport returned non-zero exit code" -ForegroundColor Yellow
             }
 
-            # Count documents (peek at first char to determine format)
+            # Count documents (NDJSON — count non-empty lines)
             if (Test-Path $outFile) {
-                $firstLine = Get-Content $outFile -TotalCount 1
-                if ($firstLine -and $firstLine.TrimStart().StartsWith("[")) {
-                    # JSON array — count via streaming parse
-                    $reader = [System.IO.StreamReader]::new($outFile)
-                    try {
-                        $docCount = ($reader.ReadToEnd() | ConvertFrom-Json).Count
-                    }
-                    finally {
-                        $reader.Close()
-                    }
-                }
-                else {
-                    # NDJSON — count non-empty lines
-                    $docCount = 0
-                    foreach ($_ in [System.IO.File]::ReadLines($outFile)) {
-                        if ($_.Trim()) { $docCount++ }
-                    }
+                $docCount = 0
+                foreach ($_ in [System.IO.File]::ReadLines($outFile)) {
+                    if ($_.Trim()) { $docCount++ }
                 }
             }
             else {
@@ -294,40 +282,6 @@ foreach ($db in $DatabaseCollections.Keys) {
         catch {
             Write-Host "FAILED: $_" -ForegroundColor Red
             $manifest.document_counts["$db.$collection"] = -1
-        }
-    }
-}
-
-# Convert JSON array files to NDJSON for mongoimport compatibility (streaming)
-Write-Host ""
-Write-Host "Converting to NDJSON format for import compatibility..."
-foreach ($db in $DatabaseCollections.Keys) {
-    foreach ($collection in $DatabaseCollections[$db]) {
-        $file = Join-Path $OutputDir $db "$collection.json"
-        if (Test-Path $file) {
-            $firstChar = Get-Content $file -TotalCount 1
-            if ($firstChar -and $firstChar.TrimStart().StartsWith("[")) {
-                $tempFile = "$file.tmp"
-                # Stream: read JSON array, write one object per line
-                $reader = [System.IO.StreamReader]::new($file)
-                try {
-                    $jsonText = $reader.ReadToEnd()
-                }
-                finally {
-                    $reader.Close()
-                }
-                $docs = $jsonText | ConvertFrom-Json
-                $writer = [System.IO.StreamWriter]::new($tempFile, $false, [System.Text.Encoding]::UTF8)
-                try {
-                    foreach ($doc in $docs) {
-                        $writer.WriteLine(($doc | ConvertTo-Json -Compress -Depth 20))
-                    }
-                }
-                finally {
-                    $writer.Close()
-                }
-                Move-Item -Path $tempFile -Destination $file -Force
-            }
         }
     }
 }

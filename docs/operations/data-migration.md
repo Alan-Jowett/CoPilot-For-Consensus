@@ -293,8 +293,9 @@ The export scripts normalize `_id` to string format. The import scripts preserve
 
 ### Cosmos DB rate limiting (HTTP 429)
 
-Large imports may hit RU/s limits. The Python import script automatically retries on 429 errors.
-To increase throughput, temporarily scale up RU/s:
+Large imports may hit RU/s limits. The Python import script retries on 429 errors with
+exponential backoff (up to 5 retries per document). If you see persistent throttling,
+increase RU/s:
 
 ```powershell
 az cosmosdb sql database throughput update `

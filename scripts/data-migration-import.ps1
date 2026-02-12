@@ -190,9 +190,10 @@ function Get-MongoDBConnectionString {
         return $env:DST_MONGO_URI
     }
 
+    # Support both MONGODB_USERNAME and MONGODB_USER for backwards compatibility
     $host_ = if ($env:MONGODB_HOST) { $env:MONGODB_HOST } else { "localhost" }
     $port = if ($env:MONGODB_PORT) { $env:MONGODB_PORT } else { "27017" }
-    $user = if ($env:MONGODB_USER) { $env:MONGODB_USER } else { "" }
+    $user = if ($env:MONGODB_USERNAME) { $env:MONGODB_USERNAME } elseif ($env:MONGODB_USER) { $env:MONGODB_USER } else { "" }
     $pass = if ($env:MONGODB_PASSWORD) { $env:MONGODB_PASSWORD } else { "" }
 
     if ($user -and $pass) {
@@ -212,8 +213,12 @@ elseif ($DestType -eq "cosmos") {
         $connString = Get-CosmosConnectionString -RG $ResourceGroup -Account $CosmosAccountName -RBAC $true
     }
     elseif ($env:DST_COSMOS_ENDPOINT -and $env:DST_COSMOS_KEY) {
-        $endpoint = $env:DST_COSMOS_ENDPOINT -replace "https://", "" -replace ":443/", "" -replace "/$", ""
-        $connString = "mongodb://${endpoint}:$([uri]::EscapeDataString($env:DST_COSMOS_KEY))@${endpoint}:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@${endpoint}@"
+        # Derive Cosmos DB MongoDB API connection string from SQL API endpoint + key
+        $endpointUri = [Uri]$env:DST_COSMOS_ENDPOINT
+        $accountName = $endpointUri.Host.Split('.')[0]
+        $mongoHost = "${accountName}.mongo.cosmos.azure.com"
+        $escapedKey = [uri]::EscapeDataString($env:DST_COSMOS_KEY)
+        $connString = "mongodb://${accountName}:${escapedKey}@${mongoHost}:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@${accountName}@"
     }
     elseif ($ResourceGroup -and $CosmosAccountName) {
         $connString = Get-CosmosConnectionString -RG $ResourceGroup -Account $CosmosAccountName
