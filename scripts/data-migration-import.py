@@ -32,8 +32,13 @@ import sys
 import time
 from pathlib import Path
 
-# Partition key paths per container (must match infra/azure/modules/cosmos.bicep)
+# Partition key paths per container (must match infra/azure/modules/cosmos.bicep).
+# The Bicep deploys both a shared "documents" container (partition key /collection)
+# and individual per-collection containers (partition key /id).
+# The application uses the per-collection containers for data storage.
 COSMOS_PARTITION_KEYS = {
+    # Shared container (may exist but typically unused by the application)
+    "documents": "/collection",
     # copilot database — per-collection containers
     "sources": "/id",
     "archives": "/id",
@@ -41,6 +46,7 @@ COSMOS_PARTITION_KEYS = {
     "threads": "/id",
     "chunks": "/id",
     "summaries": "/id",
+    "reports": "/id",
     # auth database
     "user_roles": "/id",
 }

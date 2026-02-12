@@ -17,6 +17,32 @@ The project stores all pipeline state in a document database (`copilot` database
 
 The `auth` database contains a `user_roles` collection for admin role mappings.
 
+### Which scripts to use
+
+| Backend | API Type | Scripts |
+|---------|----------|---------|
+| **Azure Cosmos DB (SQL API)** — default for this project | NoSQL / SQL API | `data-migration-export.py` / `data-migration-import.py` |
+| **Azure Cosmos DB (MongoDB API)** | MongoDB wire protocol | `data-migration-export.ps1` / `data-migration-import.ps1` |
+| **Docker Compose MongoDB** | MongoDB wire protocol | Either set works; Python scripts recommended |
+
+> **Important**: The default Azure deployment (`infra/azure/modules/cosmos.bicep`) creates a
+> **SQL API** Cosmos DB account (`kind: GlobalDocumentDB`), not a MongoDB API account.
+> The `mongoexport`/`mongoimport` tools and the PowerShell scripts **do not work** with SQL API.
+> Use the Python scripts for SQL API accounts.
+
+### Partition keys
+
+The Bicep template creates containers with these partition keys:
+
+| Container | Partition Key | Notes |
+|-----------|--------------|-------|
+| `documents` | `/collection` | Shared container (exists in both `copilot` and `auth` DBs; typically unused by the app) |
+| `sources`, `archives`, `messages`, `threads`, `chunks`, `summaries`, `reports` | `/id` | Per-collection containers (used by the application) |
+| `user_roles` | `/id` | Auth database |
+
+The import script uses these partition keys when creating containers. If your deployment uses
+a different schema, update the `COSMOS_PARTITION_KEYS` dict in `scripts/data-migration-import.py`.
+
 ## Prerequisites
 
 ### Tools
@@ -69,8 +95,9 @@ python scripts/data-migration-export.py --source-type cosmos `
     --cosmos-endpoint "https://<account>.documents.azure.com:443/" `
     --use-rbac
 
-# From Docker Compose MongoDB
-python scripts/data-migration-export.py --source-type mongodb
+# From Docker Compose MongoDB (see "Exporting from Docker Compose" for auth details)
+python scripts/data-migration-export.py --source-type mongodb `
+    --mongo-uri "mongodb://<user>:<pass>@localhost:27017/?authSource=admin"
 ```
 
 ### Import all data
@@ -90,6 +117,7 @@ python scripts/data-migration-import.py --dest-type cosmos `
 
 # Into Docker Compose MongoDB
 python scripts/data-migration-import.py --dest-type mongodb `
+    --mongo-uri "mongodb://<user>:<pass>@localhost:27017/?authSource=admin" `
     --export-dir data-export-<timestamp>
 ```
 
@@ -98,10 +126,10 @@ python scripts/data-migration-import.py --dest-type mongodb `
 ```powershell
 # Cosmos → Docker Compose
 python scripts/data-migration-export.py --source-type cosmos --cosmos-endpoint ... --cosmos-key ...
-python scripts/data-migration-import.py --dest-type mongodb --export-dir data-export-<timestamp>
+python scripts/data-migration-import.py --dest-type mongodb --mongo-uri "mongodb://user:pass@localhost:27017/?authSource=admin" --export-dir data-export-<timestamp>
 
 # Docker Compose → Cosmos
-python scripts/data-migration-export.py --source-type mongodb
+python scripts/data-migration-export.py --source-type mongodb --mongo-uri "mongodb://user:pass@localhost:27017/?authSource=admin"
 python scripts/data-migration-import.py --dest-type cosmos --cosmos-endpoint ... --cosmos-key ... --export-dir data-export-<timestamp>
 
 # Cosmos → Cosmos (different subscription/region)
@@ -180,13 +208,18 @@ python scripts/data-migration-export.py --source-type cosmos `
 
 ### Exporting from Docker Compose (MongoDB)
 
+Docker Compose MongoDB credentials are stored in `secrets/mongodb_user` and `secrets/mongodb_password`.
+The default CI credentials are `root`/`example`. Build the connection URI accordingly:
+
 ```powershell
-# Uses the local MongoDB instance (default: localhost:27017)
+# Default (unauthenticated localhost — works if MongoDB has no auth)
 python scripts/data-migration-export.py --source-type mongodb
 
-# With custom URI
+# With credentials from secrets files (typical local dev setup)
+$user = Get-Content secrets/mongodb_user
+$pass = Get-Content secrets/mongodb_password
 python scripts/data-migration-export.py --source-type mongodb `
-    --mongo-uri "mongodb://user:pass@host:27017/?authSource=admin"
+    --mongo-uri "mongodb://${user}:${pass}@localhost:27017/?authSource=admin"
 ```
 
 ### Importing into Azure Cosmos DB
@@ -206,7 +239,9 @@ python scripts/data-migration-import.py --dest-type cosmos `
 ```
 
 > **Note**: The import script creates databases and containers if they don't exist.
-> Cosmos DB containers use partition key `/id` (matching the Bicep definition).
+> Cosmos DB containers are created with partition keys matching `infra/azure/modules/cosmos.bicep`
+> (see the [Partition keys](#partition-keys) table above). Verify the mapping in
+> `COSMOS_PARTITION_KEYS` in `scripts/data-migration-import.py` before importing into a new environment.
 
 ### Importing into Docker Compose (MongoDB)
 
@@ -214,7 +249,11 @@ python scripts/data-migration-import.py --dest-type cosmos `
 # Ensure Docker Compose services are running
 docker compose up -d documentdb
 
+# With credentials from secrets files
+$user = Get-Content secrets/mongodb_user
+$pass = Get-Content secrets/mongodb_password
 python scripts/data-migration-import.py --dest-type mongodb `
+    --mongo-uri "mongodb://${user}:${pass}@localhost:27017/?authSource=admin" `
     --export-dir "data-export-20260212T170000"
 ```
 
@@ -236,10 +275,11 @@ python scripts/data-migration-import.py --dest-type mongodb `
 
 ## Handling ID Formats
 
-| Backend | `_id` Format | Notes |
-|---------|-------------|-------|
-| Azure Cosmos DB | 16-char hex string | Partition key is `/id` |
-| MongoDB | ObjectId or string | Depends on insert method |
+| Backend | `_id` / `id` Format | Partition Key | Notes |
+|---------|---------------------|---------------|-------|
+| Azure Cosmos DB (per-collection) | 16-char hex string | `/id` | Most containers |
+| Azure Cosmos DB (`documents` shared) | String | `/collection` | Shared container; rarely used by app |
+| MongoDB | ObjectId or string | N/A | Depends on insert method |
 
 The export scripts normalize `_id` to string format. The import scripts preserve the string `_id`, which is compatible with both backends. The `InMemoryDocumentStore` (used in tests) also uses string IDs.
 
