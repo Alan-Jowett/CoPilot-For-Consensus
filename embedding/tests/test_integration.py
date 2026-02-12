@@ -39,7 +39,7 @@ def _add_in_operator_support(store):
                 doc_ids = filter_dict["_id"].get("$in", [])
                 results = []
                 for doc_id in doc_ids:
-                    results.extend(original_query(collection, {"_id": doc_id}, limit))
+                    results.extend(original_query(collection, {"_id": doc_id}, limit, sort_by=sort_by, sort_order=sort_order))
                 return results[:limit]
         return original_query(collection, filter_dict, limit, sort_by=sort_by, sort_order=sort_order)
 

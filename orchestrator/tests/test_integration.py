@@ -33,7 +33,7 @@ def create_query_with_in_support(original_query):
             chunk_ids = filter_dict["chunk_id"].get("$in", [])
             results = []
             for chunk_id in chunk_ids:
-                chunk_results = original_query(collection, {"chunk_id": chunk_id}, limit)
+                chunk_results = original_query(collection, {"chunk_id": chunk_id}, limit, sort_by=sort_by, sort_order=sort_order)
                 results.extend(chunk_results)
             return results[:limit]  # Respect limit
         # Handle $in operator for _id (canonical document primary key)
@@ -41,7 +41,7 @@ def create_query_with_in_support(original_query):
             doc_ids = filter_dict["_id"].get("$in", [])
             results = []
             for doc_id in doc_ids:
-                doc_results = original_query(collection, {"_id": doc_id}, limit)
+                doc_results = original_query(collection, {"_id": doc_id}, limit, sort_by=sort_by, sort_order=sort_order)
                 results.extend(doc_results)
             return results[:limit]
         # Handle $in operator for message_doc_id (chunk foreign key reference)
@@ -49,7 +49,7 @@ def create_query_with_in_support(original_query):
             message_doc_ids = filter_dict["message_doc_id"].get("$in", [])
             results = []
             for message_doc_id in message_doc_ids:
-                msg_results = original_query(collection, {"message_doc_id": message_doc_id}, limit)
+                msg_results = original_query(collection, {"message_doc_id": message_doc_id}, limit, sort_by=sort_by, sort_order=sort_order)
                 results.extend(msg_results)
             return results[:limit]  # Respect limit
         else:
