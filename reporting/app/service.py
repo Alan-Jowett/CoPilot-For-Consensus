@@ -315,7 +315,7 @@ class ReportingService:
             if existing:
                 logger.info(f"Summary {report_id} already stored; skipping insert")
                 # Backfill denormalized date fields if a prior attempt persisted
-                # the summary without them (e.g. thread didn't exist yet).
+                # the summary but the thread lacked date fields at that time.
                 existing_doc = existing[0]
                 if first_message_date is not None and (
                     existing_doc.get("first_message_date") is None
