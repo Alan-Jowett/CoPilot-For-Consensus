@@ -157,8 +157,13 @@ class InMemoryDocumentStore(DocumentStore):
                 else:
                     non_none_results.append(_doc)
 
+            def _sort_key(d: dict[str, Any]) -> str:
+                """Return sort key; None values are already excluded."""
+                val = d.get(sort_by)
+                return str(val) if val is not None else ""
+
             non_none_results.sort(
-                key=lambda d: d.get(sort_by, ""),
+                key=_sort_key,
                 reverse=reverse,
             )
             results = non_none_results + none_results
