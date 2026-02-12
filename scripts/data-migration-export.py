@@ -30,14 +30,20 @@ Usage:
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+def _redact_uri(uri: str) -> str:
+    """Remove credentials from a MongoDB URI for safe manifest storage."""
+    return re.sub(r"://[^@]+@", "://<redacted>@", uri)
+
+
 # Database → collection mapping (mirrors collections.config.json + auth)
 DATABASE_COLLECTIONS = {
-    "copilot": ["sources", "archives", "messages", "threads", "chunks", "summaries"],
+    "copilot": ["sources", "archives", "messages", "threads", "chunks", "summaries", "reports"],
     "auth": ["user_roles"],
 }
 
@@ -74,21 +80,23 @@ def export_cosmos(endpoint: str, key: str | None, use_rbac: bool,
             print(f"  Exporting {key_label} ... ", end="", flush=True)
             try:
                 container = database.get_container_client(collection)
-                items = list(container.query_items(
+                items_iter = container.query_items(
                     query="SELECT * FROM c",
                     enable_cross_partition_query=True,
-                ))
+                )
 
-                # Write NDJSON (one JSON object per line)
+                # Write NDJSON incrementally (one JSON object per line)
+                count = 0
                 with open(out_file, "w", encoding="utf-8") as f:
-                    for item in items:
+                    for item in items_iter:
                         # Remove Cosmos system properties
                         for sys_key in ("_rid", "_self", "_etag", "_attachments", "_ts"):
                             item.pop(sys_key, None)
                         f.write(json.dumps(item, ensure_ascii=False, default=str) + "\n")
+                        count += 1
 
-                counts[key_label] = len(items)
-                print(f"{len(items)} documents")
+                counts[key_label] = count
+                print(f"{count} documents")
             except Exception as e:
                 print(f"FAILED: {e}")
                 counts[key_label] = -1
@@ -117,17 +125,19 @@ def export_mongodb(uri: str, databases: dict[str, list[str]], output_dir: Path) 
             print(f"  Exporting {key_label} ... ", end="", flush=True)
             try:
                 coll = database[collection]
-                items = list(coll.find({}))
+                cursor = coll.find({})
+                count = 0
 
                 with open(out_file, "w", encoding="utf-8") as f:
-                    for item in items:
+                    for item in cursor:
                         # Convert ObjectId to string
                         if "_id" in item:
                             item["_id"] = str(item["_id"])
                         f.write(json.dumps(item, ensure_ascii=False, default=str) + "\n")
+                        count += 1
 
-                counts[key_label] = len(items)
-                print(f"{len(items)} documents")
+                counts[key_label] = count
+                print(f"{count} documents")
             except Exception as e:
                 print(f"FAILED: {e}")
                 counts[key_label] = -1
@@ -208,7 +218,7 @@ def main():
     manifest = {
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "source_type": args.source_type,
-        "source_endpoint": args.cosmos_endpoint if args.source_type == "cosmos" else args.mongo_uri,
+        "source_endpoint": args.cosmos_endpoint if args.source_type == "cosmos" else _redact_uri(args.mongo_uri),
         "databases": {db: list(colls) for db, colls in databases.items()},
         "document_counts": counts,
     }

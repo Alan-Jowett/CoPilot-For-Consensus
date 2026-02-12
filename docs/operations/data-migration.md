@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Data Migration Guide
 
 Export and import all pipeline data between CoPilot-for-Consensus deployments — Azure Cosmos DB, Docker Compose (MongoDB), or any mix of the two.
@@ -14,6 +17,7 @@ The project stores all pipeline state in a document database (`copilot` database
 | `threads` | Threaded conversation groups | Thousands |
 | `chunks` | Text chunks for embedding | Tens of thousands |
 | `summaries` | LLM-generated thread summaries | Thousands |
+| `reports` | Generated reports and reporting metadata | Hundreds–thousands |
 
 The `auth` database contains a `user_roles` collection for admin role mappings.
 
@@ -158,7 +162,8 @@ data-export-<timestamp>/
 │   ├── messages.json
 │   ├── threads.json
 │   ├── chunks.json
-│   └── summaries.json
+│   ├── summaries.json
+│   └── reports.json
 ├── auth/
 │   └── user_roles.json
 └── manifest.json
@@ -174,7 +179,7 @@ The `manifest.json` records metadata about the export:
   "source_type": "cosmos",
   "source_endpoint": "https://example.documents.azure.com:443/",
   "databases": {
-    "copilot": ["sources", "archives", "messages", "threads", "chunks", "summaries"],
+    "copilot": ["sources", "archives", "messages", "threads", "chunks", "summaries", "reports"],
     "auth": ["user_roles"]
   },
   "document_counts": {
@@ -183,7 +188,8 @@ The `manifest.json` records metadata about the export:
     "copilot.messages": 12000,
     "copilot.threads": 25000,
     "copilot.chunks": 80000,
-    "copilot.summaries": 31000
+    "copilot.summaries": 31000,
+    "copilot.reports": 500
   }
 }
 ```
@@ -265,7 +271,7 @@ Export or import individual collections:
 # Export only sources and archives
 python scripts/data-migration-export.py --source-type cosmos `
     --cosmos-endpoint ... --cosmos-key ... `
-    --collections sources archives
+    --collections sources,archives
 
 # Import only summaries (e.g., after re-generating)
 python scripts/data-migration-import.py --dest-type mongodb `

@@ -33,7 +33,7 @@
 
 .PARAMETER Mode
     Import mode: "upsert" (default, overwrites existing docs) or "merge"
-    (skip duplicates).
+    (skip existing documents with duplicate _id).
 
 .PARAMETER NumWorkers
     Number of parallel insertion workers for mongoimport. Default: 1.
@@ -249,7 +249,7 @@ if ($Drop) { Write-Host "Drop        : YES (existing data will be removed)" -For
 Write-Host ""
 
 # Import order matters: sources first, then archives, messages, threads, chunks, summaries
-$importOrder = @("sources", "archives", "messages", "threads", "chunks", "summaries", "user_roles")
+$importOrder = @("sources", "archives", "messages", "threads", "chunks", "summaries", "reports", "user_roles")
 
 $totalImported = 0
 $errors = @()
@@ -296,8 +296,8 @@ foreach ($db in $DatabaseCollections.Keys) {
             $importArgs += "--upsertFields=_id"
         }
         elseif ($Mode -eq "merge") {
-            $importArgs += "--mode=merge"
-            $importArgs += "--upsertFields=_id"
+            # Use insert mode so duplicates fail silently rather than being merged/updated
+            $importArgs += "--mode=insert"
         }
 
         # For Cosmos DB, add SSL flag if not already in URI

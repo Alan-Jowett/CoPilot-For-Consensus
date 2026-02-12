@@ -52,15 +52,23 @@ COSMOS_PARTITION_KEYS = {
 }
 
 
-def read_ndjson(file_path: Path) -> list[dict]:
-    """Read an NDJSON file (one JSON object per line)."""
-    items = []
+def iter_ndjson(file_path: Path):
+    """Iterate over an NDJSON file, yielding one parsed dict per line."""
     with open(file_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
-                items.append(json.loads(line))
-    return items
+                yield json.loads(line)
+
+
+def count_ndjson_lines(file_path: Path) -> int:
+    """Count non-empty lines in an NDJSON file without loading into memory."""
+    count = 0
+    with open(file_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                count += 1
+    return count
 
 
 def import_cosmos(endpoint: str, key: str | None, use_rbac: bool,
@@ -99,12 +107,12 @@ def import_cosmos(endpoint: str, key: str | None, use_rbac: bool,
                 print(f"  SKIP {key_label} (file not found)")
                 continue
 
-            items = read_ndjson(in_file)
-            if not items:
+            doc_count = count_ndjson_lines(in_file)
+            if doc_count == 0:
                 print(f"  SKIP {key_label} (empty)")
                 continue
 
-            print(f"  Importing {key_label} ({len(items):,} docs) ... ", end="", flush=True)
+            print(f"  Importing {key_label} ({doc_count:,} docs) ... ", end="", flush=True)
 
             # Create container if needed
             partition_key_path = COSMOS_PARTITION_KEYS.get(collection, "/id")
@@ -119,9 +127,10 @@ def import_cosmos(endpoint: str, key: str | None, use_rbac: bool,
                 continue
 
             imported = 0
+            skipped = 0
             errors = 0
 
-            for i, item in enumerate(items):
+            for i, item in enumerate(iter_ndjson(in_file)):
                 # Ensure 'id' field exists (Cosmos requires it)
                 if "id" not in item and "_id" in item:
                     item["id"] = item["_id"]
@@ -129,12 +138,13 @@ def import_cosmos(endpoint: str, key: str | None, use_rbac: bool,
                 try:
                     if mode == "upsert":
                         container.upsert_item(item)
+                        imported += 1
                     else:
                         try:
                             container.create_item(item)
+                            imported += 1
                         except CosmosResourceExistsError:
-                            pass  # merge mode: skip duplicates
-                    imported += 1
+                            skipped += 1
                 except Exception as e:
                     errors += 1
                     if errors <= 3:
@@ -142,10 +152,12 @@ def import_cosmos(endpoint: str, key: str | None, use_rbac: bool,
 
                 # Progress indicator
                 if (i + 1) % batch_size == 0:
-                    print(f"\r  Importing {key_label} ({i+1:,}/{len(items):,}) ... ", end="", flush=True)
+                    print(f"\r  Importing {key_label} ({i+1:,}/{doc_count:,}) ... ", end="", flush=True)
 
             counts[key_label] = imported
             status = f"{imported:,} imported"
+            if skipped:
+                status += f", {skipped:,} skipped"
             if errors:
                 status += f", {errors} errors"
             print(f"\r  Importing {key_label} ... {status}            ")
@@ -176,27 +188,39 @@ def import_mongodb(uri: str, export_dir: Path, databases: dict[str, list[str]],
                 print(f"  SKIP {key_label} (file not found)")
                 continue
 
-            items = read_ndjson(in_file)
-            if not items:
+            doc_count = count_ndjson_lines(in_file)
+            if doc_count == 0:
                 print(f"  SKIP {key_label} (empty)")
                 continue
 
-            print(f"  Importing {key_label} ({len(items):,} docs) ... ", end="", flush=True)
+            print(f"  Importing {key_label} ({doc_count:,} docs) ... ", end="", flush=True)
 
             coll = database[collection]
             imported = 0
+            skipped = 0
             errors = 0
 
-            for item in items:
+            for item in iter_ndjson(in_file):
+                # Ensure a stable _id for MongoDB
+                doc_id = item.get("_id") or item.get("id")
+                if doc_id is None:
+                    errors += 1
+                    if errors <= 3:
+                        print(f"\n    Error: document missing both '_id' and 'id'", end="")
+                    continue
+                if "_id" not in item:
+                    item["_id"] = doc_id
+
                 try:
                     if mode == "upsert":
-                        coll.replace_one({"_id": item.get("_id", item.get("id"))}, item, upsert=True)
+                        coll.replace_one({"_id": doc_id}, item, upsert=True)
+                        imported += 1
                     else:
                         try:
                             coll.insert_one(item)
+                            imported += 1
                         except pymongo.errors.DuplicateKeyError:
-                            pass
-                    imported += 1
+                            skipped += 1
                 except Exception as e:
                     errors += 1
                     if errors <= 3:
@@ -204,6 +228,8 @@ def import_mongodb(uri: str, export_dir: Path, databases: dict[str, list[str]],
 
             counts[key_label] = imported
             status = f"{imported:,} imported"
+            if skipped:
+                status += f", {skipped:,} skipped"
             if errors:
                 status += f", {errors} errors"
             print(status)

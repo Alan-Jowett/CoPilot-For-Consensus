@@ -31,9 +31,6 @@
 .PARAMETER OutputDir
     Output directory. Defaults to "data-export-<timestamp>".
 
-.PARAMETER BatchSize
-    Number of documents per mongoexport batch. Default: 1000.
-
 .PARAMETER UseRBAC
     Authenticate to Azure Cosmos DB using Azure AD / RBAC (via az login)
     instead of connection string keys. Requires the logged-in principal to
@@ -74,9 +71,6 @@ param(
     [Parameter(Mandatory = $false)]
     [string]$OutputDir,
 
-    [Parameter(Mandatory = $false)]
-    [int]$BatchSize = 1000,
-
     [switch]$UseRBAC
 )
 
@@ -89,7 +83,7 @@ $ErrorActionPreference = "Stop"
 
 # Database → collection mapping (mirrors collections.config.json + auth)
 $DatabaseCollections = @{
-    "copilot" = @("sources", "archives", "messages", "threads", "chunks", "summaries")
+    "copilot" = @("sources", "archives", "messages", "threads", "chunks", "summaries", "reports")
     "auth"    = @("user_roles")
 }
 
@@ -268,14 +262,25 @@ foreach ($db in $DatabaseCollections.Keys) {
                 Write-Host "WARNING: mongoexport returned non-zero exit code" -ForegroundColor Yellow
             }
 
-            # Count documents
+            # Count documents (peek at first char to determine format)
             if (Test-Path $outFile) {
-                $content = Get-Content $outFile -Raw
-                if ($content -and $content.Trim().StartsWith("[")) {
-                    $docCount = ($content | ConvertFrom-Json).Count
+                $firstLine = Get-Content $outFile -TotalCount 1
+                if ($firstLine -and $firstLine.TrimStart().StartsWith("[")) {
+                    # JSON array — count via streaming parse
+                    $reader = [System.IO.StreamReader]::new($outFile)
+                    try {
+                        $docCount = ($reader.ReadToEnd() | ConvertFrom-Json).Count
+                    }
+                    finally {
+                        $reader.Close()
+                    }
                 }
                 else {
-                    $docCount = (Get-Content $outFile).Count
+                    # NDJSON — count non-empty lines
+                    $docCount = 0
+                    foreach ($_ in [System.IO.File]::ReadLines($outFile)) {
+                        if ($_.Trim()) { $docCount++ }
+                    }
                 }
             }
             else {
@@ -293,18 +298,35 @@ foreach ($db in $DatabaseCollections.Keys) {
     }
 }
 
-# Convert JSON array files to NDJSON for mongoimport compatibility
+# Convert JSON array files to NDJSON for mongoimport compatibility (streaming)
 Write-Host ""
 Write-Host "Converting to NDJSON format for import compatibility..."
 foreach ($db in $DatabaseCollections.Keys) {
     foreach ($collection in $DatabaseCollections[$db]) {
         $file = Join-Path $OutputDir $db "$collection.json"
         if (Test-Path $file) {
-            $content = Get-Content $file -Raw
-            if ($content -and $content.Trim().StartsWith("[")) {
-                $docs = $content | ConvertFrom-Json
-                $ndjson = ($docs | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 20 }) -join "`n"
-                Set-Content -Path $file -Value $ndjson -Encoding UTF8
+            $firstChar = Get-Content $file -TotalCount 1
+            if ($firstChar -and $firstChar.TrimStart().StartsWith("[")) {
+                $tempFile = "$file.tmp"
+                # Stream: read JSON array, write one object per line
+                $reader = [System.IO.StreamReader]::new($file)
+                try {
+                    $jsonText = $reader.ReadToEnd()
+                }
+                finally {
+                    $reader.Close()
+                }
+                $docs = $jsonText | ConvertFrom-Json
+                $writer = [System.IO.StreamWriter]::new($tempFile, $false, [System.Text.Encoding]::UTF8)
+                try {
+                    foreach ($doc in $docs) {
+                        $writer.WriteLine(($doc | ConvertTo-Json -Compress -Depth 20))
+                    }
+                }
+                finally {
+                    $writer.Close()
+                }
+                Move-Item -Path $tempFile -Destination $file -Force
             }
         }
     }
