@@ -563,6 +563,17 @@ def test_handle_summary_complete_error_handling(
     sample_summary_complete_event,
 ):
     """Test that _handle_summary_complete handles errors properly."""
+    # Thread lookup must return a doc so the code proceeds to insert_document
+    thread_id = sample_summary_complete_event["data"]["thread_id"]
+
+    def query_side_effect(collection, filter_dict, limit=100, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [{"_id": thread_id, "first_message_date": "2025-01-01T00:00:00Z", "last_message_date": "2025-01-02T00:00:00Z"}]
+        if collection == "summaries":
+            return []
+        return []
+
+    mock_document_store.query_documents.side_effect = query_side_effect
     # Make insert_document raise an exception
     mock_document_store.insert_document.side_effect = Exception("DB Error")
 
@@ -644,11 +655,39 @@ def test_query_documents_uses_filter_dict_parameter(reporting_service, mock_docu
     assert "query" not in call_args[1], "query_documents should not use deprecated 'query' parameter"
 
 
+def test_get_reports_passes_sort_by_to_query_documents(reporting_service, mock_document_store):
+    """Test that sort_by=thread_start_date maps to first_message_date at DB level."""
+    mock_document_store.query_documents.return_value = []
+
+    # sort_by=thread_start_date should map to sort_by=first_message_date
+    reporting_service.get_reports(sort_by="thread_start_date", sort_order="desc")
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["sort_by"] == "first_message_date"
+    assert call_args[1]["sort_order"] == "desc"
+
+    mock_document_store.query_documents.reset_mock()
+    mock_document_store.query_documents.return_value = []
+
+    # sort_by=generated_at should pass through as-is
+    reporting_service.get_reports(sort_by="generated_at", sort_order="asc")
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["sort_by"] == "generated_at"
+    assert call_args[1]["sort_order"] == "asc"
+
+    mock_document_store.query_documents.reset_mock()
+    mock_document_store.query_documents.return_value = []
+
+    # No sort_by should pass None
+    reporting_service.get_reports()
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["sort_by"] is None
+
+
 def test_get_reports_with_message_date_filters_inclusive_overlap(reporting_service, mock_document_store):
     """Test that get_reports supports message date filtering with inclusive overlap."""
 
     # Setup mocks - need to return thread data
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1"},
@@ -706,7 +745,7 @@ def test_get_reports_with_message_date_filters_no_overlap(reporting_service, moc
     """Test that get_reports correctly excludes threads with no date overlap."""
 
     # Setup mocks
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1"},
@@ -748,7 +787,7 @@ def test_get_reports_with_message_date_filters_thread_without_dates(reporting_se
     """Test that get_reports skips threads without date information when using message date filters."""
 
     # Setup mocks
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1"},
@@ -789,7 +828,7 @@ def test_get_reports_with_message_date_filters_start_only(reporting_service, moc
     """Test that get_reports supports message_start_date without message_end_date."""
 
     # Setup mocks
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1"},
@@ -831,7 +870,7 @@ def test_get_reports_with_message_date_filters_end_only(reporting_service, mock_
     """Test that get_reports supports message_end_date without message_start_date."""
 
     # Setup mocks
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1"},
@@ -873,7 +912,7 @@ def test_get_reports_with_metadata_filters(reporting_service, mock_document_stor
     """Test that get_reports supports metadata filtering."""
 
     # Setup mocks - need to return thread and archive data
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {"summary_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T12:00:00Z"},
@@ -959,7 +998,7 @@ def test_search_reports_by_topic_with_vector_store():
     mock_vector_store.query.return_value = [mock_search_result]
 
     # Setup document store to return thread summary
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries" and filter_dict.get("thread_id") == "thread1":
             return [
                 {

@@ -50,13 +50,13 @@ def set_test_environment():
 def create_query_with_in_support(original_query):
     """Create a custom query function that supports MongoDB $in operator."""
 
-    def custom_query(collection, filter_dict, limit=100):
+    def custom_query(collection, filter_dict, limit=100, sort_by=None, sort_order="desc"):
         # Handle $in operator for _id (canonical document primary key)
         if "_id" in filter_dict and isinstance(filter_dict["_id"], dict):
             doc_ids = filter_dict["_id"].get("$in", [])
             results = []
             for doc_id in doc_ids:
-                doc_results = original_query(collection, {"_id": doc_id}, limit)
+                doc_results = original_query(collection, {"_id": doc_id}, limit, sort_by=sort_by, sort_order=sort_order)
                 results.extend(doc_results)
             return results[:limit]
         # Handle $in operator for message_doc_id (chunk foreign key reference)
@@ -64,11 +64,11 @@ def create_query_with_in_support(original_query):
             message_doc_ids = filter_dict["message_doc_id"].get("$in", [])
             results = []
             for message_doc_id in message_doc_ids:
-                msg_results = original_query(collection, {"message_doc_id": message_doc_id}, limit)
+                msg_results = original_query(collection, {"message_doc_id": message_doc_id}, limit, sort_by=sort_by, sort_order=sort_order)
                 results.extend(msg_results)
             return results[:limit]
         else:
-            return original_query(collection, filter_dict, limit)
+            return original_query(collection, filter_dict, limit, sort_by=sort_by, sort_order=sort_order)
 
     return custom_query
 
@@ -94,7 +94,7 @@ def document_store():
     # Store original method
     original_query = document_store.query_documents
 
-    def enhanced_query(collection, filter_dict, limit=100):
+    def enhanced_query(collection, filter_dict, limit=100, sort_by=None, sort_order="desc"):
         """Query that supports MongoDB-style $in operator."""
         # Handle $in operator for _id
         if "_id" in filter_dict and isinstance(filter_dict["_id"], dict):
@@ -102,7 +102,7 @@ def document_store():
                 doc_ids = filter_dict["_id"]["$in"]
                 results = []
                 for doc_id in doc_ids:
-                    docs = original_query(collection, {"_id": doc_id}, limit)
+                    docs = original_query(collection, {"_id": doc_id}, limit, sort_by=sort_by, sort_order=sort_order)
                     results.extend(docs)
                 return results[:limit]
 
@@ -112,12 +112,12 @@ def document_store():
                 message_doc_ids = filter_dict["message_doc_id"]["$in"]
                 results = []
                 for message_doc_id in message_doc_ids:
-                    docs = original_query(collection, {"message_doc_id": message_doc_id}, limit)
+                    docs = original_query(collection, {"message_doc_id": message_doc_id}, limit, sort_by=sort_by, sort_order=sort_order)
                     results.extend(docs)
                 return results[:limit]
 
         # Default: use original query
-        return original_query(collection, filter_dict, limit)
+        return original_query(collection, filter_dict, limit, sort_by=sort_by, sort_order=sort_order)
 
     # Replace the query method on the document store
     document_store.query_documents = enhanced_query

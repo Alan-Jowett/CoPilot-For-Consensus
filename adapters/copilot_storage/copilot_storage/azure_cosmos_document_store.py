@@ -390,7 +390,14 @@ class AzureCosmosDocumentStore(DocumentStore):
             logger.error(f"AzureCosmosDocumentStore: get_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to retrieve document {doc_id} from {collection}") from e
 
-    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
+    def query_documents(
+        self,
+        collection: str,
+        filter_dict: dict[str, Any],
+        limit: int = 100,
+        sort_by: str | None = None,
+        sort_order: str = "desc",
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Returns sanitized documents without backend system fields or
@@ -402,6 +409,8 @@ class AzureCosmosDocumentStore(DocumentStore):
             collection: Name of the logical collection
             filter_dict: Filter criteria as dictionary (supports equality and MongoDB operators)
             limit: Maximum number of documents to return
+            sort_by: Optional field name to sort results by
+            sort_order: Sort order ('asc' or 'desc', default 'desc')
 
         Returns:
             List of sanitized matching documents (empty list if no matches)
@@ -482,6 +491,24 @@ class AzureCosmosDocumentStore(DocumentStore):
                     param_counter += 1
                     query += f" AND c.{key} = {param_name}"
                     parameters.append({"name": param_name, "value": value})
+
+            # Add sorting if requested
+            if sort_by:
+                if not self._is_valid_field_name(sort_by):
+                    raise DocumentStoreError(f"Invalid sort_by field name '{sort_by}'")
+                if sort_order not in ("asc", "desc"):
+                    raise DocumentStoreError(
+                        f"Invalid sort_order '{sort_order}': must be 'asc' or 'desc'"
+                    )
+                order = "DESC" if sort_order == "desc" else "ASC"
+                # Place documents with NULL/missing sort fields last by using
+                # a composite ORDER BY: IS_DEFINED returns false (0) for missing
+                # fields and true (1) for present ones, so NULLs sort to the end
+                # in DESC and to the end in ASC without excluding any documents.
+                query += (
+                    f" ORDER BY IS_DEFINED(c.{sort_by}) DESC,"
+                    f" c.{sort_by} {order}"
+                )
 
             # Add limit (validate to prevent SQL injection)
             # Cosmos DB requires OFFSET...LIMIT syntax, not standalone LIMIT

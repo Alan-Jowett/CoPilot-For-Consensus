@@ -524,7 +524,7 @@ def test_get_reports_with_message_date_filters(client, test_service, mock_docume
     """Test the GET /api/reports endpoint with message date filters."""
 
     # Setup mocks to return thread data
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [{"summary_id": "rpt1", "thread_id": "thread1"}]
         elif collection == "threads":
@@ -555,7 +555,7 @@ def test_get_reports_with_message_date_filters_no_overlap(client, test_service, 
     """Test the GET /api/reports endpoint excludes threads with no date overlap."""
 
     # Setup mocks to return thread data
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [{"summary_id": "rpt1", "thread_id": "thread1"}]
         elif collection == "threads":
@@ -587,7 +587,7 @@ def test_get_reports_with_source_filter(client, test_service, mock_document_stor
     """Test the GET /api/reports endpoint with source filter."""
 
     # Setup mocks to return thread and archive data
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [{"summary_id": "rpt1", "thread_id": "thread1"}]
         elif collection == "threads":
@@ -624,7 +624,7 @@ def test_get_reports_with_metadata_filters(client, test_service, mock_document_s
     """Test the GET /api/reports endpoint with metadata filters."""
 
     # Setup mocks
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [{"summary_id": "rpt1", "thread_id": "thread1"}]
         elif collection == "threads":
@@ -668,7 +668,7 @@ def test_search_reports_by_topic_endpoint(client, test_service):
     test_service.vector_store.query.return_value = [mock_result]
 
     # Mock document store
-    def mock_query(collection, filter_dict, limit):
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
         if collection == "summaries":
             return [
                 {

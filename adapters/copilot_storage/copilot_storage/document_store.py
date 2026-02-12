@@ -89,7 +89,14 @@ class DocumentStore(ABC):
         pass
 
     @abstractmethod
-    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
+    def query_documents(
+        self,
+        collection: str,
+        filter_dict: dict[str, Any],
+        limit: int = 100,
+        sort_by: str | None = None,
+        sort_order: str = "desc",
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Returned documents are sanitized to remove backend system fields
@@ -100,6 +107,8 @@ class DocumentStore(ABC):
             collection: Name of the collection/table
             filter_dict: Filter criteria as dictionary
             limit: Maximum number of documents to return
+            sort_by: Optional field name to sort results by
+            sort_order: Sort order ('asc' or 'desc', default 'desc')
 
         Returns:
             List of sanitized matching documents

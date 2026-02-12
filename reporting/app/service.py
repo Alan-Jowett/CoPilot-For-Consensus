@@ -236,6 +236,39 @@ class ReportingService:
 
         # Create summary document
         now = datetime.now(timezone.utc).isoformat()
+
+        # Look up thread to denormalize date fields into the summary.
+        # This enables efficient DB-level sorting by thread date in get_reports().
+        first_message_date = None
+        last_message_date = None
+        thread_docs: list[dict[str, Any]] = []
+        try:
+            thread_docs = list(
+                self.document_store.query_documents(
+                    "threads",
+                    filter_dict={"_id": thread_id},
+                    limit=1,
+                )
+            )
+            if not thread_docs:
+                # Thread document not yet available; raise a retryable error so we don't
+                # persist a summary with null dates, which would sort incorrectly.
+                raise RetryDocumentNotFoundError(
+                    f"Thread {thread_id} not found for denormalization; will retry"
+                )
+            first_message_date = thread_docs[0].get("first_message_date")
+            last_message_date = thread_docs[0].get("last_message_date")
+        except RetryDocumentNotFoundError:
+            raise
+        except Exception as e:
+            # Transient/unexpected error — re-raise so the event can be retried.
+            # Persisting a summary with null dates would cause it to sort incorrectly.
+            logger.error(
+                f"Error fetching thread {thread_id} dates for summary denormalization: {e}",
+                exc_info=True,
+            )
+            raise
+
         summary_doc = {
             "_id": report_id,
             "summary_id": report_id,
@@ -243,6 +276,8 @@ class ReportingService:
             "summary_type": "thread",
             "title": f"Summary for {thread_id}",
             "content_markdown": summary_markdown,
+            "first_message_date": first_message_date,
+            "last_message_date": last_message_date,
             "citations": [
                 {
                     "chunk_id": c.get("chunk_id", ""),
@@ -270,13 +305,33 @@ class ReportingService:
         # Store summary
         # Idempotency: if the summary already exists, skip insert to avoid retries
         try:
-            existing = self.document_store.query_documents(
-                "summaries",
-                filter_dict={"_id": report_id},
-                limit=1,
+            existing = list(
+                self.document_store.query_documents(
+                    "summaries",
+                    filter_dict={"_id": report_id},
+                    limit=1,
+                )
             )
             if existing:
                 logger.info(f"Summary {report_id} already stored; skipping insert")
+                # Backfill denormalized date fields if a prior attempt persisted
+                # the summary but the thread lacked date fields at that time.
+                existing_doc = existing[0]
+                if first_message_date is not None and (
+                    existing_doc.get("first_message_date") is None
+                    or existing_doc.get("last_message_date") is None
+                ):
+                    logger.info(
+                        f"Backfilling date fields on summary {report_id}"
+                    )
+                    self.document_store.update_document(
+                        "summaries",
+                        report_id,
+                        {
+                            "first_message_date": first_message_date,
+                            "last_message_date": last_message_date,
+                        },
+                    )
             else:
                 logger.info(f"Storing summary {report_id} for thread {thread_id}")
                 self.document_store.insert_document("summaries", summary_doc)
@@ -291,17 +346,8 @@ class ReportingService:
         # Update thread document with summary_id to mark as complete
         logger.info(f"Updating thread {thread_id} with summary_id {report_id}")
         # Threads use thread_id as document _id; update by ID.
+        # thread_docs is guaranteed non-empty (we raise RetryDocumentNotFoundError above if not).
         try:
-            thread_docs = list(
-                self.document_store.query_documents(
-                    "threads",
-                    filter_dict={"_id": thread_id},
-                    limit=1,
-                )
-            )
-            if not thread_docs:
-                raise RetryDocumentNotFoundError(f"Thread {thread_id} not found in database")
-
             self.document_store.update_document(
                 "threads",
                 thread_id,
@@ -522,11 +568,25 @@ class ReportingService:
         if thread_id:
             filter_dict["thread_id"] = thread_id
 
+        # Determine DB-level sorting for summaries.
+        # Summaries are denormalized with first_message_date/last_message_date
+        # from their thread, so we can sort at the DB level directly.
+        db_sort_by = None
+        db_sort_order = sort_order or "desc"
+        if db_sort_order not in ("asc", "desc"):
+            db_sort_order = "desc"
+        if sort_by == "generated_at":
+            db_sort_by = "generated_at"
+        elif sort_by == "thread_start_date":
+            db_sort_by = "first_message_date"
+
         # Fetch summaries (fetch more for skip and filtering)
         summaries = self.document_store.query_documents(
             "summaries",
             filter_dict=filter_dict,
             limit=limit + skip + METADATA_FILTER_BUFFER_SIZE,
+            sort_by=db_sort_by,
+            sort_order=db_sort_order,
         )
 
         # Always enrich results with thread/archive data for UI display (thread start date, etc.)

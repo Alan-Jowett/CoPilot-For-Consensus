@@ -11,7 +11,7 @@ from typing import Any
 
 from copilot_config.generated.adapters.document_store import DriverConfig_DocumentStore_Inmemory
 
-from .document_store import DocumentAlreadyExistsError, DocumentNotFoundError, DocumentStore
+from .document_store import DocumentAlreadyExistsError, DocumentNotFoundError, DocumentStore, DocumentStoreError
 from .schema_registry import sanitize_document, sanitize_documents
 
 logger = logging.getLogger(__name__)
@@ -102,7 +102,14 @@ class InMemoryDocumentStore(DocumentStore):
         logger.debug(f"InMemoryDocumentStore: document {doc_id} not found in {collection}")
         return None
 
-    def query_documents(self, collection: str, filter_dict: dict[str, Any], limit: int = 100) -> list[dict[str, Any]]:
+    def query_documents(
+        self,
+        collection: str,
+        filter_dict: dict[str, Any],
+        limit: int = 100,
+        sort_by: str | None = None,
+        sort_order: str = "desc",
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Returns sanitized documents without backend system fields or
@@ -112,6 +119,8 @@ class InMemoryDocumentStore(DocumentStore):
             collection: Name of the collection
             filter_dict: Filter criteria as dictionary (simple equality checks)
             limit: Maximum number of documents to return
+            sort_by: Optional field name to sort results by
+            sort_order: Sort order ('asc' or 'desc', default 'desc')
 
         Returns:
             List of sanitized matching documents
@@ -125,8 +134,41 @@ class InMemoryDocumentStore(DocumentStore):
             if matches:
                 # Use deep copy to prevent external mutations affecting stored data
                 results.append(copy.deepcopy(doc))
-                if len(results) >= limit:
+
+                # When no sort is requested, stop once we have enough results
+                if sort_by is None and len(results) >= limit:
                     break
+
+        if sort_by:
+            if sort_order not in ("asc", "desc"):
+                raise DocumentStoreError(
+                    f"Invalid sort_order '{sort_order}': must be 'asc' or 'desc'"
+                )
+
+            reverse = sort_order == "desc"
+
+            # Two-phase stable sort: documents with None/missing sort_by
+            # values are always placed at the end, independent of direction.
+            non_none_results: list[dict[str, Any]] = []
+            none_results: list[dict[str, Any]] = []
+            for _doc in results:
+                if _doc.get(sort_by) is None:
+                    none_results.append(_doc)
+                else:
+                    non_none_results.append(_doc)
+
+            def _sort_key(d: dict[str, Any]) -> str:
+                """Return sort key; None values are already excluded."""
+                val = d.get(sort_by)
+                return str(val) if val is not None else ""
+
+            non_none_results.sort(
+                key=_sort_key,
+                reverse=reverse,
+            )
+            results = non_none_results + none_results
+
+        results = results[:limit]
 
         logger.debug(
             f"InMemoryDocumentStore: query on {collection} with {filter_dict} " f"returned {len(results)} documents"
