@@ -501,14 +501,11 @@ class AzureCosmosDocumentStore(DocumentStore):
                         f"Invalid sort_order '{sort_order}': must be 'asc' or 'desc'"
                     )
                 order = "DESC" if sort_order == "desc" else "ASC"
-                # Place documents with NULL/missing sort fields last by using
-                # a composite ORDER BY: IS_DEFINED returns false (0) for missing
-                # fields and true (1) for present ones, so NULLs sort to the end
-                # in DESC and to the end in ASC without excluding any documents.
-                query += (
-                    f" ORDER BY IS_DEFINED(c.{sort_by}) DESC,"
-                    f" c.{sort_by} {order}"
-                )
+                # Single-field ORDER BY works with the default /* range index.
+                # Documents with missing/null sort fields sort as the lowest
+                # value (first in ASC, last in DESC). This is Cosmos DB's
+                # native behavior and the canonical contract for all backends.
+                query += f" ORDER BY c.{sort_by} {order}"
 
             # Add limit (validate to prevent SQL injection)
             # Cosmos DB requires OFFSET...LIMIT syntax, not standalone LIMIT

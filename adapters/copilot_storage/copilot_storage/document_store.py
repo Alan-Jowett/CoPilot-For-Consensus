@@ -112,6 +112,10 @@ class DocumentStore(ABC):
 
         Returns:
             List of sanitized matching documents
+
+        Note:
+            Documents with missing/null sort fields sort as the lowest value
+            (first in ASC, last in DESC), matching Cosmos DB native behavior.
         """
         pass
 

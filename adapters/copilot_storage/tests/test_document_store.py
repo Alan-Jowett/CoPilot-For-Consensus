@@ -244,8 +244,8 @@ class TestInMemoryDocumentStore:
 
         assert [r["name"] for r in results] == ["Charlie", "Bob", "Alice"]
 
-    def test_query_documents_sort_none_values_at_end(self):
-        """Test that None/missing sort values are placed at the end regardless of order."""
+    def test_query_documents_sort_none_values_first(self):
+        """Test that None/missing sort values sort as lowest value (matching Cosmos DB)."""
         store = InMemoryDocumentStore()
         store.connect()
 
@@ -253,12 +253,12 @@ class TestInMemoryDocumentStore:
         store.insert_document("items", {"name": "NoDate"})
         store.insert_document("items", {"name": "Bob", "date": "2025-02-01"})
 
-        # Ascending: None at end
+        # Ascending: None sorts as lowest value (first)
         results_asc = store.query_documents("items", {}, sort_by="date", sort_order="asc")
-        assert results_asc[-1]["name"] == "NoDate"
-        assert [r["name"] for r in results_asc[:2]] == ["Alice", "Bob"]
+        assert results_asc[0]["name"] == "NoDate"
+        assert [r["name"] for r in results_asc[1:]] == ["Alice", "Bob"]
 
-        # Descending: None still at end
+        # Descending: None sorts as lowest value (last)
         results_desc = store.query_documents("items", {}, sort_by="date", sort_order="desc")
         assert results_desc[-1]["name"] == "NoDate"
         assert [r["name"] for r in results_desc[:2]] == ["Bob", "Alice"]
