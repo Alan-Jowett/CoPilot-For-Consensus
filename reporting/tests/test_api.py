@@ -1020,3 +1020,109 @@ def test_new_endpoints_service_not_initialized(monkeypatch):
 
     response = client.get("/api/chunks/chunk1")
     assert response.status_code == 503
+
+
+@pytest.mark.integration
+def test_get_threads_with_source_query_param(client, test_service, mock_document_store):
+    """Test GET /api/threads?source=X passes through correctly."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "participants": [], "message_count": 5, "archive_id": "archive1"},
+            ]
+        elif collection == "archives":
+            return [{"_id": "archive1", "source": "test-source"}]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    response = client.get("/api/threads?source=test-source")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 1
+
+
+@pytest.mark.integration
+def test_get_threads_with_date_query_params(client, test_service, mock_document_store):
+    """Test that date params are forwarded to service."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {
+                    "_id": "thread1",
+                    "first_message_date": "2025-01-10T00:00:00Z",
+                    "last_message_date": "2025-01-15T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    response = client.get(
+        "/api/threads?message_start_date=2025-01-01T00:00:00Z&message_end_date=2025-01-31T23:59:59Z"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 1
+
+
+@pytest.mark.integration
+def test_get_threads_with_sort_params(client, test_service, mock_document_store):
+    """Test that sort_by and sort_order are forwarded."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {
+                    "_id": "thread1",
+                    "first_message_date": "2025-01-10T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    response = client.get("/api/threads?sort_by=first_message_date&sort_order=asc")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 1
+
+    # Verify sort params were passed to query_documents
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["sort_by"] == "first_message_date"
+    assert call_args[1]["sort_order"] == "asc"
+
+
+@pytest.mark.integration
+def test_get_threads_with_metadata_query_params(client, test_service, mock_document_store):
+    """Test that min/max participants/messages are forwarded."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {
+                    "_id": "thread1",
+                    "participants": ["a@example.com", "b@example.com"],
+                    "message_count": 10,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    response = client.get(
+        "/api/threads?min_participants=2&max_participants=5&min_messages=5&max_messages=20"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 1
