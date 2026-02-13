@@ -7,10 +7,10 @@ Supports Azure Cosmos DB (SQL API) and MongoDB as sources.
 Writes NDJSON files suitable for data-migration-import.py.
 
 Usage:
-    # From Azure Cosmos DB (connection string)
+    # From Azure Cosmos DB (account endpoint + account key)
     python scripts/data-migration-export.py --source-type cosmos \
         --cosmos-endpoint https://account.documents.azure.com:443/ \
-        --cosmos-key "<key>"
+        --cosmos-key "<account key>"
 
     # From Azure Cosmos DB (RBAC / DefaultAzureCredential)
     python scripts/data-migration-export.py --source-type cosmos \
@@ -36,6 +36,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+
 def _redact_uri(uri: str) -> str:
     """Remove credentials from a MongoDB URI for safe manifest storage."""
     return re.sub(r"://[^@]+@", "://<redacted>@", uri)
@@ -57,12 +58,12 @@ def export_cosmos(endpoint: str, key: str | None, use_rbac: bool,
         from azure.identity import DefaultAzureCredential
         credential = DefaultAzureCredential()
         client = CosmosClient(endpoint, credential=credential)
-        print(f"  Auth: Azure AD / RBAC (DefaultAzureCredential)")
+        print("  Auth: Azure AD / RBAC (DefaultAzureCredential)")
     else:
         if not key:
             raise ValueError("Cosmos DB key is required when not using RBAC")
         client = CosmosClient(endpoint, credential=key)
-        print(f"  Auth: Connection string (account key)")
+        print("  Auth: Connection string (account key)")
 
     counts: dict[str, int] = {}
 

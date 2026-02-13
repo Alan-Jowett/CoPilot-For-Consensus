@@ -7,10 +7,10 @@ Supports Azure Cosmos DB (SQL API) and MongoDB as destinations.
 Reads NDJSON files produced by data-migration-export.py.
 
 Usage:
-    # Into Azure Cosmos DB (connection string)
+    # Into Azure Cosmos DB (account endpoint + account key)
     python scripts/data-migration-import.py --dest-type cosmos \
         --cosmos-endpoint https://account.documents.azure.com:443/ \
-        --cosmos-key "<key>" \
+        --cosmos-key "<account key>" \
         --export-dir data-export-20260212T170000
 
     # Into Azure Cosmos DB (RBAC / DefaultAzureCredential)
@@ -57,7 +57,7 @@ COSMOS_PARTITION_KEYS = {
 
 def iter_ndjson(file_path: Path):
     """Iterate over an NDJSON file, yielding one parsed dict per line."""
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -67,7 +67,7 @@ def iter_ndjson(file_path: Path):
 def count_ndjson_lines(file_path: Path) -> int:
     """Count non-empty lines in an NDJSON file without loading into memory."""
     count = 0
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 count += 1
@@ -85,12 +85,12 @@ def import_cosmos(endpoint: str, key: str | None, use_rbac: bool,
         from azure.identity import DefaultAzureCredential
         credential = DefaultAzureCredential()
         client = CosmosClient(endpoint, credential=credential)
-        print(f"  Auth: Azure AD / RBAC (DefaultAzureCredential)")
+        print("  Auth: Azure AD / RBAC (DefaultAzureCredential)")
     else:
         if not key:
             raise ValueError("Cosmos DB key is required when not using RBAC")
         client = CosmosClient(endpoint, credential=key)
-        print(f"  Auth: Connection string (account key)")
+        print("  Auth: Connection string (account key)")
 
     counts: dict[str, int] = {}
 
@@ -225,7 +225,7 @@ def import_mongodb(uri: str, export_dir: Path, databases: dict[str, list[str]],
                 if doc_id is None:
                     errors += 1
                     if errors <= 3:
-                        print(f"\n    Error: document missing both '_id' and 'id'", end="")
+                        print("\n    Error: document missing both '_id' and 'id'", end="")
                     continue
                 if "_id" not in item:
                     item["_id"] = doc_id

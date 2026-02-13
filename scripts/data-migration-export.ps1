@@ -183,10 +183,22 @@ elseif ($SourceType -eq "cosmos") {
         $connString = Get-CosmosConnectionString -RG $ResourceGroup -Account $CosmosAccountName -RBAC $true
     }
     elseif ($env:SRC_COSMOS_ENDPOINT -and $env:SRC_COSMOS_KEY) {
-        # Derive Cosmos DB MongoDB API connection string from SQL API endpoint + key
+        # Derive Cosmos DB MongoDB API connection string from endpoint + key.
+        # Fail fast if the endpoint is a SQL API endpoint (*.documents.azure.com)
+        # since mongoexport requires a MongoDB API account.
         $endpointUri = [Uri]$env:SRC_COSMOS_ENDPOINT
-        $accountName = $endpointUri.Host.Split('.')[0]
-        $mongoHost = "${accountName}.mongo.cosmos.azure.com"
+        $host = $endpointUri.Host
+
+        if ($host -like "*.documents.azure.com") {
+            throw "SRC_COSMOS_ENDPOINT '$host' appears to be a SQL API endpoint. This script requires a Cosmos DB MongoDB API account. Use -ConnectionString with a MongoDB connection string, or use the Python export script (data-migration-export.py) for SQL API accounts."
+        }
+
+        $accountName = $host.Split('.')[0]
+        if ($host -like "*.mongo.cosmos.azure.com") {
+            $mongoHost = $host
+        } else {
+            $mongoHost = "${accountName}.mongo.cosmos.azure.com"
+        }
         $escapedKey = [uri]::EscapeDataString($env:SRC_COSMOS_KEY)
         $connString = "mongodb://${accountName}:${escapedKey}@${mongoHost}:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@${accountName}@"
     }

@@ -65,7 +65,7 @@ The scripts support two authentication methods for Azure Cosmos DB:
 
 | Method | Flag | Use When |
 |--------|------|----------|
-| **Connection string** (default) | `--cosmos-key` | You have access to account keys |
+| **Account key** (default) | `--cosmos-key` | You have an account key for the Cosmos DB account |
 | **Azure AD / RBAC** | `--use-rbac` | Keys are disabled, or you prefer identity-based auth |
 
 **RBAC requirements**: The signed-in Azure AD principal (`az login`) must have one of these Cosmos DB built-in roles:

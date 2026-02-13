@@ -5,11 +5,8 @@
 
 import importlib.util
 import json
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 # Load the export module dynamically (filename has hyphens)
 _spec = importlib.util.spec_from_file_location(
