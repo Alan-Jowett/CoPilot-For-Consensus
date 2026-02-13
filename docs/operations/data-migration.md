@@ -53,7 +53,7 @@ a different schema, update the `COSMOS_PARTITION_KEYS` dict in `scripts/data-mig
 
 | Tool | Install | Purpose |
 |------|---------|---------|
-| Python 3.11+ | Pre-installed in project venv | Running migration scripts |
+| Python 3.10+ | Pre-installed in project venv | Running migration scripts |
 | [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) | `winget install Microsoft.AzureCLI` | Storage upload, RBAC role setup |
 | `azure-cosmos` | `pip install azure-cosmos` | Cosmos DB SQL API export/import |
 | `azure-identity` | `pip install azure-identity` | RBAC authentication (optional) |

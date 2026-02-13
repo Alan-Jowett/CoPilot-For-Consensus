@@ -6,14 +6,14 @@
 import importlib.util
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 # Load the import module dynamically (filename has hyphens)
 _spec = importlib.util.spec_from_file_location(
     "data_migration_import",
-    Path(__file__).parent / "data-migration-import.py",
+    Path(__file__).resolve().parent.parent / "scripts" / "data-migration-import.py",
 )
 _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)

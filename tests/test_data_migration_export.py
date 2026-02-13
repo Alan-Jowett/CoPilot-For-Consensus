@@ -14,7 +14,7 @@ import pytest
 # Load the export module dynamically (filename has hyphens)
 _spec = importlib.util.spec_from_file_location(
     "data_migration_export",
-    Path(__file__).parent / "data-migration-export.py",
+    Path(__file__).resolve().parent.parent / "scripts" / "data-migration-export.py",
 )
 _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)

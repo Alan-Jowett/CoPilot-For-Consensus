@@ -7,16 +7,16 @@
 
 .DESCRIPTION
     Imports collections from a data export directory (created by
-    data-migration-export.ps1) into Azure Cosmos DB or MongoDB.
+    data-migration-export.ps1) into Azure Cosmos DB (MongoDB API) or MongoDB.
 
     See docs/operations/data-migration.md for full documentation.
 
 .PARAMETER DestType
-    The type of destination database: "cosmos" or "mongodb".
+    The type of destination database: "cosmos" (Azure Cosmos DB using the MongoDB API) or "mongodb".
 
 .PARAMETER ConnectionString
     MongoDB-compatible connection string. If omitted, the script derives it
-    from environment variables or az CLI (for Cosmos).
+    from environment variables or az CLI (for Cosmos MongoDB API).
 
 .PARAMETER ResourceGroup
     Azure resource group (required when DestType=cosmos and no ConnectionString).
