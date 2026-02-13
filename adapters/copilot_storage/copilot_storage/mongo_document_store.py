@@ -282,10 +282,8 @@ class MongoDocumentStore(DocumentStore):
                     )
                 direction = pymongo.DESCENDING if sort_order == "desc" else pymongo.ASCENDING
                 # Note: MongoDB places NULL/missing values first in ASC and
-                # last in DESC. InMemory and Cosmos place NULLs last regardless
-                # of direction. In practice, sort fields (first_message_date,
-                # generated_at) are non-null for properly created documents, so
-                # the difference only affects migration edge cases.
+                # last in DESC. All backends (Cosmos DB, InMemory) follow the
+                # same convention: NULLs sort as the lowest value.
                 cursor = cursor.sort(sort_by, direction)
             cursor = cursor.limit(limit)
 

@@ -147,26 +147,16 @@ class InMemoryDocumentStore(DocumentStore):
 
             reverse = sort_order == "desc"
 
-            # Two-phase stable sort: documents with None/missing sort_by
-            # values are always placed at the end, independent of direction.
-            non_none_results: list[dict[str, Any]] = []
-            none_results: list[dict[str, Any]] = []
-            for _doc in results:
-                if _doc.get(sort_by) is None:
-                    none_results.append(_doc)
-                else:
-                    non_none_results.append(_doc)
-
             def _sort_key(d: dict[str, Any]) -> str:
-                """Return sort key; None values are already excluded."""
+                """Return sort key; None/missing values sort as lowest value
+                (first in ASC, last in DESC), matching Cosmos DB behavior."""
                 val = d.get(sort_by)
                 return str(val) if val is not None else ""
 
-            non_none_results.sort(
+            results.sort(
                 key=_sort_key,
                 reverse=reverse,
             )
-            results = non_none_results + none_results
 
         results = results[:limit]
 

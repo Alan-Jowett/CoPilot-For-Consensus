@@ -371,3 +371,28 @@ class TestAzureCosmosAggregate:
 
         # All documents should have message_key
         assert len(results) == 3
+
+    def test_query_documents_with_sort(self, azurecosmos_store, clean_collection):
+        """Test query_documents with sort_by and sort_order against real Cosmos DB."""
+        # Insert documents with a sortable field (plus one without it for NULL behavior)
+        azurecosmos_store.insert_document(clean_collection, {"name": "alpha", "date": "2026-01-01"})
+        azurecosmos_store.insert_document(clean_collection, {"name": "beta", "date": "2026-01-03"})
+        azurecosmos_store.insert_document(clean_collection, {"name": "gamma", "date": "2026-01-02"})
+        azurecosmos_store.insert_document(clean_collection, {"name": "no_date"})
+
+        time.sleep(1)
+
+        # Sort ascending — documents missing the sort field sort as lowest value (first)
+        results_asc = azurecosmos_store.query_documents(
+            clean_collection, {}, sort_by="date", sort_order="asc"
+        )
+        names_asc = [r["name"] for r in results_asc]
+        assert names_asc[0] == "no_date"
+        assert names_asc[1:] == ["alpha", "gamma", "beta"]
+
+        # Sort descending — documents missing the sort field sort as lowest value (last)
+        results_desc = azurecosmos_store.query_documents(
+            clean_collection, {}, sort_by="date", sort_order="desc"
+        )
+        names_desc = [r["name"] for r in results_desc]
+        assert names_desc == ["beta", "gamma", "alpha", "no_date"]
