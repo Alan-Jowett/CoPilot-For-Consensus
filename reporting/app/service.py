@@ -1062,24 +1062,25 @@ class ReportingService:
             archive_id_val = thread.get("archive_id")
             archive = archives_map.get(archive_id_val) if archive_id_val else None
 
-            # Apply message date filters using inclusive overlap (only if filtering is active)
+            # Apply message date filters using inclusive overlap
             # A thread is included if its date range [first_message_date, last_message_date]
             # overlaps with the filter range [message_start_date, message_end_date]
             # Overlap condition: first_message_date <= message_end_date AND last_message_date >= message_start_date
-            if has_filtering and (message_start_date is not None or message_end_date is not None):
+            if has_filtering:
                 first_msg_date = thread.get("first_message_date")
                 last_msg_date = thread.get("last_message_date")
 
-                # Skip threads without date information
-                if not first_msg_date or not last_msg_date:
-                    continue
+                # Skip threads without date information when date filter is active
+                if (message_start_date is not None or message_end_date is not None):
+                    if not first_msg_date or not last_msg_date:
+                        continue
 
-                # Check overlap condition
-                if message_end_date is not None and first_msg_date > message_end_date:
-                    continue  # Thread starts after filter range ends
+                    # Check overlap condition
+                    if message_end_date is not None and first_msg_date > message_end_date:
+                        continue  # Thread starts after filter range ends
 
-                if message_start_date is not None and last_msg_date < message_start_date:
-                    continue  # Thread ends before filter range starts
+                    if message_start_date is not None and last_msg_date < message_start_date:
+                        continue  # Thread ends before filter range starts
 
             # Apply participant count filters (only if filtering is active)
             if has_filtering and min_participants is not None:

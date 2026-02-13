@@ -267,7 +267,7 @@ export interface ThreadsListResponse {
 }
 
 export async function fetchThreadsList(q: ThreadsQuery): Promise<ThreadsListResponse> {
-  const params: any = {
+  const params: Record<string, string | number> = {
     limit: q.limit ?? 20,
     skip: q.skip ?? 0,
   }

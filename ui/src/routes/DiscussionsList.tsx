@@ -72,10 +72,10 @@ export function DiscussionsList() {
       } catch (e: unknown) {
         if (cancelled) return
         let message = 'Failed to load threads'
-        if (e instanceof Error && e?.message) {
+        if (e instanceof Error && e.message) {
           // Check if this is an ACCESS_DENIED error
-          if (e?.message?.startsWith('ACCESS_DENIED:')) {
-            setAccessDenied(e?.message?.replace('ACCESS_DENIED: ', '') ?? '')
+          if (e.message.startsWith('ACCESS_DENIED:')) {
+            setAccessDenied(e.message.replace('ACCESS_DENIED: ', '') ?? '')
             return
           }
           message = e.message
@@ -88,7 +88,7 @@ export function DiscussionsList() {
       }
     })()
     return () => { cancelled = true }
-  }, [q.message_start_date, q.message_end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip, q.sort_by, q.sort_order])
+  }, [q])
 
   const [form, setForm] = useState({
     message_start_date: q.message_start_date ?? '',
@@ -221,7 +221,7 @@ export function DiscussionsList() {
               <button type="button" onClick={() => setDateRange(7)}>Last 7 days</button>
               <button type="button" onClick={() => setDateRange(30)}>Last 30 days</button>
               <button type="button" onClick={() => setDateRange(90)}>Last 90 days</button>
-              <button type="button" onClick={setCurrentMonth}>This month</button>
+              <button type="button" onClick={setCurrentMonth}>Current month</button>
             </div>
           </div>
 
