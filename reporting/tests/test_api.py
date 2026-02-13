@@ -762,9 +762,17 @@ def test_get_threads_with_pagination(client, test_service, mock_document_store):
 @pytest.mark.integration
 def test_get_threads_with_archive_filter(client, test_service, mock_document_store):
     """Test the GET /api/threads endpoint with archive filter."""
-    mock_document_store.query_documents.return_value = [
-        {"_id": "thread1", "archive_id": "archive1"},
-    ]
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "archive_id": "archive1", "participants": [], "message_count": 1},
+            ]
+        elif collection == "archives":
+            return []
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
 
     response = client.get("/api/threads?archive_id=archive1")
 
@@ -772,10 +780,10 @@ def test_get_threads_with_archive_filter(client, test_service, mock_document_sto
     data = response.json()
 
     assert data["count"] == 1
-    # Verify the service was called with correct filter
-    mock_document_store.query_documents.assert_called_once()
-    call_args = mock_document_store.query_documents.call_args
-    assert call_args[1]["filter_dict"]["archive_id"] == "archive1"
+    # Verify the service was called with correct filter for threads (first call)
+    first_call = mock_document_store.query_documents.call_args_list[0]
+    assert first_call[0][0] == "threads"
+    assert first_call[1]["filter_dict"]["archive_id"] == "archive1"
 
 
 @pytest.mark.integration

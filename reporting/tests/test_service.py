@@ -1059,11 +1059,17 @@ def test_search_reports_by_topic_with_vector_store():
 
 def test_get_threads(reporting_service, mock_document_store):
     """Test that get_threads retrieves threads with pagination."""
-    mock_document_store.query_documents.return_value = [
-        {"_id": "thread1", "subject": "Thread 1"},
-        {"_id": "thread2", "subject": "Thread 2"},
-        {"_id": "thread3", "subject": "Thread 3"},
-    ]
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "subject": "Thread 1", "participants": [], "message_count": 1},
+                {"_id": "thread2", "subject": "Thread 2", "participants": [], "message_count": 1},
+                {"_id": "thread3", "subject": "Thread 3", "participants": [], "message_count": 1},
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
 
     threads = reporting_service.get_threads(limit=2, skip=0)
 
@@ -1071,36 +1077,53 @@ def test_get_threads(reporting_service, mock_document_store):
     assert threads[0]["_id"] == "thread1"
     assert threads[1]["_id"] == "thread2"
 
-    # Verify query_documents is called with limit + skip
-    mock_document_store.query_documents.assert_called_once_with(
-        "threads",
-        filter_dict={},
-        limit=2,  # limit + skip = 2 + 0
-    )
+    # Verify query_documents is called with correct parameters including sort
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[0][0] == "threads"
+    assert call_args[1]["filter_dict"] == {}
+    assert call_args[1]["limit"] == 2  # limit + skip = 2 + 0
+    assert call_args[1]["sort_by"] is None
+    assert call_args[1]["sort_order"] == "desc"
 
 
 def test_get_threads_with_archive_filter(reporting_service, mock_document_store):
     """Test that get_threads supports archive_id filtering."""
-    mock_document_store.query_documents.return_value = [
-        {"_id": "thread1", "archive_id": "archive1"},
-    ]
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "archive_id": "archive1", "participants": [], "message_count": 1},
+            ]
+        elif collection == "archives":
+            return []
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
 
     threads = reporting_service.get_threads(archive_id="archive1")
 
     assert len(threads) == 1
-    call_args = mock_document_store.query_documents.call_args
-    assert call_args[1]["filter_dict"]["archive_id"] == "archive1"
+    # Verify the archive_id was passed in the filter to the threads query (first call)
+    first_call = mock_document_store.query_documents.call_args_list[0]
+    assert first_call[0][0] == "threads"
+    assert first_call[1]["filter_dict"]["archive_id"] == "archive1"
 
 
 def test_get_threads_with_skip(reporting_service, mock_document_store):
     """Test that get_threads pagination with non-zero skip returns correct subset."""
-    mock_document_store.query_documents.return_value = [
-        {"_id": "thread0", "subject": "Thread 0"},
-        {"_id": "thread1", "subject": "Thread 1"},
-        {"_id": "thread2", "subject": "Thread 2"},
-        {"_id": "thread3", "subject": "Thread 3"},
-        {"_id": "thread4", "subject": "Thread 4"},
-    ]
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread0", "subject": "Thread 0", "participants": [], "message_count": 1},
+                {"_id": "thread1", "subject": "Thread 1", "participants": [], "message_count": 1},
+                {"_id": "thread2", "subject": "Thread 2", "participants": [], "message_count": 1},
+                {"_id": "thread3", "subject": "Thread 3", "participants": [], "message_count": 1},
+                {"_id": "thread4", "subject": "Thread 4", "participants": [], "message_count": 1},
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
 
     threads = reporting_service.get_threads(limit=2, skip=2)
 
@@ -1109,12 +1132,10 @@ def test_get_threads_with_skip(reporting_service, mock_document_store):
     assert threads[0]["_id"] == "thread2"
     assert threads[1]["_id"] == "thread3"
 
-    # Verify query_documents is called with limit + skip
-    mock_document_store.query_documents.assert_called_once_with(
-        "threads",
-        filter_dict={},
-        limit=4,  # limit + skip = 2 + 2
-    )
+    # Verify query_documents is called with limit + skip + buffer (if filtering)
+    # Since no filters are applied, no buffer is added
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["limit"] == 4  # limit + skip = 2 + 2
 
 
 def test_get_threads_skip_exceeds_results(reporting_service, mock_document_store):
