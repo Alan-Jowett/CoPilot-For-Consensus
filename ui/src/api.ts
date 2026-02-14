@@ -120,6 +120,7 @@ export interface Thread {
   first_message_date?: string
   last_message_date?: string
   archive_id?: string
+  archive_source?: string
   summary_id?: string
 }
 

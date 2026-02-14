@@ -186,155 +186,194 @@ export function DiscussionsList() {
       <p className="subtitle">Browse mailing list discussion threads</p>
 
       {/* Filter Form */}
-      <form onSubmit={applyFilters} className="filter-form">
-        <div className="filter-section">
-          <h3>Filters</h3>
-          <button
-            type="button"
-            className="toggle-advanced"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-          >
-            {showAdvanced ? '▼ Simple' : '▶ Advanced'}
-          </button>
-        </div>
-
-        {/* Simple Filters */}
-        <div className="filter-row">
-          <div className="filter-group">
-            <label>Date Range:</label>
-            <div className="date-inputs">
-              <input
-                type="date"
-                value={form.message_start_date}
-                onChange={e => setForm({ ...form, message_start_date: e.target.value })}
-                placeholder="Start date"
-              />
-              <span> to </span>
-              <input
-                type="date"
-                value={form.message_end_date}
-                onChange={e => setForm({ ...form, message_end_date: e.target.value })}
-                placeholder="End date"
-              />
+      <div className="filters">
+        <h2>Filters</h2>
+        <form onSubmit={applyFilters}>
+          <div className="filter-section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <h3>📅 Date Range</h3>
+              <button
+                type="button"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-primary)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+                onClick={() => setShowAdvanced(!showAdvanced)}
+              >
+                {showAdvanced ? '▼ Simple' : '▶ Advanced'}
+              </button>
             </div>
-            <div className="quick-date-buttons">
-              <button type="button" onClick={() => setDateRange(7)}>Last 7 days</button>
-              <button type="button" onClick={() => setDateRange(30)}>Last 30 days</button>
-              <button type="button" onClick={() => setDateRange(90)}>Last 90 days</button>
-              <button type="button" onClick={setCurrentMonth}>Current month</button>
-            </div>
-          </div>
-
-          <div className="filter-group">
-            <label>Source:</label>
-            <select
-              value={form.source}
-              onChange={e => setForm({ ...form, source: e.target.value })}
-            >
-              <option value="">All sources</option>
-              {availableSources.map(src => (
-                <option key={src} value={src}>{src}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Advanced Filters */}
-        {showAdvanced && (
-          <div className="filter-row advanced-filters">
-            <div className="filter-group">
-              <label>Participants:</label>
-              <div className="range-inputs">
+            <div className="filter-row">
+              <div className="filter-group">
+                <label htmlFor="message_start_date">Start Date</label>
                 <input
-                  type="number"
-                  min="0"
-                  value={form.min_participants}
-                  onChange={e => setForm({ ...form, min_participants: e.target.value })}
-                  placeholder="Min"
+                  type="date"
+                  id="message_start_date"
+                  value={form.message_start_date}
+                  onChange={e => setForm({ ...form, message_start_date: e.target.value })}
                 />
-                <span> to </span>
+              </div>
+              <div className="filter-group">
+                <label htmlFor="message_end_date">End Date</label>
                 <input
-                  type="number"
-                  min="0"
-                  value={form.max_participants}
-                  onChange={e => setForm({ ...form, max_participants: e.target.value })}
-                  placeholder="Max"
+                  type="date"
+                  id="message_end_date"
+                  value={form.message_end_date}
+                  onChange={e => setForm({ ...form, message_end_date: e.target.value })}
                 />
               </div>
             </div>
+            <div className="quick-dates">
+              <button type="button" className="quick-date-btn" onClick={() => setDateRange(7)}>Last 7 days</button>
+              <button type="button" className="quick-date-btn" onClick={() => setDateRange(30)}>Last 30 days</button>
+              <button type="button" className="quick-date-btn" onClick={() => setDateRange(90)}>Last 90 days</button>
+              <button type="button" className="quick-date-btn" onClick={setCurrentMonth}>Current month</button>
+            </div>
+          </div>
 
-            <div className="filter-group">
-              <label>Messages:</label>
-              <div className="range-inputs">
-                <input
-                  type="number"
-                  min="0"
-                  value={form.min_messages}
-                  onChange={e => setForm({ ...form, min_messages: e.target.value })}
-                  placeholder="Min"
-                />
-                <span> to </span>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.max_messages}
-                  onChange={e => setForm({ ...form, max_messages: e.target.value })}
-                  placeholder="Max"
-                />
+          <div className="filter-section">
+            <h3>📦 Source</h3>
+            <div className="filter-row">
+              <div className="filter-group">
+                <label htmlFor="source">Archive Source</label>
+                <select
+                  id="source"
+                  value={form.source}
+                  onChange={e => setForm({ ...form, source: e.target.value })}
+                >
+                  <option value="">All Sources</option>
+                  {availableSources.map(src => (
+                    <option key={src} value={src}>{src}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
-        )}
 
-        {/* Action Buttons */}
-        <div className="filter-actions">
-          <button type="submit" className="btn-primary">Apply Filters</button>
-          {hasFilters && (
-            <button type="button" onClick={clearAll} className="btn-secondary">
-              Clear All
-            </button>
+          {/* Advanced Filters */}
+          {showAdvanced && (
+            <div className="filter-section">
+              <h3>📊 Thread Metadata</h3>
+              <div className="filter-row">
+                <div className="filter-group small">
+                  <label htmlFor="min_participants">Min Participants</label>
+                  <input
+                    type="number"
+                    id="min_participants"
+                    min="0"
+                    value={form.min_participants}
+                    onChange={e => setForm({ ...form, min_participants: e.target.value })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="filter-group small">
+                  <label htmlFor="max_participants">Max Participants</label>
+                  <input
+                    type="number"
+                    id="max_participants"
+                    min="0"
+                    value={form.max_participants}
+                    onChange={e => setForm({ ...form, max_participants: e.target.value })}
+                    placeholder="∞"
+                  />
+                </div>
+                <div className="filter-group small">
+                  <label htmlFor="min_messages">Min Messages</label>
+                  <input
+                    type="number"
+                    id="min_messages"
+                    min="0"
+                    value={form.min_messages}
+                    onChange={e => setForm({ ...form, min_messages: e.target.value })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="filter-group small">
+                  <label htmlFor="max_messages">Max Messages</label>
+                  <input
+                    type="number"
+                    id="max_messages"
+                    min="0"
+                    value={form.max_messages}
+                    onChange={e => setForm({ ...form, max_messages: e.target.value })}
+                    placeholder="∞"
+                  />
+                </div>
+              </div>
+            </div>
           )}
-        </div>
-      </form>
+
+          <div className="filter-section">
+            <div className="filter-row">
+              <div className="filter-group" style={{ flex: 2 }}>
+                <div className="button-group">
+                  <button type="submit">Apply Filters</button>
+                  {hasFilters && (
+                    <button type="button" className="clear-btn" onClick={clearAll}>
+                      Clear All
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
 
       {/* Active Filter Badges */}
       {activeFilterBadges.length > 0 && (
         <div className="active-filters">
-          <span className="filter-label">Active filters:</span>
-          {activeFilterBadges.map(badge => (
-            <span key={badge.key} className="filter-badge">
-              {badge.label}
-              <button
-                type="button"
-                className="remove-filter"
-                onClick={() => remove(badge.key)}
-                title="Remove filter"
-              >
-                ×
-              </button>
-            </span>
-          ))}
+          <h3>Active Filters</h3>
+          <div className="filter-tags">
+            {activeFilterBadges.map(badge => (
+              <span key={badge.key} className="filter-tag">
+                {badge.label}
+                <span className="remove" onClick={() => remove(badge.key)}>×</span>
+              </span>
+            ))}
+          </div>
         </div>
       )}
 
       {/* Loading/Error States */}
-      {loading && <p className="loading">Loading threads...</p>}
-      {error && <p className="error">Error: {error}</p>}
+      {loading && <p style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>Loading threads...</p>}
+      {error && <p style={{ textAlign: 'center', padding: '20px', color: 'var(--color-danger)' }}>Error: {error}</p>}
 
       {/* Threads Table */}
       {!loading && !error && (
         <>
-          <div className="results-header">
-            <p className="result-count">
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '15px',
+            background: 'var(--bg-secondary)',
+            borderRadius: '8px',
+            boxShadow: 'var(--shadow-sm)',
+            marginBottom: '10px'
+          }}>
+            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '14px' }}>
               Showing {data.threads.length} of {data.count} threads
               {q.skip > 0 && ` (skipping first ${q.skip})`}
             </p>
-            <div className="sort-controls">
-              <label>Sort by thread start: </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Sort by thread start: </span>
               <button
                 type="button"
                 onClick={toggleSort}
-                className="sort-toggle"
+                style={{
+                  padding: '6px 12px',
+                  background: 'var(--color-primary)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
                 title={`Currently: ${q.sort_order === 'desc' ? 'Newest first' : 'Oldest first'}`}
               >
                 {q.sort_order === 'desc' ? '↓ Newest first' : '↑ Oldest first'}
@@ -342,75 +381,77 @@ export function DiscussionsList() {
             </div>
           </div>
 
-          <table className="threads-table">
-            <thead>
-              <tr>
-                <th>Subject</th>
-                <th>Source</th>
-                <th>Date Range</th>
-                <th>Participants</th>
-                <th>Messages</th>
-                <th>Summary</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.threads.length === 0 ? (
+          <div className="reports-table">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={6} className="no-results">
-                    No threads found matching your filters
-                  </td>
+                  <th>Subject</th>
+                  <th>Source</th>
+                  <th>Date Range</th>
+                  <th>Participants</th>
+                  <th>Messages</th>
+                  <th>Summary</th>
                 </tr>
-              ) : (
-                data.threads.map(thread => {
-                  const firstDate = thread.first_message_date
-                    ? new Date(thread.first_message_date).toLocaleDateString()
-                    : '—'
-                  const lastDate = thread.last_message_date
-                    ? new Date(thread.last_message_date).toLocaleDateString()
-                    : '—'
-                  const dateRange = firstDate === lastDate ? firstDate : `${firstDate} → ${lastDate}`
+              </thead>
+              <tbody>
+                {data.threads.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      No threads found matching your filters
+                    </td>
+                  </tr>
+                ) : (
+                  data.threads.map(thread => {
+                    const firstDate = thread.first_message_date
+                      ? new Date(thread.first_message_date).toLocaleDateString()
+                      : '—'
+                    const lastDate = thread.last_message_date
+                      ? new Date(thread.last_message_date).toLocaleDateString()
+                      : '—'
+                    const dateRange = firstDate === lastDate ? firstDate : `${firstDate} → ${lastDate}`
 
-                  return (
-                    <tr key={thread._id}>
-                      <td>
-                        <Link to={`/threads/${thread._id}/messages`}>
-                          {thread.subject || '(no subject)'}
-                        </Link>
-                      </td>
-                      <td>{thread.archive_source || '—'}</td>
-                      <td>{dateRange}</td>
-                      <td>{thread.participants?.length ?? 0}</td>
-                      <td>{thread.message_count ?? 0}</td>
-                      <td>
-                        {thread.summary_id ? (
-                          <Link to={`/reports/${thread.summary_id}`}>📄 View</Link>
-                        ) : (
-                          <span>—</span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
+                    return (
+                      <tr key={thread._id}>
+                        <td>
+                          <Link to={`/threads/${thread._id}/messages`}>
+                            {thread.subject || '(no subject)'}
+                          </Link>
+                        </td>
+                        <td>{thread.archive_source || '—'}</td>
+                        <td>{dateRange}</td>
+                        <td>{thread.participants?.length ?? 0}</td>
+                        <td>{thread.message_count ?? 0}</td>
+                        <td>
+                          {thread.summary_id ? (
+                            <Link to={`/reports/${thread.summary_id}`}>📄 View</Link>
+                          ) : (
+                            <span>—</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {/* Pagination */}
           <div className="pagination">
             <button
               onClick={() => update({ skip: Math.max(0, q.skip - q.limit) })}
               disabled={q.skip === 0}
-              className="btn-secondary"
+              className={q.skip === 0 ? 'disabled' : ''}
             >
               ← Previous
             </button>
-            <span className="pagination-info">
+            <span style={{ color: 'var(--text-secondary)' }}>
               Page {Math.floor(q.skip / q.limit) + 1}
             </span>
             <button
               onClick={() => update({ skip: q.skip + q.limit })}
               disabled={data.threads.length < q.limit}
-              className="btn-secondary"
+              className={data.threads.length < q.limit ? 'disabled' : ''}
             >
               Next →
             </button>
