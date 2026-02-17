@@ -358,7 +358,7 @@ export function DiscussionsList() {
           }}>
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '14px' }}>
               Showing {data.threads.length} of {data.count} threads
-              {q.skip > 0 && ` (skipping first ${q.skip})`}
+              {(q.skip ?? 0) > 0 && ` (skipping first ${q.skip})`}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Sort by thread start: </span>
@@ -439,19 +439,19 @@ export function DiscussionsList() {
           {/* Pagination */}
           <div className="pagination">
             <button
-              onClick={() => update({ skip: Math.max(0, q.skip - q.limit) })}
+              onClick={() => update({ skip: Math.max(0, (q.skip ?? 0) - (q.limit ?? 20)) })}
               disabled={q.skip === 0}
               className={q.skip === 0 ? 'disabled' : ''}
             >
               ← Previous
             </button>
             <span style={{ color: 'var(--text-secondary)' }}>
-              Page {Math.floor(q.skip / q.limit) + 1}
+              Page {Math.floor((q.skip ?? 0) / (q.limit ?? 20)) + 1}
             </span>
             <button
-              onClick={() => update({ skip: q.skip + q.limit })}
-              disabled={data.threads.length < q.limit}
-              className={data.threads.length < q.limit ? 'disabled' : ''}
+              onClick={() => update({ skip: (q.skip ?? 0) + (q.limit ?? 20) })}
+              disabled={data.threads.length < (q.limit ?? 20)}
+              className={data.threads.length < (q.limit ?? 20) ? 'disabled' : ''}
             >
               Next →
             </button>
