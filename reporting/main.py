@@ -305,6 +305,23 @@ def get_threads(
     limit: int = Query(10, ge=1, le=100, description="Maximum number of results"),
     skip: int = Query(0, ge=0, description="Number of results to skip"),
     archive_id: str = Query(None, description="Filter by archive ID"),
+    message_start_date: str = Query(
+        None, description="Filter by thread message dates (inclusive overlap) - start of date range (ISO 8601)"
+    ),
+    message_end_date: str = Query(
+        None, description="Filter by thread message dates (inclusive overlap) - end of date range (ISO 8601)"
+    ),
+    source: str = Query(None, description="Filter by archive source"),
+    min_participants: int = Query(None, ge=0, description="Minimum number of participants"),
+    max_participants: int = Query(None, ge=0, description="Maximum number of participants"),
+    min_messages: int = Query(None, ge=0, description="Minimum number of messages in thread"),
+    max_messages: int = Query(None, ge=0, description="Maximum number of messages in thread"),
+    sort_by: str = Query(
+        None,
+        regex="^(first_message_date|last_message_date)$",
+        description="Sort by field ('first_message_date' or 'last_message_date')",
+    ),
+    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order ('asc' or 'desc')"),
 ):
     """Get list of threads with optional filters."""
     global reporting_service
@@ -317,6 +334,15 @@ def get_threads(
             limit=limit,
             skip=skip,
             archive_id=archive_id,
+            message_start_date=message_start_date,
+            message_end_date=message_end_date,
+            source=source,
+            min_participants=min_participants,
+            max_participants=max_participants,
+            min_messages=min_messages,
+            max_messages=max_messages,
+            sort_by=sort_by,
+            sort_order=sort_order,
         )
 
         return {

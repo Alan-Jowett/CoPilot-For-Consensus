@@ -1059,11 +1059,17 @@ def test_search_reports_by_topic_with_vector_store():
 
 def test_get_threads(reporting_service, mock_document_store):
     """Test that get_threads retrieves threads with pagination."""
-    mock_document_store.query_documents.return_value = [
-        {"_id": "thread1", "subject": "Thread 1"},
-        {"_id": "thread2", "subject": "Thread 2"},
-        {"_id": "thread3", "subject": "Thread 3"},
-    ]
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "subject": "Thread 1", "participants": [], "message_count": 1},
+                {"_id": "thread2", "subject": "Thread 2", "participants": [], "message_count": 1},
+                {"_id": "thread3", "subject": "Thread 3", "participants": [], "message_count": 1},
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
 
     threads = reporting_service.get_threads(limit=2, skip=0)
 
@@ -1071,36 +1077,53 @@ def test_get_threads(reporting_service, mock_document_store):
     assert threads[0]["_id"] == "thread1"
     assert threads[1]["_id"] == "thread2"
 
-    # Verify query_documents is called with limit + skip
-    mock_document_store.query_documents.assert_called_once_with(
-        "threads",
-        filter_dict={},
-        limit=2,  # limit + skip = 2 + 0
-    )
+    # Verify query_documents is called with correct parameters including sort
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[0][0] == "threads"
+    assert call_args[1]["filter_dict"] == {}
+    assert call_args[1]["limit"] == 2  # limit + skip = 2 + 0
+    assert call_args[1]["sort_by"] is None
+    assert call_args[1]["sort_order"] == "desc"
 
 
 def test_get_threads_with_archive_filter(reporting_service, mock_document_store):
     """Test that get_threads supports archive_id filtering."""
-    mock_document_store.query_documents.return_value = [
-        {"_id": "thread1", "archive_id": "archive1"},
-    ]
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "archive_id": "archive1", "participants": [], "message_count": 1},
+            ]
+        elif collection == "archives":
+            return []
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
 
     threads = reporting_service.get_threads(archive_id="archive1")
 
     assert len(threads) == 1
-    call_args = mock_document_store.query_documents.call_args
-    assert call_args[1]["filter_dict"]["archive_id"] == "archive1"
+    # Verify the archive_id was passed in the filter to the threads query (first call)
+    first_call = mock_document_store.query_documents.call_args_list[0]
+    assert first_call[0][0] == "threads"
+    assert first_call[1]["filter_dict"]["archive_id"] == "archive1"
 
 
 def test_get_threads_with_skip(reporting_service, mock_document_store):
     """Test that get_threads pagination with non-zero skip returns correct subset."""
-    mock_document_store.query_documents.return_value = [
-        {"_id": "thread0", "subject": "Thread 0"},
-        {"_id": "thread1", "subject": "Thread 1"},
-        {"_id": "thread2", "subject": "Thread 2"},
-        {"_id": "thread3", "subject": "Thread 3"},
-        {"_id": "thread4", "subject": "Thread 4"},
-    ]
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread0", "subject": "Thread 0", "participants": [], "message_count": 1},
+                {"_id": "thread1", "subject": "Thread 1", "participants": [], "message_count": 1},
+                {"_id": "thread2", "subject": "Thread 2", "participants": [], "message_count": 1},
+                {"_id": "thread3", "subject": "Thread 3", "participants": [], "message_count": 1},
+                {"_id": "thread4", "subject": "Thread 4", "participants": [], "message_count": 1},
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
 
     threads = reporting_service.get_threads(limit=2, skip=2)
 
@@ -1109,12 +1132,10 @@ def test_get_threads_with_skip(reporting_service, mock_document_store):
     assert threads[0]["_id"] == "thread2"
     assert threads[1]["_id"] == "thread3"
 
-    # Verify query_documents is called with limit + skip
-    mock_document_store.query_documents.assert_called_once_with(
-        "threads",
-        filter_dict={},
-        limit=4,  # limit + skip = 2 + 2
-    )
+    # Verify query_documents is called with limit + skip + buffer (if filtering)
+    # Since no filters are applied, no buffer is added
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["limit"] == 4  # limit + skip = 2 + 2
 
 
 def test_get_threads_skip_exceeds_results(reporting_service, mock_document_store):
@@ -1473,3 +1494,422 @@ def test_cascade_cleanup_handler():
     assert progress_event["event"]["data"]["status"] == "completed"
     assert progress_event["event"]["data"]["correlation_id"] == "test-correlation-123"
     assert progress_event["event"]["data"]["deletion_counts"]["summaries"] == 2
+
+
+# Tests for get_threads() with enhanced filtering and sorting
+
+
+def test_get_threads_with_date_filter_inclusive_overlap(reporting_service, mock_document_store):
+    """Test that get_threads supports date filtering with inclusive overlap."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {
+                    "_id": "thread1",
+                    "first_message_date": "2025-01-05T00:00:00Z",
+                    "last_message_date": "2025-01-10T00:00:00Z",
+                    "participants": ["alice@example.com"],
+                    "message_count": 5,
+                    "archive_id": "archive1",
+                },
+                {
+                    "_id": "thread2",
+                    "first_message_date": "2025-01-15T00:00:00Z",
+                    "last_message_date": "2025-01-20T00:00:00Z",
+                    "participants": ["bob@example.com"],
+                    "message_count": 3,
+                    "archive_id": "archive1",
+                },
+                {
+                    "_id": "thread3",
+                    "first_message_date": "2025-01-25T00:00:00Z",
+                    "last_message_date": "2025-01-30T00:00:00Z",
+                    "participants": ["charlie@example.com"],
+                    "message_count": 7,
+                    "archive_id": "archive1",
+                },
+            ]
+        elif collection == "archives":
+            return [{"_id": "archive1", "source": "test-list"}]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for messages between 2025-01-08 and 2025-01-17
+    # Should include:
+    # - thread1 (2025-01-05 to 2025-01-10) - overlaps at end
+    # - thread2 (2025-01-15 to 2025-01-20) - overlaps at start
+    # Should exclude:
+    # - thread3 (2025-01-25 to 2025-01-30) - no overlap
+    threads = reporting_service.get_threads(
+        message_start_date="2025-01-08T00:00:00Z",
+        message_end_date="2025-01-17T00:00:00Z",
+    )
+
+    assert len(threads) == 2
+    thread_ids = {t["_id"] for t in threads}
+    assert "thread1" in thread_ids
+    assert "thread2" in thread_ids
+    assert "thread3" not in thread_ids
+
+
+def test_get_threads_with_start_date_only(reporting_service, mock_document_store):
+    """Test that get_threads filters threads ending before start date."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {
+                    "_id": "thread1",
+                    "first_message_date": "2025-01-01T00:00:00Z",
+                    "last_message_date": "2025-01-05T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "_id": "thread2",
+                    "first_message_date": "2025-01-10T00:00:00Z",
+                    "last_message_date": "2025-01-15T00:00:00Z",
+                    "participants": [],
+                    "message_count": 3,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for threads starting from 2025-01-08
+    # Should include thread2, exclude thread1
+    threads = reporting_service.get_threads(
+        message_start_date="2025-01-08T00:00:00Z",
+    )
+
+    assert len(threads) == 1
+    assert threads[0]["_id"] == "thread2"
+
+
+def test_get_threads_with_end_date_only(reporting_service, mock_document_store):
+    """Test that get_threads filters threads starting after end date."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {
+                    "_id": "thread1",
+                    "first_message_date": "2025-01-01T00:00:00Z",
+                    "last_message_date": "2025-01-05T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "_id": "thread2",
+                    "first_message_date": "2025-01-20T00:00:00Z",
+                    "last_message_date": "2025-01-25T00:00:00Z",
+                    "participants": [],
+                    "message_count": 3,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for threads ending by 2025-01-10
+    # Should include thread1, exclude thread2
+    threads = reporting_service.get_threads(
+        message_end_date="2025-01-10T00:00:00Z",
+    )
+
+    assert len(threads) == 1
+    assert threads[0]["_id"] == "thread1"
+
+
+def test_get_threads_with_source_filter(reporting_service, mock_document_store):
+    """Test that get_threads filters by archive source."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "participants": [], "message_count": 5, "archive_id": "archive1"},
+                {"_id": "thread2", "participants": [], "message_count": 3, "archive_id": "archive2"},
+                {"_id": "thread3", "participants": [], "message_count": 7, "archive_id": "archive1"},
+            ]
+        elif collection == "archives":
+            return [
+                {"_id": "archive1", "source": "test-list-a"},
+                {"_id": "archive2", "source": "test-list-b"},
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for source test-list-a
+    threads = reporting_service.get_threads(source="test-list-a")
+
+    assert len(threads) == 2
+    thread_ids = {t["_id"] for t in threads}
+    assert "thread1" in thread_ids
+    assert "thread3" in thread_ids
+    assert "thread2" not in thread_ids
+
+
+def test_get_threads_with_participant_filters(reporting_service, mock_document_store):
+    """Test that get_threads filters by min/max participant count."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "participants": ["a@example.com"], "message_count": 5},
+                {"_id": "thread2", "participants": ["a@example.com", "b@example.com"], "message_count": 3},
+                {
+                    "_id": "thread3",
+                    "participants": ["a@example.com", "b@example.com", "c@example.com"],
+                    "message_count": 7,
+                },
+                {
+                    "_id": "thread4",
+                    "participants": ["a@example.com", "b@example.com", "c@example.com", "d@example.com"],
+                    "message_count": 10,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for 2-3 participants
+    threads = reporting_service.get_threads(min_participants=2, max_participants=3)
+
+    assert len(threads) == 2
+    thread_ids = {t["_id"] for t in threads}
+    assert "thread2" in thread_ids
+    assert "thread3" in thread_ids
+    assert "thread1" not in thread_ids  # Too few
+    assert "thread4" not in thread_ids  # Too many
+
+
+def test_get_threads_with_message_count_filters(reporting_service, mock_document_store):
+    """Test that get_threads filters by min/max message count."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "participants": [], "message_count": 2},
+                {"_id": "thread2", "participants": [], "message_count": 5},
+                {"_id": "thread3", "participants": [], "message_count": 8},
+                {"_id": "thread4", "participants": [], "message_count": 15},
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for 5-10 messages
+    threads = reporting_service.get_threads(min_messages=5, max_messages=10)
+
+    assert len(threads) == 2
+    thread_ids = {t["_id"] for t in threads}
+    assert "thread2" in thread_ids
+    assert "thread3" in thread_ids
+    assert "thread1" not in thread_ids  # Too few
+    assert "thread4" not in thread_ids  # Too many
+
+
+def test_get_threads_with_combined_filters(reporting_service, mock_document_store):
+    """Test that get_threads applies multiple filters simultaneously."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {
+                    "_id": "thread1",
+                    "first_message_date": "2025-01-10T00:00:00Z",
+                    "last_message_date": "2025-01-15T00:00:00Z",
+                    "participants": ["a@example.com", "b@example.com"],
+                    "message_count": 5,
+                    "archive_id": "archive1",
+                },
+                {
+                    "_id": "thread2",
+                    "first_message_date": "2025-01-10T00:00:00Z",
+                    "last_message_date": "2025-01-15T00:00:00Z",
+                    "participants": ["a@example.com"],
+                    "message_count": 5,
+                    "archive_id": "archive1",
+                },
+                {
+                    "_id": "thread3",
+                    "first_message_date": "2025-01-20T00:00:00Z",
+                    "last_message_date": "2025-01-25T00:00:00Z",
+                    "participants": ["a@example.com", "b@example.com"],
+                    "message_count": 5,
+                    "archive_id": "archive1",
+                },
+            ]
+        elif collection == "archives":
+            return [{"_id": "archive1", "source": "test-list"}]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Apply date filter + participant filter
+    threads = reporting_service.get_threads(
+        message_start_date="2025-01-08T00:00:00Z",
+        message_end_date="2025-01-17T00:00:00Z",
+        min_participants=2,
+    )
+
+    # Only thread1 matches both filters
+    assert len(threads) == 1
+    assert threads[0]["_id"] == "thread1"
+
+
+def test_get_threads_sort_by_first_message_date_asc(reporting_service, mock_document_store):
+    """Test that get_threads sorts by first_message_date ascending."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            # Return threads in a specific order that we'll verify was sorted
+            return [
+                {
+                    "_id": "thread3",
+                    "first_message_date": "2025-01-20T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "_id": "thread1",
+                    "first_message_date": "2025-01-05T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "_id": "thread2",
+                    "first_message_date": "2025-01-10T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    threads = reporting_service.get_threads(sort_by="first_message_date", sort_order="asc")
+
+    # Verify that query_documents was called with correct sort parameters
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["sort_by"] == "first_message_date"
+    assert call_args[1]["sort_order"] == "asc"
+
+
+def test_get_threads_sort_by_first_message_date_desc(reporting_service, mock_document_store):
+    """Test that get_threads sorts by first_message_date descending (default)."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {
+                    "_id": "thread1",
+                    "first_message_date": "2025-01-05T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    threads = reporting_service.get_threads(sort_by="first_message_date", sort_order="desc")
+
+    # Verify that query_documents was called with correct sort parameters
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["sort_by"] == "first_message_date"
+    assert call_args[1]["sort_order"] == "desc"
+
+
+def test_get_threads_enriches_archive_source(reporting_service, mock_document_store):
+    """Test that get_threads enriches threads with archive_source field."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "participants": [], "message_count": 5, "archive_id": "archive1"},
+                {"_id": "thread2", "participants": [], "message_count": 3, "archive_id": "archive2"},
+            ]
+        elif collection == "archives":
+            return [
+                {"_id": "archive1", "source": "ietf-httpbis"},
+                {"_id": "archive2", "source": "w3c-public"},
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    threads = reporting_service.get_threads()
+
+    assert len(threads) == 2
+    assert threads[0]["archive_source"] == "ietf-httpbis"
+    assert threads[1]["archive_source"] == "w3c-public"
+
+
+def test_get_threads_missing_archive_graceful(reporting_service, mock_document_store):
+    """Test that threads with unknown archive_id still returned with null source."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {"_id": "thread1", "participants": [], "message_count": 5, "archive_id": "archive1"},
+                {"_id": "thread2", "participants": [], "message_count": 3, "archive_id": "archive_missing"},
+            ]
+        elif collection == "archives":
+            # Only archive1 exists, archive_missing does not
+            return [{"_id": "archive1", "source": "test-list"}]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    threads = reporting_service.get_threads()
+
+    assert len(threads) == 2
+    assert threads[0]["archive_source"] == "test-list"
+    assert threads[1]["archive_source"] is None  # Missing archive should have null source
+
+
+def test_get_threads_skips_threads_without_dates_on_date_filter(reporting_service, mock_document_store):
+    """Test that threads missing date fields are excluded when date filter is active."""
+
+    def mock_query(collection, filter_dict, limit, sort_by=None, sort_order="desc"):
+        if collection == "threads":
+            return [
+                {
+                    "_id": "thread1",
+                    "first_message_date": "2025-01-10T00:00:00Z",
+                    "last_message_date": "2025-01-15T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "_id": "thread2",
+                    # Missing date fields
+                    "participants": [],
+                    "message_count": 3,
+                },
+                {
+                    "_id": "thread3",
+                    "first_message_date": "2025-01-12T00:00:00Z",
+                    # Missing last_message_date
+                    "participants": [],
+                    "message_count": 7,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Apply date filter
+    threads = reporting_service.get_threads(
+        message_start_date="2025-01-08T00:00:00Z",
+        message_end_date="2025-01-17T00:00:00Z",
+    )
+
+    # Only thread1 has complete date info
+    assert len(threads) == 1
+    assert threads[0]["_id"] == "thread1"

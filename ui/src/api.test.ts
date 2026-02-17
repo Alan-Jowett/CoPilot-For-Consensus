@@ -8,6 +8,7 @@ import {
   fetchReports,
   searchReportsByTopic,
   fetchReport,
+  fetchThreadsList,
   fetchIngestionSources,
   createIngestionSource,
   updateIngestionSource,
@@ -255,6 +256,72 @@ describe('API Helpers', () => {
       )
 
       await expect(fetchSources()).rejects.toThrow('ACCESS_DENIED: Admin access required')
+    })
+  })
+
+  describe('fetchThreadsList', () => {
+    it('sends correct query params', async () => {
+      const mockData = { threads: [{ _id: 'thread1', subject: 'Test' }], count: 1 }
+      fetchMock.mockResolvedValue(createMockResponse(mockData))
+
+      const result = await fetchThreadsList({
+        message_start_date: '2025-01-01',
+        message_end_date: '2025-01-31',
+        source: 'test-source',
+        min_participants: '2',
+        max_participants: '10',
+        min_messages: '5',
+        max_messages: '50',
+        sort_by: 'first_message_date',
+        sort_order: 'desc',
+        limit: 20,
+        skip: 10,
+      })
+
+      expect(result).toEqual(mockData)
+      
+      const callUrl = fetchMock.mock.calls[0][0]
+      expect(callUrl).toContain('message_start_date=2025-01-01')
+      expect(callUrl).toContain('message_end_date=2025-01-31')
+      expect(callUrl).toContain('source=test-source')
+      expect(callUrl).toContain('min_participants=2')
+      expect(callUrl).toContain('max_participants=10')
+      expect(callUrl).toContain('min_messages=5')
+      expect(callUrl).toContain('max_messages=50')
+      expect(callUrl).toContain('sort_by=first_message_date')
+      expect(callUrl).toContain('sort_order=desc')
+      expect(callUrl).toContain('limit=20')
+      expect(callUrl).toContain('skip=10')
+    })
+
+    it('handles empty response', async () => {
+      const mockData = { threads: [], count: 0 }
+      fetchMock.mockResolvedValue(createMockResponse(mockData))
+
+      const result = await fetchThreadsList({})
+
+      expect(result).toEqual({ threads: [], count: 0 })
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/api/threads'),
+        expect.any(Object)
+      )
+    })
+
+    it('fetches with default pagination', async () => {
+      const mockData = { threads: [], count: 0 }
+      fetchMock.mockResolvedValue(createMockResponse(mockData))
+
+      await fetchThreadsList({})
+
+      const callUrl = fetchMock.mock.calls[0][0]
+      expect(callUrl).toContain('limit=20')
+      expect(callUrl).toContain('skip=0')
+    })
+
+    it('throws error on failed request', async () => {
+      fetchMock.mockResolvedValue(createMockResponse({}, { status: 500, ok: false }))
+
+      await expect(fetchThreadsList({})).rejects.toThrow('Threads fetch failed: 500')
     })
   })
 })

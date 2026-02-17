@@ -120,6 +120,7 @@ export interface Thread {
   first_message_date?: string
   last_message_date?: string
   archive_id?: string
+  archive_source?: string
   summary_id?: string
 }
 
@@ -244,6 +245,46 @@ export async function fetchThread(threadId: string): Promise<Thread> {
   const r = await fetchWithAuth(`${base}/api/threads/${threadId}`)
   if (r.status === 404) throw new Error('NOT_FOUND')
   if (!r.ok) throw new Error(`Thread fetch failed: ${r.status}`)
+  return r.json()
+}
+
+export interface ThreadsQuery {
+  message_start_date?: string  // Filter by thread message dates (inclusive overlap)
+  message_end_date?: string    // Filter by thread message dates (inclusive overlap)
+  source?: string
+  min_participants?: string
+  max_participants?: string
+  min_messages?: string
+  max_messages?: string
+  limit?: number
+  skip?: number
+  sort_by?: string
+  sort_order?: string
+}
+
+export interface ThreadsListResponse {
+  threads: Thread[]
+  count: number
+}
+
+export async function fetchThreadsList(q: ThreadsQuery): Promise<ThreadsListResponse> {
+  const params: Record<string, string | number> = {
+    limit: q.limit ?? 20,
+    skip: q.skip ?? 0,
+  }
+  if (q.message_start_date) params.message_start_date = q.message_start_date
+  if (q.message_end_date) params.message_end_date = q.message_end_date
+  if (q.source) params.source = q.source
+  if (q.min_participants) params.min_participants = q.min_participants
+  if (q.max_participants) params.max_participants = q.max_participants
+  if (q.min_messages) params.min_messages = q.min_messages
+  if (q.max_messages) params.max_messages = q.max_messages
+  if (q.sort_by) params.sort_by = q.sort_by
+  if (q.sort_order) params.sort_order = q.sort_order
+
+  const url = `${base}/api/threads?${toQuery(params)}`
+  const r = await fetchWithAuth(url)
+  if (!r.ok) throw new Error(`Threads fetch failed: ${r.status}`)
   return r.json()
 }
 

@@ -76,6 +76,12 @@ function AppLayoutContent() {
           </div>
           <div className="nav-links">
             <Link
+              to="/discussions"
+              className={isActive('/discussions') ? 'nav-link active' : 'nav-link'}
+            >
+              💬 Discussions
+            </Link>
+            <Link
               to="/reports"
               className={isActive('/reports') ? 'nav-link active' : 'nav-link'}
             >

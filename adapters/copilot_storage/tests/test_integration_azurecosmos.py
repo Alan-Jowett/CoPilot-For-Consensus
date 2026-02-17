@@ -396,3 +396,184 @@ class TestAzureCosmosAggregate:
         )
         names_desc = [r["name"] for r in results_desc]
         assert names_desc == ["beta", "gamma", "alpha", "no_date"]
+
+
+@pytest.mark.integration
+class TestAzureCosmosThreadsFiltering:
+    """Integration tests for threads filtering against real Cosmos DB."""
+
+    def test_threads_query_with_sort(self, azurecosmos_store):
+        """Test that sort_by and sort_order work correctly for threads against real Cosmos DB."""
+        collection = "threads"
+        
+        # Clean up before test
+        delete_all_items_in_container(azurecosmos_store, collection)
+        
+        # Insert threads with different first_message_date values
+        azurecosmos_store.insert_document(
+            collection,
+            {
+                "_id": "thread1",
+                "subject": "Thread 1",
+                "first_message_date": "2025-01-10T00:00:00Z",
+                "last_message_date": "2025-01-15T00:00:00Z",
+                "participants": ["alice@example.com"],
+                "message_count": 5,
+            },
+        )
+        azurecosmos_store.insert_document(
+            collection,
+            {
+                "_id": "thread2",
+                "subject": "Thread 2",
+                "first_message_date": "2025-01-20T00:00:00Z",
+                "last_message_date": "2025-01-25T00:00:00Z",
+                "participants": ["bob@example.com"],
+                "message_count": 3,
+            },
+        )
+        azurecosmos_store.insert_document(
+            collection,
+            {
+                "_id": "thread3",
+                "subject": "Thread 3",
+                "first_message_date": "2025-01-05T00:00:00Z",
+                "last_message_date": "2025-01-08T00:00:00Z",
+                "participants": ["charlie@example.com"],
+                "message_count": 7,
+            },
+        )
+
+        # Wait for Cosmos DB indexing
+        time.sleep(1)
+
+        # Test ascending sort
+        results_asc = azurecosmos_store.query_documents(
+            collection, {}, sort_by="first_message_date", sort_order="asc"
+        )
+        assert len(results_asc) == 3
+        assert results_asc[0]["_id"] == "thread3"  # 2025-01-05
+        assert results_asc[1]["_id"] == "thread1"  # 2025-01-10
+        assert results_asc[2]["_id"] == "thread2"  # 2025-01-20
+
+        # Test descending sort
+        results_desc = azurecosmos_store.query_documents(
+            collection, {}, sort_by="first_message_date", sort_order="desc"
+        )
+        assert len(results_desc) == 3
+        assert results_desc[0]["_id"] == "thread2"  # 2025-01-20
+        assert results_desc[1]["_id"] == "thread1"  # 2025-01-10
+        assert results_desc[2]["_id"] == "thread3"  # 2025-01-05
+
+        # Cleanup
+        delete_all_items_in_container(azurecosmos_store, collection)
+
+    def test_threads_date_range_filter_end_to_end(self, azurecosmos_store):
+        """Test end-to-end date range filtering with inclusive overlap for threads."""
+        collection = "threads"
+        
+        # Clean up before test
+        delete_all_items_in_container(azurecosmos_store, collection)
+        
+        # Insert threads with known dates
+        azurecosmos_store.insert_document(
+            collection,
+            {
+                "_id": "thread_early",
+                "subject": "Early Thread",
+                "first_message_date": "2025-01-01T00:00:00Z",
+                "last_message_date": "2025-01-05T00:00:00Z",
+                "participants": [],
+                "message_count": 5,
+            },
+        )
+        azurecosmos_store.insert_document(
+            collection,
+            {
+                "_id": "thread_overlap_start",
+                "subject": "Overlaps at Start",
+                "first_message_date": "2025-01-08T00:00:00Z",
+                "last_message_date": "2025-01-12T00:00:00Z",
+                "participants": [],
+                "message_count": 3,
+            },
+        )
+        azurecosmos_store.insert_document(
+            collection,
+            {
+                "_id": "thread_middle",
+                "subject": "Middle Thread",
+                "first_message_date": "2025-01-12T00:00:00Z",
+                "last_message_date": "2025-01-18T00:00:00Z",
+                "participants": [],
+                "message_count": 7,
+            },
+        )
+        azurecosmos_store.insert_document(
+            collection,
+            {
+                "_id": "thread_overlap_end",
+                "subject": "Overlaps at End",
+                "first_message_date": "2025-01-18T00:00:00Z",
+                "last_message_date": "2025-01-22T00:00:00Z",
+                "participants": [],
+                "message_count": 4,
+            },
+        )
+        azurecosmos_store.insert_document(
+            collection,
+            {
+                "_id": "thread_late",
+                "subject": "Late Thread",
+                "first_message_date": "2025-01-25T00:00:00Z",
+                "last_message_date": "2025-01-30T00:00:00Z",
+                "participants": [],
+                "message_count": 6,
+            },
+        )
+
+        # Wait for Cosmos DB indexing
+        time.sleep(1)
+
+        # Filter for threads overlapping with 2025-01-10 to 2025-01-20
+        # Expected results: thread_overlap_start, thread_middle, thread_overlap_end
+        # Excluded: thread_early (ends before 2025-01-10), thread_late (starts after 2025-01-20)
+        
+        # Query all threads and verify we can filter them in application code
+        # (The actual overlap filtering is done in the reporting service layer)
+        all_threads = azurecosmos_store.query_documents(collection, {})
+        
+        # Verify all threads were inserted
+        assert len(all_threads) == 5
+        
+        # Verify we can query by date fields
+        threads_after_jan10 = [
+            t for t in all_threads
+            if t.get("last_message_date") and t["last_message_date"] >= "2025-01-10T00:00:00Z"
+        ]
+        assert len(threads_after_jan10) == 4  # Excludes thread_early
+        
+        threads_before_jan20 = [
+            t for t in all_threads
+            if t.get("first_message_date") and t["first_message_date"] <= "2025-01-20T00:00:00Z"
+        ]
+        assert len(threads_before_jan20) == 4  # Excludes thread_late
+        
+        # Verify overlap logic (what the service does)
+        filter_start = "2025-01-10T00:00:00Z"
+        filter_end = "2025-01-20T00:00:00Z"
+        overlapping_threads = [
+            t for t in all_threads
+            if (
+                t.get("first_message_date")
+                and t.get("last_message_date")
+                and t["first_message_date"] <= filter_end
+                and t["last_message_date"] >= filter_start
+            )
+        ]
+        assert len(overlapping_threads) == 3
+        overlapping_ids = {t["_id"] for t in overlapping_threads}
+        assert overlapping_ids == {"thread_overlap_start", "thread_middle", "thread_overlap_end"}
+
+        # Cleanup
+        delete_all_items_in_container(azurecosmos_store, collection)

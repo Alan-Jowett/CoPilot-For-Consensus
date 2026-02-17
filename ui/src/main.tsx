@@ -7,6 +7,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { AuthProvider, setUnauthorizedCallback } from './contexts/AuthContext'
 import { AppLayout } from './ui/AppLayout'
+import { DiscussionsList } from './routes/DiscussionsList'
 import { ReportsList } from './routes/ReportsList'
 import { ReportDetail } from './routes/ReportDetail'
 import { ThreadSummary } from './routes/ThreadSummary'
@@ -25,7 +26,8 @@ const router = createBrowserRouter(
       path: '/',
       element: <AppLayout />,
       children: [
-        { index: true, element: <Navigate to="reports" replace /> },
+        { index: true, element: <Navigate to="discussions" replace /> },
+        { path: 'discussions', element: <DiscussionsList /> },
         { path: 'reports', element: <ReportsList /> },
         { path: 'reports/:reportId', element: <ReportDetail /> },
         { path: 'threads/:threadId', element: <ThreadSummary /> },

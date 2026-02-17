@@ -972,6 +972,15 @@ class ReportingService:
         limit: int = 10,
         skip: int = 0,
         archive_id: str | None = None,
+        message_start_date: str | None = None,
+        message_end_date: str | None = None,
+        source: str | None = None,
+        min_participants: int | None = None,
+        max_participants: int | None = None,
+        min_messages: int | None = None,
+        max_messages: int | None = None,
+        sort_by: str | None = None,
+        sort_order: str = "desc",
     ) -> list[dict[str, Any]]:
         """Get list of threads with optional filters.
 
@@ -979,25 +988,130 @@ class ReportingService:
             limit: Maximum number of results
             skip: Number of results to skip
             archive_id: Filter by archive ID (optional)
+            message_start_date: Filter by thread message dates (inclusive overlap) - start of date range (ISO 8601)
+            message_end_date: Filter by thread message dates (inclusive overlap) - end of date range (ISO 8601)
+            source: Filter by archive source (optional)
+            min_participants: Filter by minimum participant count (optional)
+            max_participants: Filter by maximum participant count (optional)
+            min_messages: Filter by minimum message count (optional)
+            max_messages: Filter by maximum message count (optional)
+            sort_by: Field to sort by ('first_message_date' or 'last_message_date')
+            sort_order: Sort order ('asc' or 'desc', default 'desc')
 
         Returns:
-            List of thread documents
+            List of thread documents with enriched archive_source field
         """
         filter_dict = {}
         if archive_id:
             filter_dict["archive_id"] = archive_id
 
-        # TODO: Optimize pagination to use native skip in document store query
-        # Currently fetches limit + skip records and discards skip records in memory
-        # This matches existing pattern in get_reports but should be improved for scalability
+        # Determine DB-level sorting
+        db_sort_by = None
+        db_sort_order = sort_order or "desc"
+        if db_sort_order not in ("asc", "desc"):
+            db_sort_order = "desc"
+        if sort_by == "first_message_date":
+            db_sort_by = "first_message_date"
+        elif sort_by == "last_message_date":
+            db_sort_by = "last_message_date"
+
+        # Check if we need to apply metadata filtering
+        has_filtering = (
+            source
+            or min_participants is not None
+            or max_participants is not None
+            or min_messages is not None
+            or max_messages is not None
+            or message_start_date is not None
+            or message_end_date is not None
+        )
+
+        # Fetch threads (fetch more for skip and filtering)
         threads = self.document_store.query_documents(
             "threads",
             filter_dict=filter_dict,
-            limit=limit + skip,
+            limit=limit + skip + (METADATA_FILTER_BUFFER_SIZE if has_filtering else 0),
+            sort_by=db_sort_by,
+            sort_order=db_sort_order,
         )
 
+        # Collect unique archive IDs for batch fetching
+        archive_ids = set()
+        for thread in threads:
+            archive_id_val = thread.get("archive_id")
+            if archive_id_val:
+                archive_ids.add(archive_id_val)
+
+        # Batch query all archives
+        archives_map = {}
+        if archive_ids:
+            archives = self.document_store.query_documents(
+                "archives",
+                filter_dict={"_id": {"$in": list(archive_ids)}},
+                limit=len(archive_ids),
+            )
+            archives_map = {a.get("_id"): a for a in archives if a.get("_id")}
+
+        # Enrich threads and apply filters
+        enriched_threads = []
+        for thread in threads:
+            # Calculate counts for filtering
+            participants = thread.get("participants", [])
+            participant_count = len(participants)
+            message_count = thread.get("message_count", 0)
+            archive_id_val = thread.get("archive_id")
+            archive = archives_map.get(archive_id_val) if archive_id_val else None
+
+            # Apply message date filters using inclusive overlap
+            # A thread is included if its date range [first_message_date, last_message_date]
+            # overlaps with the filter range [message_start_date, message_end_date]
+            # Overlap condition: first_message_date <= message_end_date AND last_message_date >= message_start_date
+            if has_filtering:
+                first_msg_date = thread.get("first_message_date")
+                last_msg_date = thread.get("last_message_date")
+
+                # Skip threads without date information when date filter is active
+                if (message_start_date is not None or message_end_date is not None):
+                    if not first_msg_date or not last_msg_date:
+                        continue
+
+                    # Check overlap condition
+                    if message_end_date is not None and first_msg_date > message_end_date:
+                        continue  # Thread starts after filter range ends
+
+                    if message_start_date is not None and last_msg_date < message_start_date:
+                        continue  # Thread ends before filter range starts
+
+            # Apply participant count filters (only if filtering is active)
+            if has_filtering and min_participants is not None:
+                if participant_count < min_participants:
+                    continue
+
+            if has_filtering and max_participants is not None:
+                if participant_count > max_participants:
+                    continue
+
+            # Apply message count filters (only if filtering is active)
+            if has_filtering and min_messages is not None:
+                if message_count < min_messages:
+                    continue
+
+            if has_filtering and max_messages is not None:
+                if message_count > max_messages:
+                    continue
+
+            # Apply source filter (only if filtering is active)
+            if has_filtering and source:
+                if not archive or archive.get("source") != source:
+                    continue
+
+            # Enrich thread with archive source
+            thread["archive_source"] = archive.get("source") if archive else None
+
+            enriched_threads.append(thread)
+
         # Apply skip and limit
-        return threads[skip : skip + limit]
+        return enriched_threads[skip : skip + limit]
 
     def get_thread_by_id(self, thread_id: str) -> dict[str, Any] | None:
         """Get a specific thread by ID.
