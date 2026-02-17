@@ -71,8 +71,9 @@ describe('DiscussionsList', () => {
     })
 
     expect(screen.getByText('Test Discussion 2')).toBeInTheDocument()
-    expect(screen.getByText('test-source-a')).toBeInTheDocument()
-    expect(screen.getByText('test-source-b')).toBeInTheDocument()
+    // Source names appear in both dropdown options and table cells
+    expect(screen.getAllByText('test-source-a').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('test-source-b').length).toBeGreaterThan(0)
   })
 
   it('renders summary link when summary_id exists', async () => {
@@ -129,7 +130,7 @@ describe('DiscussionsList', () => {
     })
 
     // Advanced filters should be hidden initially
-    expect(screen.queryByPlaceholderText(/Min participants/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Min Participants/i)).not.toBeInTheDocument()
 
     // Click toggle button
     const toggleButton = screen.getByText(/Advanced/)
@@ -137,8 +138,7 @@ describe('DiscussionsList', () => {
 
     // Now advanced filters should be visible
     await waitFor(() => {
-      const minParticipantsInputs = screen.getAllByPlaceholderText(/Min/)
-      expect(minParticipantsInputs.length).toBeGreaterThan(0)
+      expect(screen.getByLabelText(/Min Participants/i)).toBeInTheDocument()
     })
   })
 
@@ -175,8 +175,20 @@ describe('DiscussionsList', () => {
   })
 
   it('pagination controls work', async () => {
+    // Need 20 threads to fill a page so Next button is enabled
+    const fullPage = Array.from({ length: 20 }, (_, i) => ({
+      _id: `thread${i}`,
+      subject: `Discussion ${i}`,
+      first_message_date: '2025-01-10T00:00:00Z',
+      last_message_date: '2025-01-15T00:00:00Z',
+      participants: ['alice@example.com'],
+      message_count: 1,
+      archive_source: 'test-source-a',
+      summary_id: null,
+    }))
+
     fetchMock.mockResolvedValueOnce(createMockResponse({ sources: mockSources }))
-    fetchMock.mockResolvedValueOnce(createMockResponse({ threads: mockThreads, count: 2 }))
+    fetchMock.mockResolvedValueOnce(createMockResponse({ threads: fullPage, count: 20 }))
 
     render(
       <MemoryRouter>
@@ -185,14 +197,15 @@ describe('DiscussionsList', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Test Discussion 1')).toBeInTheDocument()
+      expect(screen.getByText('Discussion 0')).toBeInTheDocument()
     })
 
     // Previous button should be disabled on first page
     const prevButton = screen.getByText(/Previous/)
     expect(prevButton).toBeDisabled()
 
-    // Mock next page fetch
+    // Mock next page fetch (sources + threads)
+    fetchMock.mockResolvedValueOnce(createMockResponse({ sources: mockSources }))
     fetchMock.mockResolvedValueOnce(createMockResponse({ threads: [], count: 0 }))
 
     // Click next
