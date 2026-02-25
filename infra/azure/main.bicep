@@ -64,6 +64,13 @@ param vectorStoreBackend string = 'qdrant'
 @description('Document store backend to use: cosmosdb (default) or mongodb (lower cost, Container App + Azure Files)')
 param documentStoreBackend string = 'cosmosdb'
 
+@description('MongoDB admin username (only used when documentStoreBackend is mongodb)')
+param mongoDbAdminUsername string = 'mongoadmin'
+
+@description('MongoDB admin password (only used when documentStoreBackend is mongodb; must be provided when using mongodb backend)')
+@secure()
+param mongoDbAdminPassword string = ''
+
 @description('VNet address space for Container Apps (CIDR notation)')
 param vnetAddressSpace string = '10.0.0.0/16'
 
@@ -518,6 +525,31 @@ resource githubOAuthClientSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   ]
 }
 
+// Store MongoDB credentials in Key Vault when using the mongodb document store backend
+// The username secret is always created so services can read it via secret_provider
+// The password secret requires a non-empty mongoDbAdminPassword parameter
+resource mongoDbUsernameSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (documentStoreBackend == 'mongodb') {
+  name: '${keyVaultName}/mongodb-username'
+  properties: {
+    value: mongoDbAdminUsername
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
+
+resource mongoDbPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (documentStoreBackend == 'mongodb' && mongoDbAdminPassword != '') {
+  name: '${keyVaultName}/mongodb-password'
+  properties: {
+    value: mongoDbAdminPassword
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
+
 // Module: Key Vault RBAC - Per-secret role assignments for least-privilege access control
 // This module configures fine-grained RBAC permissions, granting each service access only to
 // the specific secrets it needs. Deployed after all secrets are created and before Container Apps start.
@@ -532,6 +564,7 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
     servicePrincipalIds: identitiesModule.outputs.identityPrincipalIdsByName
     enableRbacAuthorization: enableRbacAuthorization
     deployAzureOpenAI: azureOpenAIEndpoint != ''
+    deployMongoDb: documentStoreBackend == 'mongodb' && mongoDbAdminPassword != ''
   }
   dependsOn: [
     keyVaultModule
@@ -540,6 +573,8 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
     azureMonitorInstrumentationKeySecret
     azureMonitorConnectionStringSecret
     coreKvRbacModule  // Ensure Core KV access is granted before RBAC module runs
+    mongoDbUsernameSecret
+    mongoDbPasswordSecret
   ]
 }
 
@@ -704,6 +739,9 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     // MongoDB persistent storage (Azure Files share)
     mongoDbStorageEnabled: storageModule!.outputs.mongoDbFileShareEnabled
     mongoDbStorageShareName: storageModule!.outputs.mongoDbFileShareName
+    // MongoDB authentication credentials (passed to container and stored in Key Vault for services)
+    mongoDbAdminUsername: mongoDbAdminUsername
+    mongoDbAdminPassword: mongoDbAdminPassword
     enableBlobLogArchiving: enableBlobLogArchiving
     subnetId: vnetModule!.outputs.containerAppsSubnetId
     keyVaultName: keyVaultName

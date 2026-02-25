@@ -15,6 +15,9 @@ param enableRbacAuthorization bool = true
 @description('Whether Azure OpenAI is deployed (controls OpenAI secret access assignments)')
 param deployAzureOpenAI bool = true
 
+@description('Whether MongoDB is deployed as document store (controls MongoDB credential secret access assignments)')
+param deployMongoDb bool = false
+
 // Key Vault Secrets User role definition ID
 // This built-in role allows reading secret contents but not listing/managing secrets
 var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
@@ -144,6 +147,58 @@ resource openaiApiKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01'
   for service in openaiKeyReaderServices: if (enableRbacAuthorization && deployAzureOpenAI && contains(servicePrincipalIds, service)) {
     name: guid(openaiApiKeySecret.id, servicePrincipalIds[service], keyVaultSecretsUserRoleId)
     scope: openaiApiKeySecret
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
+      principalId: servicePrincipalIds[service]
+      principalType: 'ServicePrincipal'
+    }
+  }
+]
+
+// ============================================================================
+// MONGODB CREDENTIALS - All document-store-consuming services
+// ============================================================================
+// Grant all document-store services access to MongoDB credentials stored in Key Vault.
+// Only deployed when documentStoreBackend is 'mongodb' and a password has been provided.
+
+resource mongoDbUsernameKvSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = if (deployMongoDb) {
+  parent: keyVault
+  name: 'mongodb-username'
+}
+
+resource mongoDbPasswordKvSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = if (deployMongoDb) {
+  parent: keyVault
+  name: 'mongodb-password'
+}
+
+// Services that need MongoDB credential access (all document-store consumers)
+var mongoDbConsumerServices = [
+  'auth'
+  'reporting'
+  'ingestion'
+  'parsing'
+  'chunking'
+  'embedding'
+  'orchestrator'
+  'summarization'
+]
+
+resource mongoDbUsernameAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for service in mongoDbConsumerServices: if (enableRbacAuthorization && deployMongoDb && contains(servicePrincipalIds, service)) {
+    name: guid(mongoDbUsernameKvSecret.id, servicePrincipalIds[service], keyVaultSecretsUserRoleId)
+    scope: mongoDbUsernameKvSecret
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
+      principalId: servicePrincipalIds[service]
+      principalType: 'ServicePrincipal'
+    }
+  }
+]
+
+resource mongoDbPasswordAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for service in mongoDbConsumerServices: if (enableRbacAuthorization && deployMongoDb && contains(servicePrincipalIds, service)) {
+    name: guid(mongoDbPasswordKvSecret.id, servicePrincipalIds[service], keyVaultSecretsUserRoleId)
+    scope: mongoDbPasswordKvSecret
     properties: {
       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
       principalId: servicePrincipalIds[service]

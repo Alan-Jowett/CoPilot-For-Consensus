@@ -144,7 +144,8 @@ resource qdrantFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@
 }
 
 // Azure Files share for MongoDB persistent storage
-// This provides durable storage for MongoDB's data directory, enabling scale-to-zero
+// This provides durable storage for MongoDB's data directory, ensuring data persists
+// across container restarts and redeploys
 resource mongoDbFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = if (enableMongoDbFileShare) {
   parent: fileService
   name: mongoDbFileShareName

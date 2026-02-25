@@ -94,6 +94,13 @@ param mongoDbStorageEnabled bool = false
 @description('Azure Files share name for MongoDB storage')
 param mongoDbStorageShareName string = 'mongodb-storage'
 
+@description('MongoDB admin username for authentication (set on the container and read by services via Key Vault)')
+param mongoDbAdminUsername string = 'mongoadmin'
+
+@description('MongoDB admin password for authentication (stored in Key Vault; services read it via secret_provider)')
+@secure()
+param mongoDbAdminPassword string = ''
+
 @description('Container Apps subnet ID')
 param subnetId string
 
@@ -288,7 +295,7 @@ resource qdrantApp 'Microsoft.App/containerApps@2025-01-01' = if (vectorStoreBac
 }
 
 // Azure Files storage for MongoDB persistent storage
-// This enables scale-to-zero and ensures document data persists across restarts/redeploys
+// This ensures document data persists across container restarts and redeploys
 // Note: Uses storage account key for authentication (required for Azure Files with Container Apps)
 resource mongoDbStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = if (documentStoreBackend == 'mongodb' && mongoDbStorageEnabled) {
   parent: containerAppsEnv
@@ -306,7 +313,8 @@ resource mongoDbStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' 
 // MongoDB (port 27017) - Internal service for document storage
 // Only deployed when documentStoreBackend is 'mongodb' (lower cost alternative to Cosmos DB)
 // Persistent storage: When mongoDbStorageEnabled is true, Azure Files share is mounted to /data/db
-// This enables scale-to-zero and ensures document data persists across restarts/redeploys
+// Data persists across container restarts and redeploys via the Azure Files mount
+// Authentication: Root credentials are set via MONGO_INITDB_ROOT_USERNAME/PASSWORD; services read them from Key Vault
 resource mongoDbApp 'Microsoft.App/containerApps@2025-01-01' = if (documentStoreBackend == 'mongodb') {
   name: '${projectPrefix}-mongodb-${environment}'
   location: location
@@ -321,12 +329,31 @@ resource mongoDbApp 'Microsoft.App/containerApps@2025-01-01' = if (documentStore
         exposedPort: 27017
         transport: 'tcp'
       }
+      // Store MongoDB admin password as an ACA secret for secure injection into the container
+      secrets: mongoDbAdminPassword != '' ? [
+        {
+          name: 'mongodb-admin-password'
+          value: mongoDbAdminPassword
+        }
+      ] : []
     }
     template: {
       containers: [
         {
-          image: 'mongo:7'
+          // Pinned to the same digest used in docker-compose for reproducibility
+          image: 'mongo:7.0@sha256:8c3ce64d1a433bf57ea79035b48a38ea3e532997a1328fe3266e2e2e8bfb41b6'
           name: 'mongodb'
+          env: concat([
+            {
+              name: 'MONGO_INITDB_ROOT_USERNAME'
+              value: mongoDbAdminUsername
+            }
+          ], mongoDbAdminPassword != '' ? [
+            {
+              name: 'MONGO_INITDB_ROOT_PASSWORD'
+              secretRef: 'mongodb-admin-password'
+            }
+          ] : [])
           resources: {
             cpu: json('0.5')
             memory: '1Gi'
@@ -361,7 +388,7 @@ resource mongoDbApp 'Microsoft.App/containerApps@2025-01-01' = if (documentStore
         }
       ] : []
       scale: {
-        minReplicas: 1  // Keep running to avoid data loss on scale-to-zero for stateful database
+        minReplicas: 1  // Stateful MongoDB: keep at least one replica; do not scale to zero
         maxReplicas: 1  // Single instance for consistency
       }
     }
