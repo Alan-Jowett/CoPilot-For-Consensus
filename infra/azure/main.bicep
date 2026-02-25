@@ -60,6 +60,22 @@ param deployContainerApps bool = true
 @description('Vector store backend to use: qdrant (default, low cost) or azure_ai_search (higher cost, more features)')
 param vectorStoreBackend string = 'qdrant'
 
+@allowed(['cosmosdb', 'mongodb'])
+@description('Document store backend to use: cosmosdb (default) or mongodb (lower cost, Container App + Azure Files)')
+param documentStoreBackend string = 'cosmosdb'
+
+@description('MongoDB admin username (only used when documentStoreBackend is mongodb)')
+param mongoDbAdminUsername string = 'mongoadmin'
+
+@description('MongoDB admin password (only used when documentStoreBackend is mongodb; must be provided when using mongodb backend)')
+@secure()
+param mongoDbAdminPassword string = ''
+
+// Validate that a strong MongoDB admin password (≥12 chars) is always provided when selecting the
+// mongodb backend. This assert is evaluated during ARM preflight validation and rejects the
+// deployment before any resources are created, preventing an unauthenticated MongoDB instance.
+assert mongoDbPasswordRequired = documentStoreBackend != 'mongodb' || length(mongoDbAdminPassword) >= 12
+
 @description('VNet address space for Container Apps (CIDR notation)')
 param vnetAddressSpace string = '10.0.0.0/16'
 
@@ -265,7 +281,8 @@ module serviceBusModule 'modules/servicebus.bicep' = {
 }
 
 // Module: Azure Cosmos DB
-module cosmosModule 'modules/cosmos.bicep' = {
+// Only deployed when documentStoreBackend is 'cosmosdb' (default)
+module cosmosModule 'modules/cosmos.bicep' = if (documentStoreBackend == 'cosmosdb') {
   name: 'cosmosDeployment'
   params: {
     location: location
@@ -280,10 +297,11 @@ module cosmosModule 'modules/cosmos.bicep' = {
 
 // Module: Cosmos DB RBAC - Assign Data Contributor role to services that need document store access
 // Services requiring Cosmos DB access: auth, parsing, chunking, embedding, orchestrator, summarization, reporting, ingestion
-module cosmosRbacModule 'modules/cosmos-rbac.bicep' = {
+// Only deployed when documentStoreBackend is 'cosmosdb'
+module cosmosRbacModule 'modules/cosmos-rbac.bicep' = if (documentStoreBackend == 'cosmosdb') {
   name: 'cosmosRbacDeployment'
   params: {
-    cosmosAccountName: cosmosModule.outputs.accountName
+    cosmosAccountName: cosmosModule!.outputs.accountName
     principalIds: [
       identitiesModule.outputs.identityPrincipalIdsByName.auth
       identitiesModule.outputs.identityPrincipalIdsByName.parsing
@@ -323,6 +341,10 @@ module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
     enableQdrantFileShare: vectorStoreBackend == 'qdrant'
     qdrantFileShareName: 'qdrant-storage'
     qdrantFileShareQuotaGb: environment == 'prod' ? 10 : 5  // 5GB dev/staging, 10GB prod
+    // MongoDB persistent storage (Azure Files) - Required for data durability when using mongodb backend
+    enableMongoDbFileShare: documentStoreBackend == 'mongodb'
+    mongoDbFileShareName: 'mongodb-storage'
+    mongoDbFileShareQuotaGb: environment == 'prod' ? 10 : 5  // 5GB dev/staging, 10GB prod
     tags: tags
   }
 }
@@ -508,6 +530,31 @@ resource githubOAuthClientSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   ]
 }
 
+// Store MongoDB credentials in Key Vault when using the mongodb document store backend
+// The username secret is always created so services can read it via secret_provider
+// The password secret requires a non-empty mongoDbAdminPassword parameter
+resource mongoDbUsernameSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (documentStoreBackend == 'mongodb') {
+  name: '${keyVaultName}/mongodb-username'
+  properties: {
+    value: mongoDbAdminUsername
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
+
+resource mongoDbPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (documentStoreBackend == 'mongodb' && mongoDbAdminPassword != '') {
+  name: '${keyVaultName}/mongodb-password'
+  properties: {
+    value: mongoDbAdminPassword
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
+
 // Module: Key Vault RBAC - Per-secret role assignments for least-privilege access control
 // This module configures fine-grained RBAC permissions, granting each service access only to
 // the specific secrets it needs. Deployed after all secrets are created and before Container Apps start.
@@ -522,6 +569,7 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
     servicePrincipalIds: identitiesModule.outputs.identityPrincipalIdsByName
     enableRbacAuthorization: enableRbacAuthorization
     deployAzureOpenAI: azureOpenAIEndpoint != ''
+    deployMongoDb: documentStoreBackend == 'mongodb' && mongoDbAdminPassword != ''
   }
   dependsOn: [
     keyVaultModule
@@ -530,6 +578,8 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
     azureMonitorInstrumentationKeySecret
     azureMonitorConnectionStringSecret
     coreKvRbacModule  // Ensure Core KV access is granted before RBAC module runs
+    mongoDbUsernameSecret
+    mongoDbPasswordSecret
   ]
 }
 
@@ -579,13 +629,13 @@ module keyVaultPrivateEndpointModule 'modules/privateendpoint.bicep' = if (deplo
 }
 
 // Module: Private Endpoints for Cosmos DB
-module cosmosPrivateEndpointModule 'modules/privateendpoint.bicep' = if (deployContainerApps && enablePrivateAccess) {
+module cosmosPrivateEndpointModule 'modules/privateendpoint.bicep' = if (deployContainerApps && enablePrivateAccess && documentStoreBackend == 'cosmosdb') {
   name: 'cosmosPrivateEndpointDeployment'
   params: {
     location: location
     privateEndpointName: '${cosmosAccountName}-pe'
     subnetId: vnetModule!.outputs.privateEndpointSubnetId
-    serviceResourceId: cosmosModule.outputs.accountId
+    serviceResourceId: cosmosModule!.outputs.accountId
     groupIds: ['Sql']
     privateDnsZoneIds: [privateDnsModule!.outputs.privateDnsZoneIds.cosmosDb]
     tags: tags
@@ -678,18 +728,25 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     vectorStoreBackend: vectorStoreBackend
     aiSearchEndpoint: vectorStoreBackend == 'azure_ai_search' ? aiSearchModule!.outputs.endpoint : ''
     serviceBusNamespace: serviceBusModule.outputs.namespaceFullyQualifiedName
-    cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
-    cosmosAuthDatabaseName: cosmosModule.outputs.authDatabaseName
-    cosmosDocumentsDatabaseName: cosmosModule.outputs.documentsDatabaseName
-    cosmosContainerName: cosmosModule.outputs.containerName
-    cosmosAuthContainerName: cosmosModule.outputs.authContainerName
-    cosmosAuthPartitionKeyPath: cosmosModule.outputs.authPartitionKeyPath
+    documentStoreBackend: documentStoreBackend
+    cosmosDbEndpoint: documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.accountEndpoint : ''
+    cosmosAuthDatabaseName: documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.authDatabaseName : ''
+    cosmosDocumentsDatabaseName: documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.documentsDatabaseName : ''
+    cosmosContainerName: documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.containerName : ''
+    cosmosAuthContainerName: documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.authContainerName : ''
+    cosmosAuthPartitionKeyPath: documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.authPartitionKeyPath : ''
     storageAccountName: storageModule!.outputs.accountName
     storageBlobEndpoint: storageModule!.outputs.blobEndpoint
     storageAccountId: storageModule!.outputs.accountId
     // Qdrant persistent storage (Azure Files share)
     qdrantStorageEnabled: storageModule!.outputs.qdrantFileShareEnabled
     qdrantStorageShareName: storageModule!.outputs.qdrantFileShareName
+    // MongoDB persistent storage (Azure Files share)
+    mongoDbStorageEnabled: storageModule!.outputs.mongoDbFileShareEnabled
+    mongoDbStorageShareName: storageModule!.outputs.mongoDbFileShareName
+    // MongoDB authentication credentials (passed to container and stored in Key Vault for services)
+    mongoDbAdminUsername: mongoDbAdminUsername
+    mongoDbAdminPassword: mongoDbAdminPassword
     enableBlobLogArchiving: enableBlobLogArchiving
     subnetId: vnetModule!.outputs.containerAppsSubnetId
     keyVaultName: keyVaultName
@@ -739,14 +796,14 @@ output serviceBusNamespace string = serviceBusModule.outputs.namespaceName
 output serviceBusNamespaceId string = serviceBusModule.outputs.namespaceResourceId
 output serviceBusTopic string = serviceBusModule.outputs.topicName
 output serviceBusSubscriptions array = serviceBusModule.outputs.subscriptionNames
-output cosmosAccountName string = cosmosModule.outputs.accountName
-output cosmosAccountEndpoint string = cosmosModule.outputs.accountEndpoint
-output cosmosAuthDatabaseName string = cosmosModule.outputs.authDatabaseName
-output cosmosDocumentsDatabaseName string = cosmosModule.outputs.documentsDatabaseName
-output cosmosContainerName string = cosmosModule.outputs.containerName
-output cosmosAutoscaleMaxRu int = cosmosModule.outputs.autoscaleMaxThroughput
-output cosmosWriteRegions array = cosmosModule.outputs.writeRegions
-output cosmosRbacSummary string = cosmosRbacModule.outputs.summary
+output cosmosAccountName string = documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.accountName : ''
+output cosmosAccountEndpoint string = documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.accountEndpoint : ''
+output cosmosAuthDatabaseName string = documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.authDatabaseName : ''
+output cosmosDocumentsDatabaseName string = documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.documentsDatabaseName : ''
+output cosmosContainerName string = documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.containerName : ''
+output cosmosAutoscaleMaxRu int = documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.autoscaleMaxThroughput : 0
+output cosmosWriteRegions array = documentStoreBackend == 'cosmosdb' ? cosmosModule!.outputs.writeRegions : []
+output cosmosRbacSummary string = documentStoreBackend == 'cosmosdb' ? cosmosRbacModule!.outputs.summary : 'Cosmos DB not deployed (mongodb backend selected)'
 output storageAccountName string = deployContainerApps ? storageModule!.outputs.accountName : ''
 output storageAccountId string = deployContainerApps ? storageModule!.outputs.accountId : ''
 output storageBlobEndpoint string = deployContainerApps ? storageModule!.outputs.blobEndpoint : ''
@@ -760,6 +817,11 @@ output azureOpenAIGptDeploymentName string = azureOpenAIGptDeploymentName
 output azureOpenAIEmbeddingDeploymentName string = azureOpenAIEmbeddingDeploymentName
 // Vector store outputs
 output vectorStoreBackend string = vectorStoreBackend
+// Document store outputs
+output documentStoreBackend string = documentStoreBackend
+// MongoDB outputs (only populated when documentStoreBackend is 'mongodb')
+output mongoDbAppName string = (deployContainerApps && documentStoreBackend == 'mongodb') ? containerAppsModule!.outputs.mongoDbAppName : ''
+output mongoDbInternalEndpoint string = (deployContainerApps && documentStoreBackend == 'mongodb') ? containerAppsModule!.outputs.mongoDbInternalEndpoint : ''
 // AI Search outputs: naming follows Azure resource type (Microsoft.Search/searchServices uses "service", not "account")
 output aiSearchServiceName string = (deployContainerApps && vectorStoreBackend == 'azure_ai_search') ? aiSearchModule!.outputs.serviceName : ''
 output aiSearchEndpoint string = (deployContainerApps && vectorStoreBackend == 'azure_ai_search') ? aiSearchModule!.outputs.endpoint : ''

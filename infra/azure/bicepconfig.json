@@ -1,0 +1,10 @@
+{
+  // Enable Bicep experimental assertions feature for conditional parameter validation.
+  // The 'assertions' feature allows validating deployment inputs at deploy time (e.g., ensuring
+  // mongoDbAdminPassword is supplied when documentStoreBackend is 'mongodb').
+  // Assertions appear in the compiled ARM template's 'asserts' section and are evaluated during
+  // the preflight validation phase, rejecting invalid configurations before any resources are created.
+  "experimentalFeaturesEnabled": {
+    "assertions": true
+  }
+}

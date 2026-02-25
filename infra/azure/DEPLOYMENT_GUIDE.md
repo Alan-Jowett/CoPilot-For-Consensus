@@ -153,6 +153,54 @@ All services are configured with:
 - **Prod**: Premium Service Bus for SLA, higher Cosmos DB autoscale, and multi-region replication
 - **Container Apps**: Consumption workload profile (pay-per-execution, no minimum cost)
 
+### Document Store Backend (`documentStoreBackend`)
+
+The `documentStoreBackend` parameter selects the document storage backend, trading off cost against
+managed-service features.
+
+| Value | Backend | Est. Dev Cost | Notes |
+|-------|---------|---------------|-------|
+| `cosmosdb` *(default)* | Azure Cosmos DB SQL API | ~$90/month | Fully managed, serverless autoscale |
+| `mongodb` | MongoDB 7 in Container App + Azure Files | ~$5-10/month | Lower cost; auth required; internal-only |
+
+**To switch to MongoDB for dev:**
+
+```bash
+az deployment group create \
+  --resource-group copilot-dev-rg \
+  --template-file main.bicep \
+  --parameters parameters.dev.json \
+  --parameters documentStoreBackend=mongodb \
+  --parameters mongoDbAdminPassword="<strong-random-password>"
+```
+
+Or set `documentStoreBackend` and `mongoDbAdminPassword` in your parameters file:
+```json
+{
+  "documentStoreBackend": { "value": "mongodb" },
+  "mongoDbAdminPassword": { "value": "..." }
+}
+```
+
+**What gets deployed when `mongodb` is selected:**
+
+- A `mongo:7.0` Container App (internal-only TCP ingress on port 27017, `minReplicas: 1`)
+- An Azure Files share (`mongodb-storage`) mounted to `/data/db` for persistent storage
+- `mongodb-username` and `mongodb-password` secrets stored in Key Vault
+- All document-store-consuming services (`auth`, `reporting`, `ingestion`, `parsing`, `chunking`,
+  `embedding`, `orchestrator`, `summarization`) configured to use the MongoDB adapter
+- Cosmos DB module **not** deployed (saving ~$90/month)
+
+**Security considerations for `mongodb`:**
+
+- MongoDB is accessible only within the Container Apps environment (internal TCP ingress, no
+  public endpoint)
+- Authentication is enabled via `MONGO_INITDB_ROOT_USERNAME`/`MONGO_INITDB_ROOT_PASSWORD`
+- Credentials are stored as a Key Vault secret; services retrieve them via `SECRET_PROVIDER_TYPE=azure_key_vault`
+- `mongoDbAdminPassword` must be set to a strong password before deploying; the parameter is marked
+  `@secure()` and will not appear in deployment logs
+- For production use, prefer Cosmos DB (fully managed, no credential rotation concern)
+
 ### Scale-to-Zero in Dev Environment
 
 **Dev environment** is configured with `minReplicas: 0` for all Container Apps to reduce idle costs:

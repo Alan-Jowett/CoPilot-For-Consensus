@@ -48,6 +48,10 @@ param aiSearchEndpoint string = ''
 @description('Service Bus fully qualified namespace for managed identity connection')
 param serviceBusNamespace string = ''
 
+@allowed(['cosmosdb', 'mongodb'])
+@description('Document store backend: cosmosdb (default) or mongodb (lower cost, Container App)')
+param documentStoreBackend string = 'cosmosdb'
+
 @description('Cosmos DB account endpoint URL for document store connection')
 param cosmosDbEndpoint string = ''
 
@@ -83,6 +87,19 @@ param qdrantStorageEnabled bool = false
 
 @description('Azure Files share name for Qdrant storage')
 param qdrantStorageShareName string = 'qdrant-storage'
+
+@description('Enable MongoDB persistent storage using Azure Files')
+param mongoDbStorageEnabled bool = false
+
+@description('Azure Files share name for MongoDB storage')
+param mongoDbStorageShareName string = 'mongodb-storage'
+
+@description('MongoDB admin username for authentication (set on the container and read by services via Key Vault)')
+param mongoDbAdminUsername string = 'mongoadmin'
+
+@description('MongoDB admin password for authentication (stored in Key Vault; services read it via secret_provider)')
+@secure()
+param mongoDbAdminPassword string = ''
 
 @description('Container Apps subnet ID')
 param subnetId string
@@ -277,6 +294,108 @@ resource qdrantApp 'Microsoft.App/containerApps@2025-01-01' = if (vectorStoreBac
   dependsOn: qdrantStorageEnabled ? [qdrantStorage] : []
 }
 
+// Azure Files storage for MongoDB persistent storage
+// This ensures document data persists across container restarts and redeploys
+// Note: Uses storage account key for authentication (required for Azure Files with Container Apps)
+resource mongoDbStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = if (documentStoreBackend == 'mongodb' && mongoDbStorageEnabled) {
+  parent: containerAppsEnv
+  name: 'mongodb-storage'
+  properties: {
+    azureFile: {
+      accountName: storageAccountName
+      shareName: mongoDbStorageShareName
+      accessMode: 'ReadWrite'
+      accountKey: listKeys(resourceId('Microsoft.Storage/storageAccounts', storageAccountName), '2023-01-01').keys[0].value
+    }
+  }
+}
+
+// MongoDB (port 27017) - Internal service for document storage
+// Only deployed when documentStoreBackend is 'mongodb' (lower cost alternative to Cosmos DB)
+// Persistent storage: When mongoDbStorageEnabled is true, Azure Files share is mounted to /data/db
+// Data persists across container restarts and redeploys via the Azure Files mount
+// Authentication: Root credentials are set via MONGO_INITDB_ROOT_USERNAME/PASSWORD; services read them from Key Vault
+resource mongoDbApp 'Microsoft.App/containerApps@2025-01-01' = if (documentStoreBackend == 'mongodb') {
+  name: '${projectPrefix}-mongodb-${environment}'
+  location: location
+  tags: tags
+  properties: {
+    managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
+    configuration: {
+      ingress: {
+        external: false  // Internal-only access
+        targetPort: 27017
+        exposedPort: 27017
+        transport: 'tcp'
+      }
+      // Store MongoDB admin password as an ACA secret for secure injection into the container
+      secrets: mongoDbAdminPassword != '' ? [
+        {
+          name: 'mongodb-admin-password'
+          value: mongoDbAdminPassword
+        }
+      ] : []
+    }
+    template: {
+      containers: [
+        {
+          // Pinned to the same digest used in docker-compose for reproducibility
+          image: 'mongo:7.0@sha256:8c3ce64d1a433bf57ea79035b48a38ea3e532997a1328fe3266e2e2e8bfb41b6'
+          name: 'mongodb'
+          env: concat([
+            {
+              name: 'MONGO_INITDB_ROOT_USERNAME'
+              value: mongoDbAdminUsername
+            }
+          ], mongoDbAdminPassword != '' ? [
+            {
+              name: 'MONGO_INITDB_ROOT_PASSWORD'
+              secretRef: 'mongodb-admin-password'
+            }
+          ] : [])
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          // Mount Azure Files share for persistent storage when enabled
+          volumeMounts: mongoDbStorageEnabled ? [
+            {
+              volumeName: 'mongodb-data'
+              mountPath: '/data/db'
+            }
+          ] : []
+          probes: [
+            {
+              type: 'Liveness'
+              tcpSocket: {
+                port: 27017
+              }
+              initialDelaySeconds: 15
+              periodSeconds: 30
+              timeoutSeconds: 10
+              failureThreshold: 3
+            }
+          ]
+        }
+      ]
+      // Define volume using Azure Files storage when enabled
+      volumes: mongoDbStorageEnabled ? [
+        {
+          name: 'mongodb-data'
+          storageType: 'AzureFile'
+          storageName: 'mongodb-storage'
+        }
+      ] : []
+      scale: {
+        minReplicas: 1  // Stateful MongoDB: keep at least one replica; do not scale to zero
+        maxReplicas: 1  // Single instance for consistency
+      }
+    }
+  }
+  dependsOn: mongoDbStorageEnabled ? [mongoDbStorage] : []
+}
+
 // Auth service (port 8090)
 resource authApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-auth-${environment}'
@@ -320,23 +439,35 @@ resource authApp 'Microsoft.App/containerApps@2025-01-01' = {
             // Document Store adapter (Cosmos DB for user roles)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azure_cosmosdb'
+              value: documentStoreBackend == 'cosmosdb' ? 'azure_cosmosdb' : 'mongodb'
             }
             {
               name: 'COSMOS_ENDPOINT'
-              value: cosmosDbEndpoint
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDbEndpoint : ''
             }
             {
               name: 'COSMOS_DATABASE'
-              value: cosmosAuthDatabaseName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosAuthDatabaseName : ''
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: cosmosAuthContainerName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosAuthContainerName : ''
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: cosmosAuthPartitionKeyPath
+              value: documentStoreBackend == 'cosmosdb' ? cosmosAuthPartitionKeyPath : ''
+            }
+            {
+              name: 'MONGODB_HOST'
+              value: documentStoreBackend == 'mongodb' ? '${projectPrefix}-mongodb-${environment}' : ''
+            }
+            {
+              name: 'MONGODB_PORT'
+              value: documentStoreBackend == 'mongodb' ? '27017' : ''
+            }
+            {
+              name: 'MONGODB_DATABASE'
+              value: documentStoreBackend == 'mongodb' ? 'auth' : ''
             }
             // Metrics adapter (Azure Monitor)
             {
@@ -552,26 +683,38 @@ resource reportingApp 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
-            // Document Store adapter (Cosmos DB)
+            // Document Store adapter (Cosmos DB or MongoDB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azure_cosmosdb'
+              value: documentStoreBackend == 'cosmosdb' ? 'azure_cosmosdb' : 'mongodb'
             }
             {
               name: 'COSMOS_ENDPOINT'
-              value: cosmosDbEndpoint
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDbEndpoint : ''
             }
             {
               name: 'COSMOS_DATABASE'
-              value: cosmosDocumentsDatabaseName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDocumentsDatabaseName : ''
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: cosmosContainerName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosContainerName : ''
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: '/collection'
+              value: documentStoreBackend == 'cosmosdb' ? '/collection' : ''
+            }
+            {
+              name: 'MONGODB_HOST'
+              value: documentStoreBackend == 'mongodb' ? '${projectPrefix}-mongodb-${environment}' : ''
+            }
+            {
+              name: 'MONGODB_PORT'
+              value: documentStoreBackend == 'mongodb' ? '27017' : ''
+            }
+            {
+              name: 'MONGODB_DATABASE'
+              value: documentStoreBackend == 'mongodb' ? 'copilot' : ''
             }
             // Vector Store adapter (Qdrant or Azure AI Search)
             {
@@ -793,26 +936,38 @@ resource ingestionApp 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
-            // Document Store adapter (Cosmos DB)
+            // Document Store adapter (Cosmos DB or MongoDB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azure_cosmosdb'
+              value: documentStoreBackend == 'cosmosdb' ? 'azure_cosmosdb' : 'mongodb'
             }
             {
               name: 'COSMOS_ENDPOINT'
-              value: cosmosDbEndpoint
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDbEndpoint : ''
             }
             {
               name: 'COSMOS_DATABASE'
-              value: cosmosDocumentsDatabaseName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDocumentsDatabaseName : ''
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: cosmosContainerName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosContainerName : ''
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: '/collection'
+              value: documentStoreBackend == 'cosmosdb' ? '/collection' : ''
+            }
+            {
+              name: 'MONGODB_HOST'
+              value: documentStoreBackend == 'mongodb' ? '${projectPrefix}-mongodb-${environment}' : ''
+            }
+            {
+              name: 'MONGODB_PORT'
+              value: documentStoreBackend == 'mongodb' ? '27017' : ''
+            }
+            {
+              name: 'MONGODB_DATABASE'
+              value: documentStoreBackend == 'mongodb' ? 'copilot' : ''
             }
             // Archive Store adapter (Azure Blob Storage)
             {
@@ -950,7 +1105,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2025-01-01' = {
       }
     }
   }
-  dependsOn: [authApp]
+  dependsOn: documentStoreBackend == 'mongodb' ? [authApp, mongoDbApp] : [authApp]
 }
 
 // Parsing service (port 8000)
@@ -1001,26 +1156,38 @@ resource parsingApp 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
-            // Document Store adapter (Cosmos DB)
+            // Document Store adapter (Cosmos DB or MongoDB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azure_cosmosdb'
+              value: documentStoreBackend == 'cosmosdb' ? 'azure_cosmosdb' : 'mongodb'
             }
             {
               name: 'COSMOS_ENDPOINT'
-              value: cosmosDbEndpoint
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDbEndpoint : ''
             }
             {
               name: 'COSMOS_DATABASE'
-              value: cosmosDocumentsDatabaseName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDocumentsDatabaseName : ''
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: cosmosContainerName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosContainerName : ''
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: '/collection'
+              value: documentStoreBackend == 'cosmosdb' ? '/collection' : ''
+            }
+            {
+              name: 'MONGODB_HOST'
+              value: documentStoreBackend == 'mongodb' ? '${projectPrefix}-mongodb-${environment}' : ''
+            }
+            {
+              name: 'MONGODB_PORT'
+              value: documentStoreBackend == 'mongodb' ? '27017' : ''
+            }
+            {
+              name: 'MONGODB_DATABASE'
+              value: documentStoreBackend == 'mongodb' ? 'copilot' : ''
             }
             // Archive Store adapter (Azure Blob Storage)
             {
@@ -1160,7 +1327,7 @@ resource parsingApp 'Microsoft.App/containerApps@2025-01-01' = {
       }
     }
   }
-  dependsOn: [authApp]
+  dependsOn: documentStoreBackend == 'mongodb' ? [authApp, mongoDbApp] : [authApp]
 }
 
 // Chunking service (port 8000)
@@ -1226,26 +1393,38 @@ resource chunkingApp 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
-            // Document Store adapter (Cosmos DB)
+            // Document Store adapter (Cosmos DB or MongoDB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azure_cosmosdb'
+              value: documentStoreBackend == 'cosmosdb' ? 'azure_cosmosdb' : 'mongodb'
             }
             {
               name: 'COSMOS_ENDPOINT'
-              value: cosmosDbEndpoint
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDbEndpoint : ''
             }
             {
               name: 'COSMOS_DATABASE'
-              value: cosmosDocumentsDatabaseName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDocumentsDatabaseName : ''
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: cosmosContainerName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosContainerName : ''
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: '/collection'
+              value: documentStoreBackend == 'cosmosdb' ? '/collection' : ''
+            }
+            {
+              name: 'MONGODB_HOST'
+              value: documentStoreBackend == 'mongodb' ? '${projectPrefix}-mongodb-${environment}' : ''
+            }
+            {
+              name: 'MONGODB_PORT'
+              value: documentStoreBackend == 'mongodb' ? '27017' : ''
+            }
+            {
+              name: 'MONGODB_DATABASE'
+              value: documentStoreBackend == 'mongodb' ? 'copilot' : ''
             }
             // Metrics adapter (Azure Monitor)
             {
@@ -1367,7 +1546,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2025-01-01' = {
       }
     }
   }
-  dependsOn: [authApp]
+  dependsOn: documentStoreBackend == 'mongodb' ? [authApp, mongoDbApp] : [authApp]
 }
 
 // Embedding service (port 8000)
@@ -1428,26 +1607,38 @@ resource embeddingApp 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
-            // Document Store adapter (Cosmos DB)
+            // Document Store adapter (Cosmos DB or MongoDB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azure_cosmosdb'
+              value: documentStoreBackend == 'cosmosdb' ? 'azure_cosmosdb' : 'mongodb'
             }
             {
               name: 'COSMOS_ENDPOINT'
-              value: cosmosDbEndpoint
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDbEndpoint : ''
             }
             {
               name: 'COSMOS_DATABASE'
-              value: cosmosDocumentsDatabaseName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDocumentsDatabaseName : ''
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: cosmosContainerName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosContainerName : ''
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: '/collection'
+              value: documentStoreBackend == 'cosmosdb' ? '/collection' : ''
+            }
+            {
+              name: 'MONGODB_HOST'
+              value: documentStoreBackend == 'mongodb' ? '${projectPrefix}-mongodb-${environment}' : ''
+            }
+            {
+              name: 'MONGODB_PORT'
+              value: documentStoreBackend == 'mongodb' ? '27017' : ''
+            }
+            {
+              name: 'MONGODB_DATABASE'
+              value: documentStoreBackend == 'mongodb' ? 'copilot' : ''
             }
             // Vector Store adapter (Qdrant or Azure AI Search)
             {
@@ -1631,7 +1822,9 @@ resource embeddingApp 'Microsoft.App/containerApps@2025-01-01' = {
       }
     }
   }
-  dependsOn: vectorStoreBackend == 'qdrant' ? [authApp, qdrantApp] : [authApp]
+  dependsOn: documentStoreBackend == 'mongodb'
+    ? (vectorStoreBackend == 'qdrant' ? [authApp, qdrantApp, mongoDbApp] : [authApp, mongoDbApp])
+    : (vectorStoreBackend == 'qdrant' ? [authApp, qdrantApp] : [authApp])
 }
 
 // Orchestrator service (port 8000)
@@ -1682,26 +1875,38 @@ resource orchestratorApp 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
-            // Document Store adapter (Cosmos DB)
+            // Document Store adapter (Cosmos DB or MongoDB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azure_cosmosdb'
+              value: documentStoreBackend == 'cosmosdb' ? 'azure_cosmosdb' : 'mongodb'
             }
             {
               name: 'COSMOS_ENDPOINT'
-              value: cosmosDbEndpoint
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDbEndpoint : ''
             }
             {
               name: 'COSMOS_DATABASE'
-              value: cosmosDocumentsDatabaseName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDocumentsDatabaseName : ''
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: cosmosContainerName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosContainerName : ''
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: '/collection'
+              value: documentStoreBackend == 'cosmosdb' ? '/collection' : ''
+            }
+            {
+              name: 'MONGODB_HOST'
+              value: documentStoreBackend == 'mongodb' ? '${projectPrefix}-mongodb-${environment}' : ''
+            }
+            {
+              name: 'MONGODB_PORT'
+              value: documentStoreBackend == 'mongodb' ? '27017' : ''
+            }
+            {
+              name: 'MONGODB_DATABASE'
+              value: documentStoreBackend == 'mongodb' ? 'copilot' : ''
             }
             // Metrics adapter (Azure Monitor)
             {
@@ -1895,7 +2100,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2025-01-01' = {
       }
     }
   }
-  dependsOn: [authApp]
+  dependsOn: documentStoreBackend == 'mongodb' ? [authApp, mongoDbApp] : [authApp]
 }
 
 // Summarization service (port 8000)
@@ -1946,26 +2151,38 @@ resource summarizationApp 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
-            // Document Store adapter (Cosmos DB)
+            // Document Store adapter (Cosmos DB or MongoDB)
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'azure_cosmosdb'
+              value: documentStoreBackend == 'cosmosdb' ? 'azure_cosmosdb' : 'mongodb'
             }
             {
               name: 'COSMOS_ENDPOINT'
-              value: cosmosDbEndpoint
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDbEndpoint : ''
             }
             {
               name: 'COSMOS_DATABASE'
-              value: cosmosDocumentsDatabaseName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosDocumentsDatabaseName : ''
             }
             {
               name: 'COSMOS_CONTAINER'
-              value: cosmosContainerName
+              value: documentStoreBackend == 'cosmosdb' ? cosmosContainerName : ''
             }
             {
               name: 'COSMOS_PARTITION_KEY'
-              value: '/collection'
+              value: documentStoreBackend == 'cosmosdb' ? '/collection' : ''
+            }
+            {
+              name: 'MONGODB_HOST'
+              value: documentStoreBackend == 'mongodb' ? '${projectPrefix}-mongodb-${environment}' : ''
+            }
+            {
+              name: 'MONGODB_PORT'
+              value: documentStoreBackend == 'mongodb' ? '27017' : ''
+            }
+            {
+              name: 'MONGODB_DATABASE'
+              value: documentStoreBackend == 'mongodb' ? 'copilot' : ''
             }
             // Vector Store adapter (Qdrant or Azure AI Search)
             {
@@ -2166,7 +2383,9 @@ resource summarizationApp 'Microsoft.App/containerApps@2025-01-01' = {
       }
     }
   }
-  dependsOn: vectorStoreBackend == 'qdrant' ? [authApp, qdrantApp] : [authApp]
+  dependsOn: documentStoreBackend == 'mongodb'
+    ? (vectorStoreBackend == 'qdrant' ? [authApp, qdrantApp, mongoDbApp] : [authApp, mongoDbApp])
+    : (vectorStoreBackend == 'qdrant' ? [authApp, qdrantApp] : [authApp])
 }
 
 // UI service (port 3000)
@@ -2372,35 +2591,33 @@ output gatewayFqdn string = gatewayApp.properties.configuration.ingress.fqdn
 output githubOAuthRedirectUri string = 'https://${gatewayApp.properties.configuration.ingress.fqdn}/ui/callback'
 
 @description('Container App resource IDs by service')
-output appIds object = vectorStoreBackend == 'qdrant' ? {
-  auth: authApp.id
-  reporting: reportingApp.id
-  ingestion: ingestionApp.id
-  parsing: parsingApp.id
-  chunking: chunkingApp.id
-  embedding: embeddingApp.id
-  orchestrator: orchestratorApp.id
-  summarization: summarizationApp.id
-  ui: uiApp.id
-  gateway: gatewayApp.id
-  qdrant: qdrantApp!.id
-} : {
-  auth: authApp.id
-  reporting: reportingApp.id
-  ingestion: ingestionApp.id
-  parsing: parsingApp.id
-  chunking: chunkingApp.id
-  embedding: embeddingApp.id
-  orchestrator: orchestratorApp.id
-  summarization: summarizationApp.id
-  ui: uiApp.id
-  gateway: gatewayApp.id
-}
+output appIds object = union(
+  {
+    auth: authApp.id
+    reporting: reportingApp.id
+    ingestion: ingestionApp.id
+    parsing: parsingApp.id
+    chunking: chunkingApp.id
+    embedding: embeddingApp.id
+    orchestrator: orchestratorApp.id
+    summarization: summarizationApp.id
+    ui: uiApp.id
+    gateway: gatewayApp.id
+  },
+  vectorStoreBackend == 'qdrant' ? { qdrant: qdrantApp!.id } : {},
+  documentStoreBackend == 'mongodb' ? { mongodb: mongoDbApp!.id } : {}
+)
 
 @description('Qdrant vector database app name')
 output qdrantAppName string = vectorStoreBackend == 'qdrant' ? qdrantApp!.name : ''
 
 @description('Qdrant internal endpoint')
 output qdrantInternalEndpoint string = vectorStoreBackend == 'qdrant' ? 'http://${qdrantApp!.name}' : ''
+
+@description('MongoDB document store app name')
+output mongoDbAppName string = documentStoreBackend == 'mongodb' ? mongoDbApp!.name : ''
+
+@description('MongoDB internal endpoint')
+output mongoDbInternalEndpoint string = documentStoreBackend == 'mongodb' ? '${mongoDbApp!.name}:27017' : ''
 
 

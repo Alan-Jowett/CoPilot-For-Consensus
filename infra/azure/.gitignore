@@ -11,3 +11,5 @@ deployment-*.log
 main.json
 core.json
 modules/*.json
+# Un-ignore bicepconfig.json in modules/ (it's a config file, not a build artifact)
+!modules/bicepconfig.json
