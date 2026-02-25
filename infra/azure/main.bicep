@@ -71,6 +71,11 @@ param mongoDbAdminUsername string = 'mongoadmin'
 @secure()
 param mongoDbAdminPassword string = ''
 
+// Validate that a strong MongoDB admin password (≥12 chars) is always provided when selecting the
+// mongodb backend. This assert is evaluated during ARM preflight validation and rejects the
+// deployment before any resources are created, preventing an unauthenticated MongoDB instance.
+assert mongoDbPasswordRequired = documentStoreBackend != 'mongodb' || length(mongoDbAdminPassword) >= 12
+
 @description('VNet address space for Container Apps (CIDR notation)')
 param vnetAddressSpace string = '10.0.0.0/16'
 
