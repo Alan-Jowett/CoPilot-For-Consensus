@@ -37,6 +37,15 @@ param qdrantFileShareName string = 'qdrant-storage'
 @description('Qdrant file share quota in GB')
 param qdrantFileShareQuotaGb int = 5
 
+@description('Enable Azure Files share for MongoDB persistent storage')
+param enableMongoDbFileShare bool = false
+
+@description('MongoDB file share name')
+param mongoDbFileShareName string = 'mongodb-storage'
+
+@description('MongoDB file share quota in GB')
+param mongoDbFileShareQuotaGb int = 5
+
 @description('Tags applied to all storage resources')
 param tags object = {}
 
@@ -110,8 +119,8 @@ resource containers 'Microsoft.Storage/storageAccounts/blobServices/containers@2
   }
 }]
 
-// File Service for Azure Files (used for Qdrant persistent storage)
-resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-01-01' = if (enableQdrantFileShare) {
+// File Service for Azure Files (used for Qdrant and/or MongoDB persistent storage)
+resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-01-01' = if (enableQdrantFileShare || enableMongoDbFileShare) {
   parent: storageAccount
   name: 'default'
   properties: {
@@ -129,6 +138,18 @@ resource qdrantFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@
   name: qdrantFileShareName
   properties: {
     shareQuota: qdrantFileShareQuotaGb
+    enabledProtocols: 'SMB'
+    accessTier: 'TransactionOptimized'
+  }
+}
+
+// Azure Files share for MongoDB persistent storage
+// This provides durable storage for MongoDB's data directory, enabling scale-to-zero
+resource mongoDbFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = if (enableMongoDbFileShare) {
+  parent: fileService
+  name: mongoDbFileShareName
+  properties: {
+    shareQuota: mongoDbFileShareQuotaGb
     enabledProtocols: 'SMB'
     accessTier: 'TransactionOptimized'
   }
@@ -168,3 +189,9 @@ output qdrantFileShareName string = enableQdrantFileShare ? qdrantFileShare.name
 
 @description('Qdrant file share enabled status')
 output qdrantFileShareEnabled bool = enableQdrantFileShare
+
+@description('MongoDB file share name (if enabled)')
+output mongoDbFileShareName string = enableMongoDbFileShare ? mongoDbFileShare.name : ''
+
+@description('MongoDB file share enabled status')
+output mongoDbFileShareEnabled bool = enableMongoDbFileShare

@@ -41,6 +41,9 @@
     "cosmosDbAutoscaleMaxRu": {
       "value": 1000
     },
+    "documentStoreBackend": {
+      "value": "cosmosdb"
+    },
     "serviceBusSku": {
       "value": "Standard"
     },
