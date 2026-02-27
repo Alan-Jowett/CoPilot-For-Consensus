@@ -22,8 +22,14 @@ param subnetAddressPrefix string = '10.0.0.0/23'
 @description('Private Endpoints subnet address prefix (CIDR notation)')
 param privateEndpointSubnetPrefix string = '10.0.2.0/24'
 
+@description('Gateway VM subnet address prefix (CIDR notation)')
+param gatewaySubnetPrefix string = '10.0.3.0/24'
+
 @description('Enable private endpoint subnet creation')
 param enablePrivateEndpointSubnet bool = false
+
+@description('Enable gateway VM subnet creation')
+param enableGatewaySubnet bool = true
 
 param tags object = {}
 
@@ -32,6 +38,7 @@ var projectPrefix = take(replace(projectName, '-', ''), 8)
 var vnetName = '${projectPrefix}-vnet-${environment}-${take(uniqueSuffix, 5)}'
 var containerAppsSubnetName = '${projectPrefix}-ca-subnet-${environment}'
 var privateEndpointSubnetName = '${projectPrefix}-pe-subnet-${environment}'
+var gatewaySubnetName = '${projectPrefix}-gw-subnet-${environment}'
 
 // Virtual Network
 resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
@@ -44,7 +51,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
         vnetAddressSpace
       ]
     }
-    subnets: enablePrivateEndpointSubnet ? [
+    subnets: enablePrivateEndpointSubnet ? (enableGatewaySubnet ? [
       {
         name: containerAppsSubnetName
         properties: {
@@ -66,6 +73,12 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
           privateEndpointNetworkPolicies: 'Disabled'
         }
       }
+      {
+        name: gatewaySubnetName
+        properties: {
+          addressPrefix: gatewaySubnetPrefix
+        }
+      }
     ] : [
       {
         name: containerAppsSubnetName
@@ -81,7 +94,50 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
           ]
         }
       }
-    ]
+      {
+        name: privateEndpointSubnetName
+        properties: {
+          addressPrefix: privateEndpointSubnetPrefix
+          privateEndpointNetworkPolicies: 'Disabled'
+        }
+      }
+    ]) : (enableGatewaySubnet ? [
+      {
+        name: containerAppsSubnetName
+        properties: {
+          addressPrefix: subnetAddressPrefix
+          delegations: [
+            {
+              name: 'Microsoft.App.environments'
+              properties: {
+                serviceName: 'Microsoft.App/environments'
+              }
+            }
+          ]
+        }
+      }
+      {
+        name: gatewaySubnetName
+        properties: {
+          addressPrefix: gatewaySubnetPrefix
+        }
+      }
+    ] : [
+      {
+        name: containerAppsSubnetName
+        properties: {
+          addressPrefix: subnetAddressPrefix
+          delegations: [
+            {
+              name: 'Microsoft.App.environments'
+              properties: {
+                serviceName: 'Microsoft.App/environments'
+              }
+            }
+          ]
+        }
+      }
+    ])
   }
 }
 
@@ -94,6 +150,9 @@ output containerAppsSubnetId string = '${vnet.id}/subnets/${containerAppsSubnetN
 
 @description('Private Endpoint Subnet ID')
 output privateEndpointSubnetId string = enablePrivateEndpointSubnet ? '${vnet.id}/subnets/${privateEndpointSubnetName}' : ''
+
+@description('Gateway Subnet ID')
+output gatewaySubnetId string = enableGatewaySubnet ? '${vnet.id}/subnets/${gatewaySubnetName}' : ''
 
 @description('Virtual Network Name')
 output vnetName string = vnet.name

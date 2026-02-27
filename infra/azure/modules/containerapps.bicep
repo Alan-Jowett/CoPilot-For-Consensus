@@ -2241,7 +2241,7 @@ resource uiApp 'Microsoft.App/containerApps@2025-01-01' = {
   }
 }
 
-// Gateway service (port 443, external ingress only)
+// Gateway service (internal ingress only - external access via VM gateway)
 resource gatewayApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${projectPrefix}-gateway-${environment}'
   location: location
@@ -2257,7 +2257,7 @@ resource gatewayApp 'Microsoft.App/containerApps@2025-01-01' = {
     workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
-        external: true
+        external: false  // Changed to internal-only to eliminate Load Balancer costs
         targetPort: servicePorts.gateway
         allowInsecure: false
         transport: 'http'
@@ -2365,11 +2365,28 @@ module envDiagnostics 'diagnosticsettings.bicep' = if (enableBlobLogArchiving &&
 @description('Container Apps Environment ID')
 output containerAppsEnvId string = containerAppsEnv.id
 
-@description('Gateway FQDN for external access')
+@description('Gateway internal FQDN (for VM-based gateway routing)')
+output gatewayInternalFqdn string = gatewayApp.properties.configuration.ingress.fqdn
+
+@description('Gateway FQDN for external access (deprecated - use VM gateway instead)')
 output gatewayFqdn string = gatewayApp.properties.configuration.ingress.fqdn
 
 @description('GitHub OAuth redirect URI (computed from gateway FQDN)')
 output githubOAuthRedirectUri string = 'https://${gatewayApp.properties.configuration.ingress.fqdn}/ui/callback'
+
+@description('Internal FQDNs for all Container Apps services (for VM gateway routing)')
+output serviceFqdns object = {
+  reporting: reportingApp.properties.configuration.ingress.fqdn
+  ingestion: ingestionApp.properties.configuration.ingress.fqdn
+  auth: authApp.properties.configuration.ingress.fqdn
+  ui: uiApp.properties.configuration.ingress.fqdn
+  orchestrator: orchestratorApp.properties.configuration.ingress.fqdn
+  summarization: summarizationApp.properties.configuration.ingress.fqdn
+  parsing: parsingApp.properties.configuration.ingress.fqdn
+  chunking: chunkingApp.properties.configuration.ingress.fqdn
+  embedding: embeddingApp.properties.configuration.ingress.fqdn
+  gateway: gatewayApp.properties.configuration.ingress.fqdn
+}
 
 @description('Container App resource IDs by service')
 output appIds object = vectorStoreBackend == 'qdrant' ? {

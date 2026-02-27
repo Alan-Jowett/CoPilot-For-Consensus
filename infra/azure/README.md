@@ -46,6 +46,7 @@ See [Two-RG Deployment Guide](#two-rg-deployment-guide) for detailed instruction
 
 ## Related Documentation
 
+- **[VM-Based Gateway Architecture](VM_GATEWAY_ARCHITECTURE.md)** - **NEW**: Cost-optimized gateway using VM instead of Load Balancer (saves ~$10-15/month)
 - **[Scale-to-Zero Configuration](SCALE_TO_ZERO_CONFIGURATION.md)** - Container Apps scale-to-zero setup for cost optimization with KEDA
 - **[Azure OpenAI Configuration Guide](OPENAI_CONFIGURATION.md)** - Detailed guide for configuring Azure OpenAI, model selection, and cost optimization
 - **[Bicep Architecture](BICEP_ARCHITECTURE.md)** - Infrastructure architecture and module design
@@ -1699,21 +1700,32 @@ az containerapp exec \
 
 Approximate monthly costs for a development deployment (prices vary by region):
 
-| Resource | SKU | Estimated Cost (Always-On) | Estimated Cost (Scale-to-Zero) |
-|----------|-----|----------------|----------------|
-| Container Apps Environment | Consumption | ~$50/month | ~$50/month |
-| Container Apps (10-11 services) | 0.5-1.0 vCPU, 1-2GB RAM | ~$200-400/month | ~$130-260/month (35% reduction) |
-| Cosmos DB for MongoDB | 400 RU/s | ~$25/month | ~$25/month |
-| Azure Service Bus | Standard | ~$10/month | ~$10/month |
-| Storage Account | Standard LRS, 100GB | ~$2/month | ~$2/month |
-| Log storage (archived) | Blob Storage (NDJSON) | typically low (usage-dependent) | typically low (usage-dependent) |
-| Key Vault | Standard | ~$1/month | ~$1/month |
-| Azure OpenAI | GPT-4, 1M tokens | ~$30/month | ~$30/month |
+| Resource | SKU | Estimated Cost (Always-On) | Estimated Cost (Scale-to-Zero) | Estimated Cost (VM Gateway) |
+|----------|-----|----------------|----------------|----------------|
+| **Gateway** | **VM B1ls** | **N/A** | **N/A** | **~$3-5/month** |
+| ~~Load Balancer~~ | ~~Standard~~ | ~~$18/month~~ | ~~$18/month~~ | ~~Eliminated~~ |
+| Container Apps Environment | Consumption | ~$50/month | ~$50/month | ~$50/month |
+| Container Apps (10-11 services) | 0.5-1.0 vCPU, 1-2GB RAM | ~$200-400/month | ~$130-260/month (35% reduction) | ~$130-260/month |
+| Cosmos DB for MongoDB | 400 RU/s | ~$25/month | ~$25/month | ~$25/month |
+| Azure Service Bus | Standard | ~$10/month | ~$10/month | ~$10/month |
+| Storage Account | Standard LRS, 100GB | ~$2/month | ~$2/month | ~$2/month |
+| Log storage (archived) | Blob Storage (NDJSON) | typically low (usage-dependent) | typically low (usage-dependent) | typically low |
+| Key Vault | Standard | ~$1/month | ~$1/month | ~$1/month |
+| Azure OpenAI | GPT-4, 1M tokens | ~$30/month | ~$30/month | ~$30/month |
 
 **Total Estimated Cost**: 
-- **Always-on**: ~$325-525/month for development
-- **Scale-to-zero**: ~$250-380/month for development
-- **Annual savings**: ~$900-1,740/year with scale-to-zero configuration
+- **Always-on (old architecture)**: ~$325-525/month for development
+- **Scale-to-zero (old architecture)**: ~$250-380/month for development
+- **VM Gateway + Scale-to-zero (NEW)**: ~$235-365/month for development
+- **Annual savings vs always-on**: ~$1,080-1,920/year with VM gateway + scale-to-zero
+- **Annual savings vs scale-to-zero alone**: ~$180/year with VM gateway optimization
+
+**VM-Based Gateway Benefits** (see [VM Gateway Architecture](VM_GATEWAY_ARCHITECTURE.md)):
+- **Eliminates Load Balancer costs**: ~$10-15/month savings
+- Small B1ls VM costs only ~$3-5/month (75-83% cheaper than Load Balancer)
+- All Container Apps remain internal-only (no external ingress)
+- Preserves all scale-to-zero functionality
+- No application code changes required
 
 **Scale-to-Zero Benefits** (see [Scale-to-Zero Configuration](SCALE_TO_ZERO_CONFIGURATION.md)):
 - All services scale to 0 replicas when idle (no HTTP traffic or Service Bus messages)
