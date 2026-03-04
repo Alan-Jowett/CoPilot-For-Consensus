@@ -22,7 +22,7 @@ click==8.3.1
     # via uvicorn
 cryptography==46.0.5
     # via -r requirements.in
-fastapi==0.133.0
+fastapi==0.135.1
     # via -r requirements.in
 h11==0.16.0
     # via
@@ -46,7 +46,7 @@ pydantic-core==2.41.5
     # via pydantic
 pyjwt==2.11.0
     # via -r requirements.in
-python-dotenv==1.2.1
+python-dotenv==1.2.2
     # via -r requirements.in
 starlette==0.52.1
     # via fastapi
