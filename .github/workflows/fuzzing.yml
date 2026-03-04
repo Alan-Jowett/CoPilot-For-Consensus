@@ -171,7 +171,7 @@ jobs:
 
       - name: Upload hypothesis test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: hypothesis-test-results
           path: |
@@ -181,7 +181,7 @@ jobs:
 
       - name: Upload JWT fuzzing test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: jwt-fuzzing-test-results
           path: fuzzing/jwt-fuzzing-results.xml
@@ -189,7 +189,7 @@ jobs:
 
       - name: Upload schemathesis test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: schemathesis-test-results
           path: fuzzing/schemathesis-results.xml
@@ -197,7 +197,7 @@ jobs:
       
       - name: Upload auth callback test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: auth-callback-test-results
           path: fuzzing/auth-callback-results.xml
