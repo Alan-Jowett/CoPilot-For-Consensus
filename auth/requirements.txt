@@ -26,7 +26,7 @@ click==8.3.1
     # via uvicorn
 cryptography==46.0.5
     # via -r requirements.in
-fastapi==0.133.0
+fastapi==0.135.1
     # via -r requirements.in
 h11==0.16.0
     # via
@@ -56,7 +56,7 @@ pydantic-core==2.41.5
     # via pydantic
 pydantic-settings==2.13.1
     # via -r requirements.in
-pyjwt==2.11.0
+pyjwt==2.12.1
     # via -r requirements.in
 python-dotenv==1.2.1
     # via
@@ -85,7 +85,7 @@ typing-inspection==0.4.2
     #   pydantic-settings
 urllib3==2.6.3
     # via requests
-uvicorn==0.41.0 ; platform_system != "Windows"
+uvicorn==0.42.0 ; platform_system != "Windows"
     # via -r requirements.in
 uvloop==0.22.1
     # via uvicorn
