@@ -3,7 +3,7 @@
 
 # Azure-optimized Dockerfile for summarization service
 # Uses Azure OpenAI for LLM inference, excludes local models
-FROM python:3.13-slim@sha256:fbc43b66207d7e2966b5f06e86f2bc46aa4b10f34bf97784f3a10da80b1d6f0b
+FROM python:3.13.13-slim@sha256:2ba73a4dc380f21137fc75296abfa2add90b51fd10b609ce530b40cc097269b1
 
 WORKDIR /app
 
