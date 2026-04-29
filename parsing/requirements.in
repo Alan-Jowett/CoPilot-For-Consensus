@@ -9,10 +9,10 @@
 # via scripts/install_adapters.py and are not included in this lockfile.
 
 beautifulsoup4>=4.14.3
-fastapi>=0.127.0
+fastapi>=0.136.1
 httpx>=0.28.1
-uvicorn>=0.40.0
-prometheus-client>=0.24.1
+uvicorn>=0.46.0
+prometheus-client>=0.25.0
 # Authentication
-PyJWT>=2.10.1
+PyJWT>=2.12.1
 cryptography>=46.0.3
