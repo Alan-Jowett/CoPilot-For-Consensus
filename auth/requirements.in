@@ -14,7 +14,7 @@ fastapi>=0.127.0
 # Use standard extras on non-Windows, and plain uvicorn on Windows.
 uvicorn>=0.40.0; platform_system == "Windows"
 uvicorn[standard]>=0.40.0; platform_system != "Windows"
-python-multipart>=0.0.20
+python-multipart>=0.0.27
 
 # Monitoring
 prometheus-client>=0.24.1
