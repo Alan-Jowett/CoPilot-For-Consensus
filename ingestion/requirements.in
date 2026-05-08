@@ -16,7 +16,7 @@ fastapi>=0.127.0
 uvicorn>=0.40.0; platform_system == "Windows"
 uvicorn[standard]>=0.40.0; platform_system != "Windows"
 httpx>=0.28.1  # Required for FastAPI TestClient
-python-multipart>=0.0.20  # Required for file upload support
+python-multipart>=0.0.27  # Required for file upload support
 # Authentication
 PyJWT>=2.10.1
 cryptography>=46.0.3
