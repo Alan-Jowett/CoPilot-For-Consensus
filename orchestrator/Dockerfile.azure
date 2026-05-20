@@ -3,7 +3,7 @@
 
 # Azure-optimized Dockerfile for orchestrator service
 # Uses Azure OpenAI instead of local LLMs
-FROM python:3.13-slim@sha256:fbc43b66207d7e2966b5f06e86f2bc46aa4b10f34bf97784f3a10da80b1d6f0b
+FROM python:3.13.13-slim@sha256:18cc6593e581272380a43e00d7230cebabb675a183e3434a3971b550b555b6b2
 
 WORKDIR /app
 
